@@ -23,52 +23,78 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [schoolName, setSchoolName] = useState("");
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+    let isMounted = true;
 
-        if (session?.user) {
-          try {
-            // Fetch role
-            const { data: roleData } = await supabase
-              .from("user_roles")
-              .select("role")
-              .eq("user_id", session.user.id)
-              .single();
+    const resetUserState = () => {
+      if (!isMounted) return;
+      setUserRole(null);
+      setIsAdmin(false);
+      setSchoolName("");
+    };
 
-            const role = roleData?.role || null;
-            setUserRole(role);
-            setIsAdmin(role === "admin");
+    const loadUserData = async (userId: string) => {
+      try {
+        const [roleRes, profileRes] = await Promise.all([
+          supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", userId)
+            .maybeSingle(),
+          supabase
+            .from("profiles")
+            .select("school_name")
+            .eq("id", userId)
+            .maybeSingle(),
+        ]);
 
-            // Fetch profile
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("school_name")
-              .eq("id", session.user.id)
-              .single();
+        if (!isMounted) return;
 
-            setSchoolName(profile?.school_name || "");
-          } catch (error) {
-            console.error("Error fetching user data:", error);
-            setUserRole(null);
-            setIsAdmin(false);
-            setSchoolName("");
-          }
-        } else {
-          setUserRole(null);
-          setIsAdmin(false);
-          setSchoolName("");
-        }
-        setLoading(false);
+        const role = roleRes.data?.role || null;
+        setUserRole(role);
+        setIsAdmin(role === "admin");
+        setSchoolName(profileRes.data?.school_name || "");
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+        resetUserState();
       }
-    );
+    };
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) setLoading(false);
+    const handleSession = async (nextSession: Session | null) => {
+      if (!isMounted) return;
+
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+
+      if (nextSession?.user) {
+        await loadUserData(nextSession.user.id);
+      } else {
+        resetUserState();
+      }
+
+      if (isMounted) setLoading(false);
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      void handleSession(nextSession);
     });
 
-    return () => subscription.unsubscribe();
+    const init = async () => {
+      try {
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        await handleSession(initialSession);
+      } catch (error) {
+        console.error("Error initializing auth:", error);
+        resetUserState();
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    void init();
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
