@@ -1,3 +1,6 @@
+// الحسابات التي تستخدم (منه/له) بدلاً من (من/إلى)
+export const ASSET_ACCOUNTS: readonly string[] = ["cashBox", "bank", "advances"] as const;
+
 export const ACCOUNT_COLUMNS = [
   { id: "cashBox", label: "الصندوق" },
   { id: "bank", label: "البنك" },
@@ -9,6 +12,10 @@ export const ACCOUNT_COLUMNS = [
   { id: "deposits", label: "الأمانات" },
   { id: "mySchool", label: "مدرستي أنتمي" },
 ] as const;
+
+export function isAssetAccount(id: string): boolean {
+  return ASSET_ACCOUNTS.includes(id);
+}
 
 export type AccountColumnId = typeof ACCOUNT_COLUMNS[number]["id"];
 
