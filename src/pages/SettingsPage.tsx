@@ -13,6 +13,7 @@ export default function SettingsPage() {
   const { toast } = useToast();
 
   const [schoolName, setSchoolName] = useState(state.schoolName);
+  const [directorateName, setDirectorateName] = useState(state.directorateName);
   const [month, setMonth] = useState(state.currentMonth);
   const [year, setYear] = useState(state.currentYear);
   const [balances, setBalances] = useState<OpeningBalance[]>([...state.openingBalances]);
@@ -26,7 +27,7 @@ export default function SettingsPage() {
 
   const handleSave = () => {
     setOpeningBalances(balances);
-    updateSettings(schoolName, month, year);
+    updateSettings(schoolName, directorateName, month, year);
     toast({ title: "تم الحفظ", description: "تم حفظ الإعدادات بنجاح" });
   };
 
@@ -48,6 +49,10 @@ export default function SettingsPage() {
             <div className="space-y-2">
               <Label>اسم المدرسة</Label>
               <Input value={schoolName} onChange={(e) => setSchoolName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>المركز (اسم المديرية)</Label>
+              <Input value={directorateName} onChange={(e) => setDirectorateName(e.target.value)} placeholder="مثال: مديرية التربية والتعليم لمنطقة..." />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

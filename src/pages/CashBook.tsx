@@ -276,6 +276,7 @@ export default function CashBook() {
           <PrintVoucher
             transaction={printTx}
             schoolName={state.schoolName}
+            directorateName={state.directorateName}
             onClose={() => setPrintTx(null)}
           />
         )}
