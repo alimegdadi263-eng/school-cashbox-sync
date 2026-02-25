@@ -47,6 +47,14 @@ export async function generatePaymentVoucherDocx(tx: Transaction, schoolName: st
   const totalCredit = getTotalCredit(tx);
   const totalSplit = splitAmount(totalCredit);
 
+  // Determine "مطلوب إلى" based on type
+  let requestedTo = tx.description;
+  if (tx.type === "advance_withdrawal") {
+    requestedTo = "سلفة يد";
+  } else if (tx.type === "advance_payment") {
+    requestedTo = tx.description || "مجموعة فواتير";
+  }
+
   const detailRows = credits.map(c => {
     const s = splitAmount(c.amount);
     return new TableRow({ children: [
@@ -91,7 +99,7 @@ export async function generatePaymentVoucherDocx(tx: Transaction, schoolName: st
         ]}),
         // مطلوب إلى
         new Paragraph({ bidirectional: true, spacing: { after: 200 }, children: [
-          new TextRun({ text: `مطلوب إلى: ${tx.description}`, font: "Traditional Arabic", size: 24, rightToLeft: true }),
+          new TextRun({ text: `مطلوب إلى: ${requestedTo}`, font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
         // Table
         new Table({
