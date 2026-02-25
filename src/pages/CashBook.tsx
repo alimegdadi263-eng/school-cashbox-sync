@@ -5,7 +5,8 @@ import { ACCOUNT_COLUMNS, TRANSACTION_TYPE_LABELS, Transaction, isAssetAccount }
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Printer, Download } from "lucide-react";
+import { Trash2, Printer, Download, FileDown } from "lucide-react";
+import { fillJournalVoucher, fillPaymentVoucher } from "@/lib/fillDocxTemplate";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import PrintVoucher from "@/components/PrintVoucher";
@@ -213,6 +214,20 @@ export default function CashBook() {
                         ))}
                         <td className="py-2.5 px-2 border border-border">
                           <div className="flex gap-1 justify-center">
+                            {(tx.type === "journal" || tx.type === "payment" || tx.type === "advance_withdrawal" || tx.type === "advance_payment") && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  if (tx.type === "journal") fillJournalVoucher(tx, state.schoolName, state.directorateName);
+                                  else fillPaymentVoucher(tx, state.schoolName, state.directorateName);
+                                }}
+                                className="h-7 w-7 p-0 text-muted-foreground hover:text-accent-foreground"
+                                title="تنزيل وورد"
+                              >
+                                <FileDown className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
