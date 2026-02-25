@@ -6,13 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, Users, Trash2 } from "lucide-react";
+import { UserPlus, Users, ShieldCheck, ShieldOff } from "lucide-react";
 
 interface SchoolUser {
   id: string;
   school_name: string;
   email: string;
   role: string;
+  is_active: boolean;
+  subscription_expires_at: string | null;
 }
 
 export default function AdminUsers() {
@@ -26,10 +28,9 @@ export default function AdminUsers() {
   const fetchUsers = async () => {
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, school_name");
+      .select("id, school_name, is_active, subscription_expires_at");
 
     if (profiles) {
-      // Get roles for each profile
       const { data: roles } = await supabase
         .from("user_roles")
         .select("user_id, role");
@@ -39,6 +40,8 @@ export default function AdminUsers() {
         school_name: p.school_name || "",
         email: "",
         role: roles?.find((r) => r.user_id === p.id)?.role || "school",
+        is_active: p.is_active,
+        subscription_expires_at: p.subscription_expires_at,
       }));
       setUsers(userList);
     }
@@ -57,7 +60,6 @@ export default function AdminUsers() {
 
     setLoading(true);
     try {
-      // Use edge function to create user
       const { data, error } = await supabase.functions.invoke("create-school-user", {
         body: { email, password, schoolName },
       });
@@ -81,11 +83,29 @@ export default function AdminUsers() {
     }
   };
 
+  const toggleUserActive = async (userId: string, currentlyActive: boolean) => {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ is_active: !currentlyActive })
+      .eq("id", userId);
+
+    if (error) {
+      toast({ title: "خطأ", description: "فشل في تحديث الحالة", variant: "destructive" });
+    } else {
+      toast({
+        title: "تم",
+        description: currentlyActive ? "تم إيقاف الاشتراك" : "تم تفعيل الاشتراك",
+      });
+      fetchUsers();
+    }
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6 max-w-3xl">
         <h1 className="text-2xl font-bold text-foreground">إدارة المستخدمين</h1>
 
+        {/* Create user form */}
         <Card className="shadow-card">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -133,6 +153,7 @@ export default function AdminUsers() {
           </CardContent>
         </Card>
 
+        {/* Users list */}
         <Card className="shadow-card">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -147,19 +168,42 @@ export default function AdminUsers() {
               <div className="space-y-2">
                 {users.map((user) => (
                   <div key={user.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                    <div>
+                    <div className="flex-1">
                       <p className="font-medium text-sm">{user.school_name || "بدون اسم"}</p>
                       <p className="text-xs text-muted-foreground">
                         {user.role === "admin" ? "مدير النظام" : "مدرسة"}
+                        {user.role !== "admin" && (
+                          <span className={`mr-2 ${user.is_active ? "text-success" : "text-destructive"}`}>
+                            • {user.is_active ? "نشط" : "موقوف"}
+                          </span>
+                        )}
                       </p>
                     </div>
-                    <span className={`px-2 py-1 rounded text-[10px] font-semibold ${
-                      user.role === "admin" 
-                        ? "bg-primary/10 text-primary" 
-                        : "bg-success/10 text-success"
-                    }`}>
-                      {user.role === "admin" ? "مدير" : "مدرسة"}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 rounded text-[10px] font-semibold ${
+                        user.role === "admin"
+                          ? "bg-primary/10 text-primary"
+                          : user.is_active
+                            ? "bg-success/10 text-success"
+                            : "bg-destructive/10 text-destructive"
+                      }`}>
+                        {user.role === "admin" ? "مدير" : user.is_active ? "مفعّل" : "موقوف"}
+                      </span>
+                      {user.role !== "admin" && (
+                        <Button
+                          size="sm"
+                          variant={user.is_active ? "destructive" : "default"}
+                          onClick={() => toggleUserActive(user.id, user.is_active)}
+                          className="text-xs h-7 px-3"
+                        >
+                          {user.is_active ? (
+                            <><ShieldOff className="w-3 h-3 ml-1" /> إيقاف</>
+                          ) : (
+                            <><ShieldCheck className="w-3 h-3 ml-1" /> تفعيل</>
+                          )}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

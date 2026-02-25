@@ -7,6 +7,8 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   isAdmin: boolean;
+  isActive: boolean;
+  subscriptionExpiresAt: string | null;
   userRole: string | null;
   schoolName: string;
   signOut: () => Promise<void>;
@@ -19,6 +21,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isActive, setIsActive] = useState(true);
+  const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [schoolName, setSchoolName] = useState("");
 
@@ -29,6 +33,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!isMounted) return;
       setUserRole(null);
       setIsAdmin(false);
+      setIsActive(true);
+      setSubscriptionExpiresAt(null);
       setSchoolName("");
     };
 
@@ -42,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             .maybeSingle(),
           supabase
             .from("profiles")
-            .select("school_name")
+            .select("school_name, is_active, subscription_expires_at")
             .eq("id", userId)
             .maybeSingle(),
         ]);
@@ -52,6 +58,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const role = roleRes.data?.role || null;
         setUserRole(role);
         setIsAdmin(role === "admin");
+        setIsActive(role === "admin" ? true : (profileRes.data?.is_active ?? true));
+        setSubscriptionExpiresAt(profileRes.data?.subscription_expires_at || null);
         setSchoolName(profileRes.data?.school_name || "");
       } catch (error) {
         console.error("Error fetching user data:", error);
@@ -102,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isAdmin, userRole, schoolName, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isAdmin, isActive, subscriptionExpiresAt, userRole, schoolName, signOut }}>
       {children}
     </AuthContext.Provider>
   );

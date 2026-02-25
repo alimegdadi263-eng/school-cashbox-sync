@@ -13,13 +13,15 @@ import SettingsPage from "./pages/SettingsPage";
 import AdminUsers from "./pages/AdminUsers";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import SubscriptionExpired from "./components/SubscriptionExpired";
 
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, isActive, isAdmin } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">جاري التحميل...</div>;
   if (!user) return <Navigate to="/login" replace />;
+  if (!isAdmin && !isActive) return <SubscriptionExpired />;
   return <>{children}</>;
 }
 
