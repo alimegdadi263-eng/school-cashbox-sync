@@ -71,6 +71,9 @@ export default function AppSidebar() {
         <p className="text-sidebar-foreground/40 text-xs text-center">
           {isAdmin ? "مدير النظام" : "مدرسة"} • الإصدار 1.0
         </p>
+        <p className="text-sidebar-foreground/40 text-[10px] text-center mt-1">
+          © {new Date().getFullYear()} Ali Megdadi. جميع الحقوق محفوظة
+        </p>
       </div>
     </aside>
   );
