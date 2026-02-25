@@ -62,14 +62,14 @@ export default function TransactionPage() {
         amounts[sourceAccount].credit = amount;
         break;
       case "advance_withdrawal":
-        // سحب سلفة يد: من الصندوق الى السلفة
-        amounts.cashBox.debit = amount;
+        // سحب سلفة يد: من التبرعات الى السلفة
+        amounts.donations.debit = amount;
         amounts.advances.credit = amount;
         break;
       case "advance_payment":
-        // صرف السلفة: من السلفة الى الصندوق
+        // صرف السلفة: من السلفة الى البنك
         amounts.advances.debit = amount;
-        amounts.cashBox.credit = amount;
+        amounts.bank.credit = amount;
         break;
     }
 
@@ -119,8 +119,8 @@ export default function TransactionPage() {
       case "receipt": return "من البنك → الى الصندوق";
       case "payment": return `من ${getAccountLabel(sourceAccount)} → الى البنك`;
       case "journal": return `من الصندوق → الى ${getAccountLabel(sourceAccount)}`;
-      case "advance_withdrawal": return "من الصندوق → الى السلفة";
-      case "advance_payment": return "من السلفة → الى الصندوق";
+      case "advance_withdrawal": return "من التبرعات → الى السلفة";
+      case "advance_payment": return "من السلفة → الى البنك";
     }
   };
 
