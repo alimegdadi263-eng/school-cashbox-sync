@@ -5,6 +5,7 @@ import {
   PlusCircle, 
   Settings, 
   FileText,
+  FolderOpen,
   School,
   Users,
   LogOut,
@@ -21,6 +22,7 @@ export default function AppSidebar() {
     { path: "/cashbook", label: "دفتر الصندوق", icon: BookOpen },
     { path: "/transaction", label: "إضافة حركة", icon: PlusCircle },
     { path: "/summary", label: "خلاصة الحسابات", icon: FileText },
+    { path: "/forms", label: "المعاملات المالية", icon: FolderOpen },
     { path: "/settings", label: "الإعدادات", icon: Settings },
     ...(isAdmin ? [{ path: "/users", label: "إدارة المستخدمين", icon: Users }] : []),
   ];
