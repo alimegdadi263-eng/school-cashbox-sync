@@ -1,5 +1,8 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Transaction, TRANSACTION_TYPE_LABELS, ACCOUNT_COLUMNS, AccountColumnId } from "@/types/finance";
+import { generateJournalVoucherDocx } from "@/lib/generateJournalVoucherDocx";
+import { generatePaymentVoucherDocx } from "@/lib/generatePaymentVoucherDocx";
+import { Download } from "lucide-react";
 
 interface PrintVoucherProps {
   transaction: Transaction;
@@ -95,6 +98,18 @@ export default function PrintVoucher({ transaction: tx, schoolName, onClose }: P
         <div className="flex items-center justify-between p-4 border-b bg-muted/50 sticky top-0">
           <h3 className="font-bold text-foreground">معاينة {TRANSACTION_TYPE_LABELS[tx.type]}</h3>
           <div className="flex gap-2">
+            {(tx.type === "journal" || tx.type === "payment") && (
+              <button
+                onClick={() => {
+                  if (tx.type === "journal") generateJournalVoucherDocx(tx, schoolName);
+                  else generatePaymentVoucherDocx(tx, schoolName);
+                }}
+                className="px-4 py-2 bg-accent text-accent-foreground rounded-md text-sm font-medium hover:bg-accent/90 flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                تنزيل وورد
+              </button>
+            )}
             <button onClick={handlePrint} className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90">
               طباعة
             </button>
