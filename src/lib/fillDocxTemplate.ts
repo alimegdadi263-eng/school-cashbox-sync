@@ -39,6 +39,9 @@ function createDoc(zip: PizZip): Docxtemplater {
     paragraphLoop: true,
     linebreaks: true,
     delimiters: { start: "{{", end: "}}" },
+    nullGetter() {
+      return "";
+    },
   });
 }
 
