@@ -2,7 +2,7 @@ import { useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import { useFinance } from "@/context/FinanceContext";
 import { ACCOUNT_COLUMNS, TRANSACTION_TYPE_LABELS, Transaction } from "@/types/finance";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2, Printer } from "lucide-react";
@@ -44,6 +44,8 @@ export default function CashBook() {
                 <SelectItem value="receipt">قبض</SelectItem>
                 <SelectItem value="payment">صرف</SelectItem>
                 <SelectItem value="journal">قيد</SelectItem>
+                <SelectItem value="advance_withdrawal">سحب سلفة</SelectItem>
+                <SelectItem value="advance_payment">صرف سلفة</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -59,6 +61,7 @@ export default function CashBook() {
                     <th className="py-3 px-2 text-right" rowSpan={2}>التاريخ</th>
                     <th className="py-3 px-2 text-right" rowSpan={2}>البيان</th>
                     <th className="py-3 px-2 text-center" rowSpan={2}>النوع</th>
+                    <th className="py-3 px-2 text-center" rowSpan={2}>رقم الشيك</th>
                     {ACCOUNT_COLUMNS.map((col) => (
                       <th key={col.id} className="py-2 px-1 text-center border-r border-primary-foreground/20" colSpan={2}>
                         {col.label}
@@ -66,22 +69,16 @@ export default function CashBook() {
                     ))}
                     <th className="py-3 px-2" rowSpan={2}></th>
                   </tr>
-                  <tr className="bg-primary/90 text-primary-foreground">
+                  <tr className="bg-primary/80 text-primary-foreground text-[10px]">
                     {ACCOUNT_COLUMNS.map((col) => (
-                      <th key={col.id + "-sub"} className="py-1 px-1 text-center border-r border-primary-foreground/20" colSpan={1}>
-                        {/* We split the header into two separate th for من and الى */}
+                      <th key={col.id + "-sub"} className="py-1 px-1 text-center border-r border-primary-foreground/20" colSpan={2}>
+                        <span className="inline-flex gap-2">
+                          <span>من</span>
+                          <span>|</span>
+                          <span>الى</span>
+                        </span>
                       </th>
                     ))}
-                  </tr>
-                  <tr className="bg-primary/80 text-primary-foreground text-[10px]">
-                    <th colSpan={4}></th>
-                    {ACCOUNT_COLUMNS.map((col) => (
-                      <>
-                        <th key={col.id + "-d"} className="py-1 px-1 text-center border-r border-primary-foreground/20">من</th>
-                        <th key={col.id + "-c"} className="py-1 px-1 text-center">الى</th>
-                      </>
-                    ))}
-                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -90,6 +87,7 @@ export default function CashBook() {
                     <td className="py-2 px-2">-</td>
                     <td className="py-2 px-2">-</td>
                     <td className="py-2 px-2">الرصيد الافتتاحي</td>
+                    <td className="py-2 px-2 text-center">-</td>
                     <td className="py-2 px-2 text-center">-</td>
                     {ACCOUNT_COLUMNS.map((col) => {
                       const ob = state.openingBalances.find((b) => b.column === col.id);
@@ -105,7 +103,7 @@ export default function CashBook() {
 
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={4 + ACCOUNT_COLUMNS.length * 2 + 1} className="py-8 text-center text-muted-foreground">
+                      <td colSpan={5 + ACCOUNT_COLUMNS.length * 2 + 1} className="py-8 text-center text-muted-foreground">
                         لا توجد حركات
                       </td>
                     </tr>
@@ -121,10 +119,17 @@ export default function CashBook() {
                               ? "bg-success/10 text-success"
                               : tx.type === "payment"
                               ? "bg-destructive/10 text-destructive"
-                              : "bg-journal/10 text-journal"
+                              : tx.type === "journal"
+                              ? "bg-journal/10 text-journal"
+                              : tx.type === "advance_withdrawal"
+                              ? "bg-amber-500/10 text-amber-600"
+                              : "bg-purple-500/10 text-purple-600"
                           }`}>
                             {TRANSACTION_TYPE_LABELS[tx.type]}
                           </span>
+                        </td>
+                        <td className="py-2 px-2 text-center text-xs">
+                          {tx.checkNumber || "-"}
                         </td>
                         {ACCOUNT_COLUMNS.map((col) => (
                           <>
@@ -160,7 +165,7 @@ export default function CashBook() {
 
                   {/* Totals row */}
                   <tr className="bg-primary/5 font-bold border-t-2 border-primary">
-                    <td colSpan={4} className="py-3 px-2">المجموع الكلي</td>
+                    <td colSpan={5} className="py-3 px-2">المجموع الكلي</td>
                     {ACCOUNT_COLUMNS.map((col) => {
                       const bal = getColumnBalance(col.id);
                       return (
