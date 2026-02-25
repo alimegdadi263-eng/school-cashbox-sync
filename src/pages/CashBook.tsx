@@ -5,7 +5,8 @@ import { ACCOUNT_COLUMNS, TRANSACTION_TYPE_LABELS, Transaction, isAssetAccount }
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Printer } from "lucide-react";
+import { Trash2, Printer, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import PrintVoucher from "@/components/PrintVoucher";
 
@@ -14,6 +15,70 @@ export default function CashBook() {
   const [filterType, setFilterType] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [printTx, setPrintTx] = useState<Transaction | null>(null);
+
+  const exportToExcel = () => {
+    const formatNum = (n: number) => (n === 0 ? "" : n);
+
+    // Header rows
+    const headers1 = ["#", "التاريخ", "البيان", "النوع", "رقم الشيك"];
+    ACCOUNT_COLUMNS.forEach((col) => {
+      headers1.push(col.label, "");
+    });
+
+    const headers2 = ["", "", "", "", ""];
+    ACCOUNT_COLUMNS.forEach((col) => {
+      headers2.push(isAssetAccount(col.id) ? "منه" : "من", isAssetAccount(col.id) ? "له" : "الى");
+    });
+
+    const rows: any[][] = [headers1, headers2];
+
+    // Opening balances
+    const obRow: any[] = ["-", "-", "الرصيد الافتتاحي", "-", "-"];
+    ACCOUNT_COLUMNS.forEach((col) => {
+      const ob = state.openingBalances.find((b) => b.column === col.id);
+      obRow.push(formatNum(ob?.debit || 0), formatNum(ob?.credit || 0));
+    });
+    rows.push(obRow);
+
+    // Transactions
+    filtered.forEach((tx, idx) => {
+      const row: any[] = [idx + 1, tx.date, tx.description, TRANSACTION_TYPE_LABELS[tx.type], tx.checkNumber || "-"];
+      ACCOUNT_COLUMNS.forEach((col) => {
+        row.push(formatNum(tx.amounts[col.id]?.debit || 0), formatNum(tx.amounts[col.id]?.credit || 0));
+      });
+      rows.push(row);
+    });
+
+    // Totals
+    const totRow: any[] = ["", "", "المجموع الكلي", "", ""];
+    ACCOUNT_COLUMNS.forEach((col) => {
+      const bal = getColumnBalance(col.id);
+      totRow.push(formatNum(bal.debit), formatNum(bal.credit));
+    });
+    rows.push(totRow);
+
+    // Net balance
+    const netRow: any[] = ["", "", "الرصيد الجديد", "", ""];
+    ACCOUNT_COLUMNS.forEach((col) => {
+      const bal = getColumnBalance(col.id);
+      const net = bal.debit - bal.credit;
+      netRow.push(Math.abs(net), net >= 0 ? "مدين" : "دائن");
+    });
+    rows.push(netRow);
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    // Merge header cells for account columns
+    ws["!merges"] = ACCOUNT_COLUMNS.map((_, i) => ({
+      s: { r: 0, c: 5 + i * 2 },
+      e: { r: 0, c: 5 + i * 2 + 1 },
+    }));
+    ws["!cols"] = [{ wch: 5 }, { wch: 12 }, { wch: 30 }, { wch: 12 }, { wch: 10 },
+      ...ACCOUNT_COLUMNS.flatMap(() => [{ wch: 12 }, { wch: 12 }])];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "دفتر الصندوق");
+    XLSX.writeFile(wb, `دفتر_الصندوق_${state.currentMonth}_${state.currentYear}.xlsx`);
+  };
 
   const filtered = state.transactions
     .filter((t) => t.status === "active")
@@ -28,7 +93,11 @@ export default function CashBook() {
       <div className="space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h1 className="text-2xl font-bold text-foreground">دفتر الصندوق</h1>
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
+            <Button variant="outline" size="sm" onClick={exportToExcel} className="gap-2">
+              <Download className="w-4 h-4" />
+              تصدير Excel
+            </Button>
             <Input
               placeholder="بحث..."
               value={searchTerm}
