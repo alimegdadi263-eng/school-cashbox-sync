@@ -76,7 +76,7 @@ function saveXmlContent(zip: PizZip, xml: string): void {
   zip.file("word/document.xml", xml);
 }
 
-export async function fillJournalVoucher(tx: Transaction, schoolName: string) {
+export async function fillJournalVoucher(tx: Transaction, schoolName: string, directorateName: string) {
   const zip = await loadTemplate("/templates/سند_قيد.docx");
   let xml = getXmlContent(zip);
 
@@ -156,7 +156,7 @@ export async function fillJournalVoucher(tx: Transaction, schoolName: string) {
   saveAs(blob, `سند_قيد_${tx.referenceNumber || tx.id}.docx`);
 }
 
-export async function fillPaymentVoucher(tx: Transaction, schoolName: string) {
+export async function fillPaymentVoucher(tx: Transaction, schoolName: string, directorateName: string) {
   const zip = await loadTemplate("/templates/مستند_صرف.docx");
   let xml = getXmlContent(zip);
 

@@ -6,6 +6,7 @@ import { Download } from "lucide-react";
 interface PrintVoucherProps {
   transaction: Transaction;
   schoolName: string;
+  directorateName: string;
   onClose: () => void;
 }
 
@@ -40,7 +41,7 @@ const getAccountDetails = (tx: Transaction) => {
   return { debits, credits };
 };
 
-export default function PrintVoucher({ transaction: tx, schoolName, onClose }: PrintVoucherProps) {
+export default function PrintVoucher({ transaction: tx, schoolName, directorateName, onClose }: PrintVoucherProps) {
   const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = () => {
@@ -100,8 +101,8 @@ export default function PrintVoucher({ transaction: tx, schoolName, onClose }: P
             {(tx.type === "journal" || tx.type === "payment" || tx.type === "advance_withdrawal" || tx.type === "advance_payment") && (
               <button
                 onClick={() => {
-                  if (tx.type === "journal") fillJournalVoucher(tx, schoolName);
-                  else fillPaymentVoucher(tx, schoolName);
+                  if (tx.type === "journal") fillJournalVoucher(tx, schoolName, directorateName);
+                  else fillPaymentVoucher(tx, schoolName, directorateName);
                 }}
                 className="px-4 py-2 bg-accent text-accent-foreground rounded-md text-sm font-medium hover:bg-accent/90 flex items-center gap-2"
               >
