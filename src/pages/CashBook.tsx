@@ -123,66 +123,67 @@ export default function CashBook() {
         <Card className="shadow-card">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-xs">
+              <table className="w-full text-xs border-collapse" style={{ borderSpacing: 0 }}>
                 <thead>
                   <tr className="bg-primary text-primary-foreground">
-                    <th className="py-3 px-2 text-right" rowSpan={2}>#</th>
-                    <th className="py-3 px-2 text-right" rowSpan={2}>التاريخ</th>
-                    <th className="py-3 px-2 text-right" rowSpan={2}>البيان</th>
-                    <th className="py-3 px-2 text-center" rowSpan={2}>النوع</th>
-                    <th className="py-3 px-2 text-center" rowSpan={2}>رقم الشيك</th>
+                    <th className="py-3 px-3 text-right border border-primary-foreground/30" rowSpan={2}>#</th>
+                    <th className="py-3 px-3 text-right border border-primary-foreground/30" rowSpan={2}>التاريخ</th>
+                    <th className="py-3 px-3 text-right border border-primary-foreground/30" rowSpan={2}>البيان</th>
+                    <th className="py-3 px-3 text-center border border-primary-foreground/30" rowSpan={2}>النوع</th>
+                    <th className="py-3 px-3 text-center border border-primary-foreground/30" rowSpan={2}>رقم الشيك</th>
                     {ACCOUNT_COLUMNS.map((col) => (
-                      <th key={col.id} className="py-2 px-1 text-center border-r border-primary-foreground/20" colSpan={2}>
+                      <th key={col.id} className="py-2 px-2 text-center border border-primary-foreground/30" colSpan={2}>
                         {col.label}
                       </th>
                     ))}
-                    <th className="py-3 px-2" rowSpan={2}></th>
+                    <th className="py-3 px-2 border border-primary-foreground/30" rowSpan={2}>إجراءات</th>
                   </tr>
                   <tr className="bg-primary/80 text-primary-foreground text-[10px]">
                     {ACCOUNT_COLUMNS.map((col) => (
-                      <th key={col.id + "-sub"} className="py-1 px-1 text-center border-r border-primary-foreground/20" colSpan={2}>
-                        <span className="inline-flex gap-2">
-                          <span>{isAssetAccount(col.id) ? "منه" : "من"}</span>
-                          <span>|</span>
-                          <span>{isAssetAccount(col.id) ? "له" : "الى"}</span>
-                        </span>
-                      </th>
+                      <>
+                        <th key={col.id + "-sub-d"} className="py-1.5 px-2 text-center border border-primary-foreground/30 min-w-[70px]">
+                          {isAssetAccount(col.id) ? "منه" : "من"}
+                        </th>
+                        <th key={col.id + "-sub-c"} className="py-1.5 px-2 text-center border border-primary-foreground/30 min-w-[70px]">
+                          {isAssetAccount(col.id) ? "له" : "الى"}
+                        </th>
+                      </>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {/* Opening balance row */}
-                  <tr className="bg-accent/20 font-semibold border-b-2 border-accent">
-                    <td className="py-2 px-2">-</td>
-                    <td className="py-2 px-2">-</td>
-                    <td className="py-2 px-2">الرصيد الافتتاحي</td>
-                    <td className="py-2 px-2 text-center">-</td>
-                    <td className="py-2 px-2 text-center">-</td>
+                  <tr className="bg-accent/20 font-semibold">
+                    <td className="py-2.5 px-3 border border-border">-</td>
+                    <td className="py-2.5 px-3 border border-border">-</td>
+                    <td className="py-2.5 px-3 border border-border">الرصيد الافتتاحي</td>
+                    <td className="py-2.5 px-3 text-center border border-border">-</td>
+                    <td className="py-2.5 px-3 text-center border border-border">-</td>
                     {ACCOUNT_COLUMNS.map((col) => {
                       const ob = state.openingBalances.find((b) => b.column === col.id);
                       return (
                         <>
-                          <td key={col.id + "-od"} className="py-2 px-1 text-center text-success">{formatCurrency(ob?.debit || 0)}</td>
-                          <td key={col.id + "-oc"} className="py-2 px-1 text-center text-destructive">{formatCurrency(ob?.credit || 0)}</td>
+                          <td key={col.id + "-od"} className="py-2.5 px-2 text-center border border-border text-success">{formatCurrency(ob?.debit || 0)}</td>
+                          <td key={col.id + "-oc"} className="py-2.5 px-2 text-center border border-border text-destructive">{formatCurrency(ob?.credit || 0)}</td>
                         </>
                       );
                     })}
-                    <td></td>
+                    <td className="border border-border"></td>
                   </tr>
 
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={5 + ACCOUNT_COLUMNS.length * 2 + 1} className="py-8 text-center text-muted-foreground">
+                      <td colSpan={5 + ACCOUNT_COLUMNS.length * 2 + 1} className="py-8 text-center text-muted-foreground border border-border">
                         لا توجد حركات
                       </td>
                     </tr>
                   ) : (
                     filtered.map((tx, idx) => (
-                      <tr key={tx.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                        <td className="py-2 px-2 text-muted-foreground">{idx + 1}</td>
-                        <td className="py-2 px-2 whitespace-nowrap">{tx.date}</td>
-                        <td className="py-2 px-2">{tx.description}</td>
-                        <td className="py-2 px-2 text-center">
+                      <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="py-2.5 px-3 border border-border text-muted-foreground">{idx + 1}</td>
+                        <td className="py-2.5 px-3 border border-border whitespace-nowrap">{tx.date}</td>
+                        <td className="py-2.5 px-3 border border-border">{tx.description}</td>
+                        <td className="py-2.5 px-3 text-center border border-border">
                           <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
                             tx.type === "receipt"
                               ? "bg-success/10 text-success"
@@ -197,74 +198,74 @@ export default function CashBook() {
                             {TRANSACTION_TYPE_LABELS[tx.type]}
                           </span>
                         </td>
-                        <td className="py-2 px-2 text-center text-xs">
+                        <td className="py-2.5 px-3 text-center border border-border text-xs">
                           {tx.checkNumber || "-"}
                         </td>
                         {ACCOUNT_COLUMNS.map((col) => (
                           <>
-                            <td key={col.id + "-d"} className="py-2 px-1 text-center text-success">
+                            <td key={col.id + "-d"} className="py-2.5 px-2 text-center border border-border text-success">
                               {formatCurrency(tx.amounts[col.id]?.debit || 0)}
                             </td>
-                            <td key={col.id + "-c"} className="py-2 px-1 text-center text-destructive">
+                            <td key={col.id + "-c"} className="py-2.5 px-2 text-center border border-border text-destructive">
                               {formatCurrency(tx.amounts[col.id]?.credit || 0)}
                             </td>
                           </>
                         ))}
-                        <td className="py-2 px-2 flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setPrintTx(tx)}
-                            className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"
-                          >
-                            <Printer className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deleteTransaction(tx.id)}
-                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
+                        <td className="py-2.5 px-2 border border-border">
+                          <div className="flex gap-1 justify-center">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setPrintTx(tx)}
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deleteTransaction(tx.id)}
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))
                   )}
 
                   {/* Totals row */}
-                  <tr className="bg-primary/5 font-bold border-t-2 border-primary">
-                    <td colSpan={5} className="py-3 px-2">المجموع الكلي</td>
+                  <tr className="bg-primary/5 font-bold">
+                    <td colSpan={5} className="py-3 px-3 border border-border">المجموع الكلي</td>
                     {ACCOUNT_COLUMNS.map((col) => {
                       const bal = getColumnBalance(col.id);
                       return (
                         <>
-                          <td key={col.id + "-td"} className="py-3 px-1 text-center text-success">{formatCurrency(bal.debit)}</td>
-                          <td key={col.id + "-tc"} className="py-3 px-1 text-center text-destructive">{formatCurrency(bal.credit)}</td>
+                          <td key={col.id + "-td"} className="py-3 px-2 text-center border border-border text-success">{formatCurrency(bal.debit)}</td>
+                          <td key={col.id + "-tc"} className="py-3 px-2 text-center border border-border text-destructive">{formatCurrency(bal.credit)}</td>
                         </>
                       );
                     })}
-                    <td></td>
+                    <td className="border border-border"></td>
                   </tr>
 
-                  {/* New Balance row (الرصيد الجديد) */}
-                  <tr className="bg-accent/30 font-bold border-t-2 border-accent">
-                    <td colSpan={5} className="py-3 px-2 text-accent-foreground">الرصيد الجديد (نهاية الشهر)</td>
+                  {/* New Balance row */}
+                  <tr className="bg-accent/30 font-bold">
+                    <td colSpan={5} className="py-3 px-3 border border-border text-accent-foreground">الرصيد الجديد (نهاية الشهر)</td>
                     {ACCOUNT_COLUMNS.map((col) => {
                       const bal = getColumnBalance(col.id);
                       const net = bal.debit - bal.credit;
                       return (
-                        <>
-                          <td key={col.id + "-nd"} className="py-3 px-1 text-center font-bold" colSpan={2}>
-                            <span className={net >= 0 ? "text-success" : "text-destructive"}>
-                              {formatCurrency(Math.abs(net))}
-                              {net !== 0 && (net > 0 ? " (مدين)" : " (دائن)")}
-                            </span>
-                          </td>
-                        </>
+                        <td key={col.id + "-nd"} className="py-3 px-2 text-center border border-border font-bold" colSpan={2}>
+                          <span className={net >= 0 ? "text-success" : "text-destructive"}>
+                            {formatCurrency(Math.abs(net))}
+                            {net !== 0 && (net > 0 ? " (مدين)" : " (دائن)")}
+                          </span>
+                        </td>
                       );
                     })}
-                    <td></td>
+                    <td className="border border-border"></td>
                   </tr>
                 </tbody>
               </table>
