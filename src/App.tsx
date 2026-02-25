@@ -11,6 +11,7 @@ import TransactionPage from "./pages/TransactionPage";
 import MonthlySummary from "./pages/MonthlySummary";
 import SettingsPage from "./pages/SettingsPage";
 import AdminUsers from "./pages/AdminUsers";
+import FinancialForms from "./pages/FinancialForms";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import SubscriptionExpired from "./components/SubscriptionExpired";
@@ -54,6 +55,7 @@ const App = () => (
               <Route path="/cashbook" element={<ProtectedRoute><CashBook /></ProtectedRoute>} />
               <Route path="/transaction" element={<ProtectedRoute><TransactionPage /></ProtectedRoute>} />
               <Route path="/summary" element={<ProtectedRoute><MonthlySummary /></ProtectedRoute>} />
+              <Route path="/forms" element={<ProtectedRoute><FinancialForms /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
               <Route path="*" element={<NotFound />} />

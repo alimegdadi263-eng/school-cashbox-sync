@@ -73,6 +73,7 @@ export async function fillJournalVoucher(tx: Transaction, schoolName: string, di
     debit_fil: debitSplit.fils,
     credit_dinar: creditSplit.dinars,
     credit_fil: creditSplit.fils,
+    s: "",
   });
 
   const blob = doc.getZip().generate({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
