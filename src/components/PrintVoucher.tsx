@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
 import { Transaction, TRANSACTION_TYPE_LABELS, ACCOUNT_COLUMNS, AccountColumnId } from "@/types/finance";
-import { generateJournalVoucherDocx } from "@/lib/generateJournalVoucherDocx";
-import { generatePaymentVoucherDocx } from "@/lib/generatePaymentVoucherDocx";
+import { fillJournalVoucher, fillPaymentVoucher } from "@/lib/fillDocxTemplate";
 import { Download } from "lucide-react";
 
 interface PrintVoucherProps {
@@ -101,8 +100,8 @@ export default function PrintVoucher({ transaction: tx, schoolName, onClose }: P
             {(tx.type === "journal" || tx.type === "payment" || tx.type === "advance_withdrawal" || tx.type === "advance_payment") && (
               <button
                 onClick={() => {
-                  if (tx.type === "journal") generateJournalVoucherDocx(tx, schoolName);
-                  else generatePaymentVoucherDocx(tx, schoolName);
+                  if (tx.type === "journal") fillJournalVoucher(tx, schoolName);
+                  else fillPaymentVoucher(tx, schoolName);
                 }}
                 className="px-4 py-2 bg-accent text-accent-foreground rounded-md text-sm font-medium hover:bg-accent/90 flex items-center gap-2"
               >
