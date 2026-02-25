@@ -1,7 +1,7 @@
 import { useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import { useFinance } from "@/context/FinanceContext";
-import { ACCOUNT_COLUMNS, TRANSACTION_TYPE_LABELS, Transaction } from "@/types/finance";
+import { ACCOUNT_COLUMNS, TRANSACTION_TYPE_LABELS, Transaction, isAssetAccount } from "@/types/finance";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -73,9 +73,9 @@ export default function CashBook() {
                     {ACCOUNT_COLUMNS.map((col) => (
                       <th key={col.id + "-sub"} className="py-1 px-1 text-center border-r border-primary-foreground/20" colSpan={2}>
                         <span className="inline-flex gap-2">
-                          <span>من</span>
+                          <span>{isAssetAccount(col.id) ? "منه" : "من"}</span>
                           <span>|</span>
-                          <span>الى</span>
+                          <span>{isAssetAccount(col.id) ? "له" : "الى"}</span>
                         </span>
                       </th>
                     ))}
