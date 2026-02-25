@@ -1,0 +1,17 @@
+appId: app.lovable.8b26ee13a9494d33973c563c94d95ec6
+productName: "School Cashbox - Ali Megdadi"
+directories:
+  output: release
+files:
+  - dist/**
+  - electron/**
+extraMetadata:
+  main: electron/main.js
+win:
+  target:
+    - nsis
+  artifactName: "${productName}-Setup-${version}.${ext}"
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
