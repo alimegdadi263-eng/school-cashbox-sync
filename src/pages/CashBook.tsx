@@ -177,6 +177,26 @@ export default function CashBook() {
                     })}
                     <td></td>
                   </tr>
+
+                  {/* New Balance row (الرصيد الجديد) */}
+                  <tr className="bg-accent/30 font-bold border-t-2 border-accent">
+                    <td colSpan={5} className="py-3 px-2 text-accent-foreground">الرصيد الجديد (نهاية الشهر)</td>
+                    {ACCOUNT_COLUMNS.map((col) => {
+                      const bal = getColumnBalance(col.id);
+                      const net = bal.debit - bal.credit;
+                      return (
+                        <>
+                          <td key={col.id + "-nd"} className="py-3 px-1 text-center font-bold" colSpan={2}>
+                            <span className={net >= 0 ? "text-success" : "text-destructive"}>
+                              {formatCurrency(Math.abs(net))}
+                              {net !== 0 && (net > 0 ? " (مدين)" : " (دائن)")}
+                            </span>
+                          </td>
+                        </>
+                      );
+                    })}
+                    <td></td>
+                  </tr>
                 </tbody>
               </table>
             </div>
