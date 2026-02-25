@@ -29,25 +29,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Fetch role
-          const { data: roleData } = await supabase
-            .from("user_roles")
-            .select("role")
-            .eq("user_id", session.user.id)
-            .single();
+          try {
+            // Fetch role
+            const { data: roleData } = await supabase
+              .from("user_roles")
+              .select("role")
+              .eq("user_id", session.user.id)
+              .single();
 
-          const role = roleData?.role || null;
-          setUserRole(role);
-          setIsAdmin(role === "admin");
+            const role = roleData?.role || null;
+            setUserRole(role);
+            setIsAdmin(role === "admin");
 
-          // Fetch profile
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("school_name")
-            .eq("id", session.user.id)
-            .single();
+            // Fetch profile
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("school_name")
+              .eq("id", session.user.id)
+              .single();
 
-          setSchoolName(profile?.school_name || "");
+            setSchoolName(profile?.school_name || "");
+          } catch (error) {
+            console.error("Error fetching user data:", error);
+            setUserRole(null);
+            setIsAdmin(false);
+            setSchoolName("");
+          }
         } else {
           setUserRole(null);
           setIsAdmin(false);
