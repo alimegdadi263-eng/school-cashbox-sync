@@ -5,19 +5,25 @@ import {
   PlusCircle, 
   Settings, 
   FileText,
-  School
+  School,
+  Users,
+  LogOut,
 } from "lucide-react";
-
-const navItems = [
-  { path: "/", label: "لوحة التحكم", icon: LayoutDashboard },
-  { path: "/cashbook", label: "دفتر الصندوق", icon: BookOpen },
-  { path: "/transaction", label: "إضافة حركة", icon: PlusCircle },
-  { path: "/summary", label: "خلاصة الحسابات", icon: FileText },
-  { path: "/settings", label: "الإعدادات", icon: Settings },
-];
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
 
 export default function AppSidebar() {
   const location = useLocation();
+  const { isAdmin, schoolName, signOut } = useAuth();
+
+  const navItems = [
+    { path: "/", label: "لوحة التحكم", icon: LayoutDashboard },
+    { path: "/cashbook", label: "دفتر الصندوق", icon: BookOpen },
+    { path: "/transaction", label: "إضافة حركة", icon: PlusCircle },
+    { path: "/summary", label: "خلاصة الحسابات", icon: FileText },
+    { path: "/settings", label: "الإعدادات", icon: Settings },
+    ...(isAdmin ? [{ path: "/users", label: "إدارة المستخدمين", icon: Users }] : []),
+  ];
 
   return (
     <aside className="gradient-sidebar w-64 min-h-screen flex flex-col border-l border-sidebar-border">
@@ -28,7 +34,7 @@ export default function AppSidebar() {
           </div>
           <div>
             <h1 className="text-sidebar-foreground font-bold text-lg leading-tight">مالية المدارس</h1>
-            <p className="text-sidebar-foreground/60 text-xs">نظام إدارة مالية</p>
+            <p className="text-sidebar-foreground/60 text-xs">{schoolName || "نظام إدارة مالية"}</p>
           </div>
         </div>
       </div>
@@ -53,8 +59,18 @@ export default function AppSidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-sidebar-border">
-        <p className="text-sidebar-foreground/40 text-xs text-center">الإصدار 1.0</p>
+      <div className="p-4 border-t border-sidebar-border space-y-2">
+        <Button
+          variant="ghost"
+          onClick={signOut}
+          className="w-full justify-start gap-3 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+        >
+          <LogOut className="w-5 h-5" />
+          تسجيل الخروج
+        </Button>
+        <p className="text-sidebar-foreground/40 text-xs text-center">
+          {isAdmin ? "مدير النظام" : "مدرسة"} • الإصدار 1.0
+        </p>
       </div>
     </aside>
   );

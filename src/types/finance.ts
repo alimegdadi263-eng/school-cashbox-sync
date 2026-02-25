@@ -12,7 +12,7 @@ export const ACCOUNT_COLUMNS = [
 
 export type AccountColumnId = typeof ACCOUNT_COLUMNS[number]["id"];
 
-export type TransactionType = "receipt" | "payment" | "journal";
+export type TransactionType = "receipt" | "payment" | "journal" | "advance_withdrawal" | "advance_payment";
 
 export interface ColumnAmount {
   debit: number; // من
@@ -26,6 +26,8 @@ export interface Transaction {
   type: TransactionType;
   status: "active" | "cancelled";
   referenceNumber: string;
+  checkNumber?: string; // رقم الشيك لمستندات الصرف
+  sourceAccount?: AccountColumnId; // الحساب المصدر
   amounts: Record<AccountColumnId, ColumnAmount>;
 }
 
@@ -47,7 +49,19 @@ export const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
   receipt: "سند قبض",
   payment: "مستند صرف",
   journal: "سند قيد",
+  advance_withdrawal: "سحب سلفة يد",
+  advance_payment: "صرف السلفة",
 };
+
+// الحسابات المتاحة للصرف (من هذه الحسابات الى البنك)
+export const PAYMENT_SOURCE_ACCOUNTS: AccountColumnId[] = [
+  "donations", "redCrescent", "gardens", "mySchool", "deposits", "sdi"
+];
+
+// الحسابات المتاحة للقيد (من الصندوق الى هذه الحسابات)
+export const JOURNAL_TARGET_ACCOUNTS: AccountColumnId[] = [
+  "donations", "gardens", "redCrescent", "deposits", "mySchool", "sdi"
+];
 
 export function createEmptyAmounts(): Record<AccountColumnId, ColumnAmount> {
   return Object.fromEntries(
@@ -57,4 +71,8 @@ export function createEmptyAmounts(): Record<AccountColumnId, ColumnAmount> {
 
 export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+export function getAccountLabel(id: AccountColumnId): string {
+  return ACCOUNT_COLUMNS.find((col) => col.id === id)?.label || id;
 }

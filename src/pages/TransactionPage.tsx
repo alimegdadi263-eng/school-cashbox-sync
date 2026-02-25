@@ -8,12 +8,15 @@ import {
   createEmptyAmounts,
   generateId,
   TRANSACTION_TYPE_LABELS,
+  PAYMENT_SOURCE_ACCOUNTS,
+  JOURNAL_TARGET_ACCOUNTS,
+  getAccountLabel,
 } from "@/types/finance";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
@@ -26,27 +29,48 @@ export default function TransactionPage() {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [description, setDescription] = useState("");
   const [referenceNumber, setReferenceNumber] = useState("");
-  const [amounts, setAmounts] = useState(createEmptyAmounts());
-
-  const updateAmount = (colId: AccountColumnId, field: "debit" | "credit", value: string) => {
-    const num = parseFloat(value) || 0;
-    setAmounts((prev) => ({
-      ...prev,
-      [colId]: { ...prev[colId], [field]: num },
-    }));
-  };
-
-  // Receipt: debit to cashBox. Journal: debit to bank. Payment: credit from any.
-  const getRelevantColumns = () => {
-    if (type === "receipt") return ACCOUNT_COLUMNS; // القبض يكون بالصندوق
-    if (type === "journal") return ACCOUNT_COLUMNS; // القيد يكون بالبنك
-    return ACCOUNT_COLUMNS; // الصرف من الجميع
-  };
+  const [checkNumber, setCheckNumber] = useState("");
+  const [amount, setAmount] = useState<number>(0);
+  const [sourceAccount, setSourceAccount] = useState<AccountColumnId>("donations");
 
   const handleSubmit = () => {
     if (!description.trim()) {
       toast({ title: "خطأ", description: "يرجى إدخال البيان", variant: "destructive" });
       return;
+    }
+    if (amount <= 0) {
+      toast({ title: "خطأ", description: "يرجى إدخال المبلغ", variant: "destructive" });
+      return;
+    }
+
+    const amounts = createEmptyAmounts();
+
+    switch (type) {
+      case "receipt":
+        // القبض: من البنك (credit) الى الصندوق (debit)
+        amounts.bank.credit = amount;
+        amounts.cashBox.debit = amount;
+        break;
+      case "payment":
+        // الصرف: من الحساب المحدد (credit) الى البنك (debit)
+        amounts[sourceAccount].credit = amount;
+        amounts.bank.debit = amount;
+        break;
+      case "journal":
+        // القيد: من الصندوق (credit) الى الحساب المحدد (debit)
+        amounts.cashBox.credit = amount;
+        amounts[sourceAccount].debit = amount;
+        break;
+      case "advance_withdrawal":
+        // سحب سلفة يد: من الصندوق (credit) الى السلفة (debit)
+        amounts.cashBox.credit = amount;
+        amounts.advances.debit = amount;
+        break;
+      case "advance_payment":
+        // صرف السلفة: من السلفة (credit) الى الصندوق (debit)
+        amounts.advances.credit = amount;
+        amounts.cashBox.debit = amount;
+        break;
     }
 
     addTransaction({
@@ -56,15 +80,48 @@ export default function TransactionPage() {
       type,
       status: "active",
       referenceNumber,
+      checkNumber: type === "payment" ? checkNumber : undefined,
+      sourceAccount: (type === "payment" || type === "journal") ? sourceAccount : undefined,
       amounts,
     });
 
     toast({ title: "تم بنجاح", description: `تم إضافة ${TRANSACTION_TYPE_LABELS[type]}` });
-    
+
     // Reset
     setDescription("");
     setReferenceNumber("");
-    setAmounts(createEmptyAmounts());
+    setCheckNumber("");
+    setAmount(0);
+  };
+
+  const allTypes: TransactionType[] = ["receipt", "payment", "journal", "advance_withdrawal", "advance_payment"];
+
+  const getTypeColor = (t: TransactionType) => {
+    switch (t) {
+      case "receipt": return "border-success bg-success/10 text-success";
+      case "payment": return "border-destructive bg-destructive/10 text-destructive";
+      case "journal": return "border-journal bg-journal/10 text-journal";
+      case "advance_withdrawal": return "border-amber-500 bg-amber-500/10 text-amber-600";
+      case "advance_payment": return "border-purple-500 bg-purple-500/10 text-purple-600";
+    }
+  };
+
+  // تحديد الحسابات المتاحة حسب نوع الحركة
+  const getAvailableAccounts = () => {
+    if (type === "payment") return PAYMENT_SOURCE_ACCOUNTS;
+    if (type === "journal") return JOURNAL_TARGET_ACCOUNTS;
+    return [];
+  };
+
+  // وصف الحركة التلقائي
+  const getTransactionDescription = () => {
+    switch (type) {
+      case "receipt": return "من البنك → الى الصندوق";
+      case "payment": return `من ${getAccountLabel(sourceAccount)} → الى البنك`;
+      case "journal": return `من الصندوق → الى ${getAccountLabel(sourceAccount)}`;
+      case "advance_withdrawal": return "من الصندوق → الى السلفة";
+      case "advance_payment": return "من السلفة → الى الصندوق";
+    }
   };
 
   return (
@@ -73,18 +130,18 @@ export default function TransactionPage() {
         <h1 className="text-2xl font-bold text-foreground">إضافة حركة مالية</h1>
 
         {/* Transaction Type Selector */}
-        <div className="flex gap-3">
-          {(["receipt", "payment", "journal"] as TransactionType[]).map((t) => (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+          {allTypes.map((t) => (
             <button
               key={t}
-              onClick={() => setType(t)}
-              className={`flex-1 py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-200 border-2 ${
+              onClick={() => {
+                setType(t);
+                if (t === "payment") setSourceAccount("donations");
+                if (t === "journal") setSourceAccount("donations");
+              }}
+              className={`py-3 px-3 rounded-lg text-xs font-semibold transition-all duration-200 border-2 ${
                 type === t
-                  ? t === "receipt"
-                    ? "border-success bg-success/10 text-success"
-                    : t === "payment"
-                    ? "border-destructive bg-destructive/10 text-destructive"
-                    : "border-journal bg-journal/10 text-journal"
+                  ? getTypeColor(t)
                   : "border-border bg-card text-muted-foreground hover:border-muted-foreground/30"
               }`}
             >
@@ -95,7 +152,12 @@ export default function TransactionPage() {
 
         <Card className="shadow-card">
           <CardHeader>
-            <CardTitle className="text-lg">{TRANSACTION_TYPE_LABELS[type]}</CardTitle>
+            <CardTitle className="text-lg flex items-center justify-between">
+              <span>{TRANSACTION_TYPE_LABELS[type]}</span>
+              <span className="text-xs font-normal text-muted-foreground bg-muted px-3 py-1 rounded-full">
+                {getTransactionDescription()}
+              </span>
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -121,42 +183,49 @@ export default function TransactionPage() {
               </div>
             </div>
 
-            {/* Amounts Grid */}
-            <div className="mt-6">
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3">المبالغ حسب الحساب</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {getRelevantColumns().map((col) => (
-                  <div key={col.id} className="border rounded-lg p-3 space-y-2 bg-muted/20">
-                    <p className="text-sm font-semibold text-foreground">{col.label}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label className="text-[10px] text-success">من (مدين)</Label>
-                        <Input
-                          type="number"
-                          step="0.001"
-                          min="0"
-                          value={amounts[col.id].debit || ""}
-                          onChange={(e) => updateAmount(col.id, "debit", e.target.value)}
-                          className="h-8 text-sm"
-                          placeholder="0.000"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-[10px] text-destructive">الى (دائن)</Label>
-                        <Input
-                          type="number"
-                          step="0.001"
-                          min="0"
-                          value={amounts[col.id].credit || ""}
-                          onChange={(e) => updateAmount(col.id, "credit", e.target.value)}
-                          className="h-8 text-sm"
-                          placeholder="0.000"
-                        />
-                      </div>
-                    </div>
+            {/* Account selection for payment/journal */}
+            {(type === "payment" || type === "journal") && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>{type === "payment" ? "الحساب المصدر (من)" : "الحساب المستهدف (الى)"}</Label>
+                  <Select value={sourceAccount} onValueChange={(v) => setSourceAccount(v as AccountColumnId)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getAvailableAccounts().map((accId) => (
+                        <SelectItem key={accId} value={accId}>
+                          {getAccountLabel(accId)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {type === "payment" && (
+                  <div className="space-y-2">
+                    <Label>رقم الشيك</Label>
+                    <Input
+                      value={checkNumber}
+                      onChange={(e) => setCheckNumber(e.target.value)}
+                      placeholder="رقم الشيك"
+                    />
                   </div>
-                ))}
+                )}
               </div>
+            )}
+
+            {/* Amount */}
+            <div className="space-y-2 max-w-xs">
+              <Label>المبلغ (دينار)</Label>
+              <Input
+                type="number"
+                step="0.001"
+                min="0"
+                value={amount || ""}
+                onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
+                placeholder="0.000"
+                className="text-lg font-semibold"
+              />
             </div>
 
             <div className="flex gap-3 pt-4">
