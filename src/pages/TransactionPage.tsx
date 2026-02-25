@@ -47,29 +47,29 @@ export default function TransactionPage() {
 
     switch (type) {
       case "receipt":
-        // القبض: من البنك (credit) الى الصندوق (debit)
-        amounts.bank.credit = amount;
-        amounts.cashBox.debit = amount;
+        // القبض: من البنك الى الصندوق
+        amounts.bank.debit = amount;
+        amounts.cashBox.credit = amount;
         break;
       case "payment":
-        // الصرف: من الحساب المحدد (credit) الى البنك (debit)
-        amounts[sourceAccount].credit = amount;
-        amounts.bank.debit = amount;
+        // الصرف: من الحساب المحدد الى البنك
+        amounts[sourceAccount].debit = amount;
+        amounts.bank.credit = amount;
         break;
       case "journal":
-        // القيد: من الصندوق (credit) الى الحساب المحدد (debit)
-        amounts.cashBox.credit = amount;
-        amounts[sourceAccount].debit = amount;
+        // القيد: من الصندوق الى الحساب المحدد
+        amounts.cashBox.debit = amount;
+        amounts[sourceAccount].credit = amount;
         break;
       case "advance_withdrawal":
-        // سحب سلفة يد: من الصندوق (credit) الى السلفة (debit)
-        amounts.cashBox.credit = amount;
-        amounts.advances.debit = amount;
+        // سحب سلفة يد: من الصندوق الى السلفة
+        amounts.cashBox.debit = amount;
+        amounts.advances.credit = amount;
         break;
       case "advance_payment":
-        // صرف السلفة: من السلفة (credit) الى الصندوق (debit)
-        amounts.advances.credit = amount;
-        amounts.cashBox.debit = amount;
+        // صرف السلفة: من السلفة الى الصندوق
+        amounts.advances.debit = amount;
+        amounts.cashBox.credit = amount;
         break;
     }
 
