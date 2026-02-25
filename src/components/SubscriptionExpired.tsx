@@ -16,8 +16,11 @@ export default function SubscriptionExpired() {
           عذراً، اشتراك <span className="font-semibold text-foreground">{schoolName || "مدرستك"}</span> غير نشط حالياً.
           يرجى التواصل مع إدارة النظام لتجديد الاشتراك.
         </p>
-        <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
-          للتواصل مع الدعم الفني أو تجديد الاشتراك، يرجى الاتصال بمدير النظام.
+        <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground space-y-2">
+          <p>للتواصل مع الدعم الفني أو تجديد الاشتراك، يرجى الاتصال على الرقم:</p>
+          <a href="tel:0780296130" className="block text-lg font-bold text-primary hover:underline" dir="ltr">
+            0780296130
+          </a>
         </div>
         <Button variant="outline" onClick={signOut} className="mt-4">
           تسجيل الخروج
