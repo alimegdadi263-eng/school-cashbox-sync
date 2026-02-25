@@ -14,7 +14,7 @@ interface FinanceContextType {
   updateTransaction: (tx: Transaction) => void;
   deleteTransaction: (id: string) => void;
   setOpeningBalances: (balances: OpeningBalance[]) => void;
-  updateSettings: (schoolName: string, directorateName: string, month: string, year: string) => void;
+  updateSettings: (settings: { schoolName: string; directorateName: string; directorName: string; member1Name: string; member2Name: string; month: string; year: string }) => void;
   getColumnBalance: (colId: AccountColumnId) => { debit: number; credit: number; net: number };
   getTotalBalance: () => { debit: number; credit: number; net: number };
 }
@@ -26,6 +26,9 @@ const STORAGE_KEY = "school-finance-data";
 const defaultState: FinanceState = {
   schoolName: "المدرسة الثانوية الشاملة",
   directorateName: "",
+  directorName: "",
+  member1Name: "",
+  member2Name: "",
   transactions: [],
   openingBalances: ACCOUNT_COLUMNS.map((col) => ({
     column: col.id,
@@ -73,8 +76,17 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     setState((s) => ({ ...s, openingBalances: balances }));
   }, []);
 
-  const updateSettings = useCallback((schoolName: string, directorateName: string, month: string, year: string) => {
-    setState((s) => ({ ...s, schoolName, directorateName, currentMonth: month, currentYear: year }));
+  const updateSettings = useCallback((settings: { schoolName: string; directorateName: string; directorName: string; member1Name: string; member2Name: string; month: string; year: string }) => {
+    setState((s) => ({
+      ...s,
+      schoolName: settings.schoolName,
+      directorateName: settings.directorateName,
+      directorName: settings.directorName,
+      member1Name: settings.member1Name,
+      member2Name: settings.member2Name,
+      currentMonth: settings.month,
+      currentYear: settings.year,
+    }));
   }, []);
 
   const getColumnBalance = useCallback(

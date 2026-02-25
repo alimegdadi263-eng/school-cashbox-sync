@@ -58,6 +58,9 @@ export default function FinancialForms() {
       recipientName: claimRecipient,
       checkNumber: claimCheck,
       description: claimDescription,
+      directorName: state.directorName || "",
+      member1Name: state.member1Name || "",
+      member2Name: state.member2Name || "",
     });
     toast({ title: "تم التنزيل", description: "تم تنزيل المطالبة المالية بنجاح" });
   };
@@ -74,6 +77,7 @@ export default function FinancialForms() {
       subject: assignSubject,
       personName: assignPerson,
       description: assignDescription,
+      directorName: state.directorName || "",
     });
     toast({ title: "تم التنزيل", description: "تم تنزيل قرار التكليف بنجاح" });
   };

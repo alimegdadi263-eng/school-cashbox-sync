@@ -31,6 +31,9 @@ export interface FinancialClaimData {
   recipientName: string;
   checkNumber: string;
   description: string;
+  directorName: string;
+  member1Name: string;
+  member2Name: string;
 }
 
 export async function fillFinancialClaim(data: FinancialClaimData) {
@@ -45,6 +48,9 @@ export async function fillFinancialClaim(data: FinancialClaimData) {
     recipient_name: data.recipientName,
     check_number: data.checkNumber,
     description: data.description,
+    director_name: data.directorName,
+    member1_name: data.member1Name,
+    member2_name: data.member2Name,
   });
 
   const blob = doc.getZip().generate({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
@@ -58,6 +64,7 @@ export interface AssignmentDecisionData {
   subject: string;
   personName: string;
   description: string;
+  directorName: string;
 }
 
 export async function fillAssignmentDecision(data: AssignmentDecisionData) {
@@ -71,6 +78,7 @@ export async function fillAssignmentDecision(data: AssignmentDecisionData) {
     subject: data.subject,
     person_name: data.personName,
     description: data.description,
+    director_name: data.directorName,
   });
 
   const blob = doc.getZip().generate({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });

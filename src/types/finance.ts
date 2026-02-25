@@ -47,6 +47,9 @@ export interface OpeningBalance {
 export interface FinanceState {
   schoolName: string;
   directorateName: string;
+  directorName: string;
+  member1Name: string;
+  member2Name: string;
   transactions: Transaction[];
   openingBalances: OpeningBalance[];
   currentMonth: string;

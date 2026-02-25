@@ -14,6 +14,9 @@ export default function SettingsPage() {
 
   const [schoolName, setSchoolName] = useState(state.schoolName);
   const [directorateName, setDirectorateName] = useState(state.directorateName);
+  const [directorName, setDirectorName] = useState(state.directorName || "");
+  const [member1Name, setMember1Name] = useState(state.member1Name || "");
+  const [member2Name, setMember2Name] = useState(state.member2Name || "");
   const [month, setMonth] = useState(state.currentMonth);
   const [year, setYear] = useState(state.currentYear);
   const [balances, setBalances] = useState<OpeningBalance[]>([...state.openingBalances]);
@@ -27,7 +30,7 @@ export default function SettingsPage() {
 
   const handleSave = () => {
     setOpeningBalances(balances);
-    updateSettings(schoolName, directorateName, month, year);
+    updateSettings({ schoolName, directorateName, directorName, member1Name, member2Name, month, year });
     toast({ title: "تم الحفظ", description: "تم حفظ الإعدادات بنجاح" });
   };
 
@@ -53,6 +56,20 @@ export default function SettingsPage() {
             <div className="space-y-2">
               <Label>المركز (اسم المديرية)</Label>
               <Input value={directorateName} onChange={(e) => setDirectorateName(e.target.value)} placeholder="مثال: مديرية التربية والتعليم لمنطقة..." />
+            </div>
+            <div className="space-y-2">
+              <Label>اسم مدير المدرسة</Label>
+              <Input value={directorName} onChange={(e) => setDirectorName(e.target.value)} placeholder="اسم المدير" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>عضو لجنة مالية 1</Label>
+                <Input value={member1Name} onChange={(e) => setMember1Name(e.target.value)} placeholder="اسم العضو الأول" />
+              </div>
+              <div className="space-y-2">
+                <Label>عضو لجنة مالية 2</Label>
+                <Input value={member2Name} onChange={(e) => setMember2Name(e.target.value)} placeholder="اسم العضو الثاني" />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
