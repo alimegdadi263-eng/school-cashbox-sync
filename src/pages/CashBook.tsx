@@ -1,17 +1,19 @@
 import { useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import { useFinance } from "@/context/FinanceContext";
-import { ACCOUNT_COLUMNS, TRANSACTION_TYPE_LABELS } from "@/types/finance";
+import { ACCOUNT_COLUMNS, TRANSACTION_TYPE_LABELS, Transaction } from "@/types/finance";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2 } from "lucide-react";
+import { Trash2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import PrintVoucher from "@/components/PrintVoucher";
 
 export default function CashBook() {
   const { state, getColumnBalance, deleteTransaction } = useFinance();
   const [filterType, setFilterType] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [printTx, setPrintTx] = useState<Transaction | null>(null);
 
   const filtered = state.transactions
     .filter((t) => t.status === "active")
@@ -134,7 +136,15 @@ export default function CashBook() {
                             </td>
                           </>
                         ))}
-                        <td className="py-2 px-2">
+                        <td className="py-2 px-2 flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setPrintTx(tx)}
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -167,6 +177,13 @@ export default function CashBook() {
             </div>
           </CardContent>
         </Card>
+        {printTx && (
+          <PrintVoucher
+            transaction={printTx}
+            schoolName={state.schoolName}
+            onClose={() => setPrintTx(null)}
+          />
+        )}
       </div>
     </AppLayout>
   );
