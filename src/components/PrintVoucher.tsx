@@ -98,7 +98,7 @@ export default function PrintVoucher({ transaction: tx, schoolName, onClose }: P
         <div className="flex items-center justify-between p-4 border-b bg-muted/50 sticky top-0">
           <h3 className="font-bold text-foreground">معاينة {TRANSACTION_TYPE_LABELS[tx.type]}</h3>
           <div className="flex gap-2">
-            {(tx.type === "journal" || tx.type === "payment") && (
+            {(tx.type === "journal" || tx.type === "payment" || tx.type === "advance_withdrawal" || tx.type === "advance_payment") && (
               <button
                 onClick={() => {
                   if (tx.type === "journal") generateJournalVoucherDocx(tx, schoolName);
