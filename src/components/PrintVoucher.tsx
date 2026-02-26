@@ -123,42 +123,52 @@ export default function PrintVoucher({ transaction: tx, schoolName, directorateN
             {isJournal && (
               <>
                 <div style={{ textAlign: "center", marginBottom: "15px", borderBottom: "2px solid #000", paddingBottom: "10px" }}>
-                  <p style={{ fontSize: "13px", marginBottom: "3px" }}>مديرية التربية والتعليم</p>
                   <h1 style={{ fontSize: "22px", fontWeight: "bold", margin: "8px 0" }}>سند قيد</h1>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "15px", fontSize: "14px", flexWrap: "wrap", gap: "8px" }}>
-                  <div><span style={{ fontWeight: "bold" }}>المادة: </span>{subject}</div>
-                  <div><span style={{ fontWeight: "bold" }}>الرقم: </span>{tx.referenceNumber || "............"}</div>
-                  <div><span style={{ fontWeight: "bold" }}>التاريخ: </span>{tx.date}</div>
-                  <div><span style={{ fontWeight: "bold" }}>المدرسة: </span>{schoolName}</div>
-                </div>
+                <table style={{ width: "100%", borderCollapse: "collapse", margin: "10px 0", fontSize: "13px" }}>
+                  <tbody>
+                    <tr>
+                      <td style={{ border: "1px solid #000", padding: "6px", fontWeight: "bold" }}>المادة</td>
+                      <td style={{ border: "1px solid #000", padding: "6px" }}>{subject}</td>
+                      <td style={{ border: "1px solid #000", padding: "6px", fontWeight: "bold" }}>الرقم</td>
+                      <td style={{ border: "1px solid #000", padding: "6px" }}>{tx.referenceNumber || ""}</td>
+                      <td style={{ border: "1px solid #000", padding: "6px", fontWeight: "bold" }}>التاريخ</td>
+                      <td style={{ border: "1px solid #000", padding: "6px" }}>{tx.date}</td>
+                      <td style={{ border: "1px solid #000", padding: "6px", fontWeight: "bold" }}>المدرسة</td>
+                      <td style={{ border: "1px solid #000", padding: "6px" }}>{schoolName}</td>
+                    </tr>
+                  </tbody>
+                </table>
                 <table style={{ width: "100%", borderCollapse: "collapse", margin: "15px 0" }}>
                   <thead>
                     <tr>
-                      <th style={{ border: "1px solid #000", padding: "8px", background: "#f0f0f0", textAlign: "right", minWidth: "200px" }}>البيـــــــــــــان</th>
-                      <th style={{ border: "1px solid #000", padding: "8px", background: "#f0f0f0" }} colSpan={2}>منه</th>
+                      <th style={{ border: "1px solid #000", padding: "8px", background: "#f0f0f0", textAlign: "right", minWidth: "200px" }} rowSpan={2}>البيـــــــــــــان</th>
                       <th style={{ border: "1px solid #000", padding: "8px", background: "#f0f0f0" }} colSpan={2}>له</th>
                     </tr>
                     <tr>
-                      <th style={{ border: "1px solid #000", padding: "6px", background: "#f5f5f5" }}></th>
-                      <th style={{ border: "1px solid #000", padding: "6px", background: "#f5f5f5", fontSize: "12px" }}>دينار</th>
-                      <th style={{ border: "1px solid #000", padding: "6px", background: "#f5f5f5", fontSize: "12px" }}>فلس</th>
                       <th style={{ border: "1px solid #000", padding: "6px", background: "#f5f5f5", fontSize: "12px" }}>دينار</th>
                       <th style={{ border: "1px solid #000", padding: "6px", background: "#f5f5f5", fontSize: "12px" }}>فلس</th>
                     </tr>
                   </thead>
                   <tbody>
+                    {accounts.debits.map((d, i) => (
+                      <tr key={`d${i}`}>
+                        <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>من حساب/ {d.label}</td>
+                        <td style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>{splitAmount(d.amount).dinars}</td>
+                        <td style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>{splitAmount(d.amount).fils}</td>
+                      </tr>
+                    ))}
+                    {accounts.credits.map((c, i) => (
+                      <tr key={`c${i}`}>
+                        <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>إلى حساب/ {c.label}</td>
+                        <td style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>{splitAmount(c.amount).dinars}</td>
+                        <td style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>{splitAmount(c.amount).fils}</td>
+                      </tr>
+                    ))}
                     <tr>
-                      <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>
-                        {accounts.debits.map((d, i) => <span key={i}>من حساب/ {d.label}<br /></span>)}
-                        {accounts.credits.map((c, i) => <span key={i}>إلى حساب/ {c.label}<br /></span>)}
-                        <br />
-                        وذلك: {tx.description}
-                      </td>
-                      <td style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>{splitAmount(totals.debit).dinars}</td>
-                      <td style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>{splitAmount(totals.debit).fils}</td>
-                      <td style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>{splitAmount(totals.credit).dinars}</td>
-                      <td style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>{splitAmount(totals.credit).fils}</td>
+                      <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>وذلك: {tx.description}</td>
+                      <td style={{ border: "1px solid #000", padding: "8px" }}></td>
+                      <td style={{ border: "1px solid #000", padding: "8px" }}></td>
                     </tr>
                   </tbody>
                 </table>
@@ -176,7 +186,7 @@ export default function PrintVoucher({ transaction: tx, schoolName, directorateN
             {isPayment && (
               <>
                 <div style={{ textAlign: "center", marginBottom: "15px", borderBottom: "2px solid #000", paddingBottom: "10px" }}>
-                  <p style={{ fontSize: "13px", marginBottom: "3px" }}>مديرية التربية والتعليم</p>
+                  <p style={{ fontSize: "13px", marginBottom: "3px" }}>مديرية التربية والتعليم لمنطقة {directorateName}</p>
                   <h1 style={{ fontSize: "22px", fontWeight: "bold", margin: "8px 0" }}>مستند صرف</h1>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "15px", fontSize: "14px", flexWrap: "wrap", gap: "8px" }}>
@@ -206,12 +216,32 @@ export default function PrintVoucher({ transaction: tx, schoolName, directorateN
                       <td style={{ border: "1px solid #000", padding: "8px" }}>{splitAmount(totals.credit).dinars}</td>
                       <td style={{ border: "1px solid #000", padding: "8px" }}>{splitAmount(totals.credit).fils}</td>
                     </tr>
+                    <tr>
+                      <th style={{ border: "1px solid #000", padding: "8px", background: "#f0f0f0" }}>تاريخ</th>
+                      <th style={{ border: "1px solid #000", padding: "8px", background: "#f0f0f0" }}>رقم إدخال المستند</th>
+                      <th style={{ border: "1px solid #000", padding: "8px", background: "#f0f0f0" }}>طلب مشترى محلي أو قرار</th>
+                      <th style={{ border: "1px solid #000", padding: "8px", background: "#f0f0f0" }}>مضبط استلام</th>
+                    </tr>
+                    <tr>
+                      <td style={{ border: "1px solid #000", padding: "8px" }}>/&nbsp;&nbsp;/</td>
+                      <td style={{ border: "1px solid #000", padding: "8px" }}></td>
+                      <td style={{ border: "1px solid #000", padding: "8px" }}></td>
+                      <td style={{ border: "1px solid #000", padding: "8px" }}></td>
+                    </tr>
+                    <tr>
+                      <th style={{ border: "1px solid #000", padding: "8px", background: "#f0f0f0" }}>تاريخ</th>
+                      <th style={{ border: "1px solid #000", padding: "8px", background: "#f0f0f0" }}>رقم الطوابع</th>
+                      <th style={{ border: "1px solid #000", padding: "8px", background: "#f0f0f0" }}>صورة عن وصل دفع رسوم</th>
+                      <th style={{ border: "1px solid #000", padding: "8px", background: "#f0f0f0" }}>نوع اللوازم</th>
+                    </tr>
+                    <tr>
+                      <td style={{ border: "1px solid #000", padding: "8px" }}>/&nbsp;&nbsp;/</td>
+                      <td style={{ border: "1px solid #000", padding: "8px" }}></td>
+                      <td style={{ border: "1px solid #000", padding: "8px" }}>{tx.description}</td>
+                      <td style={{ border: "1px solid #000", padding: "8px" }}></td>
+                    </tr>
                   </tbody>
                 </table>
-
-                <p style={{ fontSize: "13px", margin: "10px 0" }}>
-                  <span style={{ fontWeight: "bold" }}>البيان: </span>{tx.description}
-                </p>
 
                 <div style={{ fontSize: "14px", fontWeight: "bold", margin: "15px 0", textAlign: "center" }}>
                   المجموع: {splitAmount(totals.credit).dinars} دينار و {splitAmount(totals.credit).fils} فلس
@@ -246,8 +276,10 @@ export default function PrintVoucher({ transaction: tx, schoolName, directorateN
                 {/* الدفع نقداً */}
                 <div style={{ marginTop: "20px", fontSize: "13px", borderTop: "1px solid #ccc", paddingTop: "10px" }}>
                   <p>رقم الشيك: {tx.checkNumber || "........................"}</p>
+                  <p style={{ marginTop: "5px" }}>إثبات وثيقة رقم: ........................</p>
                   <p style={{ marginTop: "5px" }}>اسم المستلم: ........................</p>
                   <p style={{ marginTop: "5px" }}>التوقيع: ........................</p>
+                  <p style={{ marginTop: "5px" }}>مكان صدورها: ........................</p>
                 </div>
               </>
             )}
