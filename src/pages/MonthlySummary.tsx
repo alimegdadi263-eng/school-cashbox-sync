@@ -115,7 +115,6 @@ export default function MonthlySummary() {
                   </tr>
                   {/* Row 3: دينار / فلس */}
                   <tr className="bg-primary/80 text-primary-foreground text-[10px]">
-                    <th className={headerClass}>دينار</th>
                     <th className={headerClass}>فلس</th>
                     <th className={headerClass}>دينار</th>
                     <th className={headerClass}>فلس</th>
@@ -127,6 +126,7 @@ export default function MonthlySummary() {
                     <th className={headerClass}>فلس</th>
                     <th className={headerClass}>دينار</th>
                     <th className={headerClass}>فلس</th>
+                    <th className={headerClass}>دينار</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -145,18 +145,18 @@ export default function MonthlySummary() {
                     return (
                       <tr key={item.id} className="border-b hover:bg-muted/30 transition-colors">
                         <td className="py-2 px-3 font-medium border border-border text-right">{item.label}</td>
-                        <td className={cellClass}>{odD}</td>
                         <td className={cellClass}>{odF}</td>
-                        <td className={cellClass}>{ocD}</td>
+                        <td className={cellClass}>{odD}</td>
                         <td className={cellClass}>{ocF}</td>
-                        <td className={cellClass}>{ddD}</td>
+                        <td className={cellClass}>{ocD}</td>
                         <td className={cellClass}>{ddF}</td>
-                        <td className={cellClass}>{dcD}</td>
+                        <td className={cellClass}>{ddD}</td>
                         <td className={cellClass}>{dcF}</td>
-                        <td className={`${cellClass} font-semibold`}>{edD}</td>
+                        <td className={cellClass}>{dcD}</td>
                         <td className={`${cellClass} font-semibold`}>{edF}</td>
-                        <td className={`${cellClass} font-semibold`}>{ecD}</td>
+                        <td className={`${cellClass} font-semibold`}>{edD}</td>
                         <td className={`${cellClass} font-semibold`}>{ecF}</td>
+                        <td className={`${cellClass} font-semibold`}>{ecD}</td>
                       </tr>
                     );
                   })}
@@ -172,12 +172,12 @@ export default function MonthlySummary() {
                       const [tecD, tecF] = splitDinarFils(totals.endCredit);
                       return (
                         <>
-                          <td className={cellClass}>{todD}</td><td className={cellClass}>{todF}</td>
-                          <td className={cellClass}>{tocD}</td><td className={cellClass}>{tocF}</td>
-                          <td className={cellClass}>{tddD}</td><td className={cellClass}>{tddF}</td>
-                          <td className={cellClass}>{tdcD}</td><td className={cellClass}>{tdcF}</td>
-                          <td className={cellClass}>{tedD}</td><td className={cellClass}>{tedF}</td>
-                          <td className={cellClass}>{tecD}</td><td className={cellClass}>{tecF}</td>
+                          <td className={cellClass}>{todF}</td><td className={cellClass}>{todD}</td>
+                          <td className={cellClass}>{tocF}</td><td className={cellClass}>{tocD}</td>
+                          <td className={cellClass}>{tddF}</td><td className={cellClass}>{tddD}</td>
+                          <td className={cellClass}>{tdcF}</td><td className={cellClass}>{tdcD}</td>
+                          <td className={cellClass}>{tedF}</td><td className={cellClass}>{tedD}</td>
+                          <td className={cellClass}>{tecF}</td><td className={cellClass}>{tecD}</td>
                         </>
                       );
                     })()}

@@ -135,7 +135,7 @@ export async function exportMonthlySummaryExcel(state: FinanceState) {
   ws.mergeCells(6, 12, 6, 13); // نهاية إلى
 
   // Row 7: دينار / فلس
-  const h3Vals = ["", "دينار", "فلس", "دينار", "فلس", "دينار", "فلس", "دينار", "فلس", "دينار", "فلس", "دينار", "فلس"];
+  const h3Vals = ["", "فلس", "دينار", "فلس", "دينار", "فلس", "دينار", "فلس", "دينار", "فلس", "دينار", "فلس", "دينار"];
   const h3 = ws.addRow(h3Vals);
   h3.height = 20;
 
@@ -167,9 +167,9 @@ export async function exportMonthlySummaryExcel(state: FinanceState) {
 
     const row = ws.addRow([
       item.label,
-      odD, odF, ocD, ocF,
-      ddD, ddF, dcD, dcF,
-      edD, edF, ecD, ecF,
+      odF, odD, ocF, ocD,
+      ddF, ddD, dcF, dcD,
+      edF, edD, ecF, ecD,
     ]);
     row.height = 22;
     row.eachCell({ includeEmpty: true }, (cell, colNum) => {
@@ -203,9 +203,9 @@ export async function exportMonthlySummaryExcel(state: FinanceState) {
 
   const totRow = ws.addRow([
     "المجموع",
-    todD, todF, tocD, tocF,
-    tddD, tddF, tdcD, tdcF,
-    tedD, tedF, tecD, tecF,
+    todF, todD, tocF, tocD,
+    tddF, tddD, tdcF, tdcD,
+    tedF, tedD, tecF, tecD,
   ]);
   totRow.height = 26;
   totRow.eachCell({ includeEmpty: true }, (cell, colNum) => {
@@ -252,12 +252,12 @@ export async function exportMonthlySummaryExcel(state: FinanceState) {
   // Column widths
   ws.columns = [
     { width: 18 },  // الحساب
-    { width: 8 }, { width: 6 },  // بداية من
-    { width: 8 }, { width: 6 },  // بداية إلى
-    { width: 8 }, { width: 6 },  // مقبوضات من
-    { width: 8 }, { width: 6 },  // مدفوع إلى
-    { width: 8 }, { width: 6 },  // نهاية من
-    { width: 8 }, { width: 6 },  // نهاية إلى
+    { width: 6 }, { width: 8 },  // بداية من: فلس، دينار
+    { width: 6 }, { width: 8 },  // بداية إلى
+    { width: 6 }, { width: 8 },  // مقبوضات من
+    { width: 6 }, { width: 8 },  // مدفوع إلى
+    { width: 6 }, { width: 8 },  // نهاية من
+    { width: 6 }, { width: 8 },  // نهاية إلى
   ];
 
   // Export
