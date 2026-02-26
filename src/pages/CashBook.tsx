@@ -1,7 +1,7 @@
 import { useState, Fragment } from "react";
 import AppLayout from "@/components/AppLayout";
 import { useFinance } from "@/context/FinanceContext";
-import { ACCOUNT_COLUMNS, TRANSACTION_TYPE_LABELS, Transaction, getAccountLabel } from "@/types/finance";
+import { ACCOUNT_COLUMNS, TRANSACTION_TYPE_LABELS, CASHBOOK_TYPE_LABELS, Transaction, getAccountLabel } from "@/types/finance";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -121,7 +121,7 @@ export default function CashBook() {
       const fromTo = getTransactionFromTo(tx);
       const vals: (string | number)[] = [
         tx.date,
-        `${TRANSACTION_TYPE_LABELS[tx.type]} ${tx.referenceNumber || ""}`.trim(),
+        `${CASHBOOK_TYPE_LABELS[tx.type]} ${tx.referenceNumber || ""}`.trim(),
         tx.checkNumber || "-",
         fromTo.from,
         fromTo.to,
@@ -309,7 +309,7 @@ export default function CashBook() {
                                   ? "bg-amber-500/10 text-amber-600"
                                   : "bg-purple-500/10 text-purple-600"
                               }`}>
-                                {TRANSACTION_TYPE_LABELS[tx.type]}
+                                {CASHBOOK_TYPE_LABELS[tx.type]}
                               </span>
                               {tx.referenceNumber && (
                                 <span className="text-[9px] text-muted-foreground">{tx.referenceNumber}</span>

@@ -60,6 +60,15 @@ export const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
   receipt: "سند قبض",
   payment: "صرف",
   journal: "سند قيد",
+  advance_withdrawal: "سحب سلفة",
+  advance_payment: "صرف سلفة",
+};
+
+// التسميات المستخدمة في دفتر الصندوق (كلها "صرف" للسلف)
+export const CASHBOOK_TYPE_LABELS: Record<TransactionType, string> = {
+  receipt: "سند قبض",
+  payment: "صرف",
+  journal: "سند قيد",
   advance_withdrawal: "صرف",
   advance_payment: "صرف",
 };
