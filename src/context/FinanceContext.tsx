@@ -7,6 +7,7 @@ import {
   AccountColumnId,
   ColumnAmount,
 } from "@/types/finance";
+import { useAuth } from "@/hooks/useAuth";
 
 interface FinanceContextType {
   state: FinanceState;
@@ -21,7 +22,7 @@ interface FinanceContextType {
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
-const STORAGE_KEY = "school-finance-data";
+const STORAGE_KEY_PREFIX = "school-finance-data";
 
 const defaultState: FinanceState = {
   schoolName: "المدرسة الثانوية الشاملة",
@@ -39,20 +40,29 @@ const defaultState: FinanceState = {
   currentYear: new Date().getFullYear().toString(),
 };
 
-function loadState(): FinanceState {
+function loadState(userId: string): FinanceState {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}-${userId}`);
     if (saved) return JSON.parse(saved);
   } catch {}
   return defaultState;
 }
 
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<FinanceState>(loadState);
+  const { user } = useAuth();
+  const userId = user?.id || "anonymous";
+  const [state, setState] = useState<FinanceState>(() => loadState(userId));
+
+  // Reload state when user changes
+  useEffect(() => {
+    if (user?.id) {
+      setState(loadState(user.id));
+    }
+  }, [user?.id]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}-${userId}`, JSON.stringify(state));
+  }, [state, userId]);
 
   const addTransaction = useCallback((tx: Transaction) => {
     setState((s) => ({ ...s, transactions: [...s.transactions, tx] }));

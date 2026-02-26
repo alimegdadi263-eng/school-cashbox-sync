@@ -1,3 +1,4 @@
+import { useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import { useFinance } from "@/context/FinanceContext";
 import { ACCOUNT_COLUMNS, AccountColumnId } from "@/types/finance";
@@ -6,6 +7,12 @@ import { Button } from "@/components/ui/button";
 import { FileDown, Download } from "lucide-react";
 import { generateMonthlySummaryDocx } from "@/lib/generateMonthlySummaryDocx";
 import { exportMonthlySummaryExcel } from "@/lib/exportMonthlySummaryExcel";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const ARABIC_MONTHS = [
+  "كانون الثاني", "شباط", "آذار", "نيسان", "أيار", "حزيران",
+  "تموز", "آب", "أيلول", "تشرين الأول", "تشرين الثاني", "كانون الأول",
+];
 
 const SUMMARY_ROWS: { id: string; label: string }[] = [
   { id: "cashBox", label: "الصندوق" },
@@ -20,7 +27,7 @@ const SUMMARY_ROWS: { id: string; label: string }[] = [
   { id: "furniture", label: "أمانات أثاث تالف" },
 ];
 
-function getAccountData(state: any, colId: string) {
+function getAccountData(state: any, colId: string, selectedMonth: string) {
   const exists = ACCOUNT_COLUMNS.some(c => c.id === colId);
   if (!exists) return { openDebit: 0, openCredit: 0, duringDebit: 0, duringCredit: 0, endDebit: 0, endCredit: 0 };
   const ob = state.openingBalances.find((b: any) => b.column === colId as AccountColumnId);
@@ -28,11 +35,18 @@ function getAccountData(state: any, colId: string) {
   const openCredit = ob?.credit || 0;
   let duringDebit = 0;
   let duringCredit = 0;
-  state.transactions.filter((t: any) => t.status === "active").forEach((t: any) => {
+
+  // Filter transactions by selected month
+  const monthIndex = ARABIC_MONTHS.indexOf(selectedMonth);
+  state.transactions.filter((t: any) => {
+    if (t.status !== "active") return false;
+    if (monthIndex === -1) return true;
+    const txDate = new Date(t.date);
+    return txDate.getMonth() === monthIndex;
+  }).forEach((t: any) => {
     duringDebit += t.amounts[colId as AccountColumnId]?.debit || 0;
     duringCredit += t.amounts[colId as AccountColumnId]?.credit || 0;
   });
-  // Net = (openDebit - openCredit) + (duringDebit - duringCredit)
   const net = (openDebit - openCredit) + (duringDebit - duringCredit);
   const endDebit = net > 0 ? net : 0;
   const endCredit = net < 0 ? Math.abs(net) : 0;
@@ -49,8 +63,9 @@ function splitDinarFils(value: number): [string, string] {
 
 export default function MonthlySummary() {
   const { state } = useFinance();
+  const [selectedMonth, setSelectedMonth] = useState(state.currentMonth);
 
-  const allData = SUMMARY_ROWS.map(row => ({ ...row, data: getAccountData(state, row.id) }));
+  const allData = SUMMARY_ROWS.map(row => ({ ...row, data: getAccountData(state, row.id, selectedMonth) }));
 
   const totals = allData.reduce((acc, r) => {
     const noSwap = ["cashBox", "bank", "advances"].includes(r.id);
@@ -76,10 +91,20 @@ export default function MonthlySummary() {
           <div>
             <h1 className="text-2xl font-bold text-foreground">خلاصة الحسابات الشهرية</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              {state.schoolName} - {state.currentMonth} {state.currentYear}
+              {state.schoolName} - {selectedMonth} {state.currentYear}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="اختر الشهر" />
+              </SelectTrigger>
+              <SelectContent>
+                {ARABIC_MONTHS.map((m) => (
+                  <SelectItem key={m} value={m}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button variant="outline" onClick={() => exportMonthlySummaryExcel(state)} className="gap-2">
               <Download className="h-4 w-4" />
               تصدير Excel
