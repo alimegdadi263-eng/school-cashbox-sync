@@ -37,7 +37,7 @@ export interface FinancialClaimData {
 }
 
 export async function fillFinancialClaim(data: FinancialClaimData) {
-  const zip = await loadTemplate("/templates/مطالبة_مالية.docx");
+  const zip = await loadTemplate("/templates/financial-claim.docx");
   const doc = createDoc(zip);
   const split = splitAmount(data.amount);
 
@@ -68,7 +68,7 @@ export interface AssignmentDecisionData {
 }
 
 export async function fillAssignmentDecision(data: AssignmentDecisionData) {
-  const zip = await loadTemplate("/templates/قرار_تكليف.docx");
+  const zip = await loadTemplate("/templates/assignment-decision.docx");
   const doc = createDoc(zip);
 
   doc.render({
@@ -92,7 +92,7 @@ export interface LocalPurchaseData {
 }
 
 export async function fillLocalPurchase(data: LocalPurchaseData) {
-  const zip = await loadTemplate("/templates/طلب_مشترى_محلي.docx");
+  const zip = await loadTemplate("/templates/local-purchase.docx");
   const doc = createDoc(zip);
 
   doc.render({
