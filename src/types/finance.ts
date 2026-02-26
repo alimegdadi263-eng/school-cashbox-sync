@@ -58,7 +58,7 @@ export interface FinanceState {
 
 export const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
   receipt: "سند قبض",
-  payment: "مستند صرف",
+  payment: "صرف",
   journal: "سند قيد",
   advance_withdrawal: "صرف",
   advance_payment: "صرف",
