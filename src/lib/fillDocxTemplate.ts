@@ -34,7 +34,29 @@ async function loadTemplate(templatePath: string): Promise<PizZip> {
   return new PizZip(arrayBuffer);
 }
 
+function fixBrokenTags(zip: PizZip): PizZip {
+  // Fix broken {{}} tags split across XML runs by Word
+  const xmlFiles = ["word/document.xml", "word/header1.xml", "word/header2.xml", "word/footer1.xml", "word/footer2.xml"];
+  xmlFiles.forEach((f) => {
+    const file = zip.file(f);
+    if (!file) return;
+    let content = file.asText();
+    // Remove XML tags between {{ and }} so docxtemplater can parse them
+    // Match patterns like {{tag_name}} that are split across XML runs
+    content = content.replace(/\{\{([^}]*?)\}\s*\}/g, "{{$1}}");
+    content = content.replace(/\{\s*\{([^}]*?)\}\}/g, "{{$1}}");
+    // Remove XML formatting tags inserted between {{ and }}
+    content = content.replace(/(\{\{)((?:(?!\}\}).)*?)(\}\})/g, (match, open, middle, close) => {
+      const cleaned = middle.replace(/<[^>]+>/g, "");
+      return open + cleaned + close;
+    });
+    zip.file(f, content);
+  });
+  return zip;
+}
+
 function createDoc(zip: PizZip): Docxtemplater {
+  fixBrokenTags(zip);
   return new Docxtemplater(zip, {
     paragraphLoop: true,
     linebreaks: true,
