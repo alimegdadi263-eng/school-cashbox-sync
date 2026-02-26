@@ -60,8 +60,8 @@ export const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
   receipt: "سند قبض",
   payment: "مستند صرف",
   journal: "سند قيد",
-  advance_withdrawal: "سحب سلفة يد",
-  advance_payment: "صرف السلفة",
+  advance_withdrawal: "صرف",
+  advance_payment: "صرف",
 };
 
 // الحسابات المتاحة للصرف (من هذه الحسابات الى البنك)
