@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2, Download, FileDown } from "lucide-react";
 import { fillJournalVoucher, fillPaymentVoucher } from "@/lib/fillDocxTemplate";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { Button } from "@/components/ui/button";
 
 function getTransactionFromTo(tx: Transaction): { from: string; to: string } {
@@ -40,35 +40,86 @@ export default function CashBook() {
   const formatCurrency = (n: number) =>
     n === 0 ? "-" : n.toLocaleString("ar-JO", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 
-  const exportToExcel = () => {
-    const formatNum = (n: number) => (n === 0 ? "" : n);
+  const exportToExcel = async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("دفتر الصندوق", {
+      views: [{ rightToLeft: true }],
+      pageSetup: { orientation: "landscape", paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+    });
+
+    const totalCols = 6 + ACCOUNT_COLUMNS.length * 2;
+    const thinBorder: Partial<ExcelJS.Borders> = {
+      top: { style: "thin" }, bottom: { style: "thin" },
+      left: { style: "thin" }, right: { style: "thin" },
+    };
+    const headerFill: ExcelJS.FillPattern = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1B4F72" } };
+    const subHeaderFill: ExcelJS.FillPattern = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2471A3" } };
+    const headerFont: Partial<ExcelJS.Font> = { bold: true, color: { argb: "FFFFFFFF" }, size: 11, name: "Arial" };
+    const subHeaderFont: Partial<ExcelJS.Font> = { bold: true, color: { argb: "FFFFFFFF" }, size: 9, name: "Arial" };
+    const bodyFont: Partial<ExcelJS.Font> = { size: 10, name: "Arial" };
+    const centerAlign: Partial<ExcelJS.Alignment> = { horizontal: "center", vertical: "middle", wrapText: true };
+
+    // Title row
+    const titleRow = ws.addRow([`دفتر صندوق - ${state.schoolName} - ${state.currentMonth} ${state.currentYear}`]);
+    ws.mergeCells(1, 1, 1, totalCols);
+    titleRow.height = 30;
+    titleRow.getCell(1).font = { bold: true, size: 14, name: "Arial" };
+    titleRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
+    titleRow.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD5E8F0" } };
 
     // Header row 1
-    const headers1 = ["التاريخ", "الحركة", "رقم الشك", "من", "الى", "البيان"];
-    ACCOUNT_COLUMNS.forEach((col) => {
-      headers1.push(col.label, "");
-    });
+    const h1Values: string[] = ["التاريخ", "الحركة", "رقم الشك", "من", "الى", "البيان"];
+    ACCOUNT_COLUMNS.forEach((col) => { h1Values.push(col.label, ""); });
+    const headerRow1 = ws.addRow(h1Values);
+    headerRow1.height = 25;
 
     // Header row 2 (sub-headers)
-    const headers2 = ["", "", "", "", "", ""];
-    ACCOUNT_COLUMNS.forEach(() => {
-      headers2.push("من", "الى");
-    });
+    const h2Values: string[] = ["", "", "", "", "", ""];
+    ACCOUNT_COLUMNS.forEach(() => { h2Values.push("من", "الى"); });
+    const headerRow2 = ws.addRow(h2Values);
+    headerRow2.height = 20;
 
-    const rows: any[][] = [headers1, headers2];
+    // Merge account column headers
+    ACCOUNT_COLUMNS.forEach((_, i) => {
+      const startCol = 7 + i * 2;
+      ws.mergeCells(2, startCol, 2, startCol + 1);
+    });
+    // Merge first 6 columns across header rows
+    for (let c = 1; c <= 6; c++) {
+      ws.mergeCells(2, c, 3, c);
+    }
+
+    // Style header rows
+    [headerRow1, headerRow2].forEach((row, ri) => {
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        cell.fill = ri === 0 ? headerFill : subHeaderFill;
+        cell.font = ri === 0 ? headerFont : subHeaderFont;
+        cell.alignment = centerAlign;
+        cell.border = thinBorder;
+      });
+    });
 
     // Opening balances
-    const obRow: any[] = ["-", "-", "-", "-", "-", "الرصيد الافتتاحي"];
+    const obValues: (string | number)[] = ["-", "-", "-", "-", "-", "الرصيد الافتتاحي"];
     ACCOUNT_COLUMNS.forEach((col) => {
       const ob = state.openingBalances.find((b) => b.column === col.id);
-      obRow.push(formatNum(ob?.debit || 0), formatNum(ob?.credit || 0));
+      obValues.push(ob?.debit || 0, ob?.credit || 0);
     });
-    rows.push(obRow);
+    const obRow = ws.addRow(obValues);
+    obRow.height = 22;
+    obRow.eachCell({ includeEmpty: true }, (cell, colNum) => {
+      cell.font = { ...bodyFont, bold: true };
+      cell.alignment = centerAlign;
+      cell.border = thinBorder;
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF2F4F4" } };
+      if (colNum > 6 && (colNum - 7) % 2 === 0) cell.numFmt = "#,##0.000";
+      if (colNum > 6 && (colNum - 7) % 2 === 1) cell.numFmt = "#,##0.000";
+    });
 
-    // Transactions
+    // Transaction rows
     filtered.forEach((tx) => {
       const fromTo = getTransactionFromTo(tx);
-      const row: any[] = [
+      const vals: (string | number)[] = [
         tx.date,
         `${TRANSACTION_TYPE_LABELS[tx.type]} ${tx.referenceNumber || ""}`.trim(),
         tx.checkNumber || "-",
@@ -77,68 +128,75 @@ export default function CashBook() {
         tx.description,
       ];
       ACCOUNT_COLUMNS.forEach((col) => {
-        row.push(formatNum(tx.amounts[col.id]?.debit || 0), formatNum(tx.amounts[col.id]?.credit || 0));
+        const d = tx.amounts[col.id]?.debit || 0;
+        const c = tx.amounts[col.id]?.credit || 0;
+        vals.push(d === 0 ? "" as any : d, c === 0 ? "" as any : c);
       });
-      rows.push(row);
+      const row = ws.addRow(vals);
+      row.height = 20;
+      row.eachCell({ includeEmpty: true }, (cell, colNum) => {
+        cell.font = bodyFont;
+        cell.alignment = centerAlign;
+        cell.border = thinBorder;
+        if (colNum > 6) cell.numFmt = "#,##0.000";
+      });
     });
 
-    // Totals
-    const totRow: any[] = ["", "", "", "", "", "المجموع الكلي"];
+    // Totals row
+    const totValues: (string | number)[] = ["", "", "", "", "", "المجموع الكلي"];
     ACCOUNT_COLUMNS.forEach((col) => {
       const bal = getColumnBalance(col.id);
-      totRow.push(formatNum(bal.debit), formatNum(bal.credit));
+      totValues.push(bal.debit, bal.credit);
     });
-    rows.push(totRow);
+    const totRow = ws.addRow(totValues);
+    totRow.height = 24;
+    ws.mergeCells(totRow.number, 1, totRow.number, 6);
+    totRow.eachCell({ includeEmpty: true }, (cell, colNum) => {
+      cell.font = { ...bodyFont, bold: true, size: 11 };
+      cell.alignment = centerAlign;
+      cell.border = thinBorder;
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEAF2F8" } };
+      if (colNum > 6) cell.numFmt = "#,##0.000";
+    });
 
-    // Net balance
-    const netRow: any[] = ["", "", "", "", "", "الرصيد الجديد"];
+    // Net balance row
+    const netValues: (string | number)[] = ["", "", "", "", "", "الرصيد الجديد"];
     ACCOUNT_COLUMNS.forEach((col) => {
       const bal = getColumnBalance(col.id);
       const net = bal.debit - bal.credit;
-      netRow.push(Math.abs(net), net >= 0 ? "مدين" : "دائن");
+      netValues.push(Math.abs(net), net >= 0 ? "مدين" : "دائن");
     });
-    rows.push(netRow);
-
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-
-    // Merge header cells for account columns (starting at col index 6)
-    ws["!merges"] = ACCOUNT_COLUMNS.map((_, i) => ({
-      s: { r: 0, c: 6 + i * 2 },
-      e: { r: 0, c: 6 + i * 2 + 1 },
-    }));
+    const netRow = ws.addRow(netValues);
+    netRow.height = 24;
+    ws.mergeCells(netRow.number, 1, netRow.number, 6);
+    netRow.eachCell({ includeEmpty: true }, (cell, colNum) => {
+      cell.font = { ...bodyFont, bold: true, size: 11 };
+      cell.alignment = centerAlign;
+      cell.border = thinBorder;
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD4EFDF" } };
+      if (colNum > 6 && (colNum - 7) % 2 === 0) cell.numFmt = "#,##0.000";
+    });
 
     // Column widths
-    ws["!cols"] = [
-      { wch: 12 }, // التاريخ
-      { wch: 16 }, // الحركة
-      { wch: 10 }, // رقم الشك
-      { wch: 12 }, // من
-      { wch: 12 }, // الى
-      { wch: 30 }, // البيان
-      ...ACCOUNT_COLUMNS.flatMap(() => [{ wch: 12 }, { wch: 12 }]),
+    ws.columns = [
+      { width: 14 }, // التاريخ
+      { width: 18 }, // الحركة
+      { width: 12 }, // رقم الشك
+      { width: 12 }, // من
+      { width: 12 }, // الى
+      { width: 32 }, // البيان
+      ...ACCOUNT_COLUMNS.flatMap(() => [{ width: 13 }, { width: 13 }]),
     ];
 
-    // Add borders to all cells
-    const range = XLSX.utils.decode_range(ws["!ref"] || "A1");
-    for (let R = range.s.r; R <= range.e.r; R++) {
-      for (let C = range.s.c; C <= range.e.c; C++) {
-        const addr = XLSX.utils.encode_cell({ r: R, c: C });
-        if (!ws[addr]) ws[addr] = { v: "", t: "s" };
-        ws[addr].s = {
-          border: {
-            top: { style: "thin", color: { rgb: "000000" } },
-            bottom: { style: "thin", color: { rgb: "000000" } },
-            left: { style: "thin", color: { rgb: "000000" } },
-            right: { style: "thin", color: { rgb: "000000" } },
-          },
-          alignment: { horizontal: "center", vertical: "center" },
-        };
-      }
-    }
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "دفتر الصندوق");
-    XLSX.writeFile(wb, `دفتر_الصندوق_${state.currentMonth}_${state.currentYear}.xlsx`);
+    // Export
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `دفتر_الصندوق_${state.currentMonth}_${state.currentYear}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const thClass = "py-3 px-2 text-center border border-primary-foreground/30";
