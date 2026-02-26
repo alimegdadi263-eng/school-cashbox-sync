@@ -5,17 +5,15 @@ import { ACCOUNT_COLUMNS, TRANSACTION_TYPE_LABELS, Transaction, isAssetAccount }
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Printer, Download, FileDown } from "lucide-react";
+import { Trash2, Download, FileDown } from "lucide-react";
 import { fillJournalVoucher, fillPaymentVoucher } from "@/lib/fillDocxTemplate";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
-import PrintVoucher from "@/components/PrintVoucher";
 
 export default function CashBook() {
   const { state, getColumnBalance, deleteTransaction } = useFinance();
   const [filterType, setFilterType] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
-  const [printTx, setPrintTx] = useState<Transaction | null>(null);
 
   const exportToExcel = () => {
     const formatNum = (n: number) => (n === 0 ? "" : n);
@@ -214,27 +212,17 @@ export default function CashBook() {
                         ))}
                         <td className="py-2.5 px-2 border border-border">
                           <div className="flex gap-1 justify-center">
-                            {(tx.type === "journal" || tx.type === "payment" || tx.type === "advance_withdrawal" || tx.type === "advance_payment") && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  if (tx.type === "journal") fillJournalVoucher(tx, state.schoolName, state.directorateName);
-                                  else fillPaymentVoucher(tx, state.schoolName, state.directorateName, state.directorName, state.member1Name, state.member2Name);
-                                }}
-                                className="h-7 w-7 p-0 text-muted-foreground hover:text-accent-foreground"
-                                title="تنزيل وورد"
-                              >
-                                <FileDown className="w-3.5 h-3.5" />
-                              </Button>
-                            )}
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => setPrintTx(tx)}
-                              className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"
+                              onClick={() => {
+                                if (tx.type === "journal") fillJournalVoucher(tx, state.schoolName, state.directorateName);
+                                else fillPaymentVoucher(tx, state.schoolName, state.directorateName, state.directorName, state.member1Name, state.member2Name);
+                              }}
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-accent-foreground"
+                              title="تنزيل وورد"
                             >
-                              <Printer className="w-3.5 h-3.5" />
+                              <FileDown className="w-3.5 h-3.5" />
                             </Button>
                             <Button
                               variant="ghost"
@@ -287,17 +275,6 @@ export default function CashBook() {
             </div>
           </CardContent>
         </Card>
-        {printTx && (
-          <PrintVoucher
-            transaction={printTx}
-            schoolName={state.schoolName}
-            directorateName={state.directorateName}
-            directorName={state.directorName}
-            member1Name={state.member1Name}
-            member2Name={state.member2Name}
-            onClose={() => setPrintTx(null)}
-          />
-        )}
       </div>
     </AppLayout>
   );
