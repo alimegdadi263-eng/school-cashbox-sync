@@ -53,12 +53,34 @@ Deno.serve(async (req) => {
 
     const { email, password, schoolName } = await req.json();
 
+    // Server-side input validation
+    const trimmedEmail = (email || "").trim().toLowerCase();
+    const trimmedSchool = (schoolName || "").trim();
+    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail) || trimmedEmail.length > 255) {
+      return new Response(JSON.stringify({ error: "بريد إلكتروني غير صالح" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!password || typeof password !== "string" || password.length < 8 || password.length > 128) {
+      return new Response(JSON.stringify({ error: "كلمة المرور يجب أن تكون بين 8 و 128 حرفاً" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!trimmedSchool || trimmedSchool.length > 100) {
+      return new Response(JSON.stringify({ error: "اسم المدرسة غير صالح" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Create user with admin client
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
-      email,
+      email: trimmedEmail,
       password,
       email_confirm: true,
-      user_metadata: { school_name: schoolName },
+      user_metadata: { school_name: trimmedSchool },
     });
 
     if (createError) {
@@ -69,7 +91,7 @@ Deno.serve(async (req) => {
     }
 
     // Update profile school name
-    await adminClient.from("profiles").update({ school_name: schoolName }).eq("id", newUser.user.id);
+    await adminClient.from("profiles").update({ school_name: trimmedSchool }).eq("id", newUser.user.id);
 
     // Assign school role
     await adminClient.from("user_roles").insert({

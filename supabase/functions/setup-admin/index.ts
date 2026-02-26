@@ -17,6 +17,21 @@ Deno.serve(async (req) => {
 
     const { email, password } = await req.json();
 
+    // Server-side validation
+    const trimmedEmail = (email || "").trim().toLowerCase();
+    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail) || trimmedEmail.length > 255) {
+      return new Response(JSON.stringify({ error: "بريد إلكتروني غير صالح" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!password || typeof password !== "string" || password.length < 8 || password.length > 128) {
+      return new Response(JSON.stringify({ error: "كلمة المرور يجب أن تكون بين 8 و 128 حرفاً" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Check if any admin exists
     const { data: existingAdmins } = await adminClient
       .from("user_roles")
@@ -33,7 +48,7 @@ Deno.serve(async (req) => {
 
     // Create admin user
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
-      email,
+      email: trimmedEmail,
       password,
       email_confirm: true,
       user_metadata: { school_name: "إدارة النظام" },

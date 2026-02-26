@@ -53,8 +53,23 @@ export default function AdminUsers() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || !schoolName) {
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedSchool = schoolName.trim();
+
+    if (!trimmedEmail || !password || !trimmedSchool) {
       toast({ title: "خطأ", description: "يرجى تعبئة جميع الحقول", variant: "destructive" });
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail) || trimmedEmail.length > 255) {
+      toast({ title: "خطأ", description: "بريد إلكتروني غير صالح", variant: "destructive" });
+      return;
+    }
+    if (password.length < 8) {
+      toast({ title: "خطأ", description: "كلمة المرور يجب أن تكون 8 أحرف على الأقل", variant: "destructive" });
+      return;
+    }
+    if (trimmedSchool.length > 100) {
+      toast({ title: "خطأ", description: "اسم المدرسة طويل جداً", variant: "destructive" });
       return;
     }
 
