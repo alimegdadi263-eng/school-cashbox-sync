@@ -53,9 +53,9 @@ export default function MonthlySummary() {
   const allData = SUMMARY_ROWS.map(row => ({ ...row, data: getAccountData(state, row.id) }));
 
   const totals = allData.reduce((acc, r) => {
-    const isAdvances = r.id === "advances";
-    const receipt = isAdvances ? r.data.duringDebit : r.data.duringCredit;
-    const payment = isAdvances ? r.data.duringCredit : r.data.duringDebit;
+    const noSwap = ["cashBox", "bank", "advances"].includes(r.id);
+    const receipt = noSwap ? r.data.duringDebit : r.data.duringCredit;
+    const payment = noSwap ? r.data.duringCredit : r.data.duringDebit;
     return {
       openDebit: acc.openDebit + r.data.openDebit,
       openCredit: acc.openCredit + r.data.openCredit,
@@ -134,10 +134,10 @@ export default function MonthlySummary() {
                     const d = item.data;
                     const [odD, odF] = splitDinarFils(d.openDebit);
                     const [ocD, ocF] = splitDinarFils(d.openCredit);
-                    // For all accounts except advances: مقبوضات=credit, مدفوع=debit
-                    const isAdvances = item.id === "advances";
-                    const receiptVal = isAdvances ? d.duringDebit : d.duringCredit;
-                    const paymentVal = isAdvances ? d.duringCredit : d.duringDebit;
+                    // cashBox, bank, advances: debit=مقبوضات, credit=مدفوع (no swap)
+                    const noSwap = ["cashBox", "bank", "advances"].includes(item.id);
+                    const receiptVal = noSwap ? d.duringDebit : d.duringCredit;
+                    const paymentVal = noSwap ? d.duringCredit : d.duringDebit;
                     const [ddD, ddF] = splitDinarFils(receiptVal);
                     const [dcD, dcF] = splitDinarFils(paymentVal);
                     const [edD, edF] = splitDinarFils(d.endDebit);
