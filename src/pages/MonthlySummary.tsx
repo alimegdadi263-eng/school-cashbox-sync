@@ -32,7 +32,11 @@ function getAccountData(state: any, colId: string) {
     duringDebit += t.amounts[colId as AccountColumnId]?.debit || 0;
     duringCredit += t.amounts[colId as AccountColumnId]?.credit || 0;
   });
-  return { openDebit, openCredit, duringDebit, duringCredit, endDebit: openDebit + duringDebit, endCredit: openCredit + duringCredit };
+  // Net = (openDebit - openCredit) + (duringDebit - duringCredit)
+  const net = (openDebit - openCredit) + (duringDebit - duringCredit);
+  const endDebit = net > 0 ? net : 0;
+  const endCredit = net < 0 ? Math.abs(net) : 0;
+  return { openDebit, openCredit, duringDebit, duringCredit, endDebit, endCredit };
 }
 
 function splitDinarFils(value: number): [string, string] {
