@@ -2,6 +2,9 @@ import AppLayout from "@/components/AppLayout";
 import { useFinance } from "@/context/FinanceContext";
 import { ACCOUNT_COLUMNS } from "@/types/finance";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { FileDown } from "lucide-react";
+import { generateMonthlySummaryDocx } from "@/lib/generateMonthlySummaryDocx";
 
 export default function MonthlySummary() {
   const { state, getColumnBalance, getTotalBalance } = useFinance();
@@ -13,11 +16,17 @@ export default function MonthlySummary() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">خلاصة الحسابات الشهرية</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            {state.schoolName} - {state.currentMonth} {state.currentYear}
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">خلاصة الحسابات الشهرية</h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              {state.schoolName} - {state.currentMonth} {state.currentYear}
+            </p>
+          </div>
+          <Button onClick={() => generateMonthlySummaryDocx(state)} className="gap-2">
+            <FileDown className="h-4 w-4" />
+            تصدير Word
+          </Button>
         </div>
 
         <Card className="shadow-card">
