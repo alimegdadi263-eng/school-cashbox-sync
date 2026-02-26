@@ -41,16 +41,45 @@ function fixBrokenTags(zip: PizZip): PizZip {
     const file = zip.file(f);
     if (!file) return;
     let content = file.asText();
-    // Remove XML tags between {{ and }} so docxtemplater can parse them
-    // Match patterns like {{tag_name}} that are split across XML runs
-    content = content.replace(/\{\{([^}]*?)\}\s*\}/g, "{{$1}}");
-    content = content.replace(/\{\s*\{([^}]*?)\}\}/g, "{{$1}}");
-    // Remove XML formatting tags inserted between {{ and }}
-    content = content.replace(/(\{\{)((?:(?!\}\}).)*?)(\}\})/g, (match, open, middle, close) => {
-      const cleaned = middle.replace(/<[^>]+>/g, "");
-      return open + cleaned + close;
-    });
-    zip.file(f, content);
+
+    // Step 1: Remove XML tags between {{ and }} that Word inserts
+    // This handles cases like: {{<w:r><w:t>member1_name</w:t></w:r>}}
+    // First, find all {{ ... }} regions and clean XML from inside them
+    content = content.replace(/\{(?:<[^>]*>)*\{/g, "{{");
+    content = content.replace(/\}(?:<[^>]*>)*\}/g, "}}");
+
+    // Step 2: Clean XML tags from inside {{ }} after merging braces
+    let result = "";
+    let i = 0;
+    while (i < content.length) {
+      const openIdx = content.indexOf("{{", i);
+      if (openIdx === -1) {
+        result += content.slice(i);
+        break;
+      }
+      result += content.slice(i, openIdx);
+      const closeIdx = content.indexOf("}}", openIdx);
+      if (closeIdx === -1) {
+        // No closing found - look for single } and fix it
+        const singleClose = content.indexOf("}", openIdx + 2);
+        if (singleClose !== -1) {
+          const tagContent = content.slice(openIdx + 2, singleClose).replace(/<[^>]*>/g, "").trim();
+          result += "{{" + tagContent + "}}";
+          i = singleClose + 1;
+          // Skip extra } if present
+          if (content[i] === "}") i++;
+        } else {
+          result += content.slice(openIdx);
+          break;
+        }
+      } else {
+        const tagContent = content.slice(openIdx + 2, closeIdx).replace(/<[^>]*>/g, "").trim();
+        result += "{{" + tagContent + "}}";
+        i = closeIdx + 2;
+      }
+    }
+
+    zip.file(f, result);
   });
   return zip;
 }
