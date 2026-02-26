@@ -164,7 +164,8 @@ export default function CashBook() {
     ACCOUNT_COLUMNS.forEach((col) => {
       const bal = getColumnBalance(col.id);
       const net = bal.debit - bal.credit;
-      netValues.push(Math.abs(net), net >= 0 ? "مدين" : "دائن");
+      // وضع الرصيد في العمود الصحيح: من (مدين) أو الى (دائن)
+      netValues.push(net >= 0 ? Math.abs(net) : "", net < 0 ? Math.abs(net) : "");
     });
     const netRow = ws.addRow(netValues);
     netRow.height = 24;
@@ -380,12 +381,14 @@ export default function CashBook() {
                       const bal = getColumnBalance(col.id);
                       const net = bal.debit - bal.credit;
                       return (
-                        <td key={col.id} className={`py-3 px-2 text-center border border-border font-bold`} colSpan={2}>
-                          <span className={net >= 0 ? "text-success" : "text-destructive"}>
-                            {formatCurrency(Math.abs(net))}
-                            {net !== 0 && (net > 0 ? " (مدين)" : " (دائن)")}
-                          </span>
-                        </td>
+                        <Fragment key={col.id}>
+                          <td className={`py-3 px-2 text-center border border-border font-bold text-success`}>
+                            {net > 0 ? formatCurrency(net) : "-"}
+                          </td>
+                          <td className={`py-3 px-2 text-center border border-border font-bold text-destructive`}>
+                            {net < 0 ? formatCurrency(Math.abs(net)) : "-"}
+                          </td>
+                        </Fragment>
                       );
                     })}
                     <td className="border border-border"></td>
