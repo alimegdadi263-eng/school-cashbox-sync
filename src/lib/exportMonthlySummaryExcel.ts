@@ -156,8 +156,12 @@ export async function exportMonthlySummaryExcel(state: FinanceState) {
     const d = item.data;
     const [odD, odF] = splitDinarFils(d.openDebit);
     const [ocD, ocF] = splitDinarFils(d.openCredit);
-    const [ddD, ddF] = splitDinarFils(d.duringDebit);
-    const [dcD, dcF] = splitDinarFils(d.duringCredit);
+    // For all accounts except advances: مقبوضات=credit, مدفوع=debit
+    const isAdvances = item.id === "advances";
+    const receiptVal = isAdvances ? d.duringDebit : d.duringCredit;
+    const paymentVal = isAdvances ? d.duringCredit : d.duringDebit;
+    const [ddD, ddF] = splitDinarFils(receiptVal);
+    const [dcD, dcF] = splitDinarFils(paymentVal);
     const [edD, edF] = splitDinarFils(d.endDebit);
     const [ecD, ecF] = splitDinarFils(d.endCredit);
 
@@ -176,19 +180,24 @@ export async function exportMonthlySummaryExcel(state: FinanceState) {
   });
 
   // Totals row
-  const totals = allData.reduce((acc, r) => ({
-    openDebit: acc.openDebit + r.data.openDebit,
-    openCredit: acc.openCredit + r.data.openCredit,
-    duringDebit: acc.duringDebit + r.data.duringDebit,
-    duringCredit: acc.duringCredit + r.data.duringCredit,
-    endDebit: acc.endDebit + r.data.endDebit,
-    endCredit: acc.endCredit + r.data.endCredit,
-  }), { openDebit: 0, openCredit: 0, duringDebit: 0, duringCredit: 0, endDebit: 0, endCredit: 0 });
+  const totals = allData.reduce((acc, r) => {
+    const isAdvances = r.id === "advances";
+    const receipt = isAdvances ? r.data.duringDebit : r.data.duringCredit;
+    const payment = isAdvances ? r.data.duringCredit : r.data.duringDebit;
+    return {
+      openDebit: acc.openDebit + r.data.openDebit,
+      openCredit: acc.openCredit + r.data.openCredit,
+      duringReceipt: acc.duringReceipt + receipt,
+      duringPayment: acc.duringPayment + payment,
+      endDebit: acc.endDebit + r.data.endDebit,
+      endCredit: acc.endCredit + r.data.endCredit,
+    };
+  }, { openDebit: 0, openCredit: 0, duringReceipt: 0, duringPayment: 0, endDebit: 0, endCredit: 0 });
 
   const [todD, todF] = splitDinarFils(totals.openDebit);
   const [tocD, tocF] = splitDinarFils(totals.openCredit);
-  const [tddD, tddF] = splitDinarFils(totals.duringDebit);
-  const [tdcD, tdcF] = splitDinarFils(totals.duringCredit);
+  const [tddD, tddF] = splitDinarFils(totals.duringReceipt);
+  const [tdcD, tdcF] = splitDinarFils(totals.duringPayment);
   const [tedD, tedF] = splitDinarFils(totals.endDebit);
   const [tecD, tecF] = splitDinarFils(totals.endCredit);
 
