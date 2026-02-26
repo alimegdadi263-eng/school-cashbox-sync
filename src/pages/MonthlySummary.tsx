@@ -1,10 +1,11 @@
 import AppLayout from "@/components/AppLayout";
 import { useFinance } from "@/context/FinanceContext";
 import { ACCOUNT_COLUMNS } from "@/types/finance";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileDown } from "lucide-react";
+import { FileDown, Download } from "lucide-react";
 import { generateMonthlySummaryDocx } from "@/lib/generateMonthlySummaryDocx";
+import { exportMonthlySummaryExcel } from "@/lib/exportMonthlySummaryExcel";
 
 export default function MonthlySummary() {
   const { state, getColumnBalance, getTotalBalance } = useFinance();
@@ -16,17 +17,23 @@ export default function MonthlySummary() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">خلاصة الحسابات الشهرية</h1>
             <p className="text-muted-foreground text-sm mt-1">
               {state.schoolName} - {state.currentMonth} {state.currentYear}
             </p>
           </div>
-          <Button onClick={() => generateMonthlySummaryDocx(state)} className="gap-2">
-            <FileDown className="h-4 w-4" />
-            تصدير Word
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => exportMonthlySummaryExcel(state)} className="gap-2">
+              <Download className="h-4 w-4" />
+              تصدير Excel
+            </Button>
+            <Button onClick={() => generateMonthlySummaryDocx(state)} className="gap-2">
+              <FileDown className="h-4 w-4" />
+              تصدير Word
+            </Button>
+          </div>
         </div>
 
         <Card className="shadow-card">
@@ -35,18 +42,18 @@ export default function MonthlySummary() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-primary text-primary-foreground">
-                    <th className="py-3 px-4 text-right" rowSpan={2}>الحساب</th>
-                    <th className="py-2 px-4 text-center border-r border-primary-foreground/20" colSpan={2}>بداية الشهر</th>
-                    <th className="py-2 px-4 text-center border-r border-primary-foreground/20" colSpan={2}>خلال الشهر</th>
-                    <th className="py-2 px-4 text-center border-r border-primary-foreground/20" colSpan={2}>نهاية الشهر</th>
+                    <th className="py-3 px-4 text-right border border-primary-foreground/20" rowSpan={2}>الحساب</th>
+                    <th className="py-2 px-4 text-center border border-primary-foreground/20" colSpan={2}>بداية الشهر</th>
+                    <th className="py-2 px-4 text-center border border-primary-foreground/20" colSpan={2}>خلال الشهر</th>
+                    <th className="py-2 px-4 text-center border border-primary-foreground/20" colSpan={2}>نهاية الشهر</th>
                   </tr>
                   <tr className="bg-primary/90 text-primary-foreground text-xs">
-                    <th className="py-2 px-3 text-center border-r border-primary-foreground/20">المقبوض</th>
-                    <th className="py-2 px-3 text-center">المدفوع</th>
-                    <th className="py-2 px-3 text-center border-r border-primary-foreground/20">المقبوض</th>
-                    <th className="py-2 px-3 text-center">المدفوع</th>
-                    <th className="py-2 px-3 text-center border-r border-primary-foreground/20">المقبوض</th>
-                    <th className="py-2 px-3 text-center">المدفوع</th>
+                    <th className="py-2 px-3 text-center border border-primary-foreground/20">المقبوض</th>
+                    <th className="py-2 px-3 text-center border border-primary-foreground/20">المدفوع</th>
+                    <th className="py-2 px-3 text-center border border-primary-foreground/20">المقبوض</th>
+                    <th className="py-2 px-3 text-center border border-primary-foreground/20">المدفوع</th>
+                    <th className="py-2 px-3 text-center border border-primary-foreground/20">المقبوض</th>
+                    <th className="py-2 px-3 text-center border border-primary-foreground/20">المدفوع</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -69,38 +76,38 @@ export default function MonthlySummary() {
 
                     return (
                       <tr key={col.id} className="border-b hover:bg-muted/30 transition-colors">
-                        <td className="py-3 px-4 font-medium">{col.label}</td>
-                        <td className="py-3 px-3 text-center text-success">{formatCurrency(openDebit)}</td>
-                        <td className="py-3 px-3 text-center text-destructive">{formatCurrency(openCredit)}</td>
-                        <td className="py-3 px-3 text-center text-success">{formatCurrency(duringDebit)}</td>
-                        <td className="py-3 px-3 text-center text-destructive">{formatCurrency(duringCredit)}</td>
-                        <td className="py-3 px-3 text-center text-success font-semibold">{formatCurrency(endDebit)}</td>
-                        <td className="py-3 px-3 text-center text-destructive font-semibold">{formatCurrency(endCredit)}</td>
+                        <td className="py-3 px-4 font-medium border border-border">{col.label}</td>
+                        <td className="py-3 px-3 text-center text-success border border-border">{formatCurrency(openDebit)}</td>
+                        <td className="py-3 px-3 text-center text-destructive border border-border">{formatCurrency(openCredit)}</td>
+                        <td className="py-3 px-3 text-center text-success border border-border">{formatCurrency(duringDebit)}</td>
+                        <td className="py-3 px-3 text-center text-destructive border border-border">{formatCurrency(duringCredit)}</td>
+                        <td className="py-3 px-3 text-center text-success font-semibold border border-border">{formatCurrency(endDebit)}</td>
+                        <td className="py-3 px-3 text-center text-destructive font-semibold border border-border">{formatCurrency(endCredit)}</td>
                       </tr>
                     );
                   })}
                   <tr className="bg-primary/5 font-bold border-t-2 border-primary">
-                    <td className="py-3 px-4">المجموع</td>
-                    <td className="py-3 px-3 text-center text-success">
+                    <td className="py-3 px-4 border border-border">المجموع</td>
+                    <td className="py-3 px-3 text-center text-success border border-border">
                       {formatCurrency(state.openingBalances.reduce((s, b) => s + b.debit, 0))}
                     </td>
-                    <td className="py-3 px-3 text-center text-destructive">
+                    <td className="py-3 px-3 text-center text-destructive border border-border">
                       {formatCurrency(state.openingBalances.reduce((s, b) => s + b.credit, 0))}
                     </td>
-                    <td className="py-3 px-3 text-center text-success">
+                    <td className="py-3 px-3 text-center text-success border border-border">
                       {formatCurrency(
                         state.transactions.filter((t) => t.status === "active")
                           .reduce((s, t) => s + ACCOUNT_COLUMNS.reduce((cs, col) => cs + (t.amounts[col.id]?.debit || 0), 0), 0)
                       )}
                     </td>
-                    <td className="py-3 px-3 text-center text-destructive">
+                    <td className="py-3 px-3 text-center text-destructive border border-border">
                       {formatCurrency(
                         state.transactions.filter((t) => t.status === "active")
                           .reduce((s, t) => s + ACCOUNT_COLUMNS.reduce((cs, col) => cs + (t.amounts[col.id]?.credit || 0), 0), 0)
                       )}
                     </td>
-                    <td className="py-3 px-3 text-center text-success font-bold">{formatCurrency(total.debit)}</td>
-                    <td className="py-3 px-3 text-center text-destructive font-bold">{formatCurrency(total.credit)}</td>
+                    <td className="py-3 px-3 text-center text-success font-bold border border-border">{formatCurrency(total.debit)}</td>
+                    <td className="py-3 px-3 text-center text-destructive font-bold border border-border">{formatCurrency(total.credit)}</td>
                   </tr>
                 </tbody>
               </table>
