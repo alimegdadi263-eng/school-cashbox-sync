@@ -220,7 +220,7 @@ export default function CashBook() {
                                 size="sm"
                                 onClick={() => {
                                   if (tx.type === "journal") fillJournalVoucher(tx, state.schoolName, state.directorateName);
-                                  else fillPaymentVoucher(tx, state.schoolName, state.directorateName);
+                                  else fillPaymentVoucher(tx, state.schoolName, state.directorateName, state.directorName, state.member1Name, state.member2Name);
                                 }}
                                 className="h-7 w-7 p-0 text-muted-foreground hover:text-accent-foreground"
                                 title="تنزيل وورد"
@@ -292,6 +292,9 @@ export default function CashBook() {
             transaction={printTx}
             schoolName={state.schoolName}
             directorateName={state.directorateName}
+            directorName={state.directorName}
+            member1Name={state.member1Name}
+            member2Name={state.member2Name}
             onClose={() => setPrintTx(null)}
           />
         )}

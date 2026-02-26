@@ -80,7 +80,7 @@ export async function fillJournalVoucher(tx: Transaction, schoolName: string, di
   saveAs(blob, `سند_قيد_${tx.referenceNumber || tx.id}.docx`);
 }
 
-export async function fillPaymentVoucher(tx: Transaction, schoolName: string, directorateName: string) {
+export async function fillPaymentVoucher(tx: Transaction, schoolName: string, directorateName: string, directorName?: string, member1Name?: string, member2Name?: string) {
   const zip = await loadTemplate("/templates/مستند_صرف.docx");
   const doc = createDoc(zip);
 
@@ -110,6 +110,9 @@ export async function fillPaymentVoucher(tx: Transaction, schoolName: string, di
     amount_dinars: totalSplit.dinars,
     amount_fils: totalSplit.fils,
     check_number: tx.checkNumber || "",
+    director_name: directorName || "",
+    member1_name: member1Name || "",
+    member2_name: member2Name || "",
   });
 
   const blob = doc.getZip().generate({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
