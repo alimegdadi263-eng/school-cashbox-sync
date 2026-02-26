@@ -47,9 +47,9 @@ export default function TransactionPage() {
 
     switch (type) {
       case "receipt":
-        // القبض: من البنك الى الصندوق
-        amounts.bank.debit = amount;
-        amounts.cashBox.credit = amount;
+        // القبض: من الصندوق الى الحساب المحدد
+        amounts.cashBox.debit = amount;
+        amounts[sourceAccount].credit = amount;
         break;
       case "payment":
         // الصرف: من الحساب المحدد الى البنك
@@ -57,9 +57,9 @@ export default function TransactionPage() {
         amounts.bank.credit = amount;
         break;
       case "journal":
-        // القيد: من الصندوق الى الحساب المحدد
-        amounts.cashBox.debit = amount;
-        amounts[sourceAccount].credit = amount;
+        // القيد: من البنك الى الصندوق
+        amounts.bank.debit = amount;
+        amounts.cashBox.credit = amount;
         break;
       case "advance_withdrawal":
         // سحب سلفة يد: من التبرعات الى السلفة
@@ -81,7 +81,7 @@ export default function TransactionPage() {
       status: "active",
       referenceNumber,
       checkNumber: type === "payment" ? checkNumber : undefined,
-      sourceAccount: (type === "payment" || type === "journal") ? sourceAccount : undefined,
+      sourceAccount: (type === "payment" || type === "receipt") ? sourceAccount : undefined,
       amounts,
     });
 
@@ -109,16 +109,16 @@ export default function TransactionPage() {
   // تحديد الحسابات المتاحة حسب نوع الحركة
   const getAvailableAccounts = () => {
     if (type === "payment") return PAYMENT_SOURCE_ACCOUNTS;
-    if (type === "journal") return JOURNAL_TARGET_ACCOUNTS;
+    if (type === "receipt") return JOURNAL_TARGET_ACCOUNTS;
     return [];
   };
 
   // وصف الحركة التلقائي
   const getTransactionDescription = () => {
     switch (type) {
-      case "receipt": return "من البنك → الى الصندوق";
+      case "receipt": return `من الصندوق → الى ${getAccountLabel(sourceAccount)}`;
       case "payment": return `من ${getAccountLabel(sourceAccount)} → الى البنك`;
-      case "journal": return `من الصندوق → الى ${getAccountLabel(sourceAccount)}`;
+      case "journal": return "من البنك → الى الصندوق";
       case "advance_withdrawal": return "من التبرعات → الى السلفة";
       case "advance_payment": return "من السلفة → الى البنك";
     }
@@ -135,9 +135,9 @@ export default function TransactionPage() {
             <button
               key={t}
               onClick={() => {
-                setType(t);
+              setType(t);
                 if (t === "payment") setSourceAccount("donations");
-                if (t === "journal") setSourceAccount("donations");
+                if (t === "receipt") setSourceAccount("donations");
               }}
               className={`py-3 px-3 rounded-lg text-xs font-semibold transition-all duration-200 border-2 ${
                 type === t
@@ -183,11 +183,11 @@ export default function TransactionPage() {
               </div>
             </div>
 
-            {/* Account selection for payment/journal */}
-            {(type === "payment" || type === "journal") && (
+            {/* Account selection for receipt/payment */}
+            {(type === "receipt" || type === "payment") && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>{type === "payment" ? "الحساب المصدر (من)" : "الحساب المستهدف (الى)"}</Label>
+                  <Label>{type === "payment" ? "الحساب المصدر (من)" : "الحساب المستهدف (إلى)"}</Label>
                   <Select value={sourceAccount} onValueChange={(v) => setSourceAccount(v as AccountColumnId)}>
                     <SelectTrigger>
                       <SelectValue />
