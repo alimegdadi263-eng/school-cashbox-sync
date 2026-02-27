@@ -10,11 +10,58 @@ const splitAmount = (n: number) => {
 
 async function loadTemplate(templatePath: string): Promise<PizZip> {
   const response = await fetch(templatePath);
+  if (!response.ok) {
+    throw new Error(`تعذر تحميل القالب: ${templatePath}`);
+  }
   const arrayBuffer = await response.arrayBuffer();
   return new PizZip(arrayBuffer);
 }
 
+function fixBrokenTags(zip: PizZip): PizZip {
+  const xmlFiles = ["word/document.xml", "word/header1.xml", "word/header2.xml", "word/footer1.xml", "word/footer2.xml"];
+  xmlFiles.forEach((f) => {
+    const file = zip.file(f);
+    if (!file) return;
+    let content = file.asText();
+    content = content.replace(/\{(?:<[^>]*>)*\{/g, "{{");
+    content = content.replace(/\}(?:<[^>]*>)*\}/g, "}}");
+
+    let result = "";
+    let i = 0;
+    while (i < content.length) {
+      const openIdx = content.indexOf("{{", i);
+      if (openIdx === -1) {
+        result += content.slice(i);
+        break;
+      }
+      result += content.slice(i, openIdx);
+      const closeIdx = content.indexOf("}}", openIdx);
+      if (closeIdx === -1) {
+        const singleClose = content.indexOf("}", openIdx + 2);
+        if (singleClose !== -1) {
+          const tagContent = content.slice(openIdx + 2, singleClose).replace(/<[^>]*>/g, "").trim();
+          result += "{{" + tagContent + "}}";
+          i = singleClose + 1;
+          if (content[i] === "}") i++;
+        } else {
+          result += content.slice(openIdx);
+          break;
+        }
+      } else {
+        const tagContent = content.slice(openIdx + 2, closeIdx).replace(/<[^>]*>/g, "").trim();
+        result += "{{" + tagContent + "}}";
+        i = closeIdx + 2;
+      }
+    }
+
+    zip.file(f, result);
+  });
+
+  return zip;
+}
+
 function createDoc(zip: PizZip): Docxtemplater {
+  fixBrokenTags(zip);
   return new Docxtemplater(zip, {
     paragraphLoop: true,
     linebreaks: true,

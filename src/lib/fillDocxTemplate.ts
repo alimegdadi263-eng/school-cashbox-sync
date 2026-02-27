@@ -30,6 +30,9 @@ const getTotals = (tx: Transaction) => {
 
 async function loadTemplate(templatePath: string): Promise<PizZip> {
   const response = await fetch(templatePath);
+  if (!response.ok) {
+    throw new Error(`تعذر تحميل القالب: ${templatePath}`);
+  }
   const arrayBuffer = await response.arrayBuffer();
   return new PizZip(arrayBuffer);
 }

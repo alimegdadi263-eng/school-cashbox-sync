@@ -8,6 +8,7 @@ import { FileDown, Download } from "lucide-react";
 import { generateMonthlySummaryDocx } from "@/lib/generateMonthlySummaryDocx";
 import { exportMonthlySummaryExcel } from "@/lib/exportMonthlySummaryExcel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 const ARABIC_MONTHS = [
   "كانون الثاني", "شباط", "آذار", "نيسان", "أيار", "حزيران",
@@ -63,9 +64,45 @@ function splitDinarFils(value: number): [string, string] {
 
 export default function MonthlySummary() {
   const { state } = useFinance();
+  const { toast } = useToast();
   const [selectedMonth, setSelectedMonth] = useState(state.currentMonth);
 
+  const monthIndex = ARABIC_MONTHS.indexOf(selectedMonth);
+  const monthFilteredState = {
+    ...state,
+    currentMonth: selectedMonth,
+    transactions: state.transactions.filter((t) => {
+      if (t.status !== "active") return false;
+      if (monthIndex === -1) return true;
+      return new Date(t.date).getMonth() === monthIndex;
+    }),
+  };
+
   const allData = SUMMARY_ROWS.map(row => ({ ...row, data: getAccountData(state, row.id, selectedMonth) }));
+
+  const handleExportExcel = () => {
+    try {
+      exportMonthlySummaryExcel(monthFilteredState);
+    } catch (error) {
+      toast({
+        title: "فشل التصدير",
+        description: error instanceof Error ? error.message : "تعذر تصدير خلاصة الحسابات",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleExportWord = async () => {
+    try {
+      await generateMonthlySummaryDocx(monthFilteredState);
+    } catch (error) {
+      toast({
+        title: "فشل التصدير",
+        description: error instanceof Error ? error.message : "تعذر تصدير خلاصة الحسابات",
+        variant: "destructive",
+      });
+    }
+  };
 
   const totals = allData.reduce((acc, r) => {
     const noSwap = ["cashBox", "bank", "advances"].includes(r.id);
@@ -105,11 +142,11 @@ export default function MonthlySummary() {
                 ))}
               </SelectContent>
             </Select>
-            <Button variant="outline" onClick={() => exportMonthlySummaryExcel(state)} className="gap-2">
+            <Button variant="outline" onClick={handleExportExcel} className="gap-2">
               <Download className="h-4 w-4" />
               تصدير Excel
             </Button>
-            <Button onClick={() => generateMonthlySummaryDocx(state)} className="gap-2">
+            <Button onClick={() => void handleExportWord()} className="gap-2">
               <FileDown className="h-4 w-4" />
               تصدير Word
             </Button>
