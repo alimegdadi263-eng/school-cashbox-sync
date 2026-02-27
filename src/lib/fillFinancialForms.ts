@@ -23,8 +23,11 @@ function fixBrokenTags(zip: PizZip): PizZip {
     const file = zip.file(f);
     if (!file) return;
     let content = file.asText();
-    content = content.replace(/\{(?:<[^>]*>)*\{/g, "{{");
-    content = content.replace(/\}(?:<[^>]*>)*\}/g, "}}");
+    // Fix braces split by XML tags or whitespace
+    content = content.replace(/\{(?:<[^>]*>|\s)*\{/g, "{{");
+    content = content.replace(/\}(?:<[^>]*>|\s)*\}/g, "}}");
+    // Also fix cases where }} has spaces: } } or }  }
+    content = content.replace(/\}\s+\}/g, "}}");
 
     let result = "";
     let i = 0;
