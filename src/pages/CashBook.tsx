@@ -1,7 +1,7 @@
 import { useState, Fragment } from "react";
 import AppLayout from "@/components/AppLayout";
 import { useFinance } from "@/context/FinanceContext";
-import { ACCOUNT_COLUMNS, TRANSACTION_TYPE_LABELS, CASHBOOK_TYPE_LABELS, Transaction, getAccountLabel } from "@/types/finance";
+import { ACCOUNT_COLUMNS, CASHBOOK_TYPE_LABELS, Transaction, getAccountLabel } from "@/types/finance";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,6 +9,7 @@ import { Trash2, Download, FileDown } from "lucide-react";
 import { fillJournalVoucher, fillPaymentVoucher } from "@/lib/fillDocxTemplate";
 import ExcelJS from "exceljs";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 function getTransactionFromTo(tx: Transaction): { from: string; to: string } {
   switch (tx.type) {
@@ -29,6 +30,7 @@ function getTransactionFromTo(tx: Transaction): { from: string; to: string } {
 
 export default function CashBook() {
   const { state, getColumnBalance, deleteTransaction } = useFinance();
+  const { toast } = useToast();
   const [filterType, setFilterType] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -39,6 +41,23 @@ export default function CashBook() {
 
   const formatCurrency = (n: number) =>
     n === 0 ? "-" : n.toLocaleString("ar-JO", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+
+  const handleExportVoucher = async (tx: Transaction) => {
+    try {
+      if (tx.type === "journal" || tx.type === "receipt") {
+        await fillJournalVoucher(tx, state.schoolName, state.directorateName);
+        return;
+      }
+
+      await fillPaymentVoucher(tx, state.schoolName, state.directorateName, state.directorName, state.member1Name, state.member2Name);
+    } catch (error) {
+      toast({
+        title: "فشل التصدير",
+        description: error instanceof Error ? error.message : "تعذر إنشاء ملف التصدير",
+        variant: "destructive",
+      });
+    }
+  };
 
   const exportToExcel = async () => {
     const wb = new ExcelJS.Workbook();
@@ -335,10 +354,7 @@ export default function CashBook() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => {
-                                  if (tx.type === "journal") fillJournalVoucher(tx, state.schoolName, state.directorateName);
-                                  else fillPaymentVoucher(tx, state.schoolName, state.directorateName, state.directorName, state.member1Name, state.member2Name);
-                                }}
+                                onClick={() => void handleExportVoucher(tx)}
                                 className="h-7 w-7 p-0 text-muted-foreground hover:text-accent-foreground"
                                 title="تنزيل وورد"
                               >

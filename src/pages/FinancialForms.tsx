@@ -12,9 +12,6 @@ import {
   fillFinancialClaim,
   fillAssignmentDecision,
   fillLocalPurchase,
-  type FinancialClaimData,
-  type AssignmentDecisionData,
-  type LocalPurchaseData,
 } from "@/lib/fillFinancialForms";
 
 type FormType = "claim" | "assignment" | "purchase";
@@ -47,22 +44,30 @@ export default function FinancialForms() {
   const [purchaseSupplier, setPurchaseSupplier] = useState("");
   const [purchaseAddress, setPurchaseAddress] = useState("");
 
+  const getExportErrorMessage = (error: unknown) =>
+    error instanceof Error ? error.message : "حدث خطأ أثناء التصدير";
+
   const handleClaimSubmit = async () => {
     if (claimAmount <= 0) {
       toast({ title: "خطأ", description: "يرجى إدخال المبلغ", variant: "destructive" });
       return;
     }
-    await fillFinancialClaim({
-      school: state.schoolName,
-      amount: claimAmount,
-      recipientName: claimRecipient,
-      checkNumber: claimCheck,
-      description: claimDescription,
-      directorName: state.directorName || "",
-      member1Name: state.member1Name || "",
-      member2Name: state.member2Name || "",
-    });
-    toast({ title: "تم التنزيل", description: "تم تنزيل المطالبة المالية بنجاح" });
+
+    try {
+      await fillFinancialClaim({
+        school: state.schoolName,
+        amount: claimAmount,
+        recipientName: claimRecipient,
+        checkNumber: claimCheck,
+        description: claimDescription,
+        directorName: state.directorName || "",
+        member1Name: state.member1Name || "",
+        member2Name: state.member2Name || "",
+      });
+      toast({ title: "تم التنزيل", description: "تم تنزيل المطالبة المالية بنجاح" });
+    } catch (error) {
+      toast({ title: "فشل التصدير", description: getExportErrorMessage(error), variant: "destructive" });
+    }
   };
 
   const handleAssignmentSubmit = async () => {
@@ -70,16 +75,21 @@ export default function FinancialForms() {
       toast({ title: "خطأ", description: "يرجى إدخال اسم الشخص", variant: "destructive" });
       return;
     }
-    await fillAssignmentDecision({
-      school: state.schoolName,
-      day: assignDay,
-      date: assignDate,
-      subject: assignSubject,
-      personName: assignPerson,
-      description: assignDescription,
-      directorName: state.directorName || "",
-    });
-    toast({ title: "تم التنزيل", description: "تم تنزيل قرار التكليف بنجاح" });
+
+    try {
+      await fillAssignmentDecision({
+        school: state.schoolName,
+        day: assignDay,
+        date: assignDate,
+        subject: assignSubject,
+        personName: assignPerson,
+        description: assignDescription,
+        directorName: state.directorName || "",
+      });
+      toast({ title: "تم التنزيل", description: "تم تنزيل قرار التكليف بنجاح" });
+    } catch (error) {
+      toast({ title: "فشل التصدير", description: getExportErrorMessage(error), variant: "destructive" });
+    }
   };
 
   const handlePurchaseSubmit = async () => {
@@ -87,12 +97,17 @@ export default function FinancialForms() {
       toast({ title: "خطأ", description: "يرجى إدخال اسم المورد", variant: "destructive" });
       return;
     }
-    await fillLocalPurchase({
-      school: state.schoolName,
-      supplierName: purchaseSupplier,
-      supplierAddress: purchaseAddress,
-    });
-    toast({ title: "تم التنزيل", description: "تم تنزيل طلب المشترى المحلي بنجاح" });
+
+    try {
+      await fillLocalPurchase({
+        school: state.schoolName,
+        supplierName: purchaseSupplier,
+        supplierAddress: purchaseAddress,
+      });
+      toast({ title: "تم التنزيل", description: "تم تنزيل طلب المشترى المحلي بنجاح" });
+    } catch (error) {
+      toast({ title: "فشل التصدير", description: getExportErrorMessage(error), variant: "destructive" });
+    }
   };
 
   return (

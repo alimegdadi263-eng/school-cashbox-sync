@@ -9,6 +9,7 @@ import {
   School,
   Users,
   LogOut,
+  CircleHelp,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ export default function AppSidebar() {
     { path: "/transaction", label: "إضافة حركة", icon: PlusCircle },
     { path: "/summary", label: "خلاصة الحسابات", icon: FileText },
     { path: "/forms", label: "المعاملات المالية", icon: FolderOpen },
+    { path: "/instructions", label: "التعليمات", icon: CircleHelp },
     { path: "/settings", label: "الإعدادات", icon: Settings },
     ...(isAdmin ? [{ path: "/users", label: "إدارة المستخدمين", icon: Users }] : []),
   ];

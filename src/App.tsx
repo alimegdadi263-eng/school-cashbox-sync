@@ -15,6 +15,7 @@ import FinancialForms from "./pages/FinancialForms";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import SubscriptionExpired from "./components/SubscriptionExpired";
+import InstructionsPage from "./pages/InstructionsPage";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,7 @@ const App = () => (
               <Route path="/transaction" element={<ProtectedRoute><TransactionPage /></ProtectedRoute>} />
               <Route path="/summary" element={<ProtectedRoute><MonthlySummary /></ProtectedRoute>} />
               <Route path="/forms" element={<ProtectedRoute><FinancialForms /></ProtectedRoute>} />
+              <Route path="/instructions" element={<ProtectedRoute><InstructionsPage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
               <Route path="*" element={<NotFound />} />
