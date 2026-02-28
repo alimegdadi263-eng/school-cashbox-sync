@@ -19,7 +19,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify calling user is admin
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -35,7 +34,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check admin role
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
     const { data: adminRole } = await adminClient
       .from("user_roles")
@@ -51,62 +49,42 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { email, password, schoolName } = await req.json();
+    const { userId } = await req.json();
 
-    // Server-side input validation
-    const trimmedEmail = (email || "").trim().toLowerCase();
-    const trimmedSchool = (schoolName || "").trim();
-    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail) || trimmedEmail.length > 255) {
-      return new Response(JSON.stringify({ error: "بريد إلكتروني غير صالح" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    if (!password || typeof password !== "string" || password.length < 8 || password.length > 128) {
-      return new Response(JSON.stringify({ error: "كلمة المرور يجب أن تكون بين 8 و 128 حرفاً" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    if (!trimmedSchool || trimmedSchool.length > 100) {
-      return new Response(JSON.stringify({ error: "اسم المدرسة غير صالح" }), {
+    if (!userId || typeof userId !== "string") {
+      return new Response(JSON.stringify({ error: "معرف المستخدم مطلوب" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Create user with admin client
-    const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
-      email: trimmedEmail,
-      password,
-      email_confirm: true,
-      user_metadata: { school_name: trimmedSchool },
-    });
-
-    if (createError) {
-      return new Response(JSON.stringify({ error: createError.message }), {
+    // Prevent deleting self
+    if (userId === callingUser.id) {
+      return new Response(JSON.stringify({ error: "لا يمكنك حذف حسابك" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Update profile school name
-    await adminClient.from("profiles").update({ school_name: trimmedSchool }).eq("id", newUser.user.id);
+    // Delete credentials record
+    await adminClient.from("school_credentials").delete().eq("user_id", userId);
 
-    // Assign school role
-    await adminClient.from("user_roles").insert({
-      user_id: newUser.user.id,
-      role: "school",
-    });
+    // Delete user roles
+    await adminClient.from("user_roles").delete().eq("user_id", userId);
 
-    // Save credentials for admin reference
-    await adminClient.from("school_credentials").insert({
-      user_id: newUser.user.id,
-      email: trimmedEmail,
-      password_plain: password,
-    });
+    // Delete profile
+    await adminClient.from("profiles").delete().eq("id", userId);
 
-    return new Response(JSON.stringify({ success: true, userId: newUser.user.id }), {
+    // Delete auth user
+    const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId);
+    if (deleteError) {
+      return new Response(JSON.stringify({ error: deleteError.message }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
