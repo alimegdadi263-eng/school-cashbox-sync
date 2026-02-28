@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { format } from "date-fns";
+import { ar } from "date-fns/locale";
 import AppLayout from "@/components/AppLayout";
 import { useFinance } from "@/context/FinanceContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,8 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { FileDown, FileText, ClipboardList, ShoppingCart } from "lucide-react";
+import { FileDown, FileText, ClipboardList, ShoppingCart, CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   fillFinancialClaim,
   fillAssignmentDecision,
@@ -35,7 +40,7 @@ export default function FinancialForms() {
 
   // Assignment Decision state
   const [assignDay, setAssignDay] = useState("");
-  const [assignDate, setAssignDate] = useState("");
+  const [assignDate, setAssignDate] = useState<Date | undefined>(undefined);
   const [assignSubject, setAssignSubject] = useState("");
   const [assignPerson, setAssignPerson] = useState("");
   const [assignDescription, setAssignDescription] = useState("");
@@ -80,7 +85,7 @@ export default function FinancialForms() {
       await fillAssignmentDecision({
         school: state.schoolName,
         day: assignDay,
-        date: assignDate,
+        date: assignDate ? format(assignDate, "yyyy/M/d") : "",
         subject: assignSubject,
         personName: assignPerson,
         description: assignDescription,
@@ -217,11 +222,28 @@ export default function FinancialForms() {
                 </div>
                 <div className="space-y-2">
                   <Label>التاريخ</Label>
-                  <Input
-                    value={assignDate}
-                    onChange={(e) => setAssignDate(e.target.value)}
-                    placeholder="مثال: 2025/1/15"
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-right font-normal",
+                          !assignDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="ml-2 h-4 w-4" />
+                        {assignDate ? format(assignDate, "yyyy/M/d") : "اختر التاريخ"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={assignDate}
+                        onSelect={setAssignDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
