@@ -183,9 +183,10 @@ export interface LocalPurchaseData {
 export async function fillLocalPurchase(data: LocalPurchaseData) {
   const zip = await loadTemplate("/templates/local-purchase.docx");
   
-  // Inject loop tags around the items row before creating the doc
-  injectLoopTags(zip, "items", "item_no");
+  // Fix broken tags FIRST so injectLoopTags can find the marker
   fixBrokenTags(zip);
+  // Inject loop tags around the items row
+  injectLoopTags(zip, "items", "item_no");
   
   const doc = new Docxtemplater(zip, {
     paragraphLoop: true,
