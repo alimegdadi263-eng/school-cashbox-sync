@@ -135,20 +135,58 @@ export async function fillAssignmentDecision(data: AssignmentDecisionData) {
   saveAs(blob, `قرار_تكليف_${data.personName || "جديد"}.docx`);
 }
 
+export interface PurchaseItem {
+  itemNumber: number;
+  itemDescription: string;
+  quantity: string;
+  unitPriceDinars: string;
+  unitPriceFils: string;
+  totalPriceDinars: string;
+  totalPriceFils: string;
+  chapterAndSubject: string;
+  notes: string;
+}
+
 export interface LocalPurchaseData {
   school: string;
   supplierName: string;
   supplierAddress: string;
+  items: PurchaseItem[];
 }
 
 export async function fillLocalPurchase(data: LocalPurchaseData) {
   const zip = await loadTemplate("/templates/local-purchase.docx");
   const doc = createDoc(zip);
 
+  const items = data.items.map((item, idx) => ({
+    item_no: idx + 1,
+    item_desc: item.itemDescription,
+    item_qty: item.quantity,
+    unit_dinars: item.unitPriceDinars,
+    unit_fils: item.unitPriceFils,
+    total_dinars: item.totalPriceDinars,
+    total_fils: item.totalPriceFils,
+    chapter_subject: item.chapterAndSubject,
+    item_notes: item.notes,
+  }));
+
+  // Calculate grand totals
+  let grandDinars = 0;
+  let grandFils = 0;
+  data.items.forEach((item) => {
+    grandDinars += parseInt(item.totalPriceDinars) || 0;
+    grandFils += parseInt(item.totalPriceFils) || 0;
+  });
+  grandDinars += Math.floor(grandFils / 1000);
+  grandFils = grandFils % 1000;
+
   doc.render({
     school: data.school,
     supplier_name: data.supplierName,
     supplier_address: data.supplierAddress,
+    items: items,
+    grand_total_dinars: grandDinars > 0 ? String(grandDinars) : "",
+    grand_total_fils: grandFils > 0 ? String(grandFils) : "",
   });
 
   const blob = doc.getZip().generate({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
