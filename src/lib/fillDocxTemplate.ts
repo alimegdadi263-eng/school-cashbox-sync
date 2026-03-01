@@ -160,7 +160,7 @@ export async function fillPaymentVoucher(tx: Transaction, schoolName: string, di
     ref: tx.referenceNumber || "",
     date: tx.date,
     requested_to: requestedTo,
-    description: tx.description,
+    description: "",
     amount_dinars: totalSplit.dinars,
     amount_fils: totalSplit.fils,
     check_number: tx.checkNumber || "",
