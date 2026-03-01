@@ -17,9 +17,9 @@ import { cn } from "@/lib/utils";
 import {
   fillFinancialClaim,
   fillAssignmentDecision,
-  fillLocalPurchase,
   type PurchaseItem,
 } from "@/lib/fillFinancialForms";
+import { generateLocalPurchaseDocx } from "@/lib/generateLocalPurchaseDocx";
 
 
 type FormType = "claim" | "assignment" | "purchase";
@@ -208,7 +208,7 @@ export default function FinancialForms() {
     }
 
     try {
-      await fillLocalPurchase({
+      await generateLocalPurchaseDocx({
         school: state.schoolName,
         supplierName: purchaseSupplier,
         supplierAddress: purchaseAddress,
