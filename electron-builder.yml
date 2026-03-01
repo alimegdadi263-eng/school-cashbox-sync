@@ -8,7 +8,7 @@ files:
   - electron/**
   - "!node_modules"
 extraMetadata:
-  main: electron/main.js
+  main: electron/main.cjs
 win:
   target:
     - target: nsis
