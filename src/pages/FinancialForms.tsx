@@ -11,13 +11,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { FileDown, FileText, ClipboardList, ShoppingCart, CalendarIcon } from "lucide-react";
+import { FileDown, FileText, ClipboardList, ShoppingCart, CalendarIcon, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   fillFinancialClaim,
   fillAssignmentDecision,
   fillLocalPurchase,
+  type PurchaseItem,
 } from "@/lib/fillFinancialForms";
+
 
 type FormType = "claim" | "assignment" | "purchase";
 
@@ -48,6 +50,44 @@ export default function FinancialForms() {
   // Local Purchase state
   const [purchaseSupplier, setPurchaseSupplier] = useState("");
   const [purchaseAddress, setPurchaseAddress] = useState("");
+  const emptyItem = (): PurchaseItem => ({
+    itemNumber: 1,
+    itemDescription: "",
+    quantity: "",
+    unitPriceDinars: "",
+    unitPriceFils: "",
+    totalPriceDinars: "",
+    totalPriceFils: "",
+    chapterAndSubject: "",
+    notes: "",
+  });
+  const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([emptyItem()]);
+
+  const updateItem = (index: number, field: keyof PurchaseItem, value: string) => {
+    setPurchaseItems((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      // Auto-calculate total = quantity * unit price
+      if (field === "quantity" || field === "unitPriceDinars" || field === "unitPriceFils") {
+        const qty = parseFloat(updated[index].quantity) || 0;
+        const unitDinars = parseInt(updated[index].unitPriceDinars) || 0;
+        const unitFils = parseInt(updated[index].unitPriceFils) || 0;
+        const totalMils = (unitDinars * 1000 + unitFils) * qty;
+        updated[index].totalPriceDinars = String(Math.floor(totalMils / 1000));
+        updated[index].totalPriceFils = String(totalMils % 1000);
+      }
+      return updated;
+    });
+  };
+
+  const addItem = () => {
+    setPurchaseItems((prev) => [...prev, { ...emptyItem(), itemNumber: prev.length + 1 }]);
+  };
+
+  const removeItem = (index: number) => {
+    if (purchaseItems.length <= 1) return;
+    setPurchaseItems((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const getExportErrorMessage = (error: unknown) =>
     error instanceof Error ? error.message : "حدث خطأ أثناء التصدير";
@@ -108,6 +148,7 @@ export default function FinancialForms() {
         school: state.schoolName,
         supplierName: purchaseSupplier,
         supplierAddress: purchaseAddress,
+        items: purchaseItems,
       });
       toast({ title: "تم التنزيل", description: "تم تنزيل طلب المشترى المحلي بنجاح" });
     } catch (error) {
@@ -317,6 +358,118 @@ export default function FinancialForms() {
                 <Label>المدرسة</Label>
                 <Input value={state.schoolName} disabled className="bg-muted" />
               </div>
+
+              {/* Items Table */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-bold">المواد المطلوبة</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addItem} className="gap-1">
+                    <Plus className="w-4 h-4" />
+                    إضافة مادة
+                  </Button>
+                </div>
+                <div className="overflow-x-auto border rounded-lg">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-muted/50 text-muted-foreground">
+                        <th className="p-2 text-center w-12">م</th>
+                        <th className="p-2 text-right min-w-[160px]">المواد ومواصفاتها</th>
+                        <th className="p-2 text-center w-16">الكمية</th>
+                        <th className="p-2 text-center w-20">إفرادي (د)</th>
+                        <th className="p-2 text-center w-20">إفرادي (ف)</th>
+                        <th className="p-2 text-center w-20">إجمالي (د)</th>
+                        <th className="p-2 text-center w-20">إجمالي (ف)</th>
+                        <th className="p-2 text-right min-w-[100px]">الفصل والمادة</th>
+                        <th className="p-2 text-right min-w-[100px]">ملاحظات</th>
+                        <th className="p-2 w-10"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {purchaseItems.map((item, idx) => (
+                        <tr key={idx} className="border-t">
+                          <td className="p-1 text-center text-muted-foreground">{idx + 1}</td>
+                          <td className="p-1">
+                            <Input
+                              value={item.itemDescription}
+                              onChange={(e) => updateItem(idx, "itemDescription", e.target.value)}
+                              placeholder="وصف المادة"
+                              className="h-8 text-xs"
+                            />
+                          </td>
+                          <td className="p-1">
+                            <Input
+                              value={item.quantity}
+                              onChange={(e) => updateItem(idx, "quantity", e.target.value)}
+                              placeholder="0"
+                              className="h-8 text-xs text-center"
+                            />
+                          </td>
+                          <td className="p-1">
+                            <Input
+                              value={item.unitPriceDinars}
+                              onChange={(e) => updateItem(idx, "unitPriceDinars", e.target.value)}
+                              placeholder="دينار"
+                              className="h-8 text-xs text-center"
+                            />
+                          </td>
+                          <td className="p-1">
+                            <Input
+                              value={item.unitPriceFils}
+                              onChange={(e) => updateItem(idx, "unitPriceFils", e.target.value)}
+                              placeholder="فلس"
+                              className="h-8 text-xs text-center"
+                            />
+                          </td>
+                          <td className="p-1">
+                            <Input
+                              value={item.totalPriceDinars}
+                              disabled
+                              className="h-8 text-xs text-center bg-muted"
+                            />
+                          </td>
+                          <td className="p-1">
+                            <Input
+                              value={item.totalPriceFils}
+                              disabled
+                              className="h-8 text-xs text-center bg-muted"
+                            />
+                          </td>
+                          <td className="p-1">
+                            <Input
+                              value={item.chapterAndSubject}
+                              onChange={(e) => updateItem(idx, "chapterAndSubject", e.target.value)}
+                              placeholder="الفصل"
+                              className="h-8 text-xs"
+                            />
+                          </td>
+                          <td className="p-1">
+                            <Input
+                              value={item.notes}
+                              onChange={(e) => updateItem(idx, "notes", e.target.value)}
+                              placeholder="ملاحظات"
+                              className="h-8 text-xs"
+                            />
+                          </td>
+                          <td className="p-1">
+                            {purchaseItems.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                onClick={() => removeItem(idx)}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
               <Button onClick={handlePurchaseSubmit} className="gradient-accent text-accent-foreground gap-2">
                 <FileDown className="w-4 h-4" />
                 تنزيل طلب المشترى المحلي
