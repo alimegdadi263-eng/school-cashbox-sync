@@ -113,7 +113,7 @@ export interface FinancialClaimData {
 }
 
 export async function fillFinancialClaim(data: FinancialClaimData) {
-  const zip = await loadTemplate("/templates/financial-claim.docx");
+  const zip = await loadTemplate(new URL("/templates/financial-claim.docx", import.meta.url).href);
   const doc = createDoc(zip);
   const split = splitAmount(data.amount);
 
@@ -144,7 +144,7 @@ export interface AssignmentDecisionData {
 }
 
 export async function fillAssignmentDecision(data: AssignmentDecisionData) {
-  const zip = await loadTemplate("/templates/assignment-decision.docx");
+  const zip = await loadTemplate(new URL("/templates/assignment-decision.docx", import.meta.url).href);
   const doc = createDoc(zip);
 
   doc.render({
@@ -181,7 +181,7 @@ export interface LocalPurchaseData {
 }
 
 export async function fillLocalPurchase(data: LocalPurchaseData) {
-  const zip = await loadTemplate("/templates/local-purchase.docx");
+  const zip = await loadTemplate(new URL("/templates/local-purchase.docx", import.meta.url).href);
   
   // Fix broken tags FIRST so injectLoopTags can find the marker
   fixBrokenTags(zip);
