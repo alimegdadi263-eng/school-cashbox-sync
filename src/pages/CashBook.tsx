@@ -77,10 +77,29 @@ export default function CashBook() {
     .filter((t) => filterType === "all" || t.type === filterType)
     .filter((t) => t.description.includes(searchTerm) || t.referenceNumber.includes(searchTerm));
 
-  const getMonthColumnBalance = (colId: typeof ACCOUNT_COLUMNS[number]["id"]) => {
+  // Get rolling opening balance for the selected month (base + all prior months)
+  const getMonthOpeningBalance = (colId: typeof ACCOUNT_COLUMNS[number]["id"]) => {
     const opening = state.openingBalances.find((b) => b.column === colId);
     let debit = opening?.debit || 0;
     let credit = opening?.credit || 0;
+
+    // Add all transactions BEFORE the selected month
+    state.transactions
+      .filter((t) => t.status === "active")
+      .filter((t) => getTransactionMonthKey(t.date) < selectedMonth)
+      .forEach((t) => {
+        debit += t.amounts[colId]?.debit || 0;
+        credit += t.amounts[colId]?.credit || 0;
+      });
+
+    return { debit, credit, net: debit - credit };
+  };
+
+  // Get totals including opening + current month transactions
+  const getMonthColumnBalance = (colId: typeof ACCOUNT_COLUMNS[number]["id"]) => {
+    const ob = getMonthOpeningBalance(colId);
+    let debit = ob.debit;
+    let credit = ob.credit;
 
     monthTransactions.forEach((t) => {
       debit += t.amounts[colId]?.debit || 0;
@@ -364,11 +383,11 @@ export default function CashBook() {
                     <td className={tdClass}>-</td>
                     <td className={`${tdClass} text-right`}>الرصيد الافتتاحي</td>
                     {ACCOUNT_COLUMNS.map((col) => {
-                      const ob = state.openingBalances.find((b) => b.column === col.id);
+                      const ob = getMonthOpeningBalance(col.id);
                       return (
                         <Fragment key={col.id}>
-                          <td className={`${tdClass} text-success`}>{formatCurrency(ob?.debit || 0)}</td>
-                          <td className={`${tdClass} text-destructive`}>{formatCurrency(ob?.credit || 0)}</td>
+                          <td className={`${tdClass} text-success`}>{formatCurrency(ob.debit)}</td>
+                          <td className={`${tdClass} text-destructive`}>{formatCurrency(ob.credit)}</td>
                         </Fragment>
                       );
                     })}
