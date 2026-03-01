@@ -63,6 +63,32 @@ function fixBrokenTags(zip: PizZip): PizZip {
   return zip;
 }
 
+function injectLoopTags(zip: PizZip, loopName: string, markerTag: string) {
+  const file = zip.file("word/document.xml");
+  if (!file) return;
+  let xml = file.asText();
+
+  // Find the table row (<w:tr>) that contains the marker tag and wrap it with loop tags
+  const markerRegex = new RegExp(`{{${markerTag}}}`);
+  if (!markerRegex.test(xml)) return;
+
+  // Find all <w:tr> ... </w:tr> blocks
+  const trRegex = /<w:tr[\s>][\s\S]*?<\/w:tr>/g;
+  let match;
+  while ((match = trRegex.exec(xml)) !== null) {
+    const row = match[0];
+    if (markerRegex.test(row)) {
+      // Wrap this row with loop open/close paragraphs
+      const loopOpen = `<w:p><w:r><w:t>{#${loopName}}</w:t></w:r></w:p>`;
+      const loopClose = `<w:p><w:r><w:t>{/${loopName}}</w:t></w:r></w:p>`;
+      xml = xml.slice(0, match.index) + loopOpen + row + loopClose + xml.slice(match.index + row.length);
+      break;
+    }
+  }
+
+  zip.file("word/document.xml", xml);
+}
+
 function createDoc(zip: PizZip): Docxtemplater {
   fixBrokenTags(zip);
   return new Docxtemplater(zip, {
@@ -156,7 +182,19 @@ export interface LocalPurchaseData {
 
 export async function fillLocalPurchase(data: LocalPurchaseData) {
   const zip = await loadTemplate("/templates/local-purchase.docx");
-  const doc = createDoc(zip);
+  
+  // Inject loop tags around the items row before creating the doc
+  injectLoopTags(zip, "items", "item_no");
+  fixBrokenTags(zip);
+  
+  const doc = new Docxtemplater(zip, {
+    paragraphLoop: true,
+    linebreaks: true,
+    delimiters: { start: "{{", end: "}}" },
+    nullGetter() {
+      return "";
+    },
+  });
 
   const items = data.items.map((item, idx) => ({
     item_no: idx + 1,
@@ -166,7 +204,6 @@ export async function fillLocalPurchase(data: LocalPurchaseData) {
     unit_fils: item.unitPriceFils,
     total_dinars: item.totalPriceDinars,
     total_fils: item.totalPriceFils,
-    chapter_subject: item.chapterAndSubject,
     notes_: item.notes,
   }));
 
