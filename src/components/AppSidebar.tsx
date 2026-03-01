@@ -10,6 +10,7 @@ import {
   Users,
   LogOut,
   CircleHelp,
+  Code,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,10 @@ export default function AppSidebar() {
     { path: "/forms", label: "المعاملات المالية", icon: FolderOpen },
     { path: "/instructions", label: "التعليمات", icon: CircleHelp },
     { path: "/settings", label: "الإعدادات", icon: Settings },
-    ...(isAdmin ? [{ path: "/users", label: "إدارة المستخدمين", icon: Users }] : []),
+    ...(isAdmin ? [
+      { path: "/users", label: "إدارة المستخدمين", icon: Users },
+      { path: "/code-docs", label: "توثيق الكود", icon: Code },
+    ] : []),
   ];
 
   return (

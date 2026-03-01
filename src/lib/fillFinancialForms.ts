@@ -167,7 +167,7 @@ export async function fillLocalPurchase(data: LocalPurchaseData) {
     total_dinars: item.totalPriceDinars,
     total_fils: item.totalPriceFils,
     chapter_subject: item.chapterAndSubject,
-    item_notes: item.notes,
+    notes_: item.notes,
   }));
 
   // Calculate grand totals
@@ -185,8 +185,8 @@ export async function fillLocalPurchase(data: LocalPurchaseData) {
     supplier_name: data.supplierName,
     supplier_address: data.supplierAddress,
     items: items,
-    grand_total_dinars: grandDinars > 0 ? String(grandDinars) : "",
-    grand_total_fils: grandFils > 0 ? String(grandFils) : "",
+    grand_total: grandDinars > 0 ? String(grandDinars) : "",
+    total_fils_: grandFils > 0 ? String(grandFils) : "",
   });
 
   const blob = doc.getZip().generate({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });

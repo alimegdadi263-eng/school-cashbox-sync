@@ -2,16 +2,24 @@ appId: app.lovable.8b26ee13a9494d33973c563c94d95ec6
 productName: "School Cashbox - Ali Megdadi"
 directories:
   output: release
+  buildResources: build
 files:
   - dist/**
   - electron/**
+  - "!node_modules"
 extraMetadata:
   main: electron/main.js
 win:
   target:
-    - nsis
+    - target: nsis
+      arch:
+        - x64
+  icon: public/favicon.ico
   artifactName: "${productName}-Setup-${version}.${ext}"
 nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+asar: true
