@@ -2,12 +2,19 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {
@@ -19,7 +26,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify calling user is admin
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -35,7 +41,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check admin role
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
     const { data: adminRole } = await adminClient
       .from("user_roles")
@@ -53,7 +58,6 @@ Deno.serve(async (req) => {
 
     const { email, password, schoolName } = await req.json();
 
-    // Server-side input validation
     const trimmedEmail = (email || "").trim().toLowerCase();
     const trimmedSchool = (schoolName || "").trim();
     if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail) || trimmedEmail.length > 255) {
@@ -75,7 +79,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create user with admin client
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
       email: trimmedEmail,
       password,
@@ -90,16 +93,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Update profile school name
     await adminClient.from("profiles").update({ school_name: trimmedSchool }).eq("id", newUser.user.id);
 
-    // Assign school role
     await adminClient.from("user_roles").insert({
       user_id: newUser.user.id,
       role: "school",
     });
 
-    // Save credentials for admin reference
     await adminClient.from("school_credentials").insert({
       user_id: newUser.user.id,
       email: trimmedEmail,
