@@ -100,7 +100,7 @@ function createDoc(zip: PizZip): Docxtemplater {
 }
 
 export async function fillJournalVoucher(tx: Transaction, schoolName: string, directorateName: string) {
-  const zip = await loadTemplate("/templates/journal-voucher.docx");
+  const zip = await loadTemplate(new URL("/templates/journal-voucher.docx", import.meta.url).href);
   const doc = createDoc(zip);
 
   const accounts = getAccountDetails(tx);
@@ -135,7 +135,7 @@ export async function fillJournalVoucher(tx: Transaction, schoolName: string, di
 }
 
 export async function fillPaymentVoucher(tx: Transaction, schoolName: string, directorateName: string, directorName?: string, member1Name?: string, member2Name?: string) {
-  const zip = await loadTemplate("/templates/payment-voucher.docx");
+  const zip = await loadTemplate(new URL("/templates/payment-voucher.docx", import.meta.url).href);
   const doc = createDoc(zip);
 
   const accounts = getAccountDetails(tx);
