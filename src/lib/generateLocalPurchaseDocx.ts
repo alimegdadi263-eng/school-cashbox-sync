@@ -23,7 +23,7 @@ export interface LocalPurchaseDocxData {
 }
 
 const FONT = "Traditional Arabic";
-const FONT_SIZE = 24; // 12pt * 2
+const FONT_SIZE = 24;
 
 function textRun(text: string, opts?: { bold?: boolean; size?: number }): TextRun {
   return new TextRun({
@@ -35,7 +35,7 @@ function textRun(text: string, opts?: { bold?: boolean; size?: number }): TextRu
   });
 }
 
-function headerCell(text: string): TableCell {
+function headerCell(text: string, opts?: { columnSpan?: number; rowSpan?: number }): TableCell {
   return new TableCell({
     children: [
       new Paragraph({
@@ -46,6 +46,8 @@ function headerCell(text: string): TableCell {
     ],
     shading: { fill: "D9E2F3" },
     verticalAlign: "center",
+    columnSpan: opts?.columnSpan,
+    rowSpan: opts?.rowSpan,
   });
 }
 
@@ -63,7 +65,6 @@ function dataCell(text: string, center = true): TableCell {
 }
 
 export async function generateLocalPurchaseDocx(data: LocalPurchaseDocxData) {
-  // Calculate grand totals
   let grandDinars = 0;
   let grandFils = 0;
   data.items.forEach((item) => {
@@ -73,22 +74,39 @@ export async function generateLocalPurchaseDocx(data: LocalPurchaseDocxData) {
   grandDinars += Math.floor(grandFils / 1000);
   grandFils = grandFils % 1000;
 
-  // Table header row
-  const headerRow = new TableRow({
+  const tableBorder = {
+    style: BorderStyle.SINGLE,
+    size: 1,
+    color: "000000",
+  };
+
+  // RTL column order (right to left):
+  // رقم | المادة | الكمية | السعر الإفرادي (دينار|فلس) | السعر الإجمالي (دينار|فلس) | الفصل والمادة | ملاحظات
+  // Two header rows: first row has merged cells for price groups, second row has دينار/فلس
+
+  const headerRow1 = new TableRow({
     children: [
-      headerCell("رقم"),
-      headerCell("المادة"),
-      headerCell("الكمية المطلوبة"),
-      headerCell("السعر الفردي\nدينار"),
-      headerCell("السعر الفردي\nفلس"),
-      headerCell("الإجمالي\nدينار"),
-      headerCell("الإجمالي\nفلس"),
-      headerCell("ملاحظات"),
+      headerCell("رقم", { rowSpan: 2 }),
+      headerCell("المادة", { rowSpan: 2 }),
+      headerCell("الكمية", { rowSpan: 2 }),
+      headerCell("السعر الإفرادي", { columnSpan: 2 }),
+      headerCell("السعر الإجمالي", { columnSpan: 2 }),
+      headerCell("الفصل والمادة", { rowSpan: 2 }),
+      headerCell("ملاحظات", { rowSpan: 2 }),
     ],
     tableHeader: true,
   });
 
-  // Data rows
+  const headerRow2 = new TableRow({
+    children: [
+      headerCell("دينار"),
+      headerCell("فلس"),
+      headerCell("دينار"),
+      headerCell("فلس"),
+    ],
+    tableHeader: true,
+  });
+
   const dataRows = data.items.map(
     (item, idx) =>
       new TableRow({
@@ -100,12 +118,12 @@ export async function generateLocalPurchaseDocx(data: LocalPurchaseDocxData) {
           dataCell(item.unitPriceFils),
           dataCell(item.totalPriceDinars),
           dataCell(item.totalPriceFils),
+          dataCell(item.chapterAndSubject || "", false),
           dataCell(item.notes, false),
         ],
       })
   );
 
-  // Totals row
   const totalsRow = new TableRow({
     children: [
       new TableCell({
@@ -123,19 +141,15 @@ export async function generateLocalPurchaseDocx(data: LocalPurchaseDocxData) {
       dataCell(grandDinars > 0 ? String(grandDinars) : ""),
       dataCell(grandFils > 0 ? String(grandFils) : ""),
       dataCell(""),
+      dataCell(""),
     ],
   });
 
-  const tableBorder = {
-    style: BorderStyle.SINGLE,
-    size: 1,
-    color: "000000",
-  };
-
   const table = new Table({
-    rows: [headerRow, ...dataRows, totalsRow],
+    rows: [headerRow1, headerRow2, ...dataRows, totalsRow],
     width: { size: 100, type: WidthType.PERCENTAGE },
     layout: TableLayoutType.FIXED,
+    visuallyRightToLeft: true,
     borders: {
       top: tableBorder,
       bottom: tableBorder,
@@ -155,7 +169,6 @@ export async function generateLocalPurchaseDocx(data: LocalPurchaseDocxData) {
           },
         },
         children: [
-          // Title
           new Paragraph({
             children: [textRun("طلب مشترى محلي", { bold: true, size: 36 })],
             alignment: AlignmentType.CENTER,
@@ -163,16 +176,12 @@ export async function generateLocalPurchaseDocx(data: LocalPurchaseDocxData) {
             spacing: { after: 200 },
             heading: HeadingLevel.HEADING_1,
           }),
-
-          // School name
           new Paragraph({
             children: [textRun(data.school, { bold: true, size: 28 })],
             alignment: AlignmentType.CENTER,
             bidirectional: true,
             spacing: { after: 300 },
           }),
-
-          // Supplier info
           new Paragraph({
             children: [
               textRun("إلى ", { size: FONT_SIZE }),
@@ -183,17 +192,15 @@ export async function generateLocalPurchaseDocx(data: LocalPurchaseDocxData) {
             bidirectional: true,
             spacing: { after: 100 },
           }),
-
           new Paragraph({
-            children: [textRun("تسليم المواد المدرجة أدناه", { size: FONT_SIZE })],
+            children: [
+              textRun("تسليم المواد المدرجة أدناه لـ ", { size: FONT_SIZE }),
+              textRun(data.school, { bold: true, size: FONT_SIZE }),
+            ],
             bidirectional: true,
             spacing: { after: 200 },
           }),
-
-          // Items table
           table,
-
-          // Total summary line
           new Paragraph({
             children: [
               textRun("المجمـــــــــــموع: ", { bold: true }),
@@ -205,8 +212,6 @@ export async function generateLocalPurchaseDocx(data: LocalPurchaseDocxData) {
             bidirectional: true,
             spacing: { before: 300, after: 400 },
           }),
-
-          // Signature section
           new Paragraph({
             children: [textRun("التاريخ: ....................................")],
             bidirectional: true,
