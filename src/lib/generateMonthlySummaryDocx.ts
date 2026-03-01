@@ -1,6 +1,7 @@
-import { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, WidthType, AlignmentType, BorderStyle, ImageRun } from "docx";
+import { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, WidthType, AlignmentType, BorderStyle } from "docx";
 import { saveAs } from "file-saver";
-import { ACCOUNT_COLUMNS, AccountColumnId, FinanceState } from "@/types/finance";
+import { FinanceState } from "@/types/finance";
+import { ARABIC_MONTHS, SUMMARY_ROWS, getAccountMonthData } from "./monthlySummaryUtils";
 
 const splitAmount = (n: number) => {
   const dinars = Math.floor(Math.abs(n));
@@ -40,67 +41,14 @@ const makeCell = (text: string, opts?: {
     verticalAlign: "center" as any,
   });
 
-// Extended account rows for the official template (includes accounts not in ACCOUNT_COLUMNS)
-const SUMMARY_ROWS: { id: string; label: string }[] = [
-  { id: "cashBox", label: "الصندوق" },
-  { id: "bank", label: "البنك" },
-  { id: "donations", label: "التبرعات" },
-  { id: "redCrescent", label: "الهلال الأحمر" },
-  { id: "advances", label: "السلفات" },
-  { id: "gardens", label: "الحدائق المدرسية" },
-  { id: "deposits", label: "أمانات كتب مدرسية" },
-  { id: "mySchool", label: "مدرستي انتمي" },
-  { id: "sdi", label: "منحة SDI" },
-  { id: "furniture", label: "أمانات أثاث تالف" },
-];
+export async function generateMonthlySummaryDocx(state: FinanceState, selectedMonthIndex: number) {
+  const selectedMonth = ARABIC_MONTHS[selectedMonthIndex] || state.currentMonth;
 
-interface AccountData {
-  openDebit: number;
-  openCredit: number;
-  duringDebit: number;
-  duringCredit: number;
-  endDebit: number;
-  endCredit: number;
-}
-
-function getAccountData(state: FinanceState, colId: string): AccountData {
-  // Check if this account exists in our system
-  const exists = ACCOUNT_COLUMNS.some(c => c.id === colId);
-  if (!exists) {
-    return { openDebit: 0, openCredit: 0, duringDebit: 0, duringCredit: 0, endDebit: 0, endCredit: 0 };
-  }
-
-  const ob = state.openingBalances.find(b => b.column === colId as AccountColumnId);
-  const openDebit = ob?.debit || 0;
-  const openCredit = ob?.credit || 0;
-
-  let duringDebit = 0;
-  let duringCredit = 0;
-  state.transactions
-    .filter(t => t.status === "active")
-    .forEach(t => {
-      duringDebit += t.amounts[colId as AccountColumnId]?.debit || 0;
-      duringCredit += t.amounts[colId as AccountColumnId]?.credit || 0;
-    });
-
-  return {
-    openDebit,
-    openCredit,
-    duringDebit,
-    duringCredit,
-    endDebit: openDebit + duringDebit,
-    endCredit: openCredit + duringCredit,
-  };
-}
-
-export async function generateMonthlySummaryDocx(state: FinanceState) {
-  // Calculate data for all accounts
   const allData = SUMMARY_ROWS.map(row => ({
     ...row,
-    data: getAccountData(state, row.id),
+    data: getAccountMonthData(state, row.id, selectedMonthIndex),
   }));
 
-  // Calculate totals
   const totals = allData.reduce(
     (acc, row) => ({
       openDebit: acc.openDebit + row.data.openDebit,
@@ -113,7 +61,6 @@ export async function generateMonthlySummaryDocx(state: FinanceState) {
     { openDebit: 0, openCredit: 0, duringDebit: 0, duringCredit: 0, endDebit: 0, endCredit: 0 }
   );
 
-  // Build table header rows
   const headerRow1 = new TableRow({
     children: [
       makeCell("الحساب", { bold: true, rowSpan: 2, shading: "d9e2f3", fontSize: 24 }),
@@ -135,7 +82,7 @@ export async function generateMonthlySummaryDocx(state: FinanceState) {
 
   const headerRow3 = new TableRow({
     children: [
-      makeCell("", { shading: "f2f2f2" }), // الحساب
+      makeCell("", { shading: "f2f2f2" }),
       makeCell("دينار", { bold: true, shading: "e2efda", fontSize: 18 }),
       makeCell("فلس", { bold: true, shading: "e2efda", fontSize: 18 }),
       makeCell("دينار", { bold: true, shading: "fce4d6", fontSize: 18 }),
@@ -151,7 +98,6 @@ export async function generateMonthlySummaryDocx(state: FinanceState) {
     ],
   });
 
-  // Data rows
   const dataRows = allData.map(row => {
     const d = row.data;
     const openD = splitAmount(d.openDebit);
@@ -174,7 +120,6 @@ export async function generateMonthlySummaryDocx(state: FinanceState) {
     });
   });
 
-  // Totals row
   const tOpenD = splitAmount(totals.openDebit);
   const tOpenC = splitAmount(totals.openCredit);
   const tDurD = splitAmount(totals.duringDebit);
@@ -209,27 +154,23 @@ export async function generateMonthlySummaryDocx(state: FinanceState) {
         },
       },
       children: [
-        // Header
         new Paragraph({ alignment: AlignmentType.CENTER, bidirectional: true, spacing: { after: 80 }, children: [
           new TextRun({ text: "وزارة التربية والتعليم", bold: true, font: "Traditional Arabic", size: 28, rightToLeft: true }),
         ]}),
         new Paragraph({ alignment: AlignmentType.CENTER, bidirectional: true, spacing: { after: 80 }, children: [
           new TextRun({ text: `مديرية التربية والتعليم ${state.directorateName}`, bold: true, font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
-        // School name and file number on same line
         new Paragraph({ bidirectional: true, spacing: { after: 80 }, children: [
           new TextRun({ text: `اسم المدرسة: ${state.schoolName}`, bold: true, font: "Traditional Arabic", size: 24, rightToLeft: true }),
           new TextRun({ text: "                    رقم الملف: (        )", font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
         new Paragraph({ alignment: AlignmentType.CENTER, bidirectional: true, spacing: { after: 200 }, children: [
-          new TextRun({ text: `خلاصة الحسابات الشهرية لشهر ${state.currentMonth} من عام ${state.currentYear}`, bold: true, font: "Traditional Arabic", size: 26, rightToLeft: true }),
+          new TextRun({ text: `خلاصة الحسابات الشهرية لشهر ${selectedMonth} من عام ${state.currentYear}`, bold: true, font: "Traditional Arabic", size: 26, rightToLeft: true }),
         ]}),
-        // Main table
         new Table({
           width: { size: 100, type: WidthType.PERCENTAGE },
           rows: [headerRow1, headerRow2, headerRow3, ...dataRows, totalRow],
         }),
-        // Notes
         new Paragraph({ spacing: { before: 300 }, bidirectional: true, children: [
           new TextRun({ text: "ملاحظات:", bold: true, font: "Traditional Arabic", size: 22, rightToLeft: true }),
         ]}),
@@ -239,7 +180,6 @@ export async function generateMonthlySummaryDocx(state: FinanceState) {
         new Paragraph({ bidirectional: true, spacing: { after: 300 }, children: [
           new TextRun({ text: "2. يجب تحقيق المعادلة التالية: الرصيد في نهاية الشهر = الرصيد في بداية الشهر + المقبوض - المدفوع.", font: "Traditional Arabic", size: 20, rightToLeft: true }),
         ]}),
-        // Director signature
         new Paragraph({ alignment: AlignmentType.LEFT, bidirectional: true, children: [
           new TextRun({ text: "مدير المدرسة", bold: true, font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
@@ -254,5 +194,5 @@ export async function generateMonthlySummaryDocx(state: FinanceState) {
   });
 
   const blob = await Packer.toBlob(doc);
-  saveAs(blob, `خلاصة_الحسابات_الشهرية_${state.currentMonth}_${state.currentYear}.docx`);
+  saveAs(blob, `خلاصة_الحسابات_الشهرية_${selectedMonth}_${state.currentYear}.docx`);
 }
