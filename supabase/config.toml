@@ -1,1 +1,10 @@
 project_id = "jsglrvtlafynkdqbfyos"
+
+[functions.create-school-user]
+verify_jwt = false
+
+[functions.delete-school-user]
+verify_jwt = false
+
+[functions.setup-admin]
+verify_jwt = false
