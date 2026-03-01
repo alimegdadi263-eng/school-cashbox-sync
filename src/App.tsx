@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { FinanceProvider } from "@/context/FinanceContext";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index";
@@ -19,6 +19,8 @@ import InstructionsPage from "./pages/InstructionsPage";
 import CodeDocumentation from "./pages/CodeDocumentation";
 
 const queryClient = new QueryClient();
+const isElectron = typeof navigator !== "undefined" && navigator.userAgent.toLowerCase().includes("electron");
+const Router = isElectron ? HashRouter : BrowserRouter;
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, isActive, isAdmin } = useAuth();
@@ -50,7 +52,7 @@ const App = () => (
         <FinanceProvider>
           <Toaster />
           <Sonner />
-          <BrowserRouter>
+          <Router>
             <Routes>
               <Route path="/login" element={<AuthRoute><Auth /></AuthRoute>} />
               <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
@@ -64,7 +66,7 @@ const App = () => (
               <Route path="/code-docs" element={<AdminRoute><CodeDocumentation /></AdminRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </BrowserRouter>
+          </Router>
         </FinanceProvider>
       </AuthProvider>
     </TooltipProvider>

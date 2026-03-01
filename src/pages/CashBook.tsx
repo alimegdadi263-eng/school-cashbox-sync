@@ -1,15 +1,41 @@
-import { useState, Fragment } from "react";
+import { useState, Fragment, useEffect } from "react";
 import AppLayout from "@/components/AppLayout";
 import { useFinance } from "@/context/FinanceContext";
 import { ACCOUNT_COLUMNS, CASHBOOK_TYPE_LABELS, Transaction, getAccountLabel } from "@/types/finance";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Download, FileDown } from "lucide-react";
+import { Trash2, Download, FileDown, ChevronRight, ChevronLeft } from "lucide-react";
 import { fillJournalVoucher, fillPaymentVoucher } from "@/lib/fillDocxTemplate";
 import ExcelJS from "exceljs";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+
+const MONTH_STORAGE_KEY = "cashbook-selected-month";
+const ARABIC_MONTHS = [
+  "كانون الثاني", "شباط", "آذار", "نيسان", "أيار", "حزيران",
+  "تموز", "آب", "أيلول", "تشرين الأول", "تشرين الثاني", "كانون الأول",
+];
+
+function getTransactionMonthKey(date: string): string {
+  return date.slice(0, 7);
+}
+
+function getMonthLabel(monthKey: string): string {
+  const [year, month] = monthKey.split("-");
+  const monthName = ARABIC_MONTHS[Math.max(0, Math.min(11, Number(month) - 1))] || month;
+  return `${monthName} ${year}`;
+}
+
+function shiftMonthKey(monthKey: string, delta: number): string {
+  const [year, month] = monthKey.split("-").map(Number);
+  const date = new Date(year, month - 1 + delta, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function isMonthKey(value: string | null): value is string {
+  return Boolean(value && /^\d{4}-\d{2}$/.test(value));
+}
 
 function getTransactionFromTo(tx: Transaction): { from: string; to: string } {
   switch (tx.type) {
@@ -29,15 +55,40 @@ function getTransactionFromTo(tx: Transaction): { from: string; to: string } {
 }
 
 export default function CashBook() {
-  const { state, getColumnBalance, deleteTransaction } = useFinance();
+  const { state, deleteTransaction } = useFinance();
   const { toast } = useToast();
   const [filterType, setFilterType] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const saved = localStorage.getItem(MONTH_STORAGE_KEY);
+    if (isMonthKey(saved)) return saved;
+    return new Date().toISOString().slice(0, 7);
+  });
 
-  const filtered = state.transactions
+  useEffect(() => {
+    localStorage.setItem(MONTH_STORAGE_KEY, selectedMonth);
+  }, [selectedMonth]);
+
+  const monthTransactions = state.transactions
     .filter((t) => t.status === "active")
+    .filter((t) => getTransactionMonthKey(t.date) === selectedMonth);
+
+  const filtered = monthTransactions
     .filter((t) => filterType === "all" || t.type === filterType)
     .filter((t) => t.description.includes(searchTerm) || t.referenceNumber.includes(searchTerm));
+
+  const getMonthColumnBalance = (colId: typeof ACCOUNT_COLUMNS[number]["id"]) => {
+    const opening = state.openingBalances.find((b) => b.column === colId);
+    let debit = opening?.debit || 0;
+    let credit = opening?.credit || 0;
+
+    monthTransactions.forEach((t) => {
+      debit += t.amounts[colId]?.debit || 0;
+      credit += t.amounts[colId]?.credit || 0;
+    });
+
+    return { debit, credit, net: debit - credit };
+  };
 
   const formatCurrency = (n: number) =>
     n === 0 ? "-" : n.toLocaleString("ar-JO", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
@@ -79,7 +130,7 @@ export default function CashBook() {
     const centerAlign: Partial<ExcelJS.Alignment> = { horizontal: "center", vertical: "middle", wrapText: true };
 
     // Title row
-    const titleRow = ws.addRow([`دفتر صندوق - ${state.schoolName} - ${state.currentMonth} ${state.currentYear}`]);
+    const titleRow = ws.addRow([`دفتر صندوق - ${state.schoolName} - ${getMonthLabel(selectedMonth)}`]);
     ws.mergeCells(1, 1, 1, totalCols);
     titleRow.height = 30;
     titleRow.getCell(1).font = { bold: true, size: 14, name: "Arial" };
@@ -164,7 +215,7 @@ export default function CashBook() {
     // Totals row
     const totValues: (string | number)[] = ["", "", "", "", "", "المجموع الكلي"];
     ACCOUNT_COLUMNS.forEach((col) => {
-      const bal = getColumnBalance(col.id);
+      const bal = getMonthColumnBalance(col.id);
       totValues.push(bal.debit, bal.credit);
     });
     const totRow = ws.addRow(totValues);
@@ -181,7 +232,7 @@ export default function CashBook() {
     // Net balance row
     const netValues: (string | number)[] = ["", "", "", "", "", "الرصيد الجديد"];
     ACCOUNT_COLUMNS.forEach((col) => {
-      const bal = getColumnBalance(col.id);
+      const bal = getMonthColumnBalance(col.id);
       const net = bal.debit - bal.credit;
       // وضع الرصيد في العمود الصحيح: من (مدين) أو الى (دائن)
       netValues.push(net >= 0 ? Math.abs(net) : "", net < 0 ? Math.abs(net) : "");
@@ -214,7 +265,7 @@ export default function CashBook() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `دفتر_الصندوق_${state.currentMonth}_${state.currentYear}.xlsx`;
+    a.download = `دفتر_الصندوق_${selectedMonth}.xlsx`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -226,8 +277,29 @@ export default function CashBook() {
     <AppLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
-          <h1 className="text-2xl font-bold text-foreground">دفتر الصندوق</h1>
-          <div className="flex gap-3 items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">دفتر الصندوق</h1>
+            <p className="text-sm text-muted-foreground mt-1">{getMonthLabel(selectedMonth)}</p>
+          </div>
+          <div className="flex gap-3 items-center flex-wrap">
+            <div className="flex gap-2 items-center">
+              <Button variant="outline" size="sm" onClick={() => setSelectedMonth(shiftMonthKey(selectedMonth, -1))}>
+                <ChevronRight className="w-4 h-4" />
+                السابق
+              </Button>
+              <Input
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => {
+                  if (isMonthKey(e.target.value)) setSelectedMonth(e.target.value);
+                }}
+                className="w-40"
+              />
+              <Button variant="outline" size="sm" onClick={() => setSelectedMonth(shiftMonthKey(selectedMonth, 1))}>
+                التالي
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+            </div>
             <Button variant="outline" size="sm" onClick={exportToExcel} className="gap-2">
               <Download className="w-4 h-4" />
               تصدير Excel
@@ -379,7 +451,7 @@ export default function CashBook() {
                   <tr className="bg-primary/5 font-bold">
                     <td colSpan={6} className="py-3 px-3 border border-border">المجموع الكلي</td>
                     {ACCOUNT_COLUMNS.map((col) => {
-                      const bal = getColumnBalance(col.id);
+                      const bal = getMonthColumnBalance(col.id);
                       return (
                         <Fragment key={col.id}>
                           <td className={`${tdClass} text-success`}>{formatCurrency(bal.debit)}</td>
@@ -394,7 +466,7 @@ export default function CashBook() {
                   <tr className="bg-accent/30 font-bold">
                     <td colSpan={6} className="py-3 px-3 border border-border text-accent-foreground">الرصيد الجديد (نهاية الشهر)</td>
                     {ACCOUNT_COLUMNS.map((col) => {
-                      const bal = getColumnBalance(col.id);
+                      const bal = getMonthColumnBalance(col.id);
                       const net = bal.debit - bal.credit;
                       return (
                         <Fragment key={col.id}>
