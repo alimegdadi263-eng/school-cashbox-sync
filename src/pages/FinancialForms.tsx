@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import AppLayout from "@/components/AppLayout";
 import { useFinance } from "@/context/FinanceContext";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { FileDown, FileText, ClipboardList, ShoppingCart, CalendarIcon, Plus, Trash2 } from "lucide-react";
+import { FileDown, FileText, ClipboardList, ShoppingCart, CalendarIcon, Plus, Trash2, Save, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   fillFinancialClaim,
@@ -29,10 +30,40 @@ const FORM_TYPES: { id: FormType; label: string; icon: typeof FileText; color: s
   { id: "purchase", label: "طلب مشترى محلي", icon: ShoppingCart, color: "border-orange-500 bg-orange-500/10 text-orange-600" },
 ];
 
+interface SavedPurchaseOrder {
+  id: string;
+  date: string;
+  supplierName: string;
+  supplierAddress: string;
+  items: PurchaseItem[];
+}
+
+const PURCHASE_STORAGE_KEY = "school-purchase-orders";
+
+function loadPurchaseOrders(userId: string): SavedPurchaseOrder[] {
+  try {
+    const saved = localStorage.getItem(`${PURCHASE_STORAGE_KEY}-${userId}`);
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return [];
+}
+
+function savePurchaseOrders(userId: string, orders: SavedPurchaseOrder[]) {
+  localStorage.setItem(`${PURCHASE_STORAGE_KEY}-${userId}`, JSON.stringify(orders));
+}
+
 export default function FinancialForms() {
   const { state } = useFinance();
+  const { user } = useAuth();
+  const userId = user?.id || "anonymous";
   const { toast } = useToast();
   const [formType, setFormType] = useState<FormType>("claim");
+  const [savedOrders, setSavedOrders] = useState<SavedPurchaseOrder[]>([]);
+  const [showSavedOrders, setShowSavedOrders] = useState(false);
+
+  useEffect(() => {
+    setSavedOrders(loadPurchaseOrders(userId));
+  }, [userId]);
 
   // Financial Claim state
   const [claimAmount, setClaimAmount] = useState<number>(0);
@@ -137,6 +168,39 @@ export default function FinancialForms() {
     }
   };
 
+  const savePurchaseOrder = () => {
+    if (!purchaseSupplier.trim()) {
+      toast({ title: "خطأ", description: "يرجى إدخال اسم المورد", variant: "destructive" });
+      return;
+    }
+    const order: SavedPurchaseOrder = {
+      id: Date.now().toString(),
+      date: new Date().toLocaleDateString("ar"),
+      supplierName: purchaseSupplier,
+      supplierAddress: purchaseAddress,
+      items: purchaseItems,
+    };
+    const updated = [order, ...savedOrders];
+    setSavedOrders(updated);
+    savePurchaseOrders(userId, updated);
+    toast({ title: "تم الحفظ", description: "تم حفظ طلب المشترى المحلي بنجاح" });
+  };
+
+  const deleteSavedOrder = (id: string) => {
+    const updated = savedOrders.filter((o) => o.id !== id);
+    setSavedOrders(updated);
+    savePurchaseOrders(userId, updated);
+    toast({ title: "تم الحذف", description: "تم حذف الطلب المحفوظ" });
+  };
+
+  const loadSavedOrder = (order: SavedPurchaseOrder) => {
+    setPurchaseSupplier(order.supplierName);
+    setPurchaseAddress(order.supplierAddress);
+    setPurchaseItems(order.items);
+    setShowSavedOrders(false);
+    toast({ title: "تم التحميل", description: "تم تحميل الطلب المحفوظ" });
+  };
+
   const handlePurchaseSubmit = async () => {
     if (!purchaseSupplier.trim()) {
       toast({ title: "خطأ", description: "يرجى إدخال اسم المورد", variant: "destructive" });
@@ -150,6 +214,8 @@ export default function FinancialForms() {
         supplierAddress: purchaseAddress,
         items: purchaseItems,
       });
+      // Auto-save on export
+      savePurchaseOrder();
       toast({ title: "تم التنزيل", description: "تم تنزيل طلب المشترى المحلي بنجاح" });
     } catch (error) {
       toast({ title: "فشل التصدير", description: getExportErrorMessage(error), variant: "destructive" });
@@ -470,10 +536,40 @@ export default function FinancialForms() {
                 </div>
               </div>
 
-              <Button onClick={handlePurchaseSubmit} className="gradient-accent text-accent-foreground gap-2">
-                <FileDown className="w-4 h-4" />
-                تنزيل طلب المشترى المحلي
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={handlePurchaseSubmit} className="gradient-accent text-accent-foreground gap-2">
+                  <FileDown className="w-4 h-4" />
+                  تنزيل طلب المشترى المحلي
+                </Button>
+                <Button onClick={savePurchaseOrder} variant="outline" className="gap-2">
+                  <Save className="w-4 h-4" />
+                  حفظ الطلب
+                </Button>
+                <Button onClick={() => setShowSavedOrders(!showSavedOrders)} variant="outline" className="gap-2">
+                  <History className="w-4 h-4" />
+                  الطلبات المحفوظة ({savedOrders.length})
+                </Button>
+              </div>
+
+              {showSavedOrders && savedOrders.length > 0 && (
+                <div className="space-y-2 mt-4 border-t pt-4">
+                  <Label className="text-base font-bold">الطلبات المحفوظة</Label>
+                  {savedOrders.map((order) => (
+                    <div key={order.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                      <div>
+                        <p className="font-medium text-sm">{order.supplierName}</p>
+                        <p className="text-xs text-muted-foreground">{order.date} • {order.items.length} مادة</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => loadSavedOrder(order)}>تحميل</Button>
+                        <Button size="sm" variant="ghost" className="text-destructive" onClick={() => deleteSavedOrder(order.id)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
