@@ -1,7 +1,6 @@
 import { useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import { useFinance } from "@/context/FinanceContext";
-import { ACCOUNT_COLUMNS, AccountColumnId } from "@/types/finance";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileDown, Download } from "lucide-react";
@@ -9,58 +8,7 @@ import { generateMonthlySummaryDocx } from "@/lib/generateMonthlySummaryDocx";
 import { exportMonthlySummaryExcel } from "@/lib/exportMonthlySummaryExcel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-
-const ARABIC_MONTHS = [
-  "كانون الثاني", "شباط", "آذار", "نيسان", "أيار", "حزيران",
-  "تموز", "آب", "أيلول", "تشرين الأول", "تشرين الثاني", "كانون الأول",
-];
-
-const SUMMARY_ROWS: { id: string; label: string }[] = [
-  { id: "cashBox", label: "الصندوق" },
-  { id: "bank", label: "البنك" },
-  { id: "donations", label: "التبرعات" },
-  { id: "redCrescent", label: "الهلال الأحمر" },
-  { id: "advances", label: "السلفات" },
-  { id: "gardens", label: "الحدائق المدرسية" },
-  { id: "deposits", label: "أمانات كتب مدرسية" },
-  { id: "mySchool", label: "مدرستي انتمي" },
-  { id: "sdi", label: "منحة SDI" },
-  { id: "furniture", label: "أمانات أثاث تالف" },
-];
-
-function getAccountData(state: any, colId: string, selectedMonth: string) {
-  const exists = ACCOUNT_COLUMNS.some(c => c.id === colId);
-  if (!exists) return { openDebit: 0, openCredit: 0, duringDebit: 0, duringCredit: 0, endDebit: 0, endCredit: 0 };
-  const ob = state.openingBalances.find((b: any) => b.column === colId as AccountColumnId);
-  const openDebit = ob?.debit || 0;
-  const openCredit = ob?.credit || 0;
-  let duringDebit = 0;
-  let duringCredit = 0;
-
-  // Filter transactions by selected month
-  const monthIndex = ARABIC_MONTHS.indexOf(selectedMonth);
-  state.transactions.filter((t: any) => {
-    if (t.status !== "active") return false;
-    if (monthIndex === -1) return true;
-    const txDate = new Date(t.date);
-    return txDate.getMonth() === monthIndex;
-  }).forEach((t: any) => {
-    duringDebit += t.amounts[colId as AccountColumnId]?.debit || 0;
-    duringCredit += t.amounts[colId as AccountColumnId]?.credit || 0;
-  });
-  const net = (openDebit - openCredit) + (duringDebit - duringCredit);
-  const endDebit = net > 0 ? net : 0;
-  const endCredit = net < 0 ? Math.abs(net) : 0;
-  return { openDebit, openCredit, duringDebit, duringCredit, endDebit, endCredit };
-}
-
-function splitDinarFils(value: number): [string, string] {
-  if (value === 0) return ["-", "-"];
-  const abs = Math.abs(value);
-  const dinar = Math.floor(abs);
-  const fils = Math.round((abs - dinar) * 1000);
-  return [dinar.toLocaleString("ar-JO"), fils.toString().padStart(3, "0")];
-}
+import { ARABIC_MONTHS, SUMMARY_ROWS, getAccountMonthData, splitDinarFils } from "@/lib/monthlySummaryUtils";
 
 export default function MonthlySummary() {
   const { state } = useFinance();
@@ -68,21 +16,15 @@ export default function MonthlySummary() {
   const [selectedMonth, setSelectedMonth] = useState(state.currentMonth);
 
   const monthIndex = ARABIC_MONTHS.indexOf(selectedMonth);
-  const monthFilteredState = {
-    ...state,
-    currentMonth: selectedMonth,
-    transactions: state.transactions.filter((t) => {
-      if (t.status !== "active") return false;
-      if (monthIndex === -1) return true;
-      return new Date(t.date).getMonth() === monthIndex;
-    }),
-  };
 
-  const allData = SUMMARY_ROWS.map(row => ({ ...row, data: getAccountData(state, row.id, selectedMonth) }));
+  const allData = SUMMARY_ROWS.map(row => ({
+    ...row,
+    data: getAccountMonthData(state, row.id, monthIndex),
+  }));
 
   const handleExportExcel = () => {
     try {
-      exportMonthlySummaryExcel(monthFilteredState);
+      exportMonthlySummaryExcel(state, monthIndex);
     } catch (error) {
       toast({
         title: "فشل التصدير",
@@ -94,7 +36,7 @@ export default function MonthlySummary() {
 
   const handleExportWord = async () => {
     try {
-      await generateMonthlySummaryDocx(monthFilteredState);
+      await generateMonthlySummaryDocx(state, monthIndex);
     } catch (error) {
       toast({
         title: "فشل التصدير",
@@ -158,7 +100,6 @@ export default function MonthlySummary() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm" dir="rtl">
                 <thead>
-                  {/* Row 1: Main groups */}
                   <tr className="bg-primary text-primary-foreground">
                     <th className={headerClass} rowSpan={3} style={{ minWidth: 120 }}>الحساب</th>
                     <th className={headerClass} colSpan={4}>الرصيد المدور في بداية كل شهر</th>
@@ -166,7 +107,6 @@ export default function MonthlySummary() {
                     <th className={headerClass} colSpan={2}>المدفوع خلال الشهر</th>
                     <th className={headerClass} colSpan={4}>الرصيد المدور في نهاية الشهر</th>
                   </tr>
-                  {/* Row 2: من / إلى */}
                   <tr className="bg-primary/90 text-primary-foreground text-xs">
                     <th className={headerClass} colSpan={2}>من</th>
                     <th className={headerClass} colSpan={2}>إلى</th>
@@ -175,7 +115,6 @@ export default function MonthlySummary() {
                     <th className={headerClass} colSpan={2}>من</th>
                     <th className={headerClass} colSpan={2}>إلى</th>
                   </tr>
-                  {/* Row 3: دينار / فلس */}
                   <tr className="bg-primary/80 text-primary-foreground text-[10px]">
                     <th className={headerClass}>فلس</th>
                     <th className={headerClass}>دينار</th>
@@ -196,7 +135,6 @@ export default function MonthlySummary() {
                     const d = item.data;
                     const [odD, odF] = splitDinarFils(d.openDebit);
                     const [ocD, ocF] = splitDinarFils(d.openCredit);
-                    // cashBox, bank, advances: debit=مقبوضات, credit=مدفوع (no swap)
                     const noSwap = ["cashBox", "bank", "advances"].includes(item.id);
                     const receiptVal = noSwap ? d.duringDebit : d.duringCredit;
                     const paymentVal = noSwap ? d.duringCredit : d.duringDebit;
@@ -222,7 +160,6 @@ export default function MonthlySummary() {
                       </tr>
                     );
                   })}
-                  {/* Totals */}
                   <tr className="bg-primary/5 font-bold border-t-2 border-primary">
                     <td className="py-2 px-3 border border-border text-right">المجموع</td>
                     {(() => {
