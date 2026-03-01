@@ -77,7 +77,7 @@ export default function CashBook() {
     .filter((t) => filterType === "all" || t.type === filterType)
     .filter((t) => t.description.includes(searchTerm) || t.referenceNumber.includes(searchTerm));
 
-  // Get rolling opening balance for the selected month (base + all prior months)
+  // Get rolling opening balance for the selected month (net closing of previous month)
   const getMonthOpeningBalance = (colId: typeof ACCOUNT_COLUMNS[number]["id"]) => {
     const opening = state.openingBalances.find((b) => b.column === colId);
     let debit = opening?.debit || 0;
@@ -92,7 +92,13 @@ export default function CashBook() {
         credit += t.amounts[colId]?.credit || 0;
       });
 
-    return { debit, credit, net: debit - credit };
+    // Return as NET (like the "new balance" row)
+    const net = debit - credit;
+    return {
+      debit: net > 0 ? net : 0,
+      credit: net < 0 ? Math.abs(net) : 0,
+      net,
+    };
   };
 
   // Get totals including opening + current month transactions
