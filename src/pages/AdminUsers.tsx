@@ -287,7 +287,7 @@ export default function AdminUsers() {
                     </div>
 
                     {/* Credentials display */}
-                    {user.email && user.role !== "admin" && (
+                    {user.email && (
                       <div className="flex items-center gap-4 text-xs bg-background/50 rounded p-2 border border-border/50">
                         <span className="text-muted-foreground">البريد:</span>
                         <span className="font-mono">{user.email}</span>

@@ -1,24 +1,38 @@
-# Windows EXE Build (Electron)
+# بناء ملف Windows EXE (Electron)
 
-## 1) Build web app
+## المتطلبات
+- Node.js v20 أو أحدث
+- npm
+
+## الخطوات
+
+### 1) تثبيت المكتبات
 ```bash
-npm run build
+npm install
 ```
 
-## 2) Run desktop app locally
-```bash
-npx electron electron/main.js
+### 2) إنشاء ملف .env (مطلوب)
+أنشئ ملف `.env` في المجلد الرئيسي يحتوي على:
+```
+VITE_SUPABASE_URL=https://jsglrvtlafynkdqbfyos.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzZ2xydnRsYWZ5bmtkcWJmeW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMjI1NDksImV4cCI6MjA4NzU5ODU0OX0.TsULEYJiku2N04FwFVNdCj6qzrB-o3WhtUiFrtJl0Yo
+VITE_SUPABASE_PROJECT_ID=jsglrvtlafynkdqbfyos
 ```
 
-## 3) Build Windows installer (.exe)
+### 3) بناء ملف EXE
 ```bash
-npx electron-builder --win --config electron-builder.yml
+npm run electron:build
 ```
 
-The installer will be generated in:
-- `release/`
+سيتم إنشاء ملف التثبيت في مجلد `release/`
 
-## Notes
-- In development mode, Electron opens `http://localhost:8080`.
-- In production build, Electron opens `dist/index.html`.
-- Because your backend is on Lovable Cloud, internet is required for full functionality.
+### 4) تشغيل محلي (للتطوير)
+```bash
+npm run electron:dev
+```
+
+## ملاحظات
+- التطبيق يتطلب اتصال بالإنترنت للمصادقة وإدارة المستخدمين
+- البيانات المالية (الحركات والأرصدة) تُحفظ محلياً على جهاز المستخدم
+- بيانات الحسابات (يوزر وباسوورد) محفوظة في السحابة
+- حساب الأدمن محمي ببيانات دخول خاصة لا يمكن إنشاء أدمن آخر
