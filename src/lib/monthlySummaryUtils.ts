@@ -48,7 +48,11 @@ export function getAccountMonthData(
   const baseDebit = ob?.debit || 0;
   const baseCredit = ob?.credit || 0;
 
-  // Sum transactions BEFORE selected month to get rolling opening balance
+  // Build year-month key for comparison (e.g. "2026-02")
+  const year = state.currentYear || new Date().getFullYear().toString();
+  const monthKey = `${year}-${String(selectedMonthIndex + 1).padStart(2, "0")}`;
+
+  // Sum transactions BEFORE selected month and DURING selected month
   let priorDebit = 0;
   let priorCredit = 0;
   let duringDebit = 0;
@@ -57,14 +61,14 @@ export function getAccountMonthData(
   state.transactions
     .filter(t => t.status === "active")
     .forEach(t => {
-      const txMonth = new Date(t.date).getMonth();
+      const txKey = t.date.slice(0, 7); // "2026-02" format
       const d = t.amounts[colId as AccountColumnId]?.debit || 0;
       const c = t.amounts[colId as AccountColumnId]?.credit || 0;
 
-      if (txMonth < selectedMonthIndex) {
+      if (txKey < monthKey) {
         priorDebit += d;
         priorCredit += c;
-      } else if (txMonth === selectedMonthIndex) {
+      } else if (txKey === monthKey) {
         duringDebit += d;
         duringCredit += c;
       }
