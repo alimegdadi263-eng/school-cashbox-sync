@@ -62,13 +62,19 @@ export default function SettingsPage() {
               <span className="text-sm">تغيير كلمة المرور</span>
               <ChangePasswordDialog />
             </div>
-            {!isAdmin && daysLeft !== null && (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30">
-                <Clock className="w-4 h-4" />
-                <span className="text-sm">مدة الاشتراك المتبقية:</span>
-                <span className={`font-semibold text-sm ${daysLeft <= 30 ? "text-destructive" : "text-foreground"}`}>
-                  {daysLeft > 0 ? `${daysLeft} يوم` : "منتهي"}
-                </span>
+            {!isAdmin && subscriptionExpiresAt && (
+              <div className="p-3 rounded-lg bg-muted/30 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  <span className="text-sm">مدة الاشتراك المتبقية:</span>
+                  <span className={`font-semibold text-sm ${daysLeft !== null && daysLeft <= 30 ? "text-destructive" : "text-foreground"}`}>
+                    {daysLeft !== null ? (daysLeft > 0 ? `${daysLeft} يوم` : "منتهي") : "—"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <span>بداية الاشتراك: <strong className="text-foreground">{new Date(new Date(subscriptionExpiresAt).getTime() - 365 * 24 * 60 * 60 * 1000).toLocaleDateString("ar-EG")}</strong></span>
+                  <span>نهاية الاشتراك: <strong className="text-foreground">{new Date(subscriptionExpiresAt).toLocaleDateString("ar-EG")}</strong></span>
+                </div>
               </div>
             )}
           </CardContent>
