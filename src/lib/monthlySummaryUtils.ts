@@ -36,7 +36,8 @@ export interface AccountMonthData {
 export function getAccountMonthData(
   state: FinanceState,
   colId: string,
-  selectedMonthIndex: number
+  selectedMonthIndex: number,
+  overrideYear?: string
 ): AccountMonthData {
   const exists = ACCOUNT_COLUMNS.some(c => c.id === colId);
   if (!exists) {
@@ -49,7 +50,7 @@ export function getAccountMonthData(
   const baseCredit = ob?.credit || 0;
 
   // Build year-month key for comparison (e.g. "2026-02")
-  const year = state.currentYear || new Date().getFullYear().toString();
+  const year = overrideYear || state.currentYear || new Date().getFullYear().toString();
   const monthKey = `${year}-${String(selectedMonthIndex + 1).padStart(2, "0")}`;
 
   // Sum transactions BEFORE selected month and DURING selected month

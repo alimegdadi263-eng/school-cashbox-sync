@@ -3,10 +3,11 @@ import AppLayout from "@/components/AppLayout";
 import { useFinance } from "@/context/FinanceContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileDown, Download } from "lucide-react";
+import { FileDown, Download, ChevronRight, ChevronLeft } from "lucide-react";
 import { generateMonthlySummaryDocx } from "@/lib/generateMonthlySummaryDocx";
 import { exportMonthlySummaryExcel } from "@/lib/exportMonthlySummaryExcel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { ARABIC_MONTHS, SUMMARY_ROWS, getAccountMonthData, splitDinarFils } from "@/lib/monthlySummaryUtils";
 
@@ -14,12 +15,13 @@ export default function MonthlySummary() {
   const { state } = useFinance();
   const { toast } = useToast();
   const [selectedMonth, setSelectedMonth] = useState(state.currentMonth);
+  const [selectedYear, setSelectedYear] = useState(state.currentYear || new Date().getFullYear().toString());
 
   const monthIndex = ARABIC_MONTHS.indexOf(selectedMonth);
 
   const allData = SUMMARY_ROWS.map(row => ({
     ...row,
-    data: getAccountMonthData(state, row.id, monthIndex),
+    data: getAccountMonthData(state, row.id, monthIndex, selectedYear),
   }));
 
   const handleExportExcel = () => {
@@ -70,10 +72,23 @@ export default function MonthlySummary() {
           <div>
             <h1 className="text-2xl font-bold text-foreground">خلاصة الحسابات الشهرية</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              {state.schoolName} - {selectedMonth} {state.currentYear}
+              {state.schoolName} - {selectedMonth} {selectedYear}
             </p>
           </div>
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2 items-center flex-wrap">
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedYear(String(Number(selectedYear) - 1))}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Input
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="w-[80px] h-8 text-center text-sm"
+              />
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedYear(String(Number(selectedYear) + 1))}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+            </div>
             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="اختر الشهر" />
