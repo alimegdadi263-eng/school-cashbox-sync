@@ -17,7 +17,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { UserPlus, Users, ShieldCheck, ShieldOff, Trash2, Eye, EyeOff } from "lucide-react";
+import { UserPlus, Users, ShieldCheck, ShieldOff, Trash2, Eye, EyeOff, Clock } from "lucide-react";
+import ChangePasswordDialog from "@/components/ChangePasswordDialog";
 
 interface SchoolUser {
   id: string;
@@ -92,12 +93,22 @@ export default function AdminUsers() {
 
     setLoading(true);
     try {
+      const expiresAt = new Date();
+      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+
       const { data, error } = await supabase.functions.invoke("create-school-user", {
         body: { email, password, schoolName },
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+
+      // Set subscription expiry to 1 year
+      if (data?.userId) {
+        await supabase.from("profiles").update({
+          subscription_expires_at: expiresAt.toISOString(),
+        }).eq("id", data.userId);
+      }
 
       toast({ title: "تم بنجاح", description: `تم إنشاء حساب لـ ${schoolName}` });
       setEmail("");
@@ -116,9 +127,18 @@ export default function AdminUsers() {
   };
 
   const toggleUserActive = async (userId: string, currentlyActive: boolean) => {
+    const updates: Record<string, any> = { is_active: !currentlyActive };
+    
+    // If activating, set subscription to 1 year from now
+    if (!currentlyActive) {
+      const expiresAt = new Date();
+      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+      updates.subscription_expires_at = expiresAt.toISOString();
+    }
+
     const { error } = await supabase
       .from("profiles")
-      .update({ is_active: !currentlyActive })
+      .update(updates)
       .eq("id", userId);
 
     if (error) {
@@ -126,7 +146,7 @@ export default function AdminUsers() {
     } else {
       toast({
         title: "تم",
-        description: currentlyActive ? "تم إيقاف الاشتراك" : "تم تفعيل الاشتراك",
+        description: currentlyActive ? "تم إيقاف الاشتراك" : "تم تفعيل الاشتراك لمدة سنة",
       });
       fetchUsers();
     }
@@ -222,7 +242,12 @@ export default function AdminUsers() {
               <p className="text-muted-foreground text-center py-4">لا يوجد مستخدمون بعد</p>
             ) : (
               <div className="space-y-3">
-                {users.map((user) => (
+                {users.map((user) => {
+                  const daysLeft = user.subscription_expires_at
+                    ? Math.max(0, Math.ceil((new Date(user.subscription_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                    : null;
+
+                  return (
                   <div key={user.id} className="p-4 rounded-lg bg-muted/30 space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
@@ -235,6 +260,14 @@ export default function AdminUsers() {
                             </span>
                           )}
                         </p>
+                        {user.role !== "admin" && daysLeft !== null && (
+                          <p className="text-xs mt-1 flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            <span className={daysLeft <= 30 ? "text-destructive font-semibold" : "text-muted-foreground"}>
+                              {daysLeft > 0 ? `متبقي ${daysLeft} يوم` : "منتهي الصلاحية"}
+                            </span>
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`px-2 py-1 rounded text-[10px] font-semibold ${
@@ -246,6 +279,10 @@ export default function AdminUsers() {
                         }`}>
                           {user.role === "admin" ? "مدير" : user.is_active ? "مفعّل" : "موقوف"}
                         </span>
+                        <ChangePasswordDialog
+                          targetUserId={user.id}
+                          targetName={user.school_name || user.email}
+                        />
                         {user.role !== "admin" && (
                           <>
                             <Button
@@ -314,7 +351,8 @@ export default function AdminUsers() {
                       </div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>

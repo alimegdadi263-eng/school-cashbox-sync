@@ -7,10 +7,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import ChangePasswordDialog from "@/components/ChangePasswordDialog";
+import { Clock } from "lucide-react";
 
 export default function SettingsPage() {
   const { state, setOpeningBalances, updateSettings } = useFinance();
   const { toast } = useToast();
+  const { subscriptionExpiresAt, isAdmin } = useAuth();
+
+  const daysLeft = subscriptionExpiresAt
+    ? Math.max(0, Math.ceil((new Date(subscriptionExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : null;
 
   const [schoolName, setSchoolName] = useState(state.schoolName);
   const [directorateName, setDirectorateName] = useState(state.directorateName);
@@ -44,6 +52,27 @@ export default function SettingsPage() {
       <div className="space-y-6 max-w-3xl">
         <h1 className="text-2xl font-bold text-foreground">الإعدادات</h1>
 
+        {/* Password & Subscription */}
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle className="text-lg">الحساب والأمان</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm">تغيير كلمة المرور</span>
+              <ChangePasswordDialog />
+            </div>
+            {!isAdmin && daysLeft !== null && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30">
+                <Clock className="w-4 h-4" />
+                <span className="text-sm">مدة الاشتراك المتبقية:</span>
+                <span className={`font-semibold text-sm ${daysLeft <= 30 ? "text-destructive" : "text-foreground"}`}>
+                  {daysLeft > 0 ? `${daysLeft} يوم` : "منتهي"}
+                </span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
         <Card className="shadow-card">
           <CardHeader>
             <CardTitle className="text-lg">معلومات المدرسة</CardTitle>
