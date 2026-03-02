@@ -17,8 +17,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { UserPlus, Users, ShieldCheck, ShieldOff, Trash2, Eye, EyeOff, Clock } from "lucide-react";
+import { UserPlus, Users, ShieldCheck, ShieldOff, Trash2, Eye, EyeOff, Clock, Search, Download } from "lucide-react";
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 
 interface SchoolUser {
   id: string;
@@ -38,6 +40,7 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<SchoolUser[]>([]);
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
+  const [searchQuery, setSearchQuery] = useState("");
 
   const fetchUsers = async () => {
     const [profilesRes, rolesRes, credsRes] = await Promise.all([
@@ -176,6 +179,66 @@ export default function AdminUsers() {
     setVisiblePasswords((prev) => ({ ...prev, [userId]: !prev[userId] }));
   };
 
+  const filteredUsers = users.filter((u) =>
+    u.school_name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleExportExcel = async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("المستخدمون", { views: [{ rightToLeft: true }] });
+
+    ws.columns = [
+      { header: "اسم المدرسة", key: "school", width: 30 },
+      { header: "البريد الإلكتروني", key: "email", width: 30 },
+      { header: "كلمة المرور", key: "password", width: 20 },
+      { header: "الدور", key: "role", width: 12 },
+      { header: "الحالة", key: "status", width: 12 },
+      { header: "بداية الاشتراك", key: "start", width: 18 },
+      { header: "نهاية الاشتراك", key: "end", width: 18 },
+      { header: "الأيام المتبقية", key: "days", width: 15 },
+    ];
+
+    const headerRow = ws.getRow(1);
+    headerRow.font = { bold: true, size: 12 };
+    headerRow.alignment = { horizontal: "center" };
+    headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9E1F2" } };
+
+    users.forEach((u) => {
+      const daysLeft = u.subscription_expires_at
+        ? Math.max(0, Math.ceil((new Date(u.subscription_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+        : null;
+      ws.addRow({
+        school: u.school_name || "بدون اسم",
+        email: u.email,
+        password: u.password,
+        role: u.role === "admin" ? "مدير" : "مدرسة",
+        status: u.role === "admin" ? "—" : u.is_active ? "مفعّل" : "موقوف",
+        start: u.subscription_expires_at
+          ? new Date(new Date(u.subscription_expires_at).getTime() - 365 * 24 * 60 * 60 * 1000).toLocaleDateString("ar-EG")
+          : "—",
+        end: u.subscription_expires_at
+          ? new Date(u.subscription_expires_at).toLocaleDateString("ar-EG")
+          : "—",
+        days: daysLeft !== null ? (daysLeft > 0 ? daysLeft : "منتهي") : "—",
+      });
+    });
+
+    ws.eachRow((row) => {
+      row.alignment = { horizontal: "center", vertical: "middle" };
+      row.eachCell((cell) => {
+        cell.border = {
+          top: { style: "thin" },
+          left: { style: "thin" },
+          bottom: { style: "thin" },
+          right: { style: "thin" },
+        };
+      });
+    });
+
+    const buf = await wb.xlsx.writeBuffer();
+    saveAs(new Blob([buf]), `المستخدمون_${new Date().toLocaleDateString("ar-EG")}.xlsx`);
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6 max-w-3xl">
@@ -232,17 +295,34 @@ export default function AdminUsers() {
         {/* Users list */}
         <Card className="shadow-card">
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              المستخدمون ({users.length})
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                المستخدمون ({users.length})
+              </CardTitle>
+              <Button size="sm" variant="outline" onClick={handleExportExcel} className="text-xs gap-1">
+                <Download className="w-4 h-4" />
+                تصدير Excel
+              </Button>
+            </div>
+            <div className="relative mt-3">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="بحث باسم المدرسة..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pr-9"
+              />
+            </div>
           </CardHeader>
           <CardContent>
-            {users.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">لا يوجد مستخدمون بعد</p>
+            {filteredUsers.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">
+                {searchQuery ? "لا توجد نتائج مطابقة" : "لا يوجد مستخدمون بعد"}
+              </p>
             ) : (
               <div className="space-y-3">
-                {users.map((user) => {
+                {filteredUsers.map((user) => {
                   const daysLeft = user.subscription_expires_at
                     ? Math.max(0, Math.ceil((new Date(user.subscription_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
                     : null;
