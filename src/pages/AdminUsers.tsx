@@ -260,13 +260,19 @@ export default function AdminUsers() {
                             </span>
                           )}
                         </p>
-                        {user.role !== "admin" && daysLeft !== null && (
-                          <p className="text-xs mt-1 flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            <span className={daysLeft <= 30 ? "text-destructive font-semibold" : "text-muted-foreground"}>
-                              {daysLeft > 0 ? `متبقي ${daysLeft} يوم` : "منتهي الصلاحية"}
-                            </span>
-                          </p>
+                        {user.role !== "admin" && user.subscription_expires_at && (
+                          <div className="text-xs mt-1 space-y-0.5">
+                            <p className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              <span className={daysLeft !== null && daysLeft <= 30 ? "text-destructive font-semibold" : "text-muted-foreground"}>
+                                {daysLeft !== null ? (daysLeft > 0 ? `متبقي ${daysLeft} يوم` : "منتهي الصلاحية") : "—"}
+                              </span>
+                            </p>
+                            <p className="text-muted-foreground flex gap-3 mr-4">
+                              <span>من: {new Date(new Date(user.subscription_expires_at).getTime() - 365 * 24 * 60 * 60 * 1000).toLocaleDateString("ar-EG")}</span>
+                              <span>إلى: {new Date(user.subscription_expires_at).toLocaleDateString("ar-EG")}</span>
+                            </p>
+                          </div>
                         )}
                       </div>
                       <div className="flex items-center gap-2">
