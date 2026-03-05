@@ -168,13 +168,12 @@ const slides: Slide[] = [
 
 export default function PresentationExport() {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const printRef = useRef<HTMLDivElement>(null);
 
   const goNext = () => setCurrentSlide((s) => Math.min(s + 1, slides.length - 1));
   const goPrev = () => setCurrentSlide((s) => Math.max(s - 1, 0));
 
-  const handlePrint = () => {
-    const printWindow = window.open("", "_blank");
+  const handlePrintPDF = () => exportPDF(slides);
+  const handleExportPPTX = () => exportPPTX(slides);
     if (!printWindow) return;
 
     const slidesHtml = slides
