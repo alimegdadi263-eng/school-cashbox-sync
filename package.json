@@ -16,7 +16,8 @@
     "electron:dev": "npm run build:electron && npx electron .",
     "obfuscate": "node electron/scripts/obfuscate.cjs",
     "integrity": "node electron/scripts/generate-integrity.cjs",
-    "electron:build": "npm run build:electron && npm run obfuscate && npm run integrity && npx electron-builder --win --config electron-builder.yml"
+    "electron:build": "npm run build:electron && npm run integrity && npx electron-builder --win --config electron-builder.yml",
+    "electron:build:obfuscated": "npm run build:electron && npm run obfuscate && npm run integrity && npx electron-builder --win --config electron-builder.yml"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
