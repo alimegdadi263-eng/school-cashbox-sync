@@ -1,7 +1,12 @@
-const { app, BrowserWindow, session } = require('electron');
+const { app, BrowserWindow, session, globalShortcut } = require('electron');
 const path = require('path');
+const crypto = require('crypto');
+const fs = require('fs');
 
 const isDev = !app.isPackaged;
+
+// Security: Disable hardware acceleration for security
+app.disableHardwareAcceleration();
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -18,8 +23,25 @@ function createWindow() {
       sandbox: true,
       webSecurity: true,
       allowRunningInsecureContent: false,
+      devTools: isDev, // Disable DevTools in production
+      javascript: true,
+      webgl: false,
+      enableWebSQL: false,
     },
   });
+
+  // Security: Remove menu entirely in production
+  if (!isDev) {
+    mainWindow.setMenu(null);
+    mainWindow.removeMenu();
+  }
+
+  // Security: Prevent DevTools from opening in production
+  if (!isDev) {
+    mainWindow.webContents.on('devtools-opened', () => {
+      mainWindow.webContents.closeDevTools();
+    });
+  }
 
   // Security: Set Content Security Policy
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
@@ -52,6 +74,27 @@ function createWindow() {
     event.preventDefault();
   });
 
+  // Security: Block keyboard shortcuts for DevTools in production
+  if (!isDev) {
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+      // Block F12
+      if (input.key === 'F12') {
+        event.preventDefault();
+        return;
+      }
+      // Block Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C (DevTools shortcuts)
+      if (input.control && input.shift && ['I', 'J', 'C'].includes(input.key.toUpperCase())) {
+        event.preventDefault();
+        return;
+      }
+      // Block Ctrl+U (View Source)
+      if (input.control && input.key.toUpperCase() === 'U') {
+        event.preventDefault();
+        return;
+      }
+    });
+  }
+
   if (isDev) {
     mainWindow.loadURL('http://localhost:8080');
   } else {
@@ -60,6 +103,15 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Security: Block all DevTools shortcuts globally in production
+  if (!isDev) {
+    globalShortcut.register('F12', () => {});
+    globalShortcut.register('CommandOrControl+Shift+I', () => {});
+    globalShortcut.register('CommandOrControl+Shift+J', () => {});
+    globalShortcut.register('CommandOrControl+Shift+C', () => {});
+    globalShortcut.register('CommandOrControl+U', () => {});
+  }
+
   createWindow();
 
   app.on('activate', () => {
@@ -69,4 +121,9 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+// Security: Unregister shortcuts on quit
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
 });
