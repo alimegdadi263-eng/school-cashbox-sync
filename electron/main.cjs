@@ -1,4 +1,4 @@
-const { app, BrowserWindow, session, globalShortcut } = require('electron');
+const { app, BrowserWindow, session, globalShortcut, dialog } = require('electron');
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -8,6 +8,59 @@ const isDev = !app.isPackaged;
 // Security: Disable hardware acceleration for security
 app.disableHardwareAcceleration();
 
+// ── Integrity Check ──────────────────────────────────────────────────────────
+function verifyIntegrity() {
+  if (isDev) return true; // Skip in development
+
+  try {
+    const distDir = path.join(__dirname, '../dist');
+    const manifestPath = path.join(distDir, '.integrity.json');
+
+    if (!fs.existsSync(manifestPath)) {
+      console.error('Integrity manifest not found');
+      return false;
+    }
+
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+
+    // Verify manifest signature
+    const expectedSig = crypto
+      .createHash('sha256')
+      .update(JSON.stringify(manifest.files) + manifest.generatedAt)
+      .digest('hex');
+
+    if (expectedSig !== manifest.signature) {
+      console.error('Integrity manifest signature mismatch');
+      return false;
+    }
+
+    // Verify each file hash
+    for (const [relativePath, expectedHash] of Object.entries(manifest.files)) {
+      const filePath = path.join(distDir, relativePath);
+
+      if (!fs.existsSync(filePath)) {
+        console.error(`Missing file: ${relativePath}`);
+        return false;
+      }
+
+      const content = fs.readFileSync(filePath);
+      const actualHash = crypto.createHash('sha256').update(content).digest('hex');
+
+      if (actualHash !== expectedHash) {
+        console.error(`Tampered file detected: ${relativePath}`);
+        return false;
+      }
+    }
+
+    console.log('Integrity check passed ✓');
+    return true;
+  } catch (error) {
+    console.error('Integrity check failed:', error.message);
+    return false;
+  }
+}
+
+// ── Main Window ──────────────────────────────────────────────────────────────
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1400,
@@ -23,7 +76,7 @@ function createWindow() {
       sandbox: true,
       webSecurity: true,
       allowRunningInsecureContent: false,
-      devTools: isDev, // Disable DevTools in production
+      devTools: isDev,
       javascript: true,
       webgl: false,
       enableWebSQL: false,
@@ -77,17 +130,14 @@ function createWindow() {
   // Security: Block keyboard shortcuts for DevTools in production
   if (!isDev) {
     mainWindow.webContents.on('before-input-event', (event, input) => {
-      // Block F12
       if (input.key === 'F12') {
         event.preventDefault();
         return;
       }
-      // Block Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C (DevTools shortcuts)
       if (input.control && input.shift && ['I', 'J', 'C'].includes(input.key.toUpperCase())) {
         event.preventDefault();
         return;
       }
-      // Block Ctrl+U (View Source)
       if (input.control && input.key.toUpperCase() === 'U') {
         event.preventDefault();
         return;
@@ -102,7 +152,18 @@ function createWindow() {
   }
 }
 
+// ── App Ready ────────────────────────────────────────────────────────────────
 app.whenReady().then(() => {
+  // Security: Integrity check before launching
+  if (!isDev && !verifyIntegrity()) {
+    dialog.showErrorBox(
+      'خطأ أمني',
+      'تم اكتشاف تعديل غير مصرح به على ملفات البرنامج.\nيرجى إعادة تثبيت البرنامج من المصدر الرسمي.'
+    );
+    app.quit();
+    return;
+  }
+
   // Security: Block all DevTools shortcuts globally in production
   if (!isDev) {
     globalShortcut.register('F12', () => {});
