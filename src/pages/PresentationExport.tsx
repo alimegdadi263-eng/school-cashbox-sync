@@ -192,10 +192,16 @@ export default function PresentationExport() {
               <p className="text-sm text-muted-foreground">شرح الحركات والمعاملات المالية</p>
             </div>
           </div>
-          <Button onClick={handlePrint} className="gap-2">
-            <Download className="w-4 h-4" />
-            طباعة / تصدير PDF
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleExportPPTX} variant="outline" className="gap-2">
+              <FileDown className="w-4 h-4" />
+              تصدير PPT
+            </Button>
+            <Button onClick={handlePrintPDF} className="gap-2">
+              <Download className="w-4 h-4" />
+              تصدير PDF
+            </Button>
+          </div>
         </div>
 
         {/* Slide Viewer */}
