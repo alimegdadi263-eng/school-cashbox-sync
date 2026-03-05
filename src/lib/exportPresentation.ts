@@ -34,9 +34,7 @@ export function exportPPTX(slides: Slide[]) {
     const slide = pptx.addSlide();
     const colors = colorMap[s.color] || { bg1: "1E293B", bg2: "0F172A" };
 
-    slide.background = {
-      fill: { type: "solid", color: colors.bg1 },
-    };
+    slide.background = { color: colors.bg1 };
 
     // Slide number
     slide.addText(`${i + 1} / ${slides.length}`, {
