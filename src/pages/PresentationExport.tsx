@@ -207,7 +207,6 @@ export default function PresentationExport() {
         {/* Slide Viewer */}
         <Card className="overflow-hidden shadow-card">
           <div
-            ref={printRef}
             className={`bg-gradient-to-br ${slide.color} text-white p-8 md:p-12 min-h-[420px] flex flex-col justify-center relative transition-all duration-500`}
           >
             <div className="absolute top-4 left-4 text-sm opacity-50">
