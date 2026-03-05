@@ -1,9 +1,10 @@
 import AppLayout from "@/components/AppLayout";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Download, Presentation, ChevronLeft, ChevronRight } from "lucide-react";
-import { useState, useRef } from "react";
+import { Download, Presentation, ChevronLeft, ChevronRight, FileDown } from "lucide-react";
+import { useState } from "react";
+import { exportPPTX, exportPDF } from "@/lib/exportPresentation";
 
 interface Slide {
   title: string;
