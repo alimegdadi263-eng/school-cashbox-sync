@@ -83,6 +83,20 @@ function createWindow() {
     },
   });
 
+  // Runtime diagnostics: show clear errors instead of silent white screen
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    console.error('Renderer failed to load:', { errorCode, errorDescription, validatedURL });
+    dialog.showErrorBox(
+      'خطأ في تحميل الواجهة',
+      `تعذر تحميل واجهة البرنامج.\n${errorDescription} (${errorCode})\n${validatedURL || ''}`
+    );
+  });
+
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error('Renderer process crashed:', details);
+    dialog.showErrorBox('تعطل الواجهة', 'حدث تعطل في واجهة البرنامج. أعد تشغيل التطبيق.');
+  });
+
   // Security: Remove menu entirely in production
   if (!isDev) {
     mainWindow.setMenu(null);
