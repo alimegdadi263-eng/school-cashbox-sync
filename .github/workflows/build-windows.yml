@@ -35,6 +35,9 @@ jobs:
       - name: Obfuscate JS bundles
         run: node electron/scripts/obfuscate.cjs
 
+      - name: Generate integrity manifest
+        run: node electron/scripts/generate-integrity.cjs
+
       - name: Build Electron Windows EXE
         run: npx electron-builder --win --config electron-builder.yml --publish never
 
