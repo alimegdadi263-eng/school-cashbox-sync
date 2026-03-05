@@ -114,8 +114,12 @@ function createWindow() {
     });
   });
 
-  // Security: Prevent new window creation
-  mainWindow.webContents.setWindowOpenHandler(() => {
+  // Security: Control new window creation (allow print windows)
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    // Allow blank windows for PDF print export
+    if (url === '' || url === 'about:blank') {
+      return { action: 'allow' };
+    }
     return { action: 'deny' };
   });
 
