@@ -11,6 +11,7 @@ import {
   LogOut,
   CircleHelp,
   Code,
+  Presentation,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ export default function AppSidebar() {
     ...(isAdmin ? [
       { path: "/users", label: "إدارة المستخدمين", icon: Users },
       { path: "/code-docs", label: "توثيق الكود", icon: Code },
+      { path: "/presentation", label: "العرض التقديمي", icon: Presentation },
     ] : []),
   ];
 

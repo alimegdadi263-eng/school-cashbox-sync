@@ -17,6 +17,7 @@ import NotFound from "./pages/NotFound";
 import SubscriptionExpired from "./components/SubscriptionExpired";
 import InstructionsPage from "./pages/InstructionsPage";
 import CodeDocumentation from "./pages/CodeDocumentation";
+import PresentationExport from "./pages/PresentationExport";
 
 const queryClient = new QueryClient();
 const isElectron = typeof navigator !== "undefined" && navigator.userAgent.toLowerCase().includes("electron");
@@ -64,6 +65,7 @@ const App = () => (
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
               <Route path="/code-docs" element={<AdminRoute><CodeDocumentation /></AdminRoute>} />
+              <Route path="/presentation" element={<AdminRoute><PresentationExport /></AdminRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Router>
