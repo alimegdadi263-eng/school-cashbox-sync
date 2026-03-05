@@ -23,3 +23,5 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
 asar: true
+asarUnpack:
+  - "!**/*"

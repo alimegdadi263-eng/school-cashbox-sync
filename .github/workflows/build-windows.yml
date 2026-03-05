@@ -32,6 +32,9 @@ jobs:
       - name: Build Vite (React)
         run: npm run build:electron
 
+      - name: Obfuscate JS bundles
+        run: node electron/scripts/obfuscate.cjs
+
       - name: Build Electron Windows EXE
         run: npx electron-builder --win --config electron-builder.yml --publish never
 

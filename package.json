@@ -14,7 +14,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "electron:dev": "npm run build:electron && npx electron .",
-    "electron:build": "npm run build:electron && npx electron-builder --win --config electron-builder.yml"
+    "obfuscate": "node electron/scripts/obfuscate.cjs",
+    "electron:build": "npm run build:electron && npm run obfuscate && npx electron-builder --win --config electron-builder.yml"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
