@@ -1,9 +1,10 @@
 import AppLayout from "@/components/AppLayout";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Download, Presentation, ChevronLeft, ChevronRight } from "lucide-react";
-import { useState, useRef } from "react";
+import { Download, Presentation, ChevronLeft, ChevronRight, FileDown } from "lucide-react";
+import { useState } from "react";
+import { exportPPTX, exportPDF } from "@/lib/exportPresentation";
 
 interface Slide {
   title: string;
@@ -167,48 +168,14 @@ const slides: Slide[] = [
 
 export default function PresentationExport() {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const printRef = useRef<HTMLDivElement>(null);
 
   const goNext = () => setCurrentSlide((s) => Math.min(s + 1, slides.length - 1));
   const goPrev = () => setCurrentSlide((s) => Math.max(s - 1, 0));
 
-  const handlePrint = () => {
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
+  const handlePrintPDF = () => exportPDF(slides);
+  const handleExportPPTX = () => exportPPTX(slides);
 
-    const slidesHtml = slides
-      .map(
-        (slide, i) => `
-      <div style="page-break-after: always; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 60px; font-family: 'Traditional Arabic', Arial, sans-serif; direction: rtl; background: linear-gradient(135deg, #1e293b, #0f172a); color: white; position: relative;">
-        <div style="position: absolute; top: 30px; left: 30px; font-size: 14px; opacity: 0.5;">${i + 1} / ${slides.length}</div>
-        <h1 style="font-size: 42px; font-weight: bold; margin-bottom: 12px; text-align: center;">${slide.title}</h1>
-        ${slide.subtitle ? `<h2 style="font-size: 22px; opacity: 0.8; margin-bottom: 40px; text-align: center;">${slide.subtitle}</h2>` : ""}
-        <div style="max-width: 800px; width: 100%;">
-          ${slide.content.map((line) => `<p style="font-size: 20px; line-height: 2; margin: 8px 0; padding-right: 10px;">${line}</p>`).join("")}
-        </div>
-        ${i === 0 || i === slides.length - 1 ? '<div style="position: absolute; bottom: 30px; font-size: 12px; opacity: 0.4;">نظام مالية المدارس - الأستاذ علي مقدادي</div>' : ""}
-      </div>
-    `
-      )
-      .join("");
 
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html dir="rtl">
-      <head>
-        <title>عرض تقديمي - مالية المدارس - الأستاذ علي مقدادي</title>
-        <style>
-          @page { size: landscape; margin: 0; }
-          body { margin: 0; padding: 0; }
-          @media print { div { page-break-after: always; } }
-        </style>
-      </head>
-      <body>${slidesHtml}</body>
-      </html>
-    `);
-    printWindow.document.close();
-    setTimeout(() => printWindow.print(), 500);
-  };
 
   const slide = slides[currentSlide];
 
@@ -225,16 +192,21 @@ export default function PresentationExport() {
               <p className="text-sm text-muted-foreground">شرح الحركات والمعاملات المالية</p>
             </div>
           </div>
-          <Button onClick={handlePrint} className="gap-2">
-            <Download className="w-4 h-4" />
-            طباعة / تصدير PDF
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleExportPPTX} variant="outline" className="gap-2">
+              <FileDown className="w-4 h-4" />
+              تصدير PPT
+            </Button>
+            <Button onClick={handlePrintPDF} className="gap-2">
+              <Download className="w-4 h-4" />
+              تصدير PDF
+            </Button>
+          </div>
         </div>
 
         {/* Slide Viewer */}
         <Card className="overflow-hidden shadow-card">
           <div
-            ref={printRef}
             className={`bg-gradient-to-br ${slide.color} text-white p-8 md:p-12 min-h-[420px] flex flex-col justify-center relative transition-all duration-500`}
           >
             <div className="absolute top-4 left-4 text-sm opacity-50">
