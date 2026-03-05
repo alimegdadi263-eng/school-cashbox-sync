@@ -96,19 +96,25 @@ function createWindow() {
     });
   }
 
-  // Security: Set Content Security Policy
+  // Security: Set Content Security Policy for HTTP content only
+  // (file:// packaged assets can break with overly strict CSP headers)
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    if (details.url.startsWith('file://')) {
+      callback({ responseHeaders: { ...details.responseHeaders } });
+      return;
+    }
+
     callback({
       responseHeaders: {
         ...details.responseHeaders,
         'Content-Security-Policy': [
           "default-src 'self'; " +
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-          "font-src 'self' https://fonts.gstatic.com; " +
-          "img-src 'self' data: blob: https:; " +
-          "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co; " +
-          "frame-src 'none';"
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+            "font-src 'self' https://fonts.gstatic.com; " +
+            "img-src 'self' data: blob: https:; " +
+            "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co; " +
+            "frame-src 'none';",
         ],
       },
     });
