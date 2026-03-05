@@ -174,41 +174,8 @@ export default function PresentationExport() {
 
   const handlePrintPDF = () => exportPDF(slides);
   const handleExportPPTX = () => exportPPTX(slides);
-    if (!printWindow) return;
 
-    const slidesHtml = slides
-      .map(
-        (slide, i) => `
-      <div style="page-break-after: always; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 60px; font-family: 'Traditional Arabic', Arial, sans-serif; direction: rtl; background: linear-gradient(135deg, #1e293b, #0f172a); color: white; position: relative;">
-        <div style="position: absolute; top: 30px; left: 30px; font-size: 14px; opacity: 0.5;">${i + 1} / ${slides.length}</div>
-        <h1 style="font-size: 42px; font-weight: bold; margin-bottom: 12px; text-align: center;">${slide.title}</h1>
-        ${slide.subtitle ? `<h2 style="font-size: 22px; opacity: 0.8; margin-bottom: 40px; text-align: center;">${slide.subtitle}</h2>` : ""}
-        <div style="max-width: 800px; width: 100%;">
-          ${slide.content.map((line) => `<p style="font-size: 20px; line-height: 2; margin: 8px 0; padding-right: 10px;">${line}</p>`).join("")}
-        </div>
-        ${i === 0 || i === slides.length - 1 ? '<div style="position: absolute; bottom: 30px; font-size: 12px; opacity: 0.4;">نظام مالية المدارس - الأستاذ علي مقدادي</div>' : ""}
-      </div>
-    `
-      )
-      .join("");
 
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html dir="rtl">
-      <head>
-        <title>عرض تقديمي - مالية المدارس - الأستاذ علي مقدادي</title>
-        <style>
-          @page { size: landscape; margin: 0; }
-          body { margin: 0; padding: 0; }
-          @media print { div { page-break-after: always; } }
-        </style>
-      </head>
-      <body>${slidesHtml}</body>
-      </html>
-    `);
-    printWindow.document.close();
-    setTimeout(() => printWindow.print(), 500);
-  };
 
   const slide = slides[currentSlide];
 
