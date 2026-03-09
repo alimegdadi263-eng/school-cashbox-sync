@@ -2,14 +2,31 @@
  * Auto-updater module using electron-updater with GitHub Releases.
  * Shows native dialogs to the user when an update is available.
  */
-const { autoUpdater } = require('electron-updater');
 const { dialog, BrowserWindow } = require('electron');
+
+let autoUpdater;
+try {
+  autoUpdater = require('electron-updater').autoUpdater;
+} catch (e) {
+  console.error('electron-updater not available:', e.message);
+  autoUpdater = null;
+}
 
 let updateCheckInProgress = false;
 
 function setupAutoUpdater(mainWindow) {
+  if (!autoUpdater) {
+    console.warn('Auto-updater is not available, skipping setup.');
+    return;
+  }
+
   // Configure logging
-  autoUpdater.logger = require('electron-log');
+  try {
+    autoUpdater.logger = require('electron-log');
+    autoUpdater.logger.transports.file.level = 'info';
+  } catch (e) {
+    console.warn('electron-log not available, using console.');
+  }
   autoUpdater.logger.transports.file.level = 'info';
 
   // Don't auto-download, let the user decide
@@ -86,13 +103,13 @@ function setupAutoUpdater(mainWindow) {
 }
 
 function checkForUpdates() {
-  if (updateCheckInProgress) return;
+  if (!autoUpdater || updateCheckInProgress) return;
   updateCheckInProgress = true;
   autoUpdater.checkForUpdates();
 }
 
 function checkForUpdatesSilent() {
-  if (updateCheckInProgress) return;
+  if (!autoUpdater || updateCheckInProgress) return;
   updateCheckInProgress = true;
   autoUpdater.checkForUpdates().catch(() => {
     updateCheckInProgress = false;
