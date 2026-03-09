@@ -96,6 +96,52 @@ export default function SettingsPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Auto-Update Section */}
+        {isElectron && (
+          <Card className="shadow-card">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Download className="w-5 h-5" />
+                تحديث البرنامج
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">
+                    {updateStatus === 'checking' && 'جاري التحقق من التحديثات...'}
+                    {updateStatus === 'available' && `يتوفر إصدار جديد: ${updateVersion}`}
+                    {updateStatus === 'not-available' && 'البرنامج محدّث بالفعل ✓'}
+                    {updateStatus === 'downloading' && `جاري تحميل التحديث... ${updateProgress}%`}
+                    {updateStatus === 'downloaded' && `تم تحميل الإصدار ${updateVersion} — أعد التشغيل للتثبيت`}
+                    {updateStatus === 'error' && 'حدث خطأ أثناء التحقق من التحديثات'}
+                    {updateStatus === 'idle' && 'تحقق من وجود تحديثات جديدة'}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={updateStatus === 'checking' || updateStatus === 'downloading'}
+                  onClick={() => (window as any).electronAPI.checkForUpdates()}
+                >
+                  {updateStatus === 'checking' || updateStatus === 'downloading' ? (
+                    <Loader2 className="w-4 h-4 animate-spin ml-2" />
+                  ) : updateStatus === 'not-available' || updateStatus === 'downloaded' ? (
+                    <CheckCircle className="w-4 h-4 ml-2" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4 ml-2" />
+                  )}
+                  تحقق من التحديثات
+                </Button>
+              </div>
+              {updateStatus === 'downloading' && (
+                <Progress value={updateProgress} className="h-2" />
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="shadow-card">
           <CardHeader>
             <CardTitle className="text-lg">معلومات المدرسة</CardTitle>
