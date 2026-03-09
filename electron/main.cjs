@@ -1,7 +1,8 @@
-const { app, BrowserWindow, session, globalShortcut, dialog } = require('electron');
+const { app, BrowserWindow, session, globalShortcut, dialog, ipcMain } = require('electron');
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
+const { setupAutoUpdater, checkForUpdates, checkForUpdatesSilent } = require('./updater.cjs');
 
 const isDev = !app.isPackaged;
 
