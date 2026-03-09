@@ -11,6 +11,12 @@ files:
   - dist/**
   - electron/**
   - "!node_modules"
+  - node_modules/electron-updater/**
+  - node_modules/electron-log/**
+  - node_modules/semver/**
+  - node_modules/lazy-val/**
+  - node_modules/typed-emitter/**
+  - node_modules/rxjs/**
 extraMetadata:
   main: electron/main.cjs
 win:

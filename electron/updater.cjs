@@ -2,8 +2,15 @@
  * Auto-updater module using electron-updater with GitHub Releases.
  * Shows native dialogs to the user when an update is available.
  */
-const { autoUpdater } = require('electron-updater');
 const { dialog, BrowserWindow } = require('electron');
+
+let autoUpdater;
+try {
+  autoUpdater = require('electron-updater').autoUpdater;
+} catch (e) {
+  console.error('electron-updater not available:', e.message);
+  autoUpdater = null;
+}
 
 let updateCheckInProgress = false;
 
