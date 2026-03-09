@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AppLayout from "@/components/AppLayout";
 import { useFinance } from "@/context/FinanceContext";
 import { ACCOUNT_COLUMNS, OpeningBalance } from "@/types/finance";
@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
-import { Clock } from "lucide-react";
+import { Clock, RefreshCw, Download, CheckCircle, Loader2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
 export default function SettingsPage() {
   const { state, setOpeningBalances, updateSettings } = useFinance();
@@ -28,6 +29,22 @@ export default function SettingsPage() {
   const [month, setMonth] = useState(state.currentMonth);
   const [year, setYear] = useState(state.currentYear);
   const [balances, setBalances] = useState<OpeningBalance[]>([...state.openingBalances]);
+
+  // Auto-update state
+  const isElectron = typeof window !== 'undefined' && (window as any).electronAPI?.checkForUpdates;
+  const [updateStatus, setUpdateStatus] = useState<string>('idle');
+  const [updateVersion, setUpdateVersion] = useState<string>('');
+  const [updateProgress, setUpdateProgress] = useState<number>(0);
+
+  useEffect(() => {
+    if (!isElectron) return;
+    const api = (window as any).electronAPI;
+    api.onUpdateStatus?.((data: { status: string; version?: string; progress?: number }) => {
+      setUpdateStatus(data.status);
+      if (data.version) setUpdateVersion(data.version);
+      if (data.progress !== undefined) setUpdateProgress(data.progress);
+    });
+  }, [isElectron]);
 
   const updateBalance = (colId: string, field: "debit" | "credit", value: string) => {
     const num = parseFloat(value) || 0;
@@ -79,6 +96,52 @@ export default function SettingsPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Auto-Update Section */}
+        {isElectron && (
+          <Card className="shadow-card">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Download className="w-5 h-5" />
+                تحديث البرنامج
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">
+                    {updateStatus === 'checking' && 'جاري التحقق من التحديثات...'}
+                    {updateStatus === 'available' && `يتوفر إصدار جديد: ${updateVersion}`}
+                    {updateStatus === 'not-available' && 'البرنامج محدّث بالفعل ✓'}
+                    {updateStatus === 'downloading' && `جاري تحميل التحديث... ${updateProgress}%`}
+                    {updateStatus === 'downloaded' && `تم تحميل الإصدار ${updateVersion} — أعد التشغيل للتثبيت`}
+                    {updateStatus === 'error' && 'حدث خطأ أثناء التحقق من التحديثات'}
+                    {updateStatus === 'idle' && 'تحقق من وجود تحديثات جديدة'}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={updateStatus === 'checking' || updateStatus === 'downloading'}
+                  onClick={() => (window as any).electronAPI.checkForUpdates()}
+                >
+                  {updateStatus === 'checking' || updateStatus === 'downloading' ? (
+                    <Loader2 className="w-4 h-4 animate-spin ml-2" />
+                  ) : updateStatus === 'not-available' || updateStatus === 'downloaded' ? (
+                    <CheckCircle className="w-4 h-4 ml-2" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4 ml-2" />
+                  )}
+                  تحقق من التحديثات
+                </Button>
+              </div>
+              {updateStatus === 'downloading' && (
+                <Progress value={updateProgress} className="h-2" />
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="shadow-card">
           <CardHeader>
             <CardTitle className="text-lg">معلومات المدرسة</CardTitle>
