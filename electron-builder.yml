@@ -2,8 +2,8 @@ appId: app.lovable.8b26ee13a9494d33973c563c94d95ec6
 productName: "School Cashbox - Ali Megdadi"
 publish:
   provider: github
-  owner: YOUR_GITHUB_USERNAME
-  repo: YOUR_REPO_NAME
+  owner: alimegdadi263-eng
+  repo: school-cashbox-sync
 directories:
   output: release
   buildResources: build
