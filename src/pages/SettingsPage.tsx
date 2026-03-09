@@ -30,6 +30,22 @@ export default function SettingsPage() {
   const [year, setYear] = useState(state.currentYear);
   const [balances, setBalances] = useState<OpeningBalance[]>([...state.openingBalances]);
 
+  // Auto-update state
+  const isElectron = typeof window !== 'undefined' && (window as any).electronAPI?.checkForUpdates;
+  const [updateStatus, setUpdateStatus] = useState<string>('idle');
+  const [updateVersion, setUpdateVersion] = useState<string>('');
+  const [updateProgress, setUpdateProgress] = useState<number>(0);
+
+  useEffect(() => {
+    if (!isElectron) return;
+    const api = (window as any).electronAPI;
+    api.onUpdateStatus?.((data: { status: string; version?: string; progress?: number }) => {
+      setUpdateStatus(data.status);
+      if (data.version) setUpdateVersion(data.version);
+      if (data.progress !== undefined) setUpdateProgress(data.progress);
+    });
+  }, [isElectron]);
+
   const updateBalance = (colId: string, field: "debit" | "credit", value: string) => {
     const num = parseFloat(value) || 0;
     setBalances((prev) =>
