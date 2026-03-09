@@ -103,13 +103,13 @@ function setupAutoUpdater(mainWindow) {
 }
 
 function checkForUpdates() {
-  if (updateCheckInProgress) return;
+  if (!autoUpdater || updateCheckInProgress) return;
   updateCheckInProgress = true;
   autoUpdater.checkForUpdates();
 }
 
 function checkForUpdatesSilent() {
-  if (updateCheckInProgress) return;
+  if (!autoUpdater || updateCheckInProgress) return;
   updateCheckInProgress = true;
   autoUpdater.checkForUpdates().catch(() => {
     updateCheckInProgress = false;
