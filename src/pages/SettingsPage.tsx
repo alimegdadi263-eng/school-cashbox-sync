@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AppLayout from "@/components/AppLayout";
 import { useFinance } from "@/context/FinanceContext";
 import { ACCOUNT_COLUMNS, OpeningBalance } from "@/types/finance";
@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
-import { Clock } from "lucide-react";
+import { Clock, RefreshCw, Download, CheckCircle, Loader2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
 export default function SettingsPage() {
   const { state, setOpeningBalances, updateSettings } = useFinance();
