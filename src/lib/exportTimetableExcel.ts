@@ -263,3 +263,72 @@ export async function exportMalhafaExcel(
   const buffer = await wb.xlsx.writeBuffer();
   saveAs(new Blob([buffer]), `ملحفة_${schoolName}.xlsx`);
 }
+
+/** ملحفة معكوسة - الأيام/الحصص أفقياً والصفوف عمودياً بشكل مختلف: الصفوف كأعمدة واليوم/الحصة كصفوف */
+export async function exportMalhafaTransposedExcel(
+  timetable: ClassTimetable,
+  periodsPerDay: number,
+  schoolName: string
+) {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("الملحفة المعكوسة");
+  ws.views = [{ rightToLeft: true }];
+
+  const sortedKeys = Object.keys(timetable).sort();
+  const totalCols = sortedKeys.length + 2; // day col + period col + classes
+
+  // Title row
+  const titleRow = ws.addRow([`${schoolName} - الملحفة الدراسية (عرض بديل)`]);
+  ws.mergeCells(1, 1, 1, totalCols);
+  const titleCell = titleRow.getCell(1);
+  titleCell.font = { name: FONT_NAME, bold: true, size: 16, color: { argb: "FFFFFFFF" } };
+  titleCell.alignment = { horizontal: "center", vertical: "middle" };
+  titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2B3A55" } };
+  titleRow.height = 35;
+
+  // Header row: اليوم | الحصة | class1 | class2 | ...
+  const headerData: string[] = ["اليوم", "الحصة"];
+  for (const key of sortedKeys) {
+    const { className, section } = parseClassKey(key);
+    headerData.push(`${className}/${section}`);
+  }
+  const headerRow = ws.addRow(headerData);
+  headerRow.height = 30;
+  headerRow.eachCell(c => styleHeader(c));
+
+  // Data rows: one row per day/period combination
+  for (let di = 0; di < DAYS.length; di++) {
+    for (let p = 0; p < periodsPerDay; p++) {
+      const rowData: string[] = [p === 0 ? DAYS[di] : "", `${p + 1}`];
+      for (const key of sortedKeys) {
+        const cell = timetable[key][di]?.[p];
+        rowData.push(cell ? `${cell.subjectName}\n${cell.teacherName}` : "");
+      }
+      const row = ws.addRow(rowData);
+      row.height = 35;
+      row.eachCell((c, colNum) => {
+        if (colNum <= 2) {
+          styleHeader(c);
+        } else {
+          styleCell(c, !rowData[colNum - 1]);
+        }
+      });
+    }
+    // Merge day cells
+    const startRow = 3 + di * periodsPerDay;
+    const endRow = startRow + periodsPerDay - 1;
+    if (periodsPerDay > 1) {
+      ws.mergeCells(startRow, 1, endRow, 1);
+    }
+  }
+
+  // Column widths
+  ws.getColumn(1).width = 14;
+  ws.getColumn(2).width = 8;
+  for (let i = 3; i <= totalCols; i++) {
+    ws.getColumn(i).width = 18;
+  }
+
+  const buffer = await wb.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), `ملحفة_معكوسة_${schoolName}.xlsx`);
+}
