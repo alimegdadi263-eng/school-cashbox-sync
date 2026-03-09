@@ -28,6 +28,7 @@ export default function AppSidebar() {
     { path: "/summary", label: "خلاصة الحسابات", icon: FileText },
     { path: "/forms", label: "المعاملات المالية", icon: FolderOpen },
     { path: "/instructions", label: "التعليمات", icon: CircleHelp },
+    { path: "/timetable", label: "الجدول المدرسي", icon: CalendarDays },
     { path: "/settings", label: "الإعدادات", icon: Settings },
     ...(isAdmin ? [
       { path: "/users", label: "إدارة المستخدمين", icon: Users },
