@@ -152,7 +152,7 @@ export default function TimetablePage() {
               </div>
 
               {/* Export full school */}
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3 border-b border-border pb-4">
                 <Button onClick={() => exportFullSchoolTimetableExcel(timetable, periodsPerDay, school)}>
                   <Download className="w-4 h-4 ml-2" />
                   تصدير الجدول الكامل (Excel)
@@ -160,6 +160,18 @@ export default function TimetablePage() {
                 <Button variant="outline" onClick={() => exportFullSchoolTimetableDocx(timetable, periodsPerDay, school)}>
                   <Download className="w-4 h-4 ml-2" />
                   تصدير الجدول الكامل (Word)
+                </Button>
+              </div>
+
+              {/* Export Malhafa */}
+              <div className="flex flex-wrap gap-3">
+                <Button className="bg-amber-700 hover:bg-amber-800 text-white" onClick={() => exportMalhafaExcel(timetable, periodsPerDay, school)}>
+                  <FileSpreadsheet className="w-4 h-4 ml-2" />
+                  تصدير الملحفة (Excel)
+                </Button>
+                <Button variant="outline" className="border-amber-700 text-amber-700 hover:bg-amber-50" onClick={() => exportMalhafaDocx(timetable, periodsPerDay, school)}>
+                  <FileText className="w-4 h-4 ml-2" />
+                  تصدير الملحفة (Word)
                 </Button>
               </div>
             </CardContent>

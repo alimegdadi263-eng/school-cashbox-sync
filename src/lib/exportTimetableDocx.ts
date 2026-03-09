@@ -196,3 +196,84 @@ export async function exportFullSchoolTimetableDocx(
   const blob = await Packer.toBlob(doc);
   saveAs(blob, `الجدول_المدرسي_الكامل.docx`);
 }
+
+/** ملحفة - جدول شامل لجميع الصفوف في صفحة واحدة */
+export async function exportMalhafaDocx(
+  timetable: ClassTimetable,
+  periodsPerDay: number,
+  schoolName: string
+) {
+  const sortedKeys = Object.keys(timetable).sort();
+
+  // Build day header row with merged cells
+  const dayHeaderCells: DocxTC[] = [headerCell("الصف", 1200)];
+  for (const day of DAYS) {
+    dayHeaderCells.push(new DocxTC({
+      columnSpan: periodsPerDay,
+      shading: { type: ShadingType.SOLID, color: HEADER_BG },
+      verticalAlign: VerticalAlign.CENTER,
+      children: [new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: day, font: FONT, bold: true, size: 20, color: "FFFFFF" })],
+      })],
+    }));
+  }
+  const dayHeaderRow = new DocxTR({ tableHeader: true, children: dayHeaderCells });
+
+  // Period number sub-header
+  const periodHeaderCells: DocxTC[] = [headerCell("", 1200)];
+  for (let di = 0; di < DAYS.length; di++) {
+    for (let p = 0; p < periodsPerDay; p++) {
+      periodHeaderCells.push(new DocxTC({
+        shading: { type: ShadingType.SOLID, color: ACCENT_BG },
+        verticalAlign: VerticalAlign.CENTER,
+        children: [new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new TextRun({ text: `${p + 1}`, font: FONT, bold: true, size: 18, color: HEADER_BG })],
+        })],
+      }));
+    }
+  }
+  const periodHeaderRow = new DocxTR({ tableHeader: true, children: periodHeaderCells });
+
+  // Data rows
+  const dataRows = sortedKeys.map(key => {
+    const { className, section } = parseClassKey(key);
+    const days = timetable[key];
+    const cells: DocxTC[] = [headerCell(`${className}/${section}`, 1200)];
+    for (let di = 0; di < DAYS.length; di++) {
+      for (let p = 0; p < periodsPerDay; p++) {
+        const cell = days[di]?.[p];
+        if (cell) {
+          cells.push(dataCell([cell.subjectName, cell.teacherName]));
+        } else {
+          cells.push(dataCell([], true));
+        }
+      }
+    }
+    return new DocxTR({ children: cells });
+  });
+
+  const table = new DocxTable({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [dayHeaderRow, periodHeaderRow, ...dataRows],
+  });
+
+  const doc = new Document({
+    sections: [{
+      properties: { page: { size: { orientation: "landscape" as any } } },
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          heading: HeadingLevel.HEADING_1,
+          spacing: { after: 200 },
+          children: [new TextRun({ text: `${schoolName} - الملحفة الدراسية`, font: FONT, bold: true, size: 28, color: HEADER_BG })],
+        }),
+        table,
+      ],
+    }],
+  });
+
+  const blob = await Packer.toBlob(doc);
+  saveAs(blob, `ملحفة_${schoolName}.docx`);
+}

@@ -161,3 +161,105 @@ export async function exportFullSchoolTimetableExcel(
   const buffer = await wb.xlsx.writeBuffer();
   saveAs(new Blob([buffer]), `الجدول_المدرسي_الكامل.xlsx`);
 }
+
+/** ملحفة - جدول شامل لجميع الصفوف في صفحة واحدة */
+export async function exportMalhafaExcel(
+  timetable: ClassTimetable,
+  periodsPerDay: number,
+  schoolName: string
+) {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("الملحفة");
+  ws.views = [{ rightToLeft: true }];
+
+  const sortedKeys = Object.keys(timetable).sort();
+  const totalCols = DAYS.length * periodsPerDay + 1;
+
+  // Title row
+  const titleRow = ws.addRow([`${schoolName} - الملحفة الدراسية`]);
+  ws.mergeCells(1, 1, 1, totalCols);
+  const titleCell = titleRow.getCell(1);
+  titleCell.font = { name: FONT_NAME, bold: true, size: 16, color: { argb: "FFFFFFFF" } };
+  titleCell.alignment = { horizontal: "center", vertical: "middle" };
+  titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2B3A55" } };
+  titleRow.height = 35;
+
+  // Day header row (merged across periods)
+  const dayHeaderData: string[] = ["الصف / الشعبة"];
+  for (const day of DAYS) {
+    dayHeaderData.push(day);
+    for (let i = 1; i < periodsPerDay; i++) dayHeaderData.push("");
+  }
+  const dayRow = ws.addRow(dayHeaderData);
+  dayRow.height = 28;
+  // Merge day cells
+  for (let di = 0; di < DAYS.length; di++) {
+    const startCol = 2 + di * periodsPerDay;
+    const endCol = startCol + periodsPerDay - 1;
+    ws.mergeCells(2, startCol, 2, endCol);
+  }
+  dayRow.eachCell((c, colNum) => {
+    if (colNum === 1) {
+      styleHeader(c);
+    } else {
+      c.font = { name: FONT_NAME, bold: true, size: 11, color: { argb: "FFFFFFFF" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2B3A55" } };
+      c.alignment = { horizontal: "center", vertical: "middle" };
+      c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+    }
+  });
+
+  // Period number sub-header
+  const periodHeaderData: string[] = [""];
+  for (let di = 0; di < DAYS.length; di++) {
+    for (let p = 0; p < periodsPerDay; p++) {
+      periodHeaderData.push(`${p + 1}`);
+    }
+  }
+  const periodRow = ws.addRow(periodHeaderData);
+  periodRow.height = 22;
+  periodRow.eachCell((c, colNum) => {
+    if (colNum === 1) {
+      styleHeader(c);
+    } else {
+      c.font = { name: FONT_NAME, bold: true, size: 9, color: { argb: "FF2B3A55" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD4A84B" } };
+      c.alignment = { horizontal: "center", vertical: "middle" };
+      c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+    }
+  });
+
+  // Data rows - one per class
+  for (const key of sortedKeys) {
+    const { className, section } = parseClassKey(key);
+    const rowData: string[] = [`${className} / ${section}`];
+    const days = timetable[key];
+    for (let di = 0; di < DAYS.length; di++) {
+      for (let p = 0; p < periodsPerDay; p++) {
+        const cell = days[di]?.[p];
+        rowData.push(cell ? `${cell.subjectName}\n${cell.teacherName}` : "");
+      }
+    }
+    const row = ws.addRow(rowData);
+    row.height = 38;
+    row.eachCell((c, colNum) => {
+      if (colNum === 1) {
+        c.font = { name: FONT_NAME, bold: true, size: 10, color: { argb: "FFFFFFFF" } };
+        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2B3A55" } };
+        c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+        c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+      } else {
+        styleCell(c, !rowData[colNum - 1]);
+      }
+    });
+  }
+
+  // Column widths
+  ws.getColumn(1).width = 16;
+  for (let i = 2; i <= totalCols; i++) {
+    ws.getColumn(i).width = 14;
+  }
+
+  const buffer = await wb.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), `ملحفة_${schoolName}.xlsx`);
+}
