@@ -15,12 +15,14 @@ import {
   exportTeacherTimetableExcel,
   exportFullSchoolTimetableExcel,
   exportMalhafaExcel,
+  exportMalhafaTransposedExcel,
 } from "@/lib/exportTimetableExcel";
 import {
   exportClassTimetableDocx,
   exportTeacherTimetableDocx,
   exportFullSchoolTimetableDocx,
   exportMalhafaDocx,
+  exportMalhafaTransposedDocx,
 } from "@/lib/exportTimetableDocx";
 import { useAuth } from "@/hooks/useAuth";
 
