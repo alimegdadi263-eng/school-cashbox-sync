@@ -198,7 +198,28 @@ app.whenReady().then(() => {
     globalShortcut.register('CommandOrControl+U', () => {});
   }
 
-  createWindow();
+  const mainWindow = createWindow();
+
+  // Setup auto-updater (production only)
+  if (!isDev) {
+    setupAutoUpdater(mainWindow);
+    // Check for updates silently after launch (5 seconds delay)
+    setTimeout(() => checkForUpdatesSilent(), 5000);
+  }
+
+  // IPC: Manual update check from renderer
+  ipcMain.on('check-for-updates', () => {
+    if (isDev) {
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'التحديث',
+        message: 'التحديث التلقائي غير متوفر في وضع التطوير.',
+        buttons: ['حسناً'],
+      });
+      return;
+    }
+    checkForUpdates();
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
