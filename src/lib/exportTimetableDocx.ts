@@ -277,3 +277,87 @@ export async function exportMalhafaDocx(
   const blob = await Packer.toBlob(doc);
   saveAs(blob, `ملحفة_${schoolName}.docx`);
 }
+
+/** ملحفة معكوسة - الصفوف كأعمدة واليوم/الحصة كصفوف */
+export async function exportMalhafaTransposedDocx(
+  timetable: ClassTimetable,
+  periodsPerDay: number,
+  schoolName: string
+) {
+  const sortedKeys = Object.keys(timetable).sort();
+
+  // Header row: اليوم | الحصة | classes...
+  const headerCells: DocxTC[] = [
+    headerCell("اليوم", 1000),
+    headerCell("الحصة", 600),
+    ...sortedKeys.map(key => {
+      const { className, section } = parseClassKey(key);
+      return headerCell(`${className}/${section}`);
+    }),
+  ];
+  const headerRow = new DocxTR({ tableHeader: true, children: headerCells });
+
+  // Data rows
+  const dataRows: DocxTR[] = [];
+  for (let di = 0; di < DAYS.length; di++) {
+    for (let p = 0; p < periodsPerDay; p++) {
+      const cells: DocxTC[] = [];
+      // Day cell (only show on first period, use rowSpan)
+      if (p === 0) {
+        cells.push(new DocxTC({
+          rowSpan: periodsPerDay,
+          width: { size: 1000, type: WidthType.DXA },
+          shading: { type: ShadingType.SOLID, color: HEADER_BG },
+          verticalAlign: VerticalAlign.CENTER,
+          children: [new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [new TextRun({ text: DAYS[di], font: FONT, bold: true, size: 20, color: "FFFFFF" })],
+          })],
+        }));
+      } else {
+        cells.push(new DocxTC({
+          rowSpan: undefined,
+          width: { size: 1000, type: WidthType.DXA },
+          shading: { type: ShadingType.SOLID, color: HEADER_BG },
+          verticalAlign: VerticalAlign.CENTER,
+          children: [new Paragraph({ children: [] })],
+        }));
+      }
+      // Period number
+      cells.push(headerCell(`${p + 1}`, 600));
+      // Class data
+      for (const key of sortedKeys) {
+        const cell = timetable[key][di]?.[p];
+        if (cell) {
+          cells.push(dataCell([cell.subjectName, cell.teacherName]));
+        } else {
+          cells.push(dataCell([], true));
+        }
+      }
+      dataRows.push(new DocxTR({ children: cells }));
+    }
+  }
+
+  const table = new DocxTable({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [headerRow, ...dataRows],
+  });
+
+  const doc = new Document({
+    sections: [{
+      properties: { page: { size: { orientation: "landscape" as any } } },
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          heading: HeadingLevel.HEADING_1,
+          spacing: { after: 200 },
+          children: [new TextRun({ text: `${schoolName} - الملحفة الدراسية (عرض بديل)`, font: FONT, bold: true, size: 28, color: HEADER_BG })],
+        }),
+        table,
+      ],
+    }],
+  });
+
+  const blob = await Packer.toBlob(doc);
+  saveAs(blob, `ملحفة_معكوسة_${schoolName}.docx`);
+}

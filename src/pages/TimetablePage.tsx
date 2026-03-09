@@ -166,7 +166,7 @@ export default function TimetablePage() {
               </div>
 
               {/* Export Malhafa */}
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-3 border-b border-border pb-4">
                 <Button className="bg-amber-700 hover:bg-amber-800 text-white" onClick={() => exportMalhafaExcel(timetable, periodsPerDay, school)}>
                   <FileSpreadsheet className="w-4 h-4 ml-2" />
                   تصدير الملحفة (Excel)
@@ -174,6 +174,18 @@ export default function TimetablePage() {
                 <Button variant="outline" className="border-amber-700 text-amber-700 hover:bg-amber-50" onClick={() => exportMalhafaDocx(timetable, periodsPerDay, school)}>
                   <FileText className="w-4 h-4 ml-2" />
                   تصدير الملحفة (Word)
+                </Button>
+              </div>
+
+              {/* Export Malhafa Transposed */}
+              <div className="flex flex-wrap gap-3">
+                <Button className="bg-teal-700 hover:bg-teal-800 text-white" onClick={() => exportMalhafaTransposedExcel(timetable, periodsPerDay, school)}>
+                  <FileSpreadsheet className="w-4 h-4 ml-2" />
+                  ملحفة معكوسة (Excel)
+                </Button>
+                <Button variant="outline" className="border-teal-700 text-teal-700 hover:bg-teal-50" onClick={() => exportMalhafaTransposedDocx(timetable, periodsPerDay, school)}>
+                  <FileText className="w-4 h-4 ml-2" />
+                  ملحفة معكوسة (Word)
                 </Button>
               </div>
             </CardContent>
