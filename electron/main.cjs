@@ -175,6 +175,8 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
+
+  return mainWindow;
 }
 
 // ── App Ready ────────────────────────────────────────────────────────────────
