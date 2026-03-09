@@ -18,6 +18,8 @@ import SubscriptionExpired from "./components/SubscriptionExpired";
 import InstructionsPage from "./pages/InstructionsPage";
 import CodeDocumentation from "./pages/CodeDocumentation";
 import PresentationExport from "./pages/PresentationExport";
+import TimetablePage from "./pages/TimetablePage";
+import { TimetableProvider } from "@/context/TimetableContext";
 
 const queryClient = new QueryClient();
 const isElectron = typeof navigator !== "undefined" && navigator.userAgent.toLowerCase().includes("electron");
@@ -51,6 +53,7 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <FinanceProvider>
+          <TimetableProvider>
           <Toaster />
           <Sonner />
           <Router>
@@ -62,6 +65,7 @@ const App = () => (
               <Route path="/summary" element={<ProtectedRoute><MonthlySummary /></ProtectedRoute>} />
               <Route path="/forms" element={<ProtectedRoute><FinancialForms /></ProtectedRoute>} />
               <Route path="/instructions" element={<ProtectedRoute><InstructionsPage /></ProtectedRoute>} />
+              <Route path="/timetable" element={<ProtectedRoute><TimetablePage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
               <Route path="/code-docs" element={<AdminRoute><CodeDocumentation /></AdminRoute>} />
@@ -69,6 +73,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Router>
+          </TimetableProvider>
         </FinanceProvider>
       </AuthProvider>
     </TooltipProvider>
