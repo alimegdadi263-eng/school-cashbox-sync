@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { 
   LayoutDashboard, 
@@ -13,22 +14,52 @@ import {
   Code,
   Presentation,
   CalendarDays,
+  ChevronDown,
+  Wallet,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+
+interface NavItem {
+  path: string;
+  label: string;
+  icon: React.ElementType;
+}
+
+interface NavGroup {
+  label: string;
+  icon: React.ElementType;
+  children: NavItem[];
+}
+
+type SidebarEntry = NavItem | NavGroup;
+
+function isGroup(entry: SidebarEntry): entry is NavGroup {
+  return "children" in entry;
+}
 
 export default function AppSidebar() {
   const location = useLocation();
   const { isAdmin, schoolName, signOut } = useAuth();
 
-  const navItems = [
+  const financePaths = ["/cashbook", "/transaction", "/summary", "/forms"];
+  const financeActive = financePaths.includes(location.pathname);
+  const [financeOpen, setFinanceOpen] = useState(financeActive);
+
+  const entries: SidebarEntry[] = [
     { path: "/", label: "لوحة التحكم", icon: LayoutDashboard },
-    { path: "/cashbook", label: "دفتر الصندوق", icon: BookOpen },
-    { path: "/transaction", label: "إضافة حركة", icon: PlusCircle },
-    { path: "/summary", label: "خلاصة الحسابات", icon: FileText },
-    { path: "/forms", label: "المعاملات المالية", icon: FolderOpen },
-    { path: "/instructions", label: "التعليمات", icon: CircleHelp },
+    {
+      label: "مالية المدرسة",
+      icon: Wallet,
+      children: [
+        { path: "/cashbook", label: "دفتر الصندوق", icon: BookOpen },
+        { path: "/transaction", label: "إضافة حركة", icon: PlusCircle },
+        { path: "/summary", label: "خلاصة الحسابات", icon: FileText },
+        { path: "/forms", label: "المعاملات المالية", icon: FolderOpen },
+      ],
+    },
     { path: "/timetable", label: "الجدول المدرسي", icon: CalendarDays },
+    { path: "/instructions", label: "التعليمات", icon: CircleHelp },
     { path: "/settings", label: "الإعدادات", icon: Settings },
     ...(isAdmin ? [
       { path: "/users", label: "إدارة المستخدمين", icon: Users },
@@ -36,6 +67,24 @@ export default function AppSidebar() {
       { path: "/presentation", label: "العرض التقديمي", icon: Presentation },
     ] : []),
   ];
+
+  const renderLink = (item: NavItem) => {
+    const isActive = location.pathname === item.path;
+    return (
+      <Link
+        key={item.path}
+        to={item.path}
+        className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+          isActive
+            ? "bg-sidebar-accent text-sidebar-primary"
+            : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+        }`}
+      >
+        <item.icon className="w-5 h-5" />
+        {item.label}
+      </Link>
+    );
+  };
 
   return (
     <aside className="gradient-sidebar w-64 min-h-screen flex flex-col border-l border-sidebar-border">
@@ -52,22 +101,31 @@ export default function AppSidebar() {
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
-                isActive
-                  ? "bg-sidebar-accent text-sidebar-primary"
-                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-              }`}
-            >
-              <item.icon className="w-5 h-5" />
-              {item.label}
-            </Link>
-          );
+        {entries.map((entry, idx) => {
+          if (isGroup(entry)) {
+            return (
+              <div key={idx}>
+                <button
+                  onClick={() => setFinanceOpen(!financeOpen)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    financeActive
+                      ? "bg-sidebar-accent text-sidebar-primary"
+                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                  }`}
+                >
+                  <entry.icon className="w-5 h-5" />
+                  <span className="flex-1 text-right">{entry.label}</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${financeOpen ? "rotate-180" : ""}`} />
+                </button>
+                {financeOpen && (
+                  <div className="mr-4 mt-1 space-y-1 border-r border-sidebar-border/40 pr-2">
+                    {entry.children.map(renderLink)}
+                  </div>
+                )}
+              </div>
+            );
+          }
+          return renderLink(entry);
         })}
       </nav>
 
