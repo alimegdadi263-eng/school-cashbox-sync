@@ -15,8 +15,18 @@ try {
 let updateCheckInProgress = false;
 
 function setupAutoUpdater(mainWindow) {
+  if (!autoUpdater) {
+    console.warn('Auto-updater is not available, skipping setup.');
+    return;
+  }
+
   // Configure logging
-  autoUpdater.logger = require('electron-log');
+  try {
+    autoUpdater.logger = require('electron-log');
+    autoUpdater.logger.transports.file.level = 'info';
+  } catch (e) {
+    console.warn('electron-log not available, using console.');
+  }
   autoUpdater.logger.transports.file.level = 'info';
 
   // Don't auto-download, let the user decide
