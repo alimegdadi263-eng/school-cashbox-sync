@@ -18,6 +18,8 @@ import SubscriptionExpired from "./components/SubscriptionExpired";
 import InstructionsPage from "./pages/InstructionsPage";
 import CodeDocumentation from "./pages/CodeDocumentation";
 import PresentationExport from "./pages/PresentationExport";
+import TimetablePage from "./pages/TimetablePage";
+import { TimetableProvider } from "@/context/TimetableContext";
 
 const queryClient = new QueryClient();
 const isElectron = typeof navigator !== "undefined" && navigator.userAgent.toLowerCase().includes("electron");
