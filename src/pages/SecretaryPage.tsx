@@ -118,6 +118,7 @@ function InventoryTab({ category, userId, schoolName, directorName, committeeMem
   const [items, setItems] = useState<InventoryItem[]>([]);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const wordInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setItems(loadInventory(userId, category.id));
