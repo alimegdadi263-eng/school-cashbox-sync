@@ -28,6 +28,7 @@ export default function TeacherManager() {
   const resetForm = () => {
     setName("");
     setSubjects([]);
+    setBlockedPeriods([]);
     setNewSubject("");
     setNewClass(CLASS_NAMES[0]);
     setNewSection(SECTIONS[0]);
