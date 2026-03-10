@@ -16,6 +16,7 @@ interface TimetableContextType {
   getTeacherSchedule: (teacherId: string) => { classKey: string; day: number; period: number; subjectName: string }[];
   getAllClassKeys: () => string[];
   clearTimetable: () => void;
+  generateDailySchedule: (day: number, absentTeacherIds: string[]) => ClassTimetable;
 }
 
 const TimetableContext = createContext<TimetableContextType | null>(null);
@@ -27,7 +28,6 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
   const [timetable, setTimetableState] = useState<ClassTimetable>({});
   const [periodsPerDay, setPeriodsPerDayState] = useState(7);
 
-  // Load from localStorage
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -42,7 +42,6 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Save to localStorage
   const save = useCallback((t: Teacher[], tt: ClassTimetable, ppd: number) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ teachers: t, timetable: tt, periodsPerDay: ppd }));
   }, []);
@@ -62,7 +61,6 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
   const removeTeacher = (id: string) => {
     const next = teachers.filter(t => t.id !== id);
     setTeachers(next);
-    // Remove from timetable
     const newTT = { ...timetable };
     for (const key of Object.keys(newTT)) {
       newTT[key] = newTT[key].map(day =>
@@ -120,23 +118,28 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     save(teachers, {}, periodsPerDay);
   };
 
+  const isBlocked = (teacher: Teacher, day: number, period: number): boolean => {
+    return (teacher.blockedPeriods || []).some(bp => bp.day === day && bp.period === period);
+  };
+
   const generateTimetable = () => {
     const classKeys = getAllClassKeys();
     const newTT: ClassTimetable = {};
     const daysCount = DAYS.length;
 
-    // Initialize empty timetable
     classKeys.forEach(key => {
       newTT[key] = Array.from({ length: daysCount }, () => Array(periodsPerDay).fill(null));
     });
 
-    // Track teacher usage: teacherId -> day -> Set<period>
     const teacherUsage: Record<string, Set<number>[]> = {};
     teachers.forEach(t => {
       teacherUsage[t.id] = Array.from({ length: daysCount }, () => new Set<number>());
     });
 
-    // Collect all assignments that need to be placed
+    // Track how many last-period (7th) assignments each teacher gets
+    const lastPeriodCount: Record<string, number> = {};
+    teachers.forEach(t => { lastPeriodCount[t.id] = 0; });
+
     interface Assignment {
       teacherId: string;
       teacherName: string;
@@ -159,41 +162,54 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       });
     });
 
-    // Sort: subjects with more periods first (harder to place)
     assignments.sort((a, b) => b.remaining - a.remaining);
 
-    // Distribute periods
+    const lastPeriodIdx = periodsPerDay - 1;
+
     for (const assignment of assignments) {
       let placed = 0;
-      // Try to spread across days evenly
       const dayOrder = Array.from({ length: daysCount }, (_, i) => i);
+      const teacher = teachers.find(t => t.id === assignment.teacherId)!;
 
       while (placed < assignment.remaining) {
         let didPlace = false;
-        // Shuffle day order for variety
         dayOrder.sort(() => Math.random() - 0.5);
 
         for (const day of dayOrder) {
           if (placed >= assignment.remaining) break;
 
-          // Check if teacher already assigned to this day for same class (limit 1 per day if possible)
           const alreadyThisClassThisDay = newTT[assignment.classKey][day].some(
             c => c && c.teacherId === assignment.teacherId && c.subjectName === assignment.subjectName
           );
           if (alreadyThisClassThisDay && placed < assignment.remaining - 1) continue;
 
-          // Find available period
-          for (let period = 0; period < periodsPerDay; period++) {
+          // Try non-last periods first, then last period with equal distribution
+          const periodOrder: number[] = [];
+          for (let p = 0; p < periodsPerDay; p++) {
+            if (p !== lastPeriodIdx) periodOrder.push(p);
+          }
+          // Add last period at end - but check equal distribution
+          periodOrder.push(lastPeriodIdx);
+
+          for (const period of periodOrder) {
             if (newTT[assignment.classKey][day][period] !== null) continue;
             if (teacherUsage[assignment.teacherId][day].has(period)) continue;
+            if (isBlocked(teacher, day, period)) continue;
 
-            // Place it
+            // For last period, check if this teacher already has more than average
+            if (period === lastPeriodIdx) {
+              const counts = Object.values(lastPeriodCount);
+              const minCount = Math.min(...counts);
+              if (lastPeriodCount[assignment.teacherId] > minCount + 1) continue;
+            }
+
             newTT[assignment.classKey][day][period] = {
               teacherId: assignment.teacherId,
               teacherName: assignment.teacherName,
               subjectName: assignment.subjectName,
             };
             teacherUsage[assignment.teacherId][day].add(period);
+            if (period === lastPeriodIdx) lastPeriodCount[assignment.teacherId]++;
             placed++;
             didPlace = true;
             break;
@@ -201,22 +217,23 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (!didPlace) {
-          // Force place in any available slot
           for (let day = 0; day < daysCount && placed < assignment.remaining; day++) {
             for (let period = 0; period < periodsPerDay; period++) {
               if (newTT[assignment.classKey][day][period] !== null) continue;
               if (teacherUsage[assignment.teacherId][day].has(period)) continue;
+              if (isBlocked(teacher, day, period)) continue;
               newTT[assignment.classKey][day][period] = {
                 teacherId: assignment.teacherId,
                 teacherName: assignment.teacherName,
                 subjectName: assignment.subjectName,
               };
               teacherUsage[assignment.teacherId][day].add(period);
+              if (period === lastPeriodIdx) lastPeriodCount[assignment.teacherId]++;
               placed++;
               break;
             }
           }
-          break; // Could not place all, avoid infinite loop
+          break;
         }
       }
     }
@@ -225,12 +242,47 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     save(teachers, newTT, periodsPerDay);
   };
 
+  // Generate daily schedule handling absent teachers
+  const generateDailySchedule = (day: number, absentTeacherIds: string[]): ClassTimetable => {
+    const dailyTT: ClassTimetable = {};
+    
+    // Deep copy original timetable for this day only
+    for (const [classKey, days] of Object.entries(timetable)) {
+      dailyTT[classKey] = [days[day].map(cell => cell ? { ...cell } : null)];
+    }
+
+    if (absentTeacherIds.length === 0) return dailyTT;
+
+    // Remove absent teachers' periods
+    for (const classKey of Object.keys(dailyTT)) {
+      const periods = dailyTT[classKey][0];
+      for (let p = 0; p < periods.length; p++) {
+        if (periods[p] && absentTeacherIds.includes(periods[p]!.teacherId)) {
+          periods[p] = null;
+        }
+      }
+    }
+
+    // Compact: move periods up to fill gaps, prioritize removing from end (7th, 6th...)
+    for (const classKey of Object.keys(dailyTT)) {
+      const periods = dailyTT[classKey][0];
+      // Collect non-null periods
+      const filled = periods.filter(p => p !== null);
+      // Pad with nulls at the end
+      const compacted = [...filled, ...Array(periodsPerDay - filled.length).fill(null)];
+      dailyTT[classKey] = [compacted];
+    }
+
+    return dailyTT;
+  };
+
   return (
     <TimetableContext.Provider value={{
       teachers, timetable, periodsPerDay, setPeriodsPerDay,
       addTeacher, updateTeacher, removeTeacher,
       setTimetable, updateCell, generateTimetable,
       getTeacherSchedule, getAllClassKeys, clearTimetable,
+      generateDailySchedule,
     }}>
       {children}
     </TimetableContext.Provider>
