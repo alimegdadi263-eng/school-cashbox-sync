@@ -1,7 +1,13 @@
+export interface BlockedPeriod {
+  day: number;    // index in DAYS
+  period: number; // 0-based period index
+}
+
 export interface Teacher {
   id: string;
   name: string;
   subjects: SubjectAssignment[];
+  blockedPeriods?: BlockedPeriod[]; // periods where teacher must be free
 }
 
 export interface SubjectAssignment {
