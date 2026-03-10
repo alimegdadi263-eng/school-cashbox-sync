@@ -803,13 +803,27 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
               <Input value={leaveDirectorate} onChange={e => setLeaveDirectorate(e.target.value)} placeholder="المديرية" />
             </div>
             <div className="space-y-1">
-              <Label>التاريخ</Label>
-              <Input value={leaveDate} onChange={e => setLeaveDate(e.target.value)} placeholder="التاريخ" />
+              <Label>سبب الإجازة</Label>
+              <Input value={leaveReason} onChange={e => setLeaveReason(e.target.value)} placeholder="سبب الإجازة" />
             </div>
           </div>
-          <div className="space-y-1">
-            <Label>سبب الإجازة</Label>
-            <Textarea value={leaveReason} onChange={e => setLeaveReason(e.target.value)} rows={2} placeholder="السبب" />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="space-y-1">
+              <Label>تاريخ ابتداء الإجازة</Label>
+              <Input value={leaveStartDate} onChange={e => setLeaveStartDate(e.target.value)} placeholder="  /  /  " />
+            </div>
+            <div className="space-y-1">
+              <Label>تاريخ انتهاء الإجازة</Label>
+              <Input value={leaveEndDate} onChange={e => setLeaveEndDate(e.target.value)} placeholder="  /  /  " />
+            </div>
+            <div className="space-y-1">
+              <Label>عدد الأيام المستحقة</Label>
+              <Input value={leaveDaysEntitled} onChange={e => setLeaveDaysEntitled(e.target.value)} placeholder="عدد الأيام" />
+            </div>
+            <div className="space-y-1">
+              <Label>مجموع الإجازات هذا العام</Label>
+              <Input value={leaveTotalThisYear} onChange={e => setLeaveTotalThisYear(e.target.value)} placeholder="المجموع" />
+            </div>
           </div>
           <Button onClick={handleCasualLeave}><FileDown className="w-4 h-4 ml-2" /> تنزيل نموذج الإجازة</Button>
         </CardContent>
