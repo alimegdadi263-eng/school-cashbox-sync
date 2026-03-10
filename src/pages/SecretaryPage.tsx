@@ -736,7 +736,7 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
         school: schoolName,
         directorate: "",
         employeeName: noPayName,
-        date: noPayDate,
+        date: noPayDate ? format(noPayDate, "yyyy/MM/dd") : "",
         refNumber: "",
         reason: noPayReason,
         daysAbsent: "",
