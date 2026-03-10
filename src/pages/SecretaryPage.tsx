@@ -663,14 +663,14 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
   const [leaveJobTitle, setLeaveJobTitle] = useState("");
   const [leaveDirectorate, setLeaveDirectorate] = useState("");
   const [leaveReason, setLeaveReason] = useState("");
-  const [leaveStartDate, setLeaveStartDate] = useState("");
-  const [leaveEndDate, setLeaveEndDate] = useState("");
+  const [leaveStartDate, setLeaveStartDate] = useState<Date | undefined>();
+  const [leaveEndDate, setLeaveEndDate] = useState<Date | undefined>();
   const [leaveDaysEntitled, setLeaveDaysEntitled] = useState("");
   const [leaveTotalThisYear, setLeaveTotalThisYear] = useState("");
 
   // Non-payment
   const [noPayName, setNoPayName] = useState("");
-  const [noPayDate, setNoPayDate] = useState("");
+  const [noPayDate, setNoPayDate] = useState<Date | undefined>();
   const [noPayReason, setNoPayReason] = useState("");
 
   const handleInterrogation = async () => {
