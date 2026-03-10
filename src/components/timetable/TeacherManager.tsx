@@ -207,6 +207,12 @@ export default function TeacherManager() {
                 </div>
               )}
             </div>
+
+            <BlockedPeriodsEditor
+              periodsPerDay={periodsPerDay}
+              blockedPeriods={blockedPeriods}
+              onChange={setBlockedPeriods}
+            />
           </div>
 
           <DialogFooter>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import TeacherManager from "@/components/timetable/TeacherManager";
 import TimetableGrid from "@/components/timetable/TimetableGrid";
+import DailyScheduleManager from "@/components/timetable/DailyScheduleManager";
 import { useTimetable } from "@/context/TimetableContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
