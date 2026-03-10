@@ -867,7 +867,17 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
             </div>
             <div className="space-y-1">
               <Label>التاريخ</Label>
-              <Input value={noPayDate} onChange={e => setNoPayDate(e.target.value)} placeholder="التاريخ" />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-right h-9", !noPayDate && "text-muted-foreground")}>
+                    <CalendarIcon className="ml-2 h-4 w-4" />
+                    {noPayDate ? format(noPayDate, "yyyy/MM/dd") : "اختر التاريخ"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={noPayDate} onSelect={setNoPayDate} />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
