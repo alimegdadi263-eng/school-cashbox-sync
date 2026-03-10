@@ -14,11 +14,12 @@ import { toast } from "@/hooks/use-toast";
 import BlockedPeriodsEditor from "./BlockedPeriodsEditor";
 
 export default function TeacherManager() {
-  const { teachers, addTeacher, updateTeacher, removeTeacher } = useTimetable();
+  const { teachers, addTeacher, updateTeacher, removeTeacher, periodsPerDay } = useTimetable();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [name, setName] = useState("");
   const [subjects, setSubjects] = useState<SubjectAssignment[]>([]);
+  const [blockedPeriods, setBlockedPeriods] = useState<BlockedPeriod[]>([]);
   const [newSubject, setNewSubject] = useState("");
   const [newClass, setNewClass] = useState(CLASS_NAMES[0]);
   const [newSection, setNewSection] = useState(SECTIONS[0]);
