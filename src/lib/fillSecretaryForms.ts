@@ -1,11 +1,36 @@
-import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle, Header, Tab, TabStopPosition, TabStopType, PageBreak } from "docx";
+import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle, Header, ImageRun } from "docx";
 import { saveAs } from "file-saver";
 
 const FONT = "Traditional Arabic";
-const FONT_SIZE = 24; // half-points = 12pt
+const FONT_SIZE = 24;
 const SMALL_SIZE = 20;
 const TITLE_SIZE = 28;
 const BIG_TITLE = 32;
+
+// Load logo once and cache
+let logoBuffer: ArrayBuffer | null = null;
+async function getLogoBuffer(): Promise<ArrayBuffer> {
+  if (logoBuffer) return logoBuffer;
+  const resp = await fetch(`${import.meta.env.BASE_URL}images/moe-logo.png`);
+  logoBuffer = await resp.arrayBuffer();
+  return logoBuffer;
+}
+
+function logoImage(buffer: ArrayBuffer): ImageRun {
+  return new ImageRun({
+    data: buffer,
+    transformation: { width: 80, height: 80 },
+    type: "png",
+  });
+}
+
+function logoHeader(buffer: ArrayBuffer): Paragraph {
+  return new Paragraph({
+    children: [logoImage(buffer)],
+    alignment: AlignmentType.CENTER,
+    spacing: { after: 80 },
+  });
+}
 
 function tr(text: string, opts?: { bold?: boolean; size?: number; underline?: boolean; color?: string }): TextRun {
   return new TextRun({
