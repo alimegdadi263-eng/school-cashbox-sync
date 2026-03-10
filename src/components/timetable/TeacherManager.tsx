@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTimetable } from "@/context/TimetableContext";
-import type { Teacher, SubjectAssignment } from "@/types/timetable";
+import type { Teacher, SubjectAssignment, BlockedPeriod } from "@/types/timetable";
 import { CLASS_NAMES, SECTIONS } from "@/types/timetable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,13 +11,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Trash2, Edit, UserPlus, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import BlockedPeriodsEditor from "./BlockedPeriodsEditor";
 
 export default function TeacherManager() {
-  const { teachers, addTeacher, updateTeacher, removeTeacher } = useTimetable();
+  const { teachers, addTeacher, updateTeacher, removeTeacher, periodsPerDay } = useTimetable();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [name, setName] = useState("");
   const [subjects, setSubjects] = useState<SubjectAssignment[]>([]);
+  const [blockedPeriods, setBlockedPeriods] = useState<BlockedPeriod[]>([]);
   const [newSubject, setNewSubject] = useState("");
   const [newClass, setNewClass] = useState(CLASS_NAMES[0]);
   const [newSection, setNewSection] = useState(SECTIONS[0]);
@@ -26,6 +28,7 @@ export default function TeacherManager() {
   const resetForm = () => {
     setName("");
     setSubjects([]);
+    setBlockedPeriods([]);
     setNewSubject("");
     setNewClass(CLASS_NAMES[0]);
     setNewSection(SECTIONS[0]);
@@ -42,6 +45,7 @@ export default function TeacherManager() {
     setEditingTeacher(t);
     setName(t.name);
     setSubjects([...t.subjects]);
+    setBlockedPeriods([...(t.blockedPeriods || [])]);
     setDialogOpen(true);
   };
 
@@ -74,10 +78,10 @@ export default function TeacherManager() {
     }
 
     if (editingTeacher) {
-      updateTeacher({ ...editingTeacher, name: name.trim(), subjects });
+      updateTeacher({ ...editingTeacher, name: name.trim(), subjects, blockedPeriods });
       toast({ title: "تم تحديث المعلم بنجاح" });
     } else {
-      addTeacher({ id: crypto.randomUUID(), name: name.trim(), subjects });
+      addTeacher({ id: crypto.randomUUID(), name: name.trim(), subjects, blockedPeriods });
       toast({ title: "تم إضافة المعلم بنجاح" });
     }
     setDialogOpen(false);
@@ -203,6 +207,12 @@ export default function TeacherManager() {
                 </div>
               )}
             </div>
+
+            <BlockedPeriodsEditor
+              periodsPerDay={periodsPerDay}
+              blockedPeriods={blockedPeriods}
+              onChange={setBlockedPeriods}
+            />
           </div>
 
           <DialogFooter>
