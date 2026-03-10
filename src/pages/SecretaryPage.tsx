@@ -10,10 +10,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+import { ar } from "date-fns/locale";
 import {
-  Plus, Trash2, FileDown, FileUp, FileText, ClipboardList, Package, Save, History,
+  Plus, Trash2, FileDown, FileUp, FileText, ClipboardList, Package, Save, History, CalendarIcon,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import PizZip from "pizzip";
@@ -658,14 +663,14 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
   const [leaveJobTitle, setLeaveJobTitle] = useState("");
   const [leaveDirectorate, setLeaveDirectorate] = useState("");
   const [leaveReason, setLeaveReason] = useState("");
-  const [leaveStartDate, setLeaveStartDate] = useState("");
-  const [leaveEndDate, setLeaveEndDate] = useState("");
+  const [leaveStartDate, setLeaveStartDate] = useState<Date | undefined>();
+  const [leaveEndDate, setLeaveEndDate] = useState<Date | undefined>();
   const [leaveDaysEntitled, setLeaveDaysEntitled] = useState("");
   const [leaveTotalThisYear, setLeaveTotalThisYear] = useState("");
 
   // Non-payment
   const [noPayName, setNoPayName] = useState("");
-  const [noPayDate, setNoPayDate] = useState("");
+  const [noPayDate, setNoPayDate] = useState<Date | undefined>();
   const [noPayReason, setNoPayReason] = useState("");
 
   const handleInterrogation = async () => {
@@ -710,8 +715,8 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
         otherReasons: leaveReason,
         daysEntitled: leaveDaysEntitled,
         totalLeavesThisYear: leaveTotalThisYear,
-        startDate: leaveStartDate,
-        endDate: leaveEndDate,
+        startDate: leaveStartDate ? format(leaveStartDate, "yyyy/MM/dd") : "",
+        endDate: leaveEndDate ? format(leaveEndDate, "yyyy/MM/dd") : "",
         notes: "",
         directorName,
       });
@@ -731,7 +736,7 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
         school: schoolName,
         directorate: "",
         employeeName: noPayName,
-        date: noPayDate,
+        date: noPayDate ? format(noPayDate, "yyyy/MM/dd") : "",
         refNumber: "",
         reason: noPayReason,
         daysAbsent: "",
@@ -810,11 +815,31 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div className="space-y-1">
               <Label>تاريخ ابتداء الإجازة</Label>
-              <Input value={leaveStartDate} onChange={e => setLeaveStartDate(e.target.value)} placeholder="  /  /  " />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-right h-9", !leaveStartDate && "text-muted-foreground")}>
+                    <CalendarIcon className="ml-2 h-4 w-4" />
+                    {leaveStartDate ? format(leaveStartDate, "yyyy/MM/dd") : "اختر التاريخ"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={leaveStartDate} onSelect={setLeaveStartDate} />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-1">
               <Label>تاريخ انتهاء الإجازة</Label>
-              <Input value={leaveEndDate} onChange={e => setLeaveEndDate(e.target.value)} placeholder="  /  /  " />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-right h-9", !leaveEndDate && "text-muted-foreground")}>
+                    <CalendarIcon className="ml-2 h-4 w-4" />
+                    {leaveEndDate ? format(leaveEndDate, "yyyy/MM/dd") : "اختر التاريخ"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={leaveEndDate} onSelect={setLeaveEndDate} />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-1">
               <Label>عدد الأيام المستحقة</Label>
@@ -842,7 +867,17 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
             </div>
             <div className="space-y-1">
               <Label>التاريخ</Label>
-              <Input value={noPayDate} onChange={e => setNoPayDate(e.target.value)} placeholder="التاريخ" />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-right h-9", !noPayDate && "text-muted-foreground")}>
+                    <CalendarIcon className="ml-2 h-4 w-4" />
+                    {noPayDate ? format(noPayDate, "yyyy/MM/dd") : "اختر التاريخ"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={noPayDate} onSelect={setNoPayDate} />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
