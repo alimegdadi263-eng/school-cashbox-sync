@@ -45,6 +45,7 @@ export default function TeacherManager() {
     setEditingTeacher(t);
     setName(t.name);
     setSubjects([...t.subjects]);
+    setBlockedPeriods([...(t.blockedPeriods || [])]);
     setDialogOpen(true);
   };
 
