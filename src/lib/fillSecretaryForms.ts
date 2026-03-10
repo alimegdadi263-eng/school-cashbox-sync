@@ -1,13 +1,14 @@
-import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle, Header, ImageRun } from "docx";
+import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle, ImageRun } from "docx";
 import { saveAs } from "file-saver";
 
 const FONT = "Traditional Arabic";
-const FONT_SIZE = 24;
-const SMALL_SIZE = 20;
-const TITLE_SIZE = 28;
-const BIG_TITLE = 32;
+const S = 18; // compact body
+const M = 20; // normal body  
+const L = 24; // section headers
+const XL = 28; // titles
+const XXL = 30; // big titles
 
-// Load logo once and cache
+// ─── Logo ───
 let logoBuffer: ArrayBuffer | null = null;
 async function getLogoBuffer(): Promise<ArrayBuffer> {
   if (logoBuffer) return logoBuffer;
@@ -16,93 +17,73 @@ async function getLogoBuffer(): Promise<ArrayBuffer> {
   return logoBuffer;
 }
 
-function logoImage(buffer: ArrayBuffer): ImageRun {
-  return new ImageRun({
-    data: buffer,
-    transformation: { width: 80, height: 80 },
-    type: "png",
-  });
-}
-
 function logoHeader(buffer: ArrayBuffer): Paragraph {
   return new Paragraph({
-    children: [logoImage(buffer)],
+    children: [new ImageRun({ data: buffer, transformation: { width: 70, height: 70 }, type: "png" })],
     alignment: AlignmentType.CENTER,
-    spacing: { after: 80 },
+    spacing: { after: 40 },
+    bidirectional: true,
   });
 }
 
-function tr(text: string, opts?: { bold?: boolean; size?: number; underline?: boolean; color?: string }): TextRun {
+// ─── Helpers ───
+function t(text: string, opts?: { bold?: boolean; size?: number; underline?: boolean }): TextRun {
   return new TextRun({
     text,
     font: FONT,
-    size: opts?.size || FONT_SIZE,
+    size: opts?.size || M,
     bold: opts?.bold,
     underline: opts?.underline ? {} : undefined,
-    color: opts?.color,
     rightToLeft: true,
   });
 }
 
-function para(runs: TextRun[], alignment: typeof AlignmentType[keyof typeof AlignmentType] = AlignmentType.RIGHT, spacing?: { before?: number; after?: number }): Paragraph {
+function p(runs: TextRun[], align: typeof AlignmentType[keyof typeof AlignmentType] = AlignmentType.RIGHT, sp?: { before?: number; after?: number }): Paragraph {
   return new Paragraph({
     children: runs,
-    alignment,
+    alignment: align,
     bidirectional: true,
-    spacing: { before: spacing?.before ?? 60, after: spacing?.after ?? 60 },
+    spacing: { before: sp?.before ?? 30, after: sp?.after ?? 30 },
   });
 }
 
-function emptyLine(size = 60): Paragraph {
+function gap(size = 30): Paragraph {
   return new Paragraph({ children: [new TextRun({ text: "", size: 2 })], spacing: { before: size, after: size } });
 }
 
-function dots(count = 80): string {
-  return ".".repeat(count);
-}
+function dots(n = 70): string { return ".".repeat(n); }
 
-const borderStyle = {
-  style: BorderStyle.SINGLE,
-  size: 1,
-  color: "000000",
-};
-const cellBorders = {
-  top: borderStyle,
-  bottom: borderStyle,
-  left: borderStyle,
-  right: borderStyle,
-};
-const noBorders = {
-  top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-  bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-  left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-  right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-};
+const bdr = { style: BorderStyle.SINGLE, size: 1, color: "000000" };
+const borders = { top: bdr, bottom: bdr, left: bdr, right: bdr };
 
-function cell(text: string, opts?: { bold?: boolean; width?: number; shading?: string; borders?: any; size?: number; alignment?: typeof AlignmentType[keyof typeof AlignmentType]; colspan?: number }): TableCell {
+function c(text: string, opts?: { bold?: boolean; width?: number; shading?: string; size?: number; align?: typeof AlignmentType[keyof typeof AlignmentType]; colspan?: number }): TableCell {
   return new TableCell({
     children: [new Paragraph({
-      children: [tr(text, { bold: opts?.bold, size: opts?.size || SMALL_SIZE })],
-      alignment: opts?.alignment || AlignmentType.CENTER,
+      children: [t(text, { bold: opts?.bold, size: opts?.size || S })],
+      alignment: opts?.align || AlignmentType.CENTER,
       bidirectional: true,
+      spacing: { before: 20, after: 20 },
     })],
     width: opts?.width ? { size: opts.width, type: WidthType.PERCENTAGE } : undefined,
-    borders: opts?.borders || cellBorders,
+    borders,
     shading: opts?.shading ? { fill: opts.shading } : undefined,
     verticalAlign: "center" as any,
     columnSpan: opts?.colspan,
   });
 }
 
+// page properties for single-page A4 portrait, tight margins
+const PAGE_A4 = { size: { width: 12240, height: 15840 }, margin: { top: 500, bottom: 400, left: 700, right: 700 } };
+
 // ═══════════════════════════════════════════════════════════════
-// 1. نموذج استجواب - Interrogation Form (matching exact template)
+// 1. نموذج استجواب
 // ═══════════════════════════════════════════════════════════════
 export interface InterrogationData {
   school: string;
   directorate: string;
   employeeName: string;
-  category: string; // الفئة / الدرجة
-  jobTitle: string; // الوظيفة
+  category: string;
+  jobTitle: string;
   previousPenalties: string;
   subject: string;
   details: string;
@@ -111,98 +92,64 @@ export interface InterrogationData {
 
 export async function fillInterrogationForm(data: InterrogationData) {
   const logo = await getLogoBuffer();
-  // Part 1 table
-  const part1Table = new Table({
+  const SH = "E8EDF5";
+
+  const part1 = new Table({
     rows: [
-      new TableRow({
-        children: [
-          cell("الوظيفة", { bold: true, width: 25, shading: "E8EDF5" }),
-          cell("الفئة / الدرجة", { bold: true, width: 25, shading: "E8EDF5" }),
-          cell("اسم الموظف من أربع مقاطع", { bold: true, width: 50, shading: "E8EDF5" }),
-        ],
-      }),
-      new TableRow({
-        children: [
-          cell(data.jobTitle || "", { width: 25 }),
-          cell(data.category || "", { width: 25 }),
-          cell(data.employeeName, { width: 50 }),
-        ],
-      }),
-      new TableRow({
-        children: [
-          cell(`القسم: ${data.school}`, { width: 25, alignment: AlignmentType.RIGHT }),
-          cell(`المديرية: ${data.directorate || "لواءي الطيبة والوسطية"}`, { width: 25, alignment: AlignmentType.RIGHT }),
-          cell("مكان العمل: وزارة التربية والتعليم", { width: 50, alignment: AlignmentType.RIGHT }),
-        ],
-      }),
+      new TableRow({ children: [
+        c("الوظيفة", { bold: true, width: 25, shading: SH }),
+        c("الفئة / الدرجة", { bold: true, width: 25, shading: SH }),
+        c("اسم الموظف من أربع مقاطع", { bold: true, width: 50, shading: SH }),
+      ]}),
+      new TableRow({ children: [
+        c(data.jobTitle || "", { width: 25 }),
+        c(data.category || "", { width: 25 }),
+        c(data.employeeName, { width: 50 }),
+      ]}),
+      new TableRow({ children: [
+        c(`القسم: ${data.school}`, { width: 25, align: AlignmentType.RIGHT }),
+        c(`المديرية: ${data.directorate || "لواءي الطيبة والوسطية"}`, { width: 25, align: AlignmentType.RIGHT }),
+        c("مكان العمل: وزارة التربية والتعليم", { width: 50, align: AlignmentType.RIGHT }),
+      ]}),
     ],
     width: { size: 100, type: WidthType.PERCENTAGE },
   });
 
   const doc = new Document({
     sections: [{
-      properties: {
-        page: { size: { width: 12240, height: 15840 }, margin: { top: 720, bottom: 720, left: 900, right: 900 } },
-      },
+      properties: { page: PAGE_A4 },
       children: [
         logoHeader(logo),
-        para([
-          tr("ديوان الخدمة المدنية", { bold: true, size: TITLE_SIZE }),
-          tr("                                        "),
-          tr("الدائرة وزارة التربية والتعليم", { bold: true, size: TITLE_SIZE }),
-        ], AlignmentType.CENTER),
-        para([tr("نموذج استجواب", { bold: true, size: BIG_TITLE, underline: true })], AlignmentType.CENTER),
-        para([tr("عن المخالفة المرتكبة من قبل الموظف", { bold: true, size: FONT_SIZE })], AlignmentType.CENTER),
-        para([tr("(سنداً لأحكام المادة 72/أ/1 من نظام إدارة الموارد البشرية للقطاع العام رقم (33) لسنة 2024)", { size: SMALL_SIZE })], AlignmentType.CENTER),
-
-        // Part 1
-        para([tr("الجزء الأول: (يعبأ من قبل مسؤول شؤون الموظفين)", { bold: true, size: FONT_SIZE, underline: true })], AlignmentType.CENTER, { before: 200 }),
-        emptyLine(40),
-        part1Table,
-        para([tr(`العقوبات التأديبية السابقة المتخذة بحق الموظف:`, { size: FONT_SIZE })]),
-        para([tr(data.previousPenalties || dots(), { size: FONT_SIZE })]),
-
-        // Part 2
-        emptyLine(40),
-        para([tr("الجزء الثاني: (يعبأ من قبل الرئيس المباشر للموظف)", { bold: true, size: FONT_SIZE, underline: true })], AlignmentType.CENTER),
-        para([tr(`موضوع الاستفسار:`, { size: FONT_SIZE })]),
-        para([tr(data.subject || "", { size: FONT_SIZE })]),
-        para([tr(data.details || "", { size: FONT_SIZE })]),
-        emptyLine(200),
-        para([tr("التوقيع:", { bold: true, size: FONT_SIZE })]),
-
-        // Part 3
-        emptyLine(40),
-        para([tr("الجزء الثالث: (يعبأ من قبل الموظف المستجوب)", { bold: true, size: FONT_SIZE, underline: true })], AlignmentType.CENTER),
-        para([tr("الإجابة:", { size: FONT_SIZE })]),
-        emptyLine(300),
-        para([tr("التوقيع:", { bold: true, size: FONT_SIZE })]),
-
-        // Part 4
-        para([tr("الجزء الرابع: القرار متخذ وفقاً للصلاحيات المنصوص عليها في المادة (68/أ) من إدارة الموارد البشرية رقم (33) لسنة 2024", { size: SMALL_SIZE })], AlignmentType.RIGHT, { before: 200 }),
-        
-        para([tr(`تنسيب / قرار مدير المدرسة:`, { bold: true, size: FONT_SIZE })]),
-        para([tr(dots(), { size: FONT_SIZE })]),
-        para([tr("التوقيع:", { size: FONT_SIZE })]),
-        emptyLine(40),
-        para([tr("تنسيب / قرار مدير التربية والتعليم:", { bold: true, size: FONT_SIZE })]),
-        para([tr(dots(), { size: FONT_SIZE })]),
-        para([
-          tr("التوقيع:                                        ", { size: FONT_SIZE }),
-          tr("التاريخ:    /    /", { size: FONT_SIZE }),
-        ]),
-        para([tr("تنسيب / قرار الأمين العام:", { bold: true, size: FONT_SIZE })]),
-        para([tr(dots(), { size: FONT_SIZE })]),
-        para([
-          tr("التوقيع:                                        ", { size: FONT_SIZE }),
-          tr("التاريخ:    /    /", { size: FONT_SIZE }),
-        ]),
-        para([tr("تنسيب /قرار الرئيس:", { bold: true, size: FONT_SIZE })]),
-        para([tr(dots(), { size: FONT_SIZE })]),
-        para([
-          tr("التوقيع:                                        ", { size: FONT_SIZE }),
-          tr("التاريخ:    /    /", { size: FONT_SIZE }),
-        ]),
+        p([t("ديوان الخدمة المدنية", { bold: true, size: L }), t("                                        "), t("الدائرة وزارة التربية والتعليم", { bold: true, size: L })], AlignmentType.CENTER),
+        p([t("نموذج استجواب", { bold: true, size: XXL, underline: true })], AlignmentType.CENTER),
+        p([t("عن المخالفة المرتكبة من قبل الموظف", { bold: true, size: M })], AlignmentType.CENTER),
+        p([t("(سنداً لأحكام المادة 72/أ/1 من نظام إدارة الموارد البشرية للقطاع العام رقم (33) لسنة 2024)", { size: S })], AlignmentType.CENTER),
+        gap(20),
+        p([t("الجزء الأول: (يعبأ من قبل مسؤول شؤون الموظفين)", { bold: true, size: M, underline: true })], AlignmentType.CENTER),
+        gap(10),
+        part1,
+        p([t(`العقوبات التأديبية السابقة المتخذة بحق الموظف: ${data.previousPenalties || dots(50)}`, { size: S })]),
+        gap(10),
+        p([t("الجزء الثاني: (يعبأ من قبل الرئيس المباشر للموظف)", { bold: true, size: M, underline: true })], AlignmentType.CENTER),
+        p([t(`موضوع الاستفسار: ${data.subject || ""}`, { size: M })]),
+        p([t(data.details || "", { size: S })]),
+        gap(80),
+        p([t("التوقيع:", { bold: true, size: M })]),
+        gap(10),
+        p([t("الجزء الثالث: (يعبأ من قبل الموظف المستجوب)", { bold: true, size: M, underline: true })], AlignmentType.CENTER),
+        p([t("الإجابة:", { size: M })]),
+        gap(120),
+        p([t("التوقيع:", { bold: true, size: M })]),
+        gap(10),
+        p([t("الجزء الرابع: القرار متخذ وفقاً للصلاحيات المنصوص عليها في المادة (68/أ) من إدارة الموارد البشرية رقم (33) لسنة 2024", { size: S })], AlignmentType.RIGHT),
+        p([t(`تنسيب / قرار مدير المدرسة: ${dots(50)}`, { size: S })]),
+        p([t("التوقيع:", { size: S })]),
+        p([t(`تنسيب / قرار مدير التربية والتعليم: ${dots(50)}`, { size: S })]),
+        p([t("التوقيع:                              التاريخ:    /    /", { size: S })]),
+        p([t(`تنسيب / قرار الأمين العام: ${dots(50)}`, { size: S })]),
+        p([t("التوقيع:                              التاريخ:    /    /", { size: S })]),
+        p([t(`تنسيب /قرار الرئيس: ${dots(50)}`, { size: S })]),
+        p([t("التوقيع:                              التاريخ:    /    /", { size: S })]),
       ],
     }],
   });
@@ -212,7 +159,7 @@ export async function fillInterrogationForm(data: InterrogationData) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 2. نموذج إجازة عرضية - Casual Leave Form (matching exact template)
+// 2. نموذج إجازة عرضية
 // ═══════════════════════════════════════════════════════════════
 export interface CasualLeaveData {
   school: string;
@@ -220,10 +167,10 @@ export interface CasualLeaveData {
   employeeName: string;
   employeeNumber: string;
   jobTitle: string;
-  section: string; // القسم
-  department: string; // الشعبة
-  leaveReason: string; // سبب الإجازة
-  deathRelation: string; // وفاة أحد الأقارب - الدرجة
+  section: string;
+  department: string;
+  leaveReason: string;
+  deathRelation: string;
   otherReasons: string;
   daysEntitled: string;
   totalLeavesThisYear: string;
@@ -235,115 +182,70 @@ export interface CasualLeaveData {
 
 export async function fillCasualLeaveForm(data: CasualLeaveData) {
   const logo = await getLogoBuffer();
-  // Employee info table
+  const H = "D6E4F0";
+
   const infoTable = new Table({
     rows: [
-      new TableRow({
-        children: [
-          cell("بيانات الموظف/ الموظفة", { bold: true, colspan: 3, shading: "D6E4F0", size: FONT_SIZE }),
-        ],
-      }),
-      new TableRow({
-        children: [
-          cell(`المسمى الوظيفي: ${data.jobTitle || ""}`, { width: 33, alignment: AlignmentType.RIGHT }),
-          cell(`الرقم الوزاري: ${data.employeeNumber || ""}`, { width: 34, alignment: AlignmentType.RIGHT }),
-          cell(`الاسم: ${data.employeeName}`, { width: 33, alignment: AlignmentType.RIGHT }),
-        ],
-      }),
-      new TableRow({
-        children: [
-          cell(`الشعبة: ${data.department || data.school}`, { width: 33, alignment: AlignmentType.RIGHT }),
-          cell(`القسم: ${data.section || ""}`, { width: 34, alignment: AlignmentType.RIGHT }),
-          cell(`الإدارة:`, { width: 16, alignment: AlignmentType.RIGHT }),
-        ],
-      }),
-      new TableRow({
-        children: [
-          cell("", { width: 33 }),
-          cell(`المديرية: ${data.directorate || "لواءي الطيبة والوسطية"}`, { width: 34, alignment: AlignmentType.RIGHT }),
-          cell("", { width: 33 }),
-        ],
-      }),
+      new TableRow({ children: [c("بيانات الموظف/ الموظفة", { bold: true, colspan: 3, shading: H, size: M })] }),
+      new TableRow({ children: [
+        c(`المسمى الوظيفي: ${data.jobTitle || ""}`, { width: 33, align: AlignmentType.RIGHT }),
+        c(`الرقم الوزاري: ${data.employeeNumber || ""}`, { width: 34, align: AlignmentType.RIGHT }),
+        c(`الاسم: ${data.employeeName}`, { width: 33, align: AlignmentType.RIGHT }),
+      ]}),
+      new TableRow({ children: [
+        c(`الشعبة: ${data.department || data.school}`, { width: 33, align: AlignmentType.RIGHT }),
+        c(`القسم: ${data.section || ""}`, { width: 34, align: AlignmentType.RIGHT }),
+        c(`الإدارة:`, { width: 33, align: AlignmentType.RIGHT }),
+      ]}),
+      new TableRow({ children: [
+        c("", { width: 33 }),
+        c(`المديرية: ${data.directorate || "لواءي الطيبة والوسطية"}`, { width: 34, align: AlignmentType.RIGHT }),
+        c("", { width: 33 }),
+      ]}),
     ],
     width: { size: 100, type: WidthType.PERCENTAGE },
   });
 
-  // Leave details section
-  const leaveTable = new Table({
-    rows: [
-      new TableRow({
-        children: [
-          cell("بيانات الإجازة (تعبأ من قبل الموظف المعني في الوحدة التنظيمية المعنية بالموارد البشرية والتطوير المؤسسي)", { bold: true, colspan: 1, shading: "D6E4F0", size: SMALL_SIZE }),
-        ],
-      }),
-    ],
+  const leaveHeader = new Table({
+    rows: [new TableRow({ children: [
+      c("بيانات الإجازة (تعبأ من قبل الموظف المعني في الوحدة التنظيمية المعنية بالموارد البشرية والتطوير المؤسسي)", { bold: true, shading: H, size: S }),
+    ]})],
     width: { size: 100, type: WidthType.PERCENTAGE },
   });
 
   const doc = new Document({
     sections: [{
-      properties: {
-        page: { size: { width: 12240, height: 15840 }, margin: { top: 720, bottom: 720, left: 900, right: 900 } },
-      },
+      properties: { page: PAGE_A4 },
       children: [
         logoHeader(logo),
-        para([tr("المملكة الأردنية الهاشمية", { bold: true, size: TITLE_SIZE })], AlignmentType.CENTER),
-        para([tr("نموذج إجازة عرضية", { bold: true, size: BIG_TITLE, underline: true })], AlignmentType.CENTER, { before: 100 }),
-        emptyLine(40),
+        p([t("المملكة الأردنية الهاشمية", { bold: true, size: L })], AlignmentType.CENTER),
+        p([t("نموذج إجازة عرضية", { bold: true, size: XXL, underline: true })], AlignmentType.CENTER),
+        gap(10),
         infoTable,
-        emptyLine(20),
-        leaveTable,
-        para([tr("سبب الإجازة:", { bold: true, size: FONT_SIZE })]),
-        para([
-          tr("وفاة أحد الأقارب:   ☐ ", { size: FONT_SIZE }),
-          tr("من الدرجة الأولى        ", { size: FONT_SIZE }),
-          tr("من الدرجة الثانية        ", { size: FONT_SIZE }),
-          tr("من الدرجة الثالثة        ", { size: FONT_SIZE }),
-          tr("زوجة/ زوج", { size: FONT_SIZE }),
-        ]),
-        para([
-          tr("☐ أسباب أخرى ( خاص بمن تنطبق عليهم أحكام المادة (35-ج) من نظام إدارة الموارد البشرية في القطاع العام):", { size: FONT_SIZE }),
-        ]),
-        para([tr(data.otherReasons || data.leaveReason || dots(), { size: FONT_SIZE })]),
-        para([tr(dots(), { size: FONT_SIZE })]),
-        para([tr(`عدد الأيام المستحقة بموجب أحكام المواد (53) و(54) من نظام إدارة الموارد البشرية في القطاع العام: ( ${data.daysEntitled || "  "} ) يوم`, { size: FONT_SIZE })]),
-        para([tr(`مجموع الإجازات العرضية التي تم منحها للموظف خلال العام: ( ${data.totalLeavesThisYear || "  "} ) يوم`, { size: FONT_SIZE })]),
-        para([
-          tr(`تاريخ ابتداء الإجازة: ${data.startDate || "  /  /  "}`, { size: FONT_SIZE }),
-          tr("                              "),
-          tr(`تاريخ انتهاء الإجازة: ${data.endDate || "  /  /  "}`, { size: FONT_SIZE }),
-        ]),
-        para([tr("ملاحظات:", { size: FONT_SIZE })]),
-        para([tr(data.notes || dots(), { size: FONT_SIZE })]),
-        para([tr(dots(), { size: FONT_SIZE })]),
-        emptyLine(40),
-        para([
-          tr("الأسم:                              ", { size: FONT_SIZE }),
-          tr("المسمى الوظيفي:                              ", { size: FONT_SIZE }),
-          tr("التوقيع:", { size: FONT_SIZE }),
-        ]),
-
-        // Secretary General decision
-        emptyLine(20),
+        gap(10),
+        leaveHeader,
+        p([t("سبب الإجازة:", { bold: true, size: M })]),
+        p([t("وفاة أحد الأقارب:  ☐  من الدرجة الأولى    من الدرجة الثانية    من الدرجة الثالثة    زوجة/ زوج", { size: S })]),
+        p([t("☐ أسباب أخرى ( خاص بمن تنطبق عليهم أحكام المادة (35-ج) من نظام إدارة الموارد البشرية في القطاع العام):", { size: S })]),
+        p([t(data.otherReasons || data.leaveReason || dots(60), { size: S })]),
+        p([t(dots(80), { size: S })]),
+        p([t(`عدد الأيام المستحقة بموجب أحكام المواد (53) و(54) من نظام إدارة الموارد البشرية في القطاع العام: ( ${data.daysEntitled || "  "} ) يوم`, { size: S })]),
+        p([t(`مجموع الإجازات العرضية التي تم منحها للموظف خلال العام: ( ${data.totalLeavesThisYear || "  "} ) يوم`, { size: S })]),
+        p([t(`تاريخ ابتداء الإجازة: ${data.startDate || "  /  /  "}                    تاريخ انتهاء الإجازة: ${data.endDate || "  /  /  "}`, { size: S })]),
+        p([t(`ملاحظات: ${data.notes || dots(60)}`, { size: S })]),
+        p([t(dots(80), { size: S })]),
+        gap(20),
+        p([t("الأسم:                    المسمى الوظيفي:                    التوقيع:", { size: M })]),
+        gap(10),
         new Table({
-          rows: [
-            new TableRow({
-              children: [
-                cell("قرار الأمين العام", { bold: true, shading: "D6E4F0", size: FONT_SIZE }),
-              ],
-            }),
-          ],
+          rows: [new TableRow({ children: [c("قرار الأمين العام", { bold: true, shading: H, size: M })] })],
           width: { size: 100, type: WidthType.PERCENTAGE },
         }),
-        para([tr(dots(), { size: FONT_SIZE })]),
-        para([tr(dots(), { size: FONT_SIZE })]),
-        para([tr(dots(), { size: FONT_SIZE })]),
-        emptyLine(40),
-        para([
-          tr(`التاريخ:    /    /`, { size: FONT_SIZE }),
-          tr("                                                          "),
-          tr("التوقيع", { size: FONT_SIZE }),
-        ]),
+        p([t(dots(80), { size: S })]),
+        p([t(dots(80), { size: S })]),
+        p([t(dots(80), { size: S })]),
+        gap(20),
+        p([t("التاريخ:    /    /                                                    التوقيع", { size: M })]),
       ],
     }],
   });
@@ -353,7 +255,7 @@ export async function fillCasualLeaveForm(data: CasualLeaveData) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 3. نموذج عدم صرف - No-Payment Form (matching exact template)
+// 3. نموذج عدم صرف
 // ═══════════════════════════════════════════════════════════════
 export interface NoPaymentData {
   school: string;
@@ -368,43 +270,39 @@ export interface NoPaymentData {
 
 export async function fillNoPaymentForm(data: NoPaymentData) {
   const logo = await getLogoBuffer();
+
   const doc = new Document({
     sections: [{
-      properties: {
-        page: { size: { width: 12240, height: 15840 }, margin: { top: 720, bottom: 720, left: 900, right: 900 } },
-      },
+      properties: { page: PAGE_A4 },
       children: [
         logoHeader(logo),
-        para([tr(`مديرية التربية والتعليم ${data.directorate || "للواءي الطيبة والوسطية"}/محافظة اربد`, { bold: true, size: TITLE_SIZE })], AlignmentType.CENTER),
-        para([tr(data.school, { bold: true, size: TITLE_SIZE })], AlignmentType.CENTER),
-        emptyLine(40),
-        // Horizontal line
-        para([tr("━".repeat(70), { size: 16 })], AlignmentType.CENTER),
-        emptyLine(40),
-        para([tr(`الرقم:`, { size: FONT_SIZE })], AlignmentType.RIGHT),
-        para([tr(`التاريخ: ${data.date || ""}`, { size: FONT_SIZE })], AlignmentType.RIGHT),
-        para([tr(`الموافق:`, { size: FONT_SIZE })], AlignmentType.RIGHT),
-        emptyLine(80),
-        para([tr(`السيد / ${data.employeeName}`, { bold: true, size: FONT_SIZE })], AlignmentType.CENTER),
-        para([tr(`المعلم في ${data.school}`, { bold: true, size: FONT_SIZE })], AlignmentType.CENTER),
-        para([tr("الموضوع / التغيب عن العمل", { bold: true, size: TITLE_SIZE, underline: true })], AlignmentType.CENTER, { before: 100 }),
-        emptyLine(60),
-        para([tr("السلام عليكم ورحمة الله وبركاته   ،،،", { size: FONT_SIZE })], AlignmentType.CENTER),
-        emptyLine(60),
-        para([tr(`إشارة إلى جوابك المؤرخ    /    / رقم                 ، واستناداً إلى أحكام المادة (22) من نظام الخدمة المدنية لسنة 2020`, { size: FONT_SIZE })]),
-        para([tr(`وتعديلاته ودلالة المادة (143).`, { size: FONT_SIZE })]),
-        para([tr(`وبموجب الصلاحيات المفوضة الى بكتاب وزير التربية والتعليم رقم`, { size: FONT_SIZE })]),
-        para([tr(`1/70/7886 تاريخ 10/2/2020. قررت عدم صرف راتبك عن يوم /`, { bold: true, size: FONT_SIZE })]),
-        para([tr(`الأيام  ${data.reason || dots(60)} بسبب تغيبك عن العمل دون`, { bold: true, size: FONT_SIZE })]),
-        para([tr(`إجازة قانونية أو عذر مشروع بعد انتهاء اجازتك مباشرة.`, { bold: true, size: FONT_SIZE })]),
-        emptyLine(100),
-        para([tr("وتفضلوا بقبول فائق الاحترام", { bold: true, size: FONT_SIZE })], AlignmentType.CENTER),
-        emptyLine(80),
-        para([tr("مدير المدرسة", { bold: true, size: FONT_SIZE })]),
-        para([tr(data.directorName, { bold: true, size: FONT_SIZE })]),
-        emptyLine(200),
-        para([tr(`نسخة / مدير التربية والتعليم ${data.directorate || "للواءي الطيبة والوسطية"}/محافظة اربد`, { bold: true, size: SMALL_SIZE })]),
-        para([tr("نسخة/للملف", { bold: true, size: SMALL_SIZE })]),
+        p([t("وزارة التربية والتعليم", { bold: true, size: XL })], AlignmentType.CENTER),
+        p([t(`مديرية التربية والتعليم ${data.directorate || "للواءي الطيبة والوسطية"}/محافظة اربد`, { bold: true, size: L })], AlignmentType.CENTER),
+        p([t(data.school, { bold: true, size: L })], AlignmentType.CENTER),
+        gap(20),
+        p([t("━".repeat(70), { size: 14 })], AlignmentType.CENTER),
+        gap(20),
+        p([t(`الرقم:`, { size: M })]),
+        p([t(`التاريخ: ${data.date || ""}`, { size: M })]),
+        p([t(`الموافق:`, { size: M })]),
+        gap(40),
+        p([t(`السيد / ${data.employeeName}`, { bold: true, size: L })], AlignmentType.CENTER),
+        p([t(`المعلم في ${data.school}`, { bold: true, size: M })], AlignmentType.CENTER),
+        p([t("الموضوع / التغيب عن العمل", { bold: true, size: L, underline: true })], AlignmentType.CENTER),
+        gap(30),
+        p([t("السلام عليكم ورحمة الله وبركاته   ،،،", { size: M })], AlignmentType.CENTER),
+        gap(30),
+        p([t(`إشارة إلى جوابك المؤرخ    /    / رقم              ، واستناداً إلى أحكام المادة (22) من نظام الخدمة المدنية لسنة 2020 وتعديلاته ودلالة المادة (143).`, { size: S })]),
+        p([t(`وبموجب الصلاحيات المفوضة الى بكتاب وزير التربية والتعليم رقم 1/70/7886 تاريخ 10/2/2020.`, { size: S })]),
+        p([t(`قررت عدم صرف راتبك عن يوم / الأيام  ${data.reason || dots(40)} بسبب تغيبك عن العمل دون إجازة قانونية أو عذر مشروع بعد انتهاء اجازتك مباشرة.`, { bold: true, size: M })]),
+        gap(60),
+        p([t("وتفضلوا بقبول فائق الاحترام", { bold: true, size: M })], AlignmentType.CENTER),
+        gap(60),
+        p([t("مدير المدرسة", { bold: true, size: M })]),
+        p([t(data.directorName, { bold: true, size: M })]),
+        gap(150),
+        p([t(`نسخة / مدير التربية والتعليم ${data.directorate || "للواءي الطيبة والوسطية"}/محافظة اربد`, { bold: true, size: S })]),
+        p([t("نسخة/للملف", { bold: true, size: S })]),
       ],
     }],
   });
@@ -414,7 +312,7 @@ export async function fillNoPaymentForm(data: NoPaymentData) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 4. نموذج جرد عهدة - Inventory Custody (matching exact template)
+// 4. نموذج جرد عهدة - 9 items per page
 // ═══════════════════════════════════════════════════════════════
 export interface InventoryCustodyItem {
   serialNumber: number;
@@ -435,129 +333,98 @@ export interface InventoryCustodyData {
   items: InventoryCustodyItem[];
   directorName: string;
   committeeMember: string;
-  custodian: string; // المعني بالعهدة
+  custodian: string;
   date: string;
 }
 
 export async function exportInventoryCustodyDocx(data: InventoryCustodyData) {
   const logo = await getLogoBuffer();
+  const ITEMS_PER_PAGE = 9;
+  const H = "D6E4F0";
+
+  // Split items into pages
+  const pages: InventoryCustodyItem[][] = [];
+  for (let i = 0; i < data.items.length; i += ITEMS_PER_PAGE) {
+    pages.push(data.items.slice(i, i + ITEMS_PER_PAGE));
+  }
+  if (pages.length === 0) pages.push([]);
+
   const splitPrice = (n: number) => {
-    const dinars = Math.floor(n);
-    const fils = Math.round((n - dinars) * 1000);
-    return { d: dinars > 0 ? String(dinars) : "", f: fils > 0 ? String(fils) : "" };
+    const d = Math.floor(n);
+    const f = Math.round((n - d) * 1000);
+    return { d: d > 0 ? String(d) : "", f: f > 0 ? String(f) : "" };
   };
 
-  // Header row with split price columns
-  const headerRow = new TableRow({
-    children: [
-      cell("ملاحظات", { bold: true, width: 8, shading: "D6E4F0" }),
-      cell("السعر الإجمالي", { bold: true, width: 10, shading: "D6E4F0", colspan: 2 }),
-      cell("السعر الإفرادي", { bold: true, width: 10, shading: "D6E4F0", colspan: 2 }),
-      cell("الزيادة", { bold: true, width: 7, shading: "D6E4F0" }),
-      cell("النقص", { bold: true, width: 7, shading: "D6E4F0" }),
-      cell("الموجود", { bold: true, width: 8, shading: "D6E4F0" }),
-      cell("رصيد الفعلي", { bold: true, width: 8, shading: "D6E4F0" }),
-      cell("اللوازم", { bold: true, width: 20, shading: "D6E4F0" }),
-      cell("رقم صفحة السجل", { bold: true, width: 8, shading: "D6E4F0" }),
-    ],
-    tableHeader: true,
-  });
-
-  // Sub-header for price columns
-  const subHeaderRow = new TableRow({
-    children: [
-      cell("", { shading: "D6E4F0" }),
-      cell("د", { bold: true, shading: "D6E4F0" }),
-      cell("ف", { bold: true, shading: "D6E4F0" }),
-      cell("د", { bold: true, shading: "D6E4F0" }),
-      cell("ف", { bold: true, shading: "D6E4F0" }),
-      cell("", { shading: "D6E4F0" }),
-      cell("", { shading: "D6E4F0" }),
-      cell("", { shading: "D6E4F0" }),
-      cell("", { shading: "D6E4F0" }),
-      cell("", { shading: "D6E4F0" }),
-      cell("", { shading: "D6E4F0" }),
-    ],
-  });
-
-  const dataRows = data.items.map(item => {
-    const up = splitPrice(item.unitPrice);
-    const tp = splitPrice(item.totalPrice);
-    return new TableRow({
+  function buildPage(pageItems: InventoryCustodyItem[], pageNum: number, totalPages: number) {
+    const headerRow = new TableRow({
       children: [
-        cell(item.notes || ""),
-        cell(tp.d),
-        cell(tp.f),
-        cell(up.d),
-        cell(up.f),
-        cell(item.surplus ? String(item.surplus) : ""),
-        cell(item.shortage ? String(item.shortage) : ""),
-        cell(String(item.existing)),
-        cell(String(item.actualBalance)),
-        cell(item.itemName, { alignment: AlignmentType.RIGHT }),
-        cell(String(item.serialNumber)),
+        c("ملاحظات", { bold: true, width: 8, shading: H }),
+        c("السعر الإجمالي", { bold: true, width: 10, shading: H, colspan: 2 }),
+        c("السعر الإفرادي", { bold: true, width: 10, shading: H, colspan: 2 }),
+        c("الزيادة", { bold: true, width: 7, shading: H }),
+        c("النقص", { bold: true, width: 7, shading: H }),
+        c("الموجود", { bold: true, width: 8, shading: H }),
+        c("رصيد الفعلي", { bold: true, width: 8, shading: H }),
+        c("اللوازم", { bold: true, width: 20, shading: H }),
+        c("رقم صفحة السجل", { bold: true, width: 8, shading: H }),
       ],
+      tableHeader: true,
     });
-  });
 
-  // Add empty rows to fill page
-  const minRows = 15;
-  for (let i = data.items.length; i < minRows; i++) {
-    dataRows.push(new TableRow({
-      children: Array(11).fill(null).map(() => cell("")),
-    }));
+    const dataRows = pageItems.map(item => {
+      const up = splitPrice(item.unitPrice);
+      const tp = splitPrice(item.totalPrice);
+      return new TableRow({ children: [
+        c(item.notes || ""),
+        c(tp.d), c(tp.f),
+        c(up.d), c(up.f),
+        c(item.surplus ? String(item.surplus) : ""),
+        c(item.shortage ? String(item.shortage) : ""),
+        c(String(item.existing)),
+        c(String(item.actualBalance)),
+        c(item.itemName, { align: AlignmentType.RIGHT }),
+        c(String(item.serialNumber)),
+      ]});
+    });
+
+    // Fill empty rows to always have 9
+    for (let i = pageItems.length; i < ITEMS_PER_PAGE; i++) {
+      dataRows.push(new TableRow({ children: Array(11).fill(null).map(() => c("")) }));
+    }
+
+    const table = new Table({
+      rows: [headerRow, ...dataRows],
+      width: { size: 100, type: WidthType.PERCENTAGE },
+    });
+
+    const pageLabel = totalPages > 1 ? ` - صفحة ${pageNum} من ${totalPages}` : "";
+
+    return [
+      logoHeader(logo),
+      p([t("وزارة التربية والتعليم", { bold: true, size: L })], AlignmentType.CENTER),
+      p([t(`نموذج جرد مستودعات المدارس ( ${data.categoryLabel} )${pageLabel}`, { bold: true, size: XL, underline: true })], AlignmentType.CENTER),
+      gap(10),
+      p([t(`اسم المدرسة : ${data.school}                              مديرية التربية والتعليم : ${data.directorate || dots(20)}`, { size: S })]),
+      gap(10),
+      table,
+      gap(20),
+      p([t("أقر أنا المسؤول عن العهدة بأن الجرد تم بحضوري ومعرفتي وأوافق على صحة القوائم ونتائجها من حيث النقص أو الزيادة ولا توجد أية مستودعات أخرى للوازم بالمدرسة غير التي جرى عليها الجرد وعليه أوقع على هذا المحضر", { size: 16 })]),
+      gap(10),
+      p([t(`عضو:                    اسم المعني بالعهدة: ${data.custodian || ""}                    اسم مدير المدرسة: ${data.directorName}`, { size: S })]),
+      p([t("                                                والختم الرسمي", { size: S })]),
+      p([t(`الاسم :                    الاسم : ${data.custodian || ""}                    الاسم : ${data.directorName}`, { size: S })]),
+      p([t("التوقيع :                    التوقيع :                    التوقيع :", { size: S })]),
+      p([t(`التاريخ : ${data.date}`, { size: S })]),
+      p([t("Form#QF72-4-24 rev.a", { size: 14 })], AlignmentType.LEFT),
+    ];
   }
 
-  const table = new Table({
-    rows: [headerRow, ...dataRows],
-    width: { size: 100, type: WidthType.PERCENTAGE },
-  });
+  const sections = pages.map((pageItems, idx) => ({
+    properties: { page: { ...PAGE_A4, margin: { top: 400, bottom: 300, left: 500, right: 500 } } },
+    children: buildPage(pageItems, idx + 1, pages.length),
+  }));
 
-  const doc = new Document({
-    sections: [{
-      properties: {
-        page: { size: { width: 12240, height: 15840 }, margin: { top: 720, bottom: 500, left: 720, right: 720 } },
-      },
-      children: [
-        logoHeader(logo),
-        para([tr("وزارة التربية والتعليم", { bold: true, size: TITLE_SIZE })], AlignmentType.CENTER),
-        para([tr(`نموذج جرد مستودعات المدارس ( ${data.categoryLabel} )`, { bold: true, size: BIG_TITLE, underline: true })], AlignmentType.CENTER),
-        emptyLine(40),
-        para([
-          tr(`اسم المدرسة : ${data.school}`, { size: FONT_SIZE }),
-          tr("                                                          "),
-          tr(`مديرية التربية والتعليم : ${data.directorate || dots(30)}`, { size: FONT_SIZE }),
-        ]),
-        para([tr(dots(30), { size: FONT_SIZE })]),
-        emptyLine(20),
-        table,
-        emptyLine(40),
-        para([tr("أقر أنا المسؤول عن العهدة بأن الجرد تم بحضوري ومعرفتي وأوافق على صحة القوائم ونتائجها من حيث النقص أو الزيادة ولا توجد أية", { size: SMALL_SIZE })]),
-        para([tr("مستودعات أخرى ل للوازم بالمدرسة غير التي جرى عليها الجرد وعليه أوقع على هذا المحضر", { size: SMALL_SIZE })]),
-        emptyLine(20),
-        para([
-          tr(`عضو:                              `, { size: FONT_SIZE }),
-          tr(`اسم المعني بالعهدة                              `, { size: FONT_SIZE }),
-          tr(`اسم مدير المدرسة: ${data.directorName}`, { size: FONT_SIZE }),
-        ]),
-        para([tr("                                                          والختم الرسمي", { size: FONT_SIZE })]),
-        para([
-          tr(`الاسم :                              `, { size: FONT_SIZE }),
-          tr(`الاسم : ${data.custodian || ""}                              `, { size: FONT_SIZE }),
-          tr(`الاسم : ${data.directorName}`, { size: FONT_SIZE }),
-        ]),
-        para([
-          tr(`التوقيع :                              `, { size: FONT_SIZE }),
-          tr(`التوقيع :                              `, { size: FONT_SIZE }),
-          tr("التوقيع :", { size: FONT_SIZE }),
-        ]),
-        para([tr(`التاريخ : ${data.date}`, { size: FONT_SIZE })]),
-        emptyLine(20),
-        para([tr("Form#QF72-4-24 rev.a", { size: 16 })], AlignmentType.LEFT),
-      ],
-    }],
-  });
-
+  const doc = new Document({ sections });
   const blob = await Packer.toBlob(doc);
   saveAs(blob, `جرد_${data.categoryLabel}_${data.school}.docx`);
 }
