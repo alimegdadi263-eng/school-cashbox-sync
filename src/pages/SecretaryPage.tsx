@@ -715,8 +715,8 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
         otherReasons: leaveReason,
         daysEntitled: leaveDaysEntitled,
         totalLeavesThisYear: leaveTotalThisYear,
-        startDate: leaveStartDate,
-        endDate: leaveEndDate,
+        startDate: leaveStartDate ? format(leaveStartDate, "yyyy/MM/dd") : "",
+        endDate: leaveEndDate ? format(leaveEndDate, "yyyy/MM/dd") : "",
         notes: "",
         directorName,
       });
