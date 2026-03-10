@@ -87,6 +87,8 @@ export default function TimetablePage() {
 
         <TimetableGrid />
 
+        <DailyScheduleManager />
+
         {/* Export Section */}
         {Object.keys(timetable).length > 0 && (
           <Card>
