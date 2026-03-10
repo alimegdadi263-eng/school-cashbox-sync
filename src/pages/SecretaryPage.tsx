@@ -1,0 +1,754 @@
+import { useState, useEffect, useRef } from "react";
+import AppLayout from "@/components/AppLayout";
+import { useAuth } from "@/hooks/useAuth";
+import { useFinance } from "@/context/FinanceContext";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Plus, Trash2, FileDown, FileUp, FileText, ClipboardList, Package, Save, History, ScanLine,
+} from "lucide-react";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
+import { fillInterrogationForm, fillCasualLeaveForm, fillNoPaymentForm } from "@/lib/fillSecretaryForms";
+
+// ─── Types ───
+interface InventoryItem {
+  id: string;
+  serialNumber: number;
+  itemName: string;
+  quantity: number;
+  condition: string;
+  notes: string;
+}
+
+interface DisposalItem {
+  id: string;
+  serialNumber: number;
+  itemName: string;
+  quantity: number;
+  reason: string;
+  notes: string;
+}
+
+interface DisposalRecord {
+  id: string;
+  date: string;
+  category: string;
+  items: DisposalItem[];
+  committeeMember1: string;
+  committeeMember2: string;
+  committeeMember3: string;
+  directorName: string;
+}
+
+// ─── Constants ───
+const INVENTORY_CATEGORIES = [
+  { id: "sports", label: "المواد الرياضية", icon: "🏀" },
+  { id: "vocational", label: "المواد المهنية", icon: "🔧" },
+  { id: "furniture", label: "الأثاث المدرسي", icon: "🪑" },
+  { id: "computers", label: "الحاسوب", icon: "💻" },
+  { id: "physics_lab", label: "مختبر الفيزياء", icon: "⚡" },
+  { id: "biology_lab", label: "مختبر الأحياء", icon: "🔬" },
+  { id: "chemistry_lab", label: "مختبر الكيمياء", icon: "🧪" },
+  { id: "textbooks", label: "الكتب المدرسية", icon: "📚" },
+];
+
+const STORAGE_KEY_PREFIX = "school_inventory_";
+const DISPOSAL_STORAGE_KEY = "school_disposal_records";
+const FONT_NAME = "Traditional Arabic";
+
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+// ─── LocalStorage helpers ───
+function loadInventory(userId: string, category: string): InventoryItem[] {
+  try {
+    const data = localStorage.getItem(`${STORAGE_KEY_PREFIX}${userId}_${category}`);
+    return data ? JSON.parse(data) : [];
+  } catch { return []; }
+}
+
+function saveInventory(userId: string, category: string, items: InventoryItem[]) {
+  localStorage.setItem(`${STORAGE_KEY_PREFIX}${userId}_${category}`, JSON.stringify(items));
+}
+
+function loadDisposals(userId: string): DisposalRecord[] {
+  try {
+    const data = localStorage.getItem(`${DISPOSAL_STORAGE_KEY}_${userId}`);
+    return data ? JSON.parse(data) : [];
+  } catch { return []; }
+}
+
+function saveDisposals(userId: string, records: DisposalRecord[]) {
+  localStorage.setItem(`${DISPOSAL_STORAGE_KEY}_${userId}`, JSON.stringify(records));
+}
+
+// ─── Inventory Tab Component ───
+function InventoryTab({ category, userId, schoolName }: { category: typeof INVENTORY_CATEGORIES[0]; userId: string; schoolName: string }) {
+  const [items, setItems] = useState<InventoryItem[]>([]);
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setItems(loadInventory(userId, category.id));
+  }, [userId, category.id]);
+
+  const save = (newItems: InventoryItem[]) => {
+    setItems(newItems);
+    saveInventory(userId, category.id, newItems);
+  };
+
+  const addItem = () => {
+    const newItem: InventoryItem = {
+      id: generateId(),
+      serialNumber: items.length + 1,
+      itemName: "",
+      quantity: 1,
+      condition: "جيد",
+      notes: "",
+    };
+    save([...items, newItem]);
+  };
+
+  const updateItem = (id: string, field: keyof InventoryItem, value: string | number) => {
+    save(items.map(item => item.id === id ? { ...item, [field]: value } : item));
+  };
+
+  const removeItem = (id: string) => {
+    const filtered = items.filter(item => item.id !== id);
+    save(filtered.map((item, idx) => ({ ...item, serialNumber: idx + 1 })));
+  };
+
+  const exportExcel = async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet(category.label);
+    ws.views = [{ rightToLeft: true }];
+
+    const titleRow = ws.addRow([`${schoolName} - جرد ${category.label}`]);
+    ws.mergeCells(1, 1, 1, 5);
+    titleRow.getCell(1).font = { name: FONT_NAME, bold: true, size: 16 };
+    titleRow.getCell(1).alignment = { horizontal: "center" };
+    ws.addRow([]);
+
+    const headers = ["م", "اسم المادة", "الكمية", "الحالة", "ملاحظات"];
+    const hRow = ws.addRow(headers);
+    hRow.eachCell(c => {
+      c.font = { name: FONT_NAME, bold: true, size: 12, color: { argb: "FFFFFFFF" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2B3A55" } };
+      c.alignment = { horizontal: "center", vertical: "middle" };
+      c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+    });
+
+    items.forEach(item => {
+      const row = ws.addRow([item.serialNumber, item.itemName, item.quantity, item.condition, item.notes]);
+      row.eachCell(c => {
+        c.font = { name: FONT_NAME, size: 11 };
+        c.alignment = { horizontal: "center", vertical: "middle" };
+        c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+      });
+    });
+
+    ws.getColumn(1).width = 8;
+    ws.getColumn(2).width = 30;
+    ws.getColumn(3).width = 12;
+    ws.getColumn(4).width = 15;
+    ws.getColumn(5).width = 25;
+
+    const buffer = await wb.xlsx.writeBuffer();
+    saveAs(new Blob([buffer]), `جرد_${category.label}_${schoolName}.xlsx`);
+    toast({ title: "تم التصدير بنجاح" });
+  };
+
+  const importExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(await file.arrayBuffer());
+      const ws = wb.worksheets[0];
+      if (!ws) throw new Error("لا يوجد بيانات");
+
+      const imported: InventoryItem[] = [];
+      let startRow = 1;
+      // Find header row
+      ws.eachRow((row, rowNumber) => {
+        const val = row.getCell(1).value?.toString() || "";
+        if (val === "م" || val === "الرقم") startRow = rowNumber + 1;
+      });
+
+      ws.eachRow((row, rowNumber) => {
+        if (rowNumber < startRow) return;
+        const name = row.getCell(2).value?.toString() || "";
+        if (!name.trim()) return;
+        imported.push({
+          id: generateId(),
+          serialNumber: imported.length + 1,
+          itemName: name,
+          quantity: Number(row.getCell(3).value) || 1,
+          condition: row.getCell(4).value?.toString() || "جيد",
+          notes: row.getCell(5).value?.toString() || "",
+        });
+      });
+
+      save(imported);
+      toast({ title: "تم الاستيراد", description: `تم استيراد ${imported.length} عنصر` });
+    } catch (err) {
+      toast({ title: "خطأ في الاستيراد", description: String(err), variant: "destructive" });
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2 items-center justify-between">
+        <h3 className="font-semibold flex items-center gap-2">
+          <span>{category.icon}</span> جرد {category.label}
+          <span className="text-muted-foreground text-sm">({items.length} عنصر)</span>
+        </h3>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <FileUp className="w-4 h-4 ml-1" /> استيراد Excel
+          </Button>
+          <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={importExcel} />
+          <Button size="sm" variant="outline" onClick={exportExcel} disabled={items.length === 0}>
+            <FileDown className="w-4 h-4 ml-1" /> تصدير Excel
+          </Button>
+          <Button size="sm" onClick={addItem}>
+            <Plus className="w-4 h-4 ml-1" /> إضافة
+          </Button>
+        </div>
+      </div>
+
+      {items.length > 0 ? (
+        <div className="border rounded-lg overflow-auto max-h-[500px]">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12 text-center">م</TableHead>
+                <TableHead>اسم المادة</TableHead>
+                <TableHead className="w-20 text-center">الكمية</TableHead>
+                <TableHead className="w-28 text-center">الحالة</TableHead>
+                <TableHead>ملاحظات</TableHead>
+                <TableHead className="w-12"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map(item => (
+                <TableRow key={item.id}>
+                  <TableCell className="text-center font-medium">{item.serialNumber}</TableCell>
+                  <TableCell>
+                    <Input
+                      value={item.itemName}
+                      onChange={e => updateItem(item.id, "itemName", e.target.value)}
+                      className="h-8"
+                      placeholder="اسم المادة"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={item.quantity}
+                      onChange={e => updateItem(item.id, "quantity", Number(e.target.value))}
+                      className="h-8 text-center"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Select value={item.condition} onValueChange={v => updateItem(item.id, "condition", v)}>
+                      <SelectTrigger className="h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="جيد">جيد</SelectItem>
+                        <SelectItem value="متوسط">متوسط</SelectItem>
+                        <SelectItem value="تالف">تالف</SelectItem>
+                        <SelectItem value="يحتاج صيانة">يحتاج صيانة</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      value={item.notes}
+                      onChange={e => updateItem(item.id, "notes", e.target.value)}
+                      className="h-8"
+                      placeholder="ملاحظات"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Button size="icon" variant="ghost" onClick={() => removeItem(item.id)} className="h-7 w-7 text-destructive">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      ) : (
+        <div className="text-center py-10 text-muted-foreground border rounded-lg">
+          <Package className="w-10 h-10 mx-auto mb-2 opacity-40" />
+          <p>لا توجد عناصر - أضف عنصراً أو استورد من Excel</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Disposal Section ───
+function DisposalSection({ userId, schoolName, directorName, member1, member2 }: {
+  userId: string; schoolName: string; directorName: string; member1: string; member2: string;
+}) {
+  const { toast } = useToast();
+  const [records, setRecords] = useState<DisposalRecord[]>([]);
+  const [items, setItems] = useState<DisposalItem[]>([]);
+  const [category, setCategory] = useState(INVENTORY_CATEGORIES[0].id);
+  const [committeeMember3, setCommitteeMember3] = useState("");
+  const [showHistory, setShowHistory] = useState(false);
+
+  useEffect(() => {
+    setRecords(loadDisposals(userId));
+  }, [userId]);
+
+  const addItem = () => {
+    setItems(prev => [...prev, {
+      id: generateId(),
+      serialNumber: prev.length + 1,
+      itemName: "",
+      quantity: 1,
+      reason: "",
+      notes: "",
+    }]);
+  };
+
+  const updateItem = (id: string, field: keyof DisposalItem, value: string | number) => {
+    setItems(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
+  };
+
+  const removeItem = (id: string) => {
+    setItems(prev => prev.filter(i => i.id !== id).map((item, idx) => ({ ...item, serialNumber: idx + 1 })));
+  };
+
+  const saveDisposal = () => {
+    if (items.length === 0) {
+      toast({ title: "خطأ", description: "أضف مواد للإتلاف", variant: "destructive" });
+      return;
+    }
+    const record: DisposalRecord = {
+      id: generateId(),
+      date: new Date().toLocaleDateString("ar"),
+      category: INVENTORY_CATEGORIES.find(c => c.id === category)?.label || category,
+      items: [...items],
+      committeeMember1: member1,
+      committeeMember2: member2,
+      committeeMember3,
+      directorName,
+    };
+    const updated = [record, ...records];
+    setRecords(updated);
+    saveDisposals(userId, updated);
+    setItems([]);
+    toast({ title: "تم حفظ قائمة الإتلاف بنجاح" });
+  };
+
+  const exportDisposalExcel = async (record: DisposalRecord) => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("قائمة إتلاف");
+    ws.views = [{ rightToLeft: true }];
+
+    ws.addRow([`${schoolName} - قائمة إتلاف - ${record.category}`]);
+    ws.mergeCells(1, 1, 1, 5);
+    ws.getRow(1).getCell(1).font = { name: FONT_NAME, bold: true, size: 16 };
+    ws.getRow(1).getCell(1).alignment = { horizontal: "center" };
+    ws.addRow([`التاريخ: ${record.date}`]);
+    ws.addRow([]);
+
+    const hRow = ws.addRow(["م", "اسم المادة", "الكمية", "سبب الإتلاف", "ملاحظات"]);
+    hRow.eachCell(c => {
+      c.font = { name: FONT_NAME, bold: true, size: 12, color: { argb: "FFFFFFFF" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF8B0000" } };
+      c.alignment = { horizontal: "center", vertical: "middle" };
+      c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+    });
+
+    record.items.forEach(item => {
+      const row = ws.addRow([item.serialNumber, item.itemName, item.quantity, item.reason, item.notes]);
+      row.eachCell(c => {
+        c.font = { name: FONT_NAME, size: 11 };
+        c.alignment = { horizontal: "center", vertical: "middle" };
+        c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+      });
+    });
+
+    ws.addRow([]);
+    ws.addRow([`لجنة الجرد والإتلاف:`]);
+    ws.addRow([`1. ${record.committeeMember1}`]);
+    ws.addRow([`2. ${record.committeeMember2}`]);
+    ws.addRow([`3. ${record.committeeMember3}`]);
+    ws.addRow([`مدير المدرسة: ${record.directorName}`]);
+
+    ws.getColumn(1).width = 8;
+    ws.getColumn(2).width = 30;
+    ws.getColumn(3).width = 12;
+    ws.getColumn(4).width = 25;
+    ws.getColumn(5).width = 25;
+
+    const buffer = await wb.xlsx.writeBuffer();
+    saveAs(new Blob([buffer]), `قائمة_إتلاف_${record.category}_${record.date}.xlsx`);
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <ClipboardList className="w-5 h-5 text-destructive" />
+            إنشاء قائمة إتلاف جديدة
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>التصنيف</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {INVENTORY_CATEGORIES.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.icon} {c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>عضو لجنة إضافي</Label>
+              <Input value={committeeMember3} onChange={e => setCommitteeMember3(e.target.value)} placeholder="اسم العضو الثالث" />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Label className="font-bold">المواد المراد إتلافها</Label>
+            <Button size="sm" onClick={addItem}><Plus className="w-4 h-4 ml-1" /> إضافة مادة</Button>
+          </div>
+
+          {items.length > 0 && (
+            <div className="border rounded-lg overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12 text-center">م</TableHead>
+                    <TableHead>اسم المادة</TableHead>
+                    <TableHead className="w-20 text-center">الكمية</TableHead>
+                    <TableHead>سبب الإتلاف</TableHead>
+                    <TableHead>ملاحظات</TableHead>
+                    <TableHead className="w-12"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {items.map(item => (
+                    <TableRow key={item.id}>
+                      <TableCell className="text-center">{item.serialNumber}</TableCell>
+                      <TableCell>
+                        <Input value={item.itemName} onChange={e => updateItem(item.id, "itemName", e.target.value)} className="h-8" />
+                      </TableCell>
+                      <TableCell>
+                        <Input type="number" min={0} value={item.quantity} onChange={e => updateItem(item.id, "quantity", Number(e.target.value))} className="h-8 text-center" />
+                      </TableCell>
+                      <TableCell>
+                        <Input value={item.reason} onChange={e => updateItem(item.id, "reason", e.target.value)} className="h-8" />
+                      </TableCell>
+                      <TableCell>
+                        <Input value={item.notes} onChange={e => updateItem(item.id, "notes", e.target.value)} className="h-8" />
+                      </TableCell>
+                      <TableCell>
+                        <Button size="icon" variant="ghost" onClick={() => removeItem(item.id)} className="h-7 w-7 text-destructive">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <Button onClick={saveDisposal} disabled={items.length === 0}>
+              <Save className="w-4 h-4 ml-2" /> حفظ قائمة الإتلاف
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* History */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2 cursor-pointer" onClick={() => setShowHistory(!showHistory)}>
+            <History className="w-5 h-5" />
+            قوائم الإتلاف المحفوظة ({records.length})
+          </CardTitle>
+        </CardHeader>
+        {showHistory && (
+          <CardContent className="space-y-3">
+            {records.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">لا توجد قوائم محفوظة</p>
+            ) : (
+              records.map(record => (
+                <div key={record.id} className="border rounded-lg p-3 flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{record.category} - {record.date}</p>
+                    <p className="text-sm text-muted-foreground">{record.items.length} مادة</p>
+                    <p className="text-xs text-muted-foreground">
+                      اللجنة: {record.committeeMember1} ، {record.committeeMember2}
+                      {record.committeeMember3 ? ` ، ${record.committeeMember3}` : ""}
+                    </p>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => exportDisposalExcel(record)}>
+                    <FileDown className="w-4 h-4 ml-1" /> تصدير
+                  </Button>
+                </div>
+              ))
+            )}
+          </CardContent>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+// ─── Admin Forms Section ───
+function AdminFormsSection({ schoolName, directorName }: { schoolName: string; directorName: string }) {
+  const { toast } = useToast();
+
+  // Interrogation form
+  const [interEmployeeName, setInterEmployeeName] = useState("");
+  const [interDate, setInterDate] = useState("");
+  const [interSubject, setInterSubject] = useState("");
+  const [interDetails, setInterDetails] = useState("");
+
+  // Casual leave
+  const [leaveEmployeeName, setLeaveEmployeeName] = useState("");
+  const [leaveDate, setLeaveDate] = useState("");
+  const [leaveReason, setLeaveReason] = useState("");
+
+  // Non-payment
+  const [noPayName, setNoPayName] = useState("");
+  const [noPayDate, setNoPayDate] = useState("");
+  const [noPayReason, setNoPayReason] = useState("");
+  const [noPayAmount, setNoPayAmount] = useState("");
+
+  const handleInterrogation = async () => {
+    if (!interEmployeeName.trim()) {
+      toast({ title: "أدخل اسم الموظف", variant: "destructive" });
+      return;
+    }
+    try {
+      await fillInterrogationForm({
+        school: schoolName,
+        employeeName: interEmployeeName,
+        date: interDate,
+        subject: interSubject,
+        details: interDetails,
+        directorName,
+      });
+      toast({ title: "تم تنزيل نموذج الاستجواب" });
+    } catch (e) {
+      toast({ title: "خطأ", description: String(e), variant: "destructive" });
+    }
+  };
+
+  const handleCasualLeave = async () => {
+    if (!leaveEmployeeName.trim()) {
+      toast({ title: "أدخل اسم الموظف", variant: "destructive" });
+      return;
+    }
+    try {
+      await fillCasualLeaveForm({
+        school: schoolName,
+        employeeName: leaveEmployeeName,
+        date: leaveDate,
+        reason: leaveReason,
+        directorName,
+      });
+      toast({ title: "تم تنزيل نموذج الإجازة العرضية" });
+    } catch (e) {
+      toast({ title: "خطأ", description: String(e), variant: "destructive" });
+    }
+  };
+
+  const handleNoPayment = async () => {
+    if (!noPayName.trim()) {
+      toast({ title: "أدخل اسم الموظف", variant: "destructive" });
+      return;
+    }
+    try {
+      await fillNoPaymentForm({
+        school: schoolName,
+        employeeName: noPayName,
+        date: noPayDate,
+        reason: noPayReason,
+        amount: noPayAmount,
+        directorName,
+      });
+      toast({ title: "تم تنزيل نموذج عدم الصرف" });
+    } catch (e) {
+      toast({ title: "خطأ", description: String(e), variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Interrogation */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">📋 نموذج استجواب</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>اسم الموظف</Label>
+              <Input value={interEmployeeName} onChange={e => setInterEmployeeName(e.target.value)} placeholder="الاسم الكامل" />
+            </div>
+            <div className="space-y-1">
+              <Label>التاريخ</Label>
+              <Input value={interDate} onChange={e => setInterDate(e.target.value)} placeholder="التاريخ" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label>الموضوع</Label>
+            <Input value={interSubject} onChange={e => setInterSubject(e.target.value)} placeholder="موضوع الاستجواب" />
+          </div>
+          <div className="space-y-1">
+            <Label>التفاصيل</Label>
+            <Textarea value={interDetails} onChange={e => setInterDetails(e.target.value)} rows={3} placeholder="تفاصيل الاستجواب" />
+          </div>
+          <Button onClick={handleInterrogation}><FileDown className="w-4 h-4 ml-2" /> تنزيل نموذج الاستجواب</Button>
+        </CardContent>
+      </Card>
+
+      {/* Casual Leave */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">🏖️ نموذج إجازة عرضية</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>اسم الموظف</Label>
+              <Input value={leaveEmployeeName} onChange={e => setLeaveEmployeeName(e.target.value)} placeholder="الاسم الكامل" />
+            </div>
+            <div className="space-y-1">
+              <Label>التاريخ</Label>
+              <Input value={leaveDate} onChange={e => setLeaveDate(e.target.value)} placeholder="التاريخ" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label>سبب الإجازة</Label>
+            <Textarea value={leaveReason} onChange={e => setLeaveReason(e.target.value)} rows={2} placeholder="السبب" />
+          </div>
+          <Button onClick={handleCasualLeave}><FileDown className="w-4 h-4 ml-2" /> تنزيل نموذج الإجازة</Button>
+        </CardContent>
+      </Card>
+
+      {/* Non-payment */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">🚫 نموذج عدم صرف</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>اسم الموظف</Label>
+              <Input value={noPayName} onChange={e => setNoPayName(e.target.value)} placeholder="الاسم الكامل" />
+            </div>
+            <div className="space-y-1">
+              <Label>التاريخ</Label>
+              <Input value={noPayDate} onChange={e => setNoPayDate(e.target.value)} placeholder="التاريخ" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>المبلغ</Label>
+              <Input value={noPayAmount} onChange={e => setNoPayAmount(e.target.value)} placeholder="المبلغ" />
+            </div>
+            <div className="space-y-1">
+              <Label>السبب</Label>
+              <Input value={noPayReason} onChange={e => setNoPayReason(e.target.value)} placeholder="سبب عدم الصرف" />
+            </div>
+          </div>
+          <Button onClick={handleNoPayment}><FileDown className="w-4 h-4 ml-2" /> تنزيل نموذج عدم الصرف</Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Main Page ───
+export default function SecretaryPage() {
+  const { user, schoolName: authSchoolName } = useAuth();
+  const { state } = useFinance();
+  const userId = user?.id || "anonymous";
+  const school = authSchoolName || state.schoolName || "المدرسة";
+  const directorName = state.directorName || "";
+  const member1 = state.member1Name || "";
+  const member2 = state.member2Name || "";
+
+  const [mainTab, setMainTab] = useState("inventory");
+
+  return (
+    <AppLayout>
+      <div className="space-y-6" dir="rtl">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">السكرتير</h1>
+          <p className="text-muted-foreground text-sm">إدارة الجرد والإتلاف والنماذج الإدارية</p>
+        </div>
+
+        <Tabs value={mainTab} onValueChange={setMainTab}>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="inventory">📦 الجرد</TabsTrigger>
+            <TabsTrigger value="disposal">🗑️ الإتلاف</TabsTrigger>
+            <TabsTrigger value="forms">📄 النماذج</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="inventory" className="mt-4">
+            <Tabs defaultValue={INVENTORY_CATEGORIES[0].id}>
+              <TabsList className="flex flex-wrap h-auto gap-1">
+                {INVENTORY_CATEGORIES.map(c => (
+                  <TabsTrigger key={c.id} value={c.id} className="text-xs">
+                    {c.icon} {c.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              {INVENTORY_CATEGORIES.map(c => (
+                <TabsContent key={c.id} value={c.id} className="mt-4">
+                  <InventoryTab category={c} userId={userId} schoolName={school} />
+                </TabsContent>
+              ))}
+            </Tabs>
+          </TabsContent>
+
+          <TabsContent value="disposal" className="mt-4">
+            <DisposalSection
+              userId={userId}
+              schoolName={school}
+              directorName={directorName}
+              member1={member1}
+              member2={member2}
+            />
+          </TabsContent>
+
+          <TabsContent value="forms" className="mt-4">
+            <AdminFormsSection schoolName={school} directorName={directorName} />
+          </TabsContent>
+        </Tabs>
+      </div>
+    </AppLayout>
+  );
+}
