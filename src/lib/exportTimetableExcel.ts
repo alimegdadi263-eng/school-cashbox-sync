@@ -174,7 +174,7 @@ export async function exportMalhafaExcel(
 
   // A3 paper setup
   ws.pageSetup = {
-    paperSize: 8, // A3
+    paperSize: 8 as any, // A3
     orientation: "landscape" as any,
     fitToPage: true,
     fitToWidth: 1,

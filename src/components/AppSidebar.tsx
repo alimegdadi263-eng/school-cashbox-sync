@@ -60,6 +60,7 @@ export default function AppSidebar() {
       ],
     },
     { path: "/timetable", label: "الجدول المدرسي", icon: CalendarDays },
+    { path: "/secretary", label: "السكرتير", icon: Archive },
     { path: "/instructions", label: "التعليمات", icon: CircleHelp },
     { path: "/settings", label: "الإعدادات", icon: Settings },
     ...(isAdmin ? [
