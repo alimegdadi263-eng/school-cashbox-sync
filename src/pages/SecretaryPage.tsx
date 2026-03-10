@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
+import PizZip from "pizzip";
 import {
   fillInterrogationForm, fillCasualLeaveForm, fillNoPaymentForm, exportInventoryCustodyDocx,
   type InventoryCustodyItem,
@@ -117,6 +118,7 @@ function InventoryTab({ category, userId, schoolName, directorName, committeeMem
   const [items, setItems] = useState<InventoryItem[]>([]);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const wordInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setItems(loadInventory(userId, category.id));
@@ -234,9 +236,64 @@ function InventoryTab({ category, userId, schoolName, directorName, committeeMem
       items: custodyItems,
       directorName,
       committeeMember,
+      custodian: "",
       date: new Date().toLocaleDateString("ar"),
     });
     toast({ title: "تم تصدير نموذج الجرد (Word)" });
+  };
+
+  const importWord = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const zip = new PizZip(arrayBuffer);
+      const xml = zip.file("word/document.xml")?.asText();
+      if (!xml) throw new Error("ملف غير صالح");
+
+      // Parse table rows from XML
+      const imported: InventoryItem[] = [];
+      const rowMatches = xml.match(/<w:tr\b[^>]*>[\s\S]*?<\/w:tr>/g);
+      if (rowMatches) {
+        let headerFound = false;
+        for (const rowXml of rowMatches) {
+          const cellTexts: string[] = [];
+          const cellMatches = rowXml.match(/<w:tc\b[^>]*>[\s\S]*?<\/w:tc>/g);
+          if (cellMatches) {
+            for (const cellXml of cellMatches) {
+              const textParts = cellXml.match(/<w:t[^>]*>([^<]*)<\/w:t>/g);
+              const text = textParts ? textParts.map(t => t.replace(/<[^>]*>/g, "")).join("") : "";
+              cellTexts.push(text.trim());
+            }
+          }
+          // Detect header row
+          if (cellTexts.some(t => t.includes("اللوازم") || t.includes("السجل"))) {
+            headerFound = true;
+            continue;
+          }
+          if (!headerFound) continue;
+          const name = cellTexts[1] || cellTexts[0] || "";
+          if (!name.trim() || name === "") continue;
+          imported.push({
+            id: generateId(),
+            serialNumber: imported.length + 1,
+            itemName: name,
+            actualBalance: Number(cellTexts[2]) || 0,
+            existing: Number(cellTexts[3]) || 0,
+            shortage: Number(cellTexts[4]) || 0,
+            surplus: Number(cellTexts[5]) || 0,
+            unitPrice: Number(cellTexts[6]) || 0,
+            totalPrice: Number(cellTexts[7]) || 0,
+          });
+        }
+      }
+      if (imported.length === 0) throw new Error("لم يتم العثور على بيانات في الملف");
+      save(imported);
+      toast({ title: "تم الاستيراد", description: `تم استيراد ${imported.length} عنصر من Word` });
+    } catch (err) {
+      toast({ title: "خطأ في الاستيراد", description: String(err), variant: "destructive" });
+    }
+    if (wordInputRef.current) wordInputRef.current.value = "";
   };
 
   const importExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -293,6 +350,10 @@ function InventoryTab({ category, userId, schoolName, directorName, committeeMem
             <FileUp className="w-4 h-4 ml-1" /> استيراد Excel
           </Button>
           <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={importExcel} />
+          <Button size="sm" variant="outline" onClick={() => wordInputRef.current?.click()}>
+            <FileUp className="w-4 h-4 ml-1" /> استيراد Word
+          </Button>
+          <input ref={wordInputRef} type="file" accept=".docx" className="hidden" onChange={importWord} />
           <Button size="sm" variant="outline" onClick={exportExcel} disabled={items.length === 0}>
             <FileDown className="w-4 h-4 ml-1" /> تصدير Excel
           </Button>
@@ -586,23 +647,26 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
 
   // Interrogation form
   const [interEmployeeName, setInterEmployeeName] = useState("");
-  const [interDate, setInterDate] = useState("");
   const [interSubject, setInterSubject] = useState("");
   const [interDetails, setInterDetails] = useState("");
+  const [interJobTitle, setInterJobTitle] = useState("");
+  const [interCategory, setInterCategory] = useState("");
 
   // Casual leave
   const [leaveEmployeeName, setLeaveEmployeeName] = useState("");
   const [leaveEmployeeNumber, setLeaveEmployeeNumber] = useState("");
   const [leaveJobTitle, setLeaveJobTitle] = useState("");
   const [leaveDirectorate, setLeaveDirectorate] = useState("");
-  const [leaveDate, setLeaveDate] = useState("");
   const [leaveReason, setLeaveReason] = useState("");
+  const [leaveStartDate, setLeaveStartDate] = useState("");
+  const [leaveEndDate, setLeaveEndDate] = useState("");
+  const [leaveDaysEntitled, setLeaveDaysEntitled] = useState("");
+  const [leaveTotalThisYear, setLeaveTotalThisYear] = useState("");
 
   // Non-payment
   const [noPayName, setNoPayName] = useState("");
   const [noPayDate, setNoPayDate] = useState("");
   const [noPayReason, setNoPayReason] = useState("");
-  const [noPayDays, setNoPayDays] = useState("");
 
   const handleInterrogation = async () => {
     if (!interEmployeeName.trim()) {
@@ -612,8 +676,11 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
     try {
       await fillInterrogationForm({
         school: schoolName,
+        directorate: "",
         employeeName: interEmployeeName,
-        date: interDate,
+        category: interCategory,
+        jobTitle: interJobTitle,
+        previousPenalties: "",
         subject: interSubject,
         details: interDetails,
         directorName,
@@ -632,12 +699,20 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
     try {
       await fillCasualLeaveForm({
         school: schoolName,
+        directorate: leaveDirectorate,
         employeeName: leaveEmployeeName,
         employeeNumber: leaveEmployeeNumber,
         jobTitle: leaveJobTitle,
-        directorate: leaveDirectorate,
-        date: leaveDate,
-        reason: leaveReason,
+        section: "",
+        department: schoolName,
+        leaveReason: leaveReason,
+        deathRelation: "",
+        otherReasons: leaveReason,
+        daysEntitled: leaveDaysEntitled,
+        totalLeavesThisYear: leaveTotalThisYear,
+        startDate: leaveStartDate,
+        endDate: leaveEndDate,
+        notes: "",
         directorName,
       });
       toast({ title: "تم تنزيل نموذج الإجازة العرضية" });
@@ -654,10 +729,12 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
     try {
       await fillNoPaymentForm({
         school: schoolName,
+        directorate: "",
         employeeName: noPayName,
         date: noPayDate,
+        refNumber: "",
         reason: noPayReason,
-        daysAbsent: noPayDays,
+        daysAbsent: "",
         directorName,
       });
       toast({ title: "تم تنزيل نموذج عدم الصرف" });
@@ -674,19 +751,23 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
           <CardTitle className="text-lg">📋 نموذج استجواب</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="space-y-1">
               <Label>اسم الموظف</Label>
-              <Input value={interEmployeeName} onChange={e => setInterEmployeeName(e.target.value)} placeholder="الاسم الكامل" />
+              <Input value={interEmployeeName} onChange={e => setInterEmployeeName(e.target.value)} placeholder="الاسم الكامل من أربع مقاطع" />
             </div>
             <div className="space-y-1">
-              <Label>التاريخ</Label>
-              <Input value={interDate} onChange={e => setInterDate(e.target.value)} placeholder="التاريخ" />
+              <Label>الفئة / الدرجة</Label>
+              <Input value={interCategory} onChange={e => setInterCategory(e.target.value)} placeholder="الفئة / الدرجة" />
+            </div>
+            <div className="space-y-1">
+              <Label>الوظيفة</Label>
+              <Input value={interJobTitle} onChange={e => setInterJobTitle(e.target.value)} placeholder="الوظيفة" />
             </div>
           </div>
           <div className="space-y-1">
             <Label>الموضوع</Label>
-            <Input value={interSubject} onChange={e => setInterSubject(e.target.value)} placeholder="موضوع الاستجواب" />
+            <Input value={interSubject} onChange={e => setInterSubject(e.target.value)} placeholder="موضوع الاستفسار" />
           </div>
           <div className="space-y-1">
             <Label>التفاصيل</Label>
@@ -722,13 +803,27 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
               <Input value={leaveDirectorate} onChange={e => setLeaveDirectorate(e.target.value)} placeholder="المديرية" />
             </div>
             <div className="space-y-1">
-              <Label>التاريخ</Label>
-              <Input value={leaveDate} onChange={e => setLeaveDate(e.target.value)} placeholder="التاريخ" />
+              <Label>سبب الإجازة</Label>
+              <Input value={leaveReason} onChange={e => setLeaveReason(e.target.value)} placeholder="سبب الإجازة" />
             </div>
           </div>
-          <div className="space-y-1">
-            <Label>سبب الإجازة</Label>
-            <Textarea value={leaveReason} onChange={e => setLeaveReason(e.target.value)} rows={2} placeholder="السبب" />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="space-y-1">
+              <Label>تاريخ ابتداء الإجازة</Label>
+              <Input value={leaveStartDate} onChange={e => setLeaveStartDate(e.target.value)} placeholder="  /  /  " />
+            </div>
+            <div className="space-y-1">
+              <Label>تاريخ انتهاء الإجازة</Label>
+              <Input value={leaveEndDate} onChange={e => setLeaveEndDate(e.target.value)} placeholder="  /  /  " />
+            </div>
+            <div className="space-y-1">
+              <Label>عدد الأيام المستحقة</Label>
+              <Input value={leaveDaysEntitled} onChange={e => setLeaveDaysEntitled(e.target.value)} placeholder="عدد الأيام" />
+            </div>
+            <div className="space-y-1">
+              <Label>مجموع الإجازات هذا العام</Label>
+              <Input value={leaveTotalThisYear} onChange={e => setLeaveTotalThisYear(e.target.value)} placeholder="المجموع" />
+            </div>
           </div>
           <Button onClick={handleCasualLeave}><FileDown className="w-4 h-4 ml-2" /> تنزيل نموذج الإجازة</Button>
         </CardContent>
@@ -751,10 +846,6 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label>عدد أيام الغياب</Label>
-              <Input value={noPayDays} onChange={e => setNoPayDays(e.target.value)} placeholder="عدد الأيام" />
-            </div>
             <div className="space-y-1">
               <Label>السبب</Label>
               <Input value={noPayReason} onChange={e => setNoPayReason(e.target.value)} placeholder="سبب التغيب" />
