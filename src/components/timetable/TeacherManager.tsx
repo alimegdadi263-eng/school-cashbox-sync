@@ -78,10 +78,10 @@ export default function TeacherManager() {
     }
 
     if (editingTeacher) {
-      updateTeacher({ ...editingTeacher, name: name.trim(), subjects });
+      updateTeacher({ ...editingTeacher, name: name.trim(), subjects, blockedPeriods });
       toast({ title: "تم تحديث المعلم بنجاح" });
     } else {
-      addTeacher({ id: crypto.randomUUID(), name: name.trim(), subjects });
+      addTeacher({ id: crypto.randomUUID(), name: name.trim(), subjects, blockedPeriods });
       toast({ title: "تم إضافة المعلم بنجاح" });
     }
     setDialogOpen(false);
