@@ -145,7 +145,7 @@ export async function fillInterrogationForm(data: InterrogationData) {
         page: { size: { width: 12240, height: 15840 }, margin: { top: 720, bottom: 720, left: 900, right: 900 } },
       },
       children: [
-        // Header
+        logoHeader(logo),
         para([
           tr("ديوان الخدمة المدنية", { bold: true, size: TITLE_SIZE }),
           tr("                                        "),
