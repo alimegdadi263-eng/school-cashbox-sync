@@ -110,6 +110,7 @@ export interface InterrogationData {
 }
 
 export async function fillInterrogationForm(data: InterrogationData) {
+  const logo = await getLogoBuffer();
   // Part 1 table
   const part1Table = new Table({
     rows: [
