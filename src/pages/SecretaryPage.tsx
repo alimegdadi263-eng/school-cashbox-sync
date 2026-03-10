@@ -815,11 +815,31 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div className="space-y-1">
               <Label>تاريخ ابتداء الإجازة</Label>
-              <Input value={leaveStartDate} onChange={e => setLeaveStartDate(e.target.value)} placeholder="  /  /  " />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-right h-9", !leaveStartDate && "text-muted-foreground")}>
+                    <CalendarIcon className="ml-2 h-4 w-4" />
+                    {leaveStartDate ? format(leaveStartDate, "yyyy/MM/dd") : "اختر التاريخ"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={leaveStartDate} onSelect={setLeaveStartDate} />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-1">
               <Label>تاريخ انتهاء الإجازة</Label>
-              <Input value={leaveEndDate} onChange={e => setLeaveEndDate(e.target.value)} placeholder="  /  /  " />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-right h-9", !leaveEndDate && "text-muted-foreground")}>
+                    <CalendarIcon className="ml-2 h-4 w-4" />
+                    {leaveEndDate ? format(leaveEndDate, "yyyy/MM/dd") : "اختر التاريخ"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={leaveEndDate} onSelect={setLeaveEndDate} />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-1">
               <Label>عدد الأيام المستحقة</Label>
