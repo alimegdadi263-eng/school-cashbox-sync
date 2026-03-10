@@ -519,6 +519,7 @@ export async function exportInventoryCustodyDocx(data: InventoryCustodyData) {
         page: { size: { width: 12240, height: 15840 }, margin: { top: 720, bottom: 500, left: 720, right: 720 } },
       },
       children: [
+        logoHeader(logo),
         para([tr("وزارة التربية والتعليم", { bold: true, size: TITLE_SIZE })], AlignmentType.CENTER),
         para([tr(`نموذج جرد مستودعات المدارس ( ${data.categoryLabel} )`, { bold: true, size: BIG_TITLE, underline: true })], AlignmentType.CENTER),
         emptyLine(40),
