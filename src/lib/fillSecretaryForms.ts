@@ -234,6 +234,7 @@ export interface CasualLeaveData {
 }
 
 export async function fillCasualLeaveForm(data: CasualLeaveData) {
+  const logo = await getLogoBuffer();
   // Employee info table
   const infoTable = new Table({
     rows: [
@@ -285,7 +286,7 @@ export async function fillCasualLeaveForm(data: CasualLeaveData) {
         page: { size: { width: 12240, height: 15840 }, margin: { top: 720, bottom: 720, left: 900, right: 900 } },
       },
       children: [
-        // Header
+        logoHeader(logo),
         para([tr("المملكة الأردنية الهاشمية", { bold: true, size: TITLE_SIZE })], AlignmentType.CENTER),
         para([tr("نموذج إجازة عرضية", { bold: true, size: BIG_TITLE, underline: true })], AlignmentType.CENTER, { before: 100 }),
         emptyLine(40),
