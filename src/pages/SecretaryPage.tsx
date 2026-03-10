@@ -235,9 +235,64 @@ function InventoryTab({ category, userId, schoolName, directorName, committeeMem
       items: custodyItems,
       directorName,
       committeeMember,
+      custodian: "",
       date: new Date().toLocaleDateString("ar"),
     });
     toast({ title: "تم تصدير نموذج الجرد (Word)" });
+  };
+
+  const importWord = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const zip = new PizZip(arrayBuffer);
+      const xml = zip.file("word/document.xml")?.asText();
+      if (!xml) throw new Error("ملف غير صالح");
+
+      // Parse table rows from XML
+      const imported: InventoryItem[] = [];
+      const rowMatches = xml.match(/<w:tr\b[^>]*>[\s\S]*?<\/w:tr>/g);
+      if (rowMatches) {
+        let headerFound = false;
+        for (const rowXml of rowMatches) {
+          const cellTexts: string[] = [];
+          const cellMatches = rowXml.match(/<w:tc\b[^>]*>[\s\S]*?<\/w:tc>/g);
+          if (cellMatches) {
+            for (const cellXml of cellMatches) {
+              const textParts = cellXml.match(/<w:t[^>]*>([^<]*)<\/w:t>/g);
+              const text = textParts ? textParts.map(t => t.replace(/<[^>]*>/g, "")).join("") : "";
+              cellTexts.push(text.trim());
+            }
+          }
+          // Detect header row
+          if (cellTexts.some(t => t.includes("اللوازم") || t.includes("السجل"))) {
+            headerFound = true;
+            continue;
+          }
+          if (!headerFound) continue;
+          const name = cellTexts[1] || cellTexts[0] || "";
+          if (!name.trim() || name === "") continue;
+          imported.push({
+            id: generateId(),
+            serialNumber: imported.length + 1,
+            itemName: name,
+            actualBalance: Number(cellTexts[2]) || 0,
+            existing: Number(cellTexts[3]) || 0,
+            shortage: Number(cellTexts[4]) || 0,
+            surplus: Number(cellTexts[5]) || 0,
+            unitPrice: Number(cellTexts[6]) || 0,
+            totalPrice: Number(cellTexts[7]) || 0,
+          });
+        }
+      }
+      if (imported.length === 0) throw new Error("لم يتم العثور على بيانات في الملف");
+      save(imported);
+      toast({ title: "تم الاستيراد", description: `تم استيراد ${imported.length} عنصر من Word` });
+    } catch (err) {
+      toast({ title: "خطأ في الاستيراد", description: String(err), variant: "destructive" });
+    }
+    if (wordInputRef.current) wordInputRef.current.value = "";
   };
 
   const importExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
