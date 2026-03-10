@@ -12,20 +12,26 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Plus, Trash2, FileDown, FileUp, FileText, ClipboardList, Package, Save, History, ScanLine,
+  Plus, Trash2, FileDown, FileUp, FileText, ClipboardList, Package, Save, History,
 } from "lucide-react";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
-import { fillInterrogationForm, fillCasualLeaveForm, fillNoPaymentForm } from "@/lib/fillSecretaryForms";
+import {
+  fillInterrogationForm, fillCasualLeaveForm, fillNoPaymentForm, exportInventoryCustodyDocx,
+  type InventoryCustodyItem,
+} from "@/lib/fillSecretaryForms";
 
 // ─── Types ───
 interface InventoryItem {
   id: string;
   serialNumber: number;
   itemName: string;
-  quantity: number;
-  condition: string;
-  notes: string;
+  actualBalance: number;
+  existing: number;
+  shortage: number;
+  surplus: number;
+  unitPrice: number;
+  totalPrice: number;
 }
 
 interface DisposalItem {
@@ -72,7 +78,20 @@ function generateId() {
 function loadInventory(userId: string, category: string): InventoryItem[] {
   try {
     const data = localStorage.getItem(`${STORAGE_KEY_PREFIX}${userId}_${category}`);
-    return data ? JSON.parse(data) : [];
+    if (!data) return [];
+    const parsed = JSON.parse(data);
+    // Migrate old format
+    return parsed.map((item: any) => ({
+      id: item.id || generateId(),
+      serialNumber: item.serialNumber || 1,
+      itemName: item.itemName || "",
+      actualBalance: item.actualBalance ?? item.quantity ?? 0,
+      existing: item.existing ?? item.quantity ?? 0,
+      shortage: item.shortage ?? 0,
+      surplus: item.surplus ?? 0,
+      unitPrice: item.unitPrice ?? 0,
+      totalPrice: item.totalPrice ?? 0,
+    }));
   } catch { return []; }
 }
 
@@ -92,7 +111,9 @@ function saveDisposals(userId: string, records: DisposalRecord[]) {
 }
 
 // ─── Inventory Tab Component ───
-function InventoryTab({ category, userId, schoolName }: { category: typeof INVENTORY_CATEGORIES[0]; userId: string; schoolName: string }) {
+function InventoryTab({ category, userId, schoolName, directorName, committeeMember }: {
+  category: typeof INVENTORY_CATEGORIES[0]; userId: string; schoolName: string; directorName: string; committeeMember: string;
+}) {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -111,15 +132,31 @@ function InventoryTab({ category, userId, schoolName }: { category: typeof INVEN
       id: generateId(),
       serialNumber: items.length + 1,
       itemName: "",
-      quantity: 1,
-      condition: "جيد",
-      notes: "",
+      actualBalance: 0,
+      existing: 0,
+      shortage: 0,
+      surplus: 0,
+      unitPrice: 0,
+      totalPrice: 0,
     };
     save([...items, newItem]);
   };
 
   const updateItem = (id: string, field: keyof InventoryItem, value: string | number) => {
-    save(items.map(item => item.id === id ? { ...item, [field]: value } : item));
+    save(items.map(item => {
+      if (item.id !== id) return item;
+      const updated = { ...item, [field]: value };
+      // Auto-calc shortage/surplus/total
+      if (field === "actualBalance" || field === "existing") {
+        const diff = Number(updated.existing) - Number(updated.actualBalance);
+        updated.shortage = diff < 0 ? Math.abs(diff) : 0;
+        updated.surplus = diff > 0 ? diff : 0;
+      }
+      if (field === "unitPrice" || field === "shortage") {
+        updated.totalPrice = Number(updated.shortage) * Number(updated.unitPrice);
+      }
+      return updated;
+    }));
   };
 
   const removeItem = (id: string) => {
@@ -132,13 +169,19 @@ function InventoryTab({ category, userId, schoolName }: { category: typeof INVEN
     const ws = wb.addWorksheet(category.label);
     ws.views = [{ rightToLeft: true }];
 
-    const titleRow = ws.addRow([`${schoolName} - جرد ${category.label}`]);
-    ws.mergeCells(1, 1, 1, 5);
-    titleRow.getCell(1).font = { name: FONT_NAME, bold: true, size: 16 };
-    titleRow.getCell(1).alignment = { horizontal: "center" };
+    // Header
+    ws.addRow(["وزارة التربية والتعليم"]);
+    ws.mergeCells(1, 1, 1, 8);
+    ws.getRow(1).getCell(1).font = { name: FONT_NAME, bold: true, size: 14 };
+    ws.getRow(1).getCell(1).alignment = { horizontal: "center" };
+
+    ws.addRow([`${schoolName} - جرد ${category.label}`]);
+    ws.mergeCells(2, 1, 2, 8);
+    ws.getRow(2).getCell(1).font = { name: FONT_NAME, bold: true, size: 14 };
+    ws.getRow(2).getCell(1).alignment = { horizontal: "center" };
     ws.addRow([]);
 
-    const headers = ["م", "اسم المادة", "الكمية", "الحالة", "ملاحظات"];
+    const headers = ["رقم السجل", "اللوازم", "الرصيد الفعلي", "الموجود", "النقص", "الزيادة", "السعر الإفرادي", "السعر الإجمالي"];
     const hRow = ws.addRow(headers);
     hRow.eachCell(c => {
       c.font = { name: FONT_NAME, bold: true, size: 12, color: { argb: "FFFFFFFF" } };
@@ -148,7 +191,10 @@ function InventoryTab({ category, userId, schoolName }: { category: typeof INVEN
     });
 
     items.forEach(item => {
-      const row = ws.addRow([item.serialNumber, item.itemName, item.quantity, item.condition, item.notes]);
+      const row = ws.addRow([
+        item.serialNumber, item.itemName, item.actualBalance, item.existing,
+        item.shortage, item.surplus, item.unitPrice, item.totalPrice,
+      ]);
       row.eachCell(c => {
         c.font = { name: FONT_NAME, size: 11 };
         c.alignment = { horizontal: "center", vertical: "middle" };
@@ -156,15 +202,41 @@ function InventoryTab({ category, userId, schoolName }: { category: typeof INVEN
       });
     });
 
-    ws.getColumn(1).width = 8;
+    ws.getColumn(1).width = 10;
     ws.getColumn(2).width = 30;
-    ws.getColumn(3).width = 12;
-    ws.getColumn(4).width = 15;
-    ws.getColumn(5).width = 25;
+    ws.getColumn(3).width = 14;
+    ws.getColumn(4).width = 12;
+    ws.getColumn(5).width = 10;
+    ws.getColumn(6).width = 10;
+    ws.getColumn(7).width = 14;
+    ws.getColumn(8).width = 14;
 
     const buffer = await wb.xlsx.writeBuffer();
     saveAs(new Blob([buffer]), `جرد_${category.label}_${schoolName}.xlsx`);
     toast({ title: "تم التصدير بنجاح" });
+  };
+
+  const exportDocx = async () => {
+    const custodyItems: InventoryCustodyItem[] = items.map(item => ({
+      serialNumber: item.serialNumber,
+      itemName: item.itemName,
+      actualBalance: item.actualBalance,
+      existing: item.existing,
+      shortage: item.shortage,
+      surplus: item.surplus,
+      unitPrice: item.unitPrice,
+      totalPrice: item.totalPrice,
+    }));
+    await exportInventoryCustodyDocx({
+      school: schoolName,
+      directorate: "",
+      categoryLabel: category.label,
+      items: custodyItems,
+      directorName,
+      committeeMember,
+      date: new Date().toLocaleDateString("ar"),
+    });
+    toast({ title: "تم تصدير نموذج الجرد (Word)" });
   };
 
   const importExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -179,10 +251,9 @@ function InventoryTab({ category, userId, schoolName }: { category: typeof INVEN
 
       const imported: InventoryItem[] = [];
       let startRow = 1;
-      // Find header row
       ws.eachRow((row, rowNumber) => {
         const val = row.getCell(1).value?.toString() || "";
-        if (val === "م" || val === "الرقم") startRow = rowNumber + 1;
+        if (val === "رقم السجل" || val === "م" || val === "الرقم") startRow = rowNumber + 1;
       });
 
       ws.eachRow((row, rowNumber) => {
@@ -193,9 +264,12 @@ function InventoryTab({ category, userId, schoolName }: { category: typeof INVEN
           id: generateId(),
           serialNumber: imported.length + 1,
           itemName: name,
-          quantity: Number(row.getCell(3).value) || 1,
-          condition: row.getCell(4).value?.toString() || "جيد",
-          notes: row.getCell(5).value?.toString() || "",
+          actualBalance: Number(row.getCell(3).value) || 0,
+          existing: Number(row.getCell(4).value) || 0,
+          shortage: Number(row.getCell(5).value) || 0,
+          surplus: Number(row.getCell(6).value) || 0,
+          unitPrice: Number(row.getCell(7).value) || 0,
+          totalPrice: Number(row.getCell(8).value) || 0,
         });
       });
 
@@ -222,6 +296,9 @@ function InventoryTab({ category, userId, schoolName }: { category: typeof INVEN
           <Button size="sm" variant="outline" onClick={exportExcel} disabled={items.length === 0}>
             <FileDown className="w-4 h-4 ml-1" /> تصدير Excel
           </Button>
+          <Button size="sm" variant="outline" onClick={exportDocx} disabled={items.length === 0}>
+            <FileText className="w-4 h-4 ml-1" /> تصدير Word
+          </Button>
           <Button size="sm" onClick={addItem}>
             <Plus className="w-4 h-4 ml-1" /> إضافة
           </Button>
@@ -233,11 +310,14 @@ function InventoryTab({ category, userId, schoolName }: { category: typeof INVEN
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12 text-center">م</TableHead>
-                <TableHead>اسم المادة</TableHead>
-                <TableHead className="w-20 text-center">الكمية</TableHead>
-                <TableHead className="w-28 text-center">الحالة</TableHead>
-                <TableHead>ملاحظات</TableHead>
+                <TableHead className="w-12 text-center">رقم</TableHead>
+                <TableHead>اللوازم</TableHead>
+                <TableHead className="w-20 text-center">الرصيد الفعلي</TableHead>
+                <TableHead className="w-20 text-center">الموجود</TableHead>
+                <TableHead className="w-16 text-center">النقص</TableHead>
+                <TableHead className="w-16 text-center">الزيادة</TableHead>
+                <TableHead className="w-20 text-center">السعر الإفرادي</TableHead>
+                <TableHead className="w-20 text-center">السعر الإجمالي</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
@@ -246,43 +326,20 @@ function InventoryTab({ category, userId, schoolName }: { category: typeof INVEN
                 <TableRow key={item.id}>
                   <TableCell className="text-center font-medium">{item.serialNumber}</TableCell>
                   <TableCell>
-                    <Input
-                      value={item.itemName}
-                      onChange={e => updateItem(item.id, "itemName", e.target.value)}
-                      className="h-8"
-                      placeholder="اسم المادة"
-                    />
+                    <Input value={item.itemName} onChange={e => updateItem(item.id, "itemName", e.target.value)} className="h-8" placeholder="اسم المادة" />
                   </TableCell>
                   <TableCell>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={item.quantity}
-                      onChange={e => updateItem(item.id, "quantity", Number(e.target.value))}
-                      className="h-8 text-center"
-                    />
+                    <Input type="number" min={0} value={item.actualBalance} onChange={e => updateItem(item.id, "actualBalance", Number(e.target.value))} className="h-8 text-center" />
                   </TableCell>
                   <TableCell>
-                    <Select value={item.condition} onValueChange={v => updateItem(item.id, "condition", v)}>
-                      <SelectTrigger className="h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="جيد">جيد</SelectItem>
-                        <SelectItem value="متوسط">متوسط</SelectItem>
-                        <SelectItem value="تالف">تالف</SelectItem>
-                        <SelectItem value="يحتاج صيانة">يحتاج صيانة</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Input type="number" min={0} value={item.existing} onChange={e => updateItem(item.id, "existing", Number(e.target.value))} className="h-8 text-center" />
                   </TableCell>
+                  <TableCell className="text-center text-destructive font-medium">{item.shortage || ""}</TableCell>
+                  <TableCell className="text-center text-green-600 font-medium">{item.surplus || ""}</TableCell>
                   <TableCell>
-                    <Input
-                      value={item.notes}
-                      onChange={e => updateItem(item.id, "notes", e.target.value)}
-                      className="h-8"
-                      placeholder="ملاحظات"
-                    />
+                    <Input type="number" min={0} step={0.01} value={item.unitPrice} onChange={e => updateItem(item.id, "unitPrice", Number(e.target.value))} className="h-8 text-center" />
                   </TableCell>
+                  <TableCell className="text-center font-medium">{item.totalPrice ? item.totalPrice.toFixed(2) : ""}</TableCell>
                   <TableCell>
                     <Button size="icon" variant="ghost" onClick={() => removeItem(item.id)} className="h-7 w-7 text-destructive">
                       <Trash2 className="w-3.5 h-3.5" />
@@ -535,6 +592,9 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
 
   // Casual leave
   const [leaveEmployeeName, setLeaveEmployeeName] = useState("");
+  const [leaveEmployeeNumber, setLeaveEmployeeNumber] = useState("");
+  const [leaveJobTitle, setLeaveJobTitle] = useState("");
+  const [leaveDirectorate, setLeaveDirectorate] = useState("");
   const [leaveDate, setLeaveDate] = useState("");
   const [leaveReason, setLeaveReason] = useState("");
 
@@ -542,7 +602,7 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
   const [noPayName, setNoPayName] = useState("");
   const [noPayDate, setNoPayDate] = useState("");
   const [noPayReason, setNoPayReason] = useState("");
-  const [noPayAmount, setNoPayAmount] = useState("");
+  const [noPayDays, setNoPayDays] = useState("");
 
   const handleInterrogation = async () => {
     if (!interEmployeeName.trim()) {
@@ -573,6 +633,9 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
       await fillCasualLeaveForm({
         school: schoolName,
         employeeName: leaveEmployeeName,
+        employeeNumber: leaveEmployeeNumber,
+        jobTitle: leaveJobTitle,
+        directorate: leaveDirectorate,
         date: leaveDate,
         reason: leaveReason,
         directorName,
@@ -594,7 +657,7 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
         employeeName: noPayName,
         date: noPayDate,
         reason: noPayReason,
-        amount: noPayAmount,
+        daysAbsent: noPayDays,
         directorName,
       });
       toast({ title: "تم تنزيل نموذج عدم الصرف" });
@@ -627,7 +690,7 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
           </div>
           <div className="space-y-1">
             <Label>التفاصيل</Label>
-            <Textarea value={interDetails} onChange={e => setInterDetails(e.target.value)} rows={3} placeholder="تفاصيل الاستجواب" />
+            <Textarea value={interDetails} onChange={e => setInterDetails(e.target.value)} rows={3} placeholder="تفاصيل المخالفة" />
           </div>
           <Button onClick={handleInterrogation}><FileDown className="w-4 h-4 ml-2" /> تنزيل نموذج الاستجواب</Button>
         </CardContent>
@@ -643,6 +706,20 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
             <div className="space-y-1">
               <Label>اسم الموظف</Label>
               <Input value={leaveEmployeeName} onChange={e => setLeaveEmployeeName(e.target.value)} placeholder="الاسم الكامل" />
+            </div>
+            <div className="space-y-1">
+              <Label>الرقم الوزاري</Label>
+              <Input value={leaveEmployeeNumber} onChange={e => setLeaveEmployeeNumber(e.target.value)} placeholder="الرقم الوزاري" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <Label>المسمى الوظيفي</Label>
+              <Input value={leaveJobTitle} onChange={e => setLeaveJobTitle(e.target.value)} placeholder="المسمى الوظيفي" />
+            </div>
+            <div className="space-y-1">
+              <Label>المديرية</Label>
+              <Input value={leaveDirectorate} onChange={e => setLeaveDirectorate(e.target.value)} placeholder="المديرية" />
             </div>
             <div className="space-y-1">
               <Label>التاريخ</Label>
@@ -675,12 +752,12 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label>المبلغ</Label>
-              <Input value={noPayAmount} onChange={e => setNoPayAmount(e.target.value)} placeholder="المبلغ" />
+              <Label>عدد أيام الغياب</Label>
+              <Input value={noPayDays} onChange={e => setNoPayDays(e.target.value)} placeholder="عدد الأيام" />
             </div>
             <div className="space-y-1">
               <Label>السبب</Label>
-              <Input value={noPayReason} onChange={e => setNoPayReason(e.target.value)} placeholder="سبب عدم الصرف" />
+              <Input value={noPayReason} onChange={e => setNoPayReason(e.target.value)} placeholder="سبب التغيب" />
             </div>
           </div>
           <Button onClick={handleNoPayment}><FileDown className="w-4 h-4 ml-2" /> تنزيل نموذج عدم الصرف</Button>
@@ -728,7 +805,7 @@ export default function SecretaryPage() {
               </TabsList>
               {INVENTORY_CATEGORIES.map(c => (
                 <TabsContent key={c.id} value={c.id} className="mt-4">
-                  <InventoryTab category={c} userId={userId} schoolName={school} />
+                  <InventoryTab category={c} userId={userId} schoolName={school} directorName={directorName} committeeMember={member1} />
                 </TabsContent>
               ))}
             </Tabs>
