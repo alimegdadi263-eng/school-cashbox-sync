@@ -647,23 +647,26 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
 
   // Interrogation form
   const [interEmployeeName, setInterEmployeeName] = useState("");
-  const [interDate, setInterDate] = useState("");
   const [interSubject, setInterSubject] = useState("");
   const [interDetails, setInterDetails] = useState("");
+  const [interJobTitle, setInterJobTitle] = useState("");
+  const [interCategory, setInterCategory] = useState("");
 
   // Casual leave
   const [leaveEmployeeName, setLeaveEmployeeName] = useState("");
   const [leaveEmployeeNumber, setLeaveEmployeeNumber] = useState("");
   const [leaveJobTitle, setLeaveJobTitle] = useState("");
   const [leaveDirectorate, setLeaveDirectorate] = useState("");
-  const [leaveDate, setLeaveDate] = useState("");
   const [leaveReason, setLeaveReason] = useState("");
+  const [leaveStartDate, setLeaveStartDate] = useState("");
+  const [leaveEndDate, setLeaveEndDate] = useState("");
+  const [leaveDaysEntitled, setLeaveDaysEntitled] = useState("");
+  const [leaveTotalThisYear, setLeaveTotalThisYear] = useState("");
 
   // Non-payment
   const [noPayName, setNoPayName] = useState("");
   const [noPayDate, setNoPayDate] = useState("");
   const [noPayReason, setNoPayReason] = useState("");
-  const [noPayDays, setNoPayDays] = useState("");
 
   const handleInterrogation = async () => {
     if (!interEmployeeName.trim()) {
@@ -673,8 +676,11 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
     try {
       await fillInterrogationForm({
         school: schoolName,
+        directorate: "",
         employeeName: interEmployeeName,
-        date: interDate,
+        category: interCategory,
+        jobTitle: interJobTitle,
+        previousPenalties: "",
         subject: interSubject,
         details: interDetails,
         directorName,
@@ -693,12 +699,20 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
     try {
       await fillCasualLeaveForm({
         school: schoolName,
+        directorate: leaveDirectorate,
         employeeName: leaveEmployeeName,
         employeeNumber: leaveEmployeeNumber,
         jobTitle: leaveJobTitle,
-        directorate: leaveDirectorate,
-        date: leaveDate,
-        reason: leaveReason,
+        section: "",
+        department: schoolName,
+        leaveReason: leaveReason,
+        deathRelation: "",
+        otherReasons: leaveReason,
+        daysEntitled: leaveDaysEntitled,
+        totalLeavesThisYear: leaveTotalThisYear,
+        startDate: leaveStartDate,
+        endDate: leaveEndDate,
+        notes: "",
         directorName,
       });
       toast({ title: "تم تنزيل نموذج الإجازة العرضية" });
@@ -715,10 +729,12 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
     try {
       await fillNoPaymentForm({
         school: schoolName,
+        directorate: "",
         employeeName: noPayName,
         date: noPayDate,
+        refNumber: "",
         reason: noPayReason,
-        daysAbsent: noPayDays,
+        daysAbsent: "",
         directorName,
       });
       toast({ title: "تم تنزيل نموذج عدم الصرف" });
