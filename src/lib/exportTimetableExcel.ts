@@ -162,7 +162,7 @@ export async function exportFullSchoolTimetableExcel(
   saveAs(new Blob([buffer]), `الجدول_المدرسي_الكامل.xlsx`);
 }
 
-/** ملحفة - جدول شامل لجميع الصفوف في صفحة واحدة */
+/** ملحفة - جدول شامل لجميع الصفوف في صفحة واحدة A3 */
 export async function exportMalhafaExcel(
   timetable: ClassTimetable,
   periodsPerDay: number,
@@ -172,67 +172,78 @@ export async function exportMalhafaExcel(
   const ws = wb.addWorksheet("الملحفة");
   ws.views = [{ rightToLeft: true }];
 
+  // A3 paper setup
+  ws.pageSetup = {
+    paperSize: 8 as any, // A3
+    orientation: "landscape" as any,
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 1,
+    margins: { left: 0.2, right: 0.2, top: 0.3, bottom: 0.3, header: 0.1, footer: 0.1 },
+  };
+
   const sortedKeys = Object.keys(timetable).sort();
   const totalCols = DAYS.length * periodsPerDay + 1;
+  const classCount = sortedKeys.length;
+
+  // Dynamic font sizes based on class count
+  const titleSize = classCount > 15 ? 12 : 14;
+  const headerSize = classCount > 15 ? 8 : 9;
+  const cellSize = classCount > 15 ? 7 : 8;
+  const rowHeight = classCount > 20 ? 28 : classCount > 15 ? 32 : 36;
+  const colWidth = classCount > 15 ? 10 : 12;
 
   // Title row
   const titleRow = ws.addRow([`${schoolName} - الملحفة الدراسية`]);
   ws.mergeCells(1, 1, 1, totalCols);
   const titleCell = titleRow.getCell(1);
-  titleCell.font = { name: FONT_NAME, bold: true, size: 16, color: { argb: "FFFFFFFF" } };
+  titleCell.font = { name: FONT_NAME, bold: true, size: titleSize, color: { argb: "FFFFFFFF" } };
   titleCell.alignment = { horizontal: "center", vertical: "middle" };
   titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2B3A55" } };
-  titleRow.height = 35;
+  titleRow.height = 28;
 
-  // Day header row (merged across periods)
+  // Day header row
   const dayHeaderData: string[] = ["الصف / الشعبة"];
   for (const day of DAYS) {
     dayHeaderData.push(day);
     for (let i = 1; i < periodsPerDay; i++) dayHeaderData.push("");
   }
   const dayRow = ws.addRow(dayHeaderData);
-  dayRow.height = 28;
-  // Merge day cells
+  dayRow.height = 22;
   for (let di = 0; di < DAYS.length; di++) {
     const startCol = 2 + di * periodsPerDay;
     const endCol = startCol + periodsPerDay - 1;
     ws.mergeCells(2, startCol, 2, endCol);
   }
   dayRow.eachCell((c, colNum) => {
-    if (colNum === 1) {
-      styleHeader(c);
-    } else {
-      c.font = { name: FONT_NAME, bold: true, size: 11, color: { argb: "FFFFFFFF" } };
-      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2B3A55" } };
-      c.alignment = { horizontal: "center", vertical: "middle" };
-      c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
-    }
+    c.font = { name: FONT_NAME, bold: true, size: headerSize, color: { argb: "FFFFFFFF" } };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2B3A55" } };
+    c.alignment = { horizontal: "center", vertical: "middle" };
+    c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
   });
 
   // Period number sub-header
   const periodHeaderData: string[] = [""];
   for (let di = 0; di < DAYS.length; di++) {
-    for (let p = 0; p < periodsPerDay; p++) {
-      periodHeaderData.push(`${p + 1}`);
-    }
+    for (let p = 0; p < periodsPerDay; p++) periodHeaderData.push(`${p + 1}`);
   }
   const periodRow = ws.addRow(periodHeaderData);
-  periodRow.height = 22;
+  periodRow.height = 18;
   periodRow.eachCell((c, colNum) => {
     if (colNum === 1) {
       styleHeader(c);
     } else {
-      c.font = { name: FONT_NAME, bold: true, size: 9, color: { argb: "FF2B3A55" } };
+      c.font = { name: FONT_NAME, bold: true, size: 7, color: { argb: "FF2B3A55" } };
       c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD4A84B" } };
       c.alignment = { horizontal: "center", vertical: "middle" };
       c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
     }
   });
 
-  // Data rows - one per class
+  // Data rows
   for (const key of sortedKeys) {
     const { className, section } = parseClassKey(key);
-    const rowData: string[] = [`${className} / ${section}`];
+    const rowData: string[] = [`${className}/${section}`];
     const days = timetable[key];
     for (let di = 0; di < DAYS.length; di++) {
       for (let p = 0; p < periodsPerDay; p++) {
@@ -241,23 +252,28 @@ export async function exportMalhafaExcel(
       }
     }
     const row = ws.addRow(rowData);
-    row.height = 38;
+    row.height = rowHeight;
     row.eachCell((c, colNum) => {
       if (colNum === 1) {
-        c.font = { name: FONT_NAME, bold: true, size: 10, color: { argb: "FFFFFFFF" } };
+        c.font = { name: FONT_NAME, bold: true, size: cellSize, color: { argb: "FFFFFFFF" } };
         c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2B3A55" } };
         c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
         c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
       } else {
-        styleCell(c, !rowData[colNum - 1]);
+        c.font = { name: FONT_NAME, size: cellSize };
+        c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+        c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+        if (!rowData[colNum - 1]) {
+          c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF5F5F5" } };
+        }
       }
     });
   }
 
-  // Column widths
-  ws.getColumn(1).width = 16;
+  // Column widths - fit A3
+  ws.getColumn(1).width = 12;
   for (let i = 2; i <= totalCols; i++) {
-    ws.getColumn(i).width = 14;
+    ws.getColumn(i).width = colWidth;
   }
 
   const buffer = await wb.xlsx.writeBuffer();

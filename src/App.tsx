@@ -19,6 +19,7 @@ import InstructionsPage from "./pages/InstructionsPage";
 import CodeDocumentation from "./pages/CodeDocumentation";
 import PresentationExport from "./pages/PresentationExport";
 import TimetablePage from "./pages/TimetablePage";
+import SecretaryPage from "./pages/SecretaryPage";
 import { TimetableProvider } from "@/context/TimetableContext";
 
 const queryClient = new QueryClient();
@@ -66,6 +67,7 @@ const App = () => (
               <Route path="/forms" element={<ProtectedRoute><FinancialForms /></ProtectedRoute>} />
               <Route path="/instructions" element={<ProtectedRoute><InstructionsPage /></ProtectedRoute>} />
               <Route path="/timetable" element={<ProtectedRoute><TimetablePage /></ProtectedRoute>} />
+              <Route path="/secretary" element={<ProtectedRoute><SecretaryPage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
               <Route path="/code-docs" element={<AdminRoute><CodeDocumentation /></AdminRoute>} />

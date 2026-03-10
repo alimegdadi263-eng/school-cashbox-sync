@@ -197,16 +197,43 @@ export async function exportFullSchoolTimetableDocx(
   saveAs(blob, `الجدول_المدرسي_الكامل.docx`);
 }
 
-/** ملحفة - جدول شامل لجميع الصفوف في صفحة واحدة */
+/** ملحفة - جدول شامل لجميع الصفوف في صفحة واحدة A3 */
 export async function exportMalhafaDocx(
   timetable: ClassTimetable,
   periodsPerDay: number,
   schoolName: string
 ) {
   const sortedKeys = Object.keys(timetable).sort();
+  const classCount = sortedKeys.length;
+  const fontSize = classCount > 15 ? 14 : 16;
+  const cellFontSize = classCount > 15 ? 12 : 14;
+  const titleFontSize = classCount > 15 ? 22 : 26;
 
-  // Build day header row with merged cells
-  const dayHeaderCells: DocxTC[] = [headerCell("الصف", 1200)];
+  function smallHeaderCell(text: string, width?: number): DocxTC {
+    return new DocxTC({
+      width: width ? { size: width, type: WidthType.DXA } : undefined,
+      shading: { type: ShadingType.SOLID, color: HEADER_BG },
+      verticalAlign: VerticalAlign.CENTER,
+      children: [new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text, font: FONT, bold: true, size: fontSize, color: "FFFFFF" })],
+      })],
+    });
+  }
+
+  function smallDataCell(lines: string[], empty = false): DocxTC {
+    return new DocxTC({
+      shading: empty ? { type: ShadingType.SOLID, color: "F5F5F5" } : undefined,
+      verticalAlign: VerticalAlign.CENTER,
+      children: lines.length > 0 ? lines.map(l => new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 10, after: 10 },
+        children: [new TextRun({ text: l, font: FONT, size: cellFontSize })],
+      })) : [new Paragraph({ alignment: AlignmentType.CENTER, children: [] })],
+    });
+  }
+
+  const dayHeaderCells: DocxTC[] = [smallHeaderCell("الصف", 900)];
   for (const day of DAYS) {
     dayHeaderCells.push(new DocxTC({
       columnSpan: periodsPerDay,
@@ -214,14 +241,13 @@ export async function exportMalhafaDocx(
       verticalAlign: VerticalAlign.CENTER,
       children: [new Paragraph({
         alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: day, font: FONT, bold: true, size: 20, color: "FFFFFF" })],
+        children: [new TextRun({ text: day, font: FONT, bold: true, size: fontSize, color: "FFFFFF" })],
       })],
     }));
   }
   const dayHeaderRow = new DocxTR({ tableHeader: true, children: dayHeaderCells });
 
-  // Period number sub-header
-  const periodHeaderCells: DocxTC[] = [headerCell("", 1200)];
+  const periodHeaderCells: DocxTC[] = [smallHeaderCell("", 900)];
   for (let di = 0; di < DAYS.length; di++) {
     for (let p = 0; p < periodsPerDay; p++) {
       periodHeaderCells.push(new DocxTC({
@@ -229,26 +255,22 @@ export async function exportMalhafaDocx(
         verticalAlign: VerticalAlign.CENTER,
         children: [new Paragraph({
           alignment: AlignmentType.CENTER,
-          children: [new TextRun({ text: `${p + 1}`, font: FONT, bold: true, size: 18, color: HEADER_BG })],
+          children: [new TextRun({ text: `${p + 1}`, font: FONT, bold: true, size: cellFontSize, color: HEADER_BG })],
         })],
       }));
     }
   }
   const periodHeaderRow = new DocxTR({ tableHeader: true, children: periodHeaderCells });
 
-  // Data rows
   const dataRows = sortedKeys.map(key => {
     const { className, section } = parseClassKey(key);
     const days = timetable[key];
-    const cells: DocxTC[] = [headerCell(`${className}/${section}`, 1200)];
+    const cells: DocxTC[] = [smallHeaderCell(`${className}/${section}`, 900)];
     for (let di = 0; di < DAYS.length; di++) {
       for (let p = 0; p < periodsPerDay; p++) {
         const cell = days[di]?.[p];
-        if (cell) {
-          cells.push(dataCell([cell.subjectName, cell.teacherName]));
-        } else {
-          cells.push(dataCell([], true));
-        }
+        if (cell) cells.push(smallDataCell([cell.subjectName, cell.teacherName]));
+        else cells.push(smallDataCell([], true));
       }
     }
     return new DocxTR({ children: cells });
@@ -259,15 +281,20 @@ export async function exportMalhafaDocx(
     rows: [dayHeaderRow, periodHeaderRow, ...dataRows],
   });
 
+  // A3 landscape: 420mm x 297mm → twips (1mm ≈ 56.7 twips)
   const doc = new Document({
     sections: [{
-      properties: { page: { size: { orientation: "landscape" as any } } },
+      properties: {
+        page: {
+          size: { width: 23814, height: 16838, orientation: "landscape" as any },
+          margin: { top: 300, bottom: 300, left: 400, right: 400 },
+        },
+      },
       children: [
         new Paragraph({
           alignment: AlignmentType.CENTER,
-          heading: HeadingLevel.HEADING_1,
-          spacing: { after: 200 },
-          children: [new TextRun({ text: `${schoolName} - الملحفة الدراسية`, font: FONT, bold: true, size: 28, color: HEADER_BG })],
+          spacing: { after: 150 },
+          children: [new TextRun({ text: `${schoolName} - الملحفة الدراسية`, font: FONT, bold: true, size: titleFontSize, color: HEADER_BG })],
         }),
         table,
       ],
