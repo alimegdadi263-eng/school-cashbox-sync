@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTimetable } from "@/context/TimetableContext";
-import type { Teacher, SubjectAssignment } from "@/types/timetable";
+import type { Teacher, SubjectAssignment, BlockedPeriod } from "@/types/timetable";
 import { CLASS_NAMES, SECTIONS } from "@/types/timetable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Trash2, Edit, UserPlus, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import BlockedPeriodsEditor from "./BlockedPeriodsEditor";
 
 export default function TeacherManager() {
   const { teachers, addTeacher, updateTeacher, removeTeacher } = useTimetable();
