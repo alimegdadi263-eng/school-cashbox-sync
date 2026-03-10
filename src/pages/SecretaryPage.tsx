@@ -350,6 +350,10 @@ function InventoryTab({ category, userId, schoolName, directorName, committeeMem
             <FileUp className="w-4 h-4 ml-1" /> استيراد Excel
           </Button>
           <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={importExcel} />
+          <Button size="sm" variant="outline" onClick={() => wordInputRef.current?.click()}>
+            <FileUp className="w-4 h-4 ml-1" /> استيراد Word
+          </Button>
+          <input ref={wordInputRef} type="file" accept=".docx" className="hidden" onChange={importWord} />
           <Button size="sm" variant="outline" onClick={exportExcel} disabled={items.length === 0}>
             <FileDown className="w-4 h-4 ml-1" /> تصدير Excel
           </Button>
