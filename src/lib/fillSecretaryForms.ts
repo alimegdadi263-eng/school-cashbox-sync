@@ -440,6 +440,7 @@ export interface InventoryCustodyData {
 }
 
 export async function exportInventoryCustodyDocx(data: InventoryCustodyData) {
+  const logo = await getLogoBuffer();
   const splitPrice = (n: number) => {
     const dinars = Math.floor(n);
     const fils = Math.round((n - dinars) * 1000);
