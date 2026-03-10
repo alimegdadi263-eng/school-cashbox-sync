@@ -19,6 +19,7 @@ import InstructionsPage from "./pages/InstructionsPage";
 import CodeDocumentation from "./pages/CodeDocumentation";
 import PresentationExport from "./pages/PresentationExport";
 import TimetablePage from "./pages/TimetablePage";
+import SecretaryPage from "./pages/SecretaryPage";
 import { TimetableProvider } from "@/context/TimetableContext";
 
 const queryClient = new QueryClient();
