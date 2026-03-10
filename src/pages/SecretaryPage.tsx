@@ -10,10 +10,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+import { ar } from "date-fns/locale";
 import {
-  Plus, Trash2, FileDown, FileUp, FileText, ClipboardList, Package, Save, History,
+  Plus, Trash2, FileDown, FileUp, FileText, ClipboardList, Package, Save, History, CalendarIcon,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import PizZip from "pizzip";
