@@ -847,10 +847,6 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label>عدد أيام الغياب</Label>
-              <Input value={noPayDays} onChange={e => setNoPayDays(e.target.value)} placeholder="عدد الأيام" />
-            </div>
-            <div className="space-y-1">
               <Label>السبب</Label>
               <Input value={noPayReason} onChange={e => setNoPayReason(e.target.value)} placeholder="سبب التغيب" />
             </div>
