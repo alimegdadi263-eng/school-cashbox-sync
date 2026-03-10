@@ -367,13 +367,14 @@ export interface NoPaymentData {
 }
 
 export async function fillNoPaymentForm(data: NoPaymentData) {
+  const logo = await getLogoBuffer();
   const doc = new Document({
     sections: [{
       properties: {
         page: { size: { width: 12240, height: 15840 }, margin: { top: 720, bottom: 720, left: 900, right: 900 } },
       },
       children: [
-        para([tr("وزارة التربية والتعليم", { bold: true, size: BIG_TITLE })], AlignmentType.CENTER),
+        logoHeader(logo),
         para([tr(`مديرية التربية والتعليم ${data.directorate || "للواءي الطيبة والوسطية"}/محافظة اربد`, { bold: true, size: TITLE_SIZE })], AlignmentType.CENTER),
         para([tr(data.school, { bold: true, size: TITLE_SIZE })], AlignmentType.CENTER),
         emptyLine(40),
