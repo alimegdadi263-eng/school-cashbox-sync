@@ -751,19 +751,23 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
           <CardTitle className="text-lg">📋 نموذج استجواب</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="space-y-1">
               <Label>اسم الموظف</Label>
-              <Input value={interEmployeeName} onChange={e => setInterEmployeeName(e.target.value)} placeholder="الاسم الكامل" />
+              <Input value={interEmployeeName} onChange={e => setInterEmployeeName(e.target.value)} placeholder="الاسم الكامل من أربع مقاطع" />
             </div>
             <div className="space-y-1">
-              <Label>التاريخ</Label>
-              <Input value={interDate} onChange={e => setInterDate(e.target.value)} placeholder="التاريخ" />
+              <Label>الفئة / الدرجة</Label>
+              <Input value={interCategory} onChange={e => setInterCategory(e.target.value)} placeholder="الفئة / الدرجة" />
+            </div>
+            <div className="space-y-1">
+              <Label>الوظيفة</Label>
+              <Input value={interJobTitle} onChange={e => setInterJobTitle(e.target.value)} placeholder="الوظيفة" />
             </div>
           </div>
           <div className="space-y-1">
             <Label>الموضوع</Label>
-            <Input value={interSubject} onChange={e => setInterSubject(e.target.value)} placeholder="موضوع الاستجواب" />
+            <Input value={interSubject} onChange={e => setInterSubject(e.target.value)} placeholder="موضوع الاستفسار" />
           </div>
           <div className="space-y-1">
             <Label>التفاصيل</Label>
