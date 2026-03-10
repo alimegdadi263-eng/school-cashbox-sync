@@ -1,11 +1,36 @@
-import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle, Header, Tab, TabStopPosition, TabStopType, PageBreak } from "docx";
+import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle, Header, ImageRun } from "docx";
 import { saveAs } from "file-saver";
 
 const FONT = "Traditional Arabic";
-const FONT_SIZE = 24; // half-points = 12pt
+const FONT_SIZE = 24;
 const SMALL_SIZE = 20;
 const TITLE_SIZE = 28;
 const BIG_TITLE = 32;
+
+// Load logo once and cache
+let logoBuffer: ArrayBuffer | null = null;
+async function getLogoBuffer(): Promise<ArrayBuffer> {
+  if (logoBuffer) return logoBuffer;
+  const resp = await fetch(`${import.meta.env.BASE_URL}images/moe-logo.png`);
+  logoBuffer = await resp.arrayBuffer();
+  return logoBuffer;
+}
+
+function logoImage(buffer: ArrayBuffer): ImageRun {
+  return new ImageRun({
+    data: buffer,
+    transformation: { width: 80, height: 80 },
+    type: "png",
+  });
+}
+
+function logoHeader(buffer: ArrayBuffer): Paragraph {
+  return new Paragraph({
+    children: [logoImage(buffer)],
+    alignment: AlignmentType.CENTER,
+    spacing: { after: 80 },
+  });
+}
 
 function tr(text: string, opts?: { bold?: boolean; size?: number; underline?: boolean; color?: string }): TextRun {
   return new TextRun({
@@ -85,6 +110,7 @@ export interface InterrogationData {
 }
 
 export async function fillInterrogationForm(data: InterrogationData) {
+  const logo = await getLogoBuffer();
   // Part 1 table
   const part1Table = new Table({
     rows: [
@@ -119,7 +145,7 @@ export async function fillInterrogationForm(data: InterrogationData) {
         page: { size: { width: 12240, height: 15840 }, margin: { top: 720, bottom: 720, left: 900, right: 900 } },
       },
       children: [
-        // Header
+        logoHeader(logo),
         para([
           tr("ديوان الخدمة المدنية", { bold: true, size: TITLE_SIZE }),
           tr("                                        "),
@@ -208,6 +234,7 @@ export interface CasualLeaveData {
 }
 
 export async function fillCasualLeaveForm(data: CasualLeaveData) {
+  const logo = await getLogoBuffer();
   // Employee info table
   const infoTable = new Table({
     rows: [
@@ -259,7 +286,7 @@ export async function fillCasualLeaveForm(data: CasualLeaveData) {
         page: { size: { width: 12240, height: 15840 }, margin: { top: 720, bottom: 720, left: 900, right: 900 } },
       },
       children: [
-        // Header
+        logoHeader(logo),
         para([tr("المملكة الأردنية الهاشمية", { bold: true, size: TITLE_SIZE })], AlignmentType.CENTER),
         para([tr("نموذج إجازة عرضية", { bold: true, size: BIG_TITLE, underline: true })], AlignmentType.CENTER, { before: 100 }),
         emptyLine(40),
@@ -340,13 +367,14 @@ export interface NoPaymentData {
 }
 
 export async function fillNoPaymentForm(data: NoPaymentData) {
+  const logo = await getLogoBuffer();
   const doc = new Document({
     sections: [{
       properties: {
         page: { size: { width: 12240, height: 15840 }, margin: { top: 720, bottom: 720, left: 900, right: 900 } },
       },
       children: [
-        para([tr("وزارة التربية والتعليم", { bold: true, size: BIG_TITLE })], AlignmentType.CENTER),
+        logoHeader(logo),
         para([tr(`مديرية التربية والتعليم ${data.directorate || "للواءي الطيبة والوسطية"}/محافظة اربد`, { bold: true, size: TITLE_SIZE })], AlignmentType.CENTER),
         para([tr(data.school, { bold: true, size: TITLE_SIZE })], AlignmentType.CENTER),
         emptyLine(40),
@@ -412,6 +440,7 @@ export interface InventoryCustodyData {
 }
 
 export async function exportInventoryCustodyDocx(data: InventoryCustodyData) {
+  const logo = await getLogoBuffer();
   const splitPrice = (n: number) => {
     const dinars = Math.floor(n);
     const fils = Math.round((n - dinars) * 1000);
@@ -490,6 +519,7 @@ export async function exportInventoryCustodyDocx(data: InventoryCustodyData) {
         page: { size: { width: 12240, height: 15840 }, margin: { top: 720, bottom: 500, left: 720, right: 720 } },
       },
       children: [
+        logoHeader(logo),
         para([tr("وزارة التربية والتعليم", { bold: true, size: TITLE_SIZE })], AlignmentType.CENTER),
         para([tr(`نموذج جرد مستودعات المدارس ( ${data.categoryLabel} )`, { bold: true, size: BIG_TITLE, underline: true })], AlignmentType.CENTER),
         emptyLine(40),
