@@ -125,31 +125,31 @@ export async function fillInterrogationForm(data: InterrogationData) {
         p([t("عن المخالفة المرتكبة من قبل الموظف", { bold: true, size: M })], AlignmentType.CENTER),
         p([t("(سنداً لأحكام المادة 72/أ/1 من نظام إدارة الموارد البشرية للقطاع العام رقم (33) لسنة 2024)", { size: S })], AlignmentType.CENTER),
         gap(20),
-        p([t("الجزء الأول: (يعبأ من قبل مسؤول شؤون الموظفين)", { bold: true, size: M, underline: true })], AlignmentType.CENTER),
+        p([t("الجزء الأول: (يعبأ من قبل مسؤول شؤون الموظفين)", { bold: true, size: M, underline: true })], AlignmentType.RIGHT),
         gap(10),
         part1,
-        p([t(`العقوبات التأديبية السابقة المتخذة بحق الموظف: ${data.previousPenalties || dots(50)}`, { size: S })]),
+        p([t(`العقوبات التأديبية السابقة المتخذة بحق الموظف: ${data.previousPenalties || dots(50)}`, { size: S })], AlignmentType.RIGHT),
         gap(10),
-        p([t("الجزء الثاني: (يعبأ من قبل الرئيس المباشر للموظف)", { bold: true, size: M, underline: true })], AlignmentType.CENTER),
-        p([t(`موضوع الاستفسار: ${data.subject || ""}`, { size: M })]),
-        p([t(data.details || "", { size: S })]),
+        p([t("الجزء الثاني: (يعبأ من قبل الرئيس المباشر للموظف)", { bold: true, size: M, underline: true })], AlignmentType.RIGHT),
+        p([t(`موضوع الاستفسار: ${data.subject || ""}`, { size: M })], AlignmentType.RIGHT),
+        p([t(data.details || "", { size: S })], AlignmentType.RIGHT),
         gap(80),
-        p([t("التوقيع:", { bold: true, size: M })]),
+        p([t("التوقيع:", { bold: true, size: M })], AlignmentType.RIGHT),
         gap(10),
-        p([t("الجزء الثالث: (يعبأ من قبل الموظف المستجوب)", { bold: true, size: M, underline: true })], AlignmentType.CENTER),
-        p([t("الإجابة:", { size: M })]),
+        p([t("الجزء الثالث: (يعبأ من قبل الموظف المستجوب)", { bold: true, size: M, underline: true })], AlignmentType.RIGHT),
+        p([t("الإجابة:", { size: M })], AlignmentType.RIGHT),
         gap(120),
-        p([t("التوقيع:", { bold: true, size: M })]),
+        p([t("التوقيع:", { bold: true, size: M })], AlignmentType.RIGHT),
         gap(10),
         p([t("الجزء الرابع: القرار متخذ وفقاً للصلاحيات المنصوص عليها في المادة (68/أ) من إدارة الموارد البشرية رقم (33) لسنة 2024", { size: S })], AlignmentType.RIGHT),
-        p([t(`تنسيب / قرار مدير المدرسة: ${dots(50)}`, { size: S })]),
-        p([t("التوقيع:", { size: S })]),
-        p([t(`تنسيب / قرار مدير التربية والتعليم: ${dots(50)}`, { size: S })]),
-        p([t("التوقيع:                              التاريخ:    /    /", { size: S })]),
-        p([t(`تنسيب / قرار الأمين العام: ${dots(50)}`, { size: S })]),
-        p([t("التوقيع:                              التاريخ:    /    /", { size: S })]),
-        p([t(`تنسيب /قرار الرئيس: ${dots(50)}`, { size: S })]),
-        p([t("التوقيع:                              التاريخ:    /    /", { size: S })]),
+        p([t(`تنسيب / قرار مدير المدرسة: ${dots(50)}`, { size: S })], AlignmentType.RIGHT),
+        p([t("التوقيع:", { size: S })], AlignmentType.RIGHT),
+        p([t(`تنسيب / قرار مدير التربية والتعليم: ${dots(50)}`, { size: S })], AlignmentType.RIGHT),
+        p([t("التوقيع:                              التاريخ:    /    /", { size: S })], AlignmentType.RIGHT),
+        p([t(`تنسيب / قرار الأمين العام: ${dots(50)}`, { size: S })], AlignmentType.RIGHT),
+        p([t("التوقيع:                              التاريخ:    /    /", { size: S })], AlignmentType.RIGHT),
+        p([t(`تنسيب /قرار الرئيس: ${dots(50)}`, { size: S })], AlignmentType.RIGHT),
+        p([t("التوقيع:                              التاريخ:    /    /", { size: S })], AlignmentType.RIGHT),
       ],
     }],
   });
@@ -224,28 +224,28 @@ export async function fillCasualLeaveForm(data: CasualLeaveData) {
         infoTable,
         gap(10),
         leaveHeader,
-        p([t("سبب الإجازة:", { bold: true, size: M })]),
-        p([t("وفاة أحد الأقارب:  ☐  من الدرجة الأولى    من الدرجة الثانية    من الدرجة الثالثة    زوجة/ زوج", { size: S })]),
-        p([t("☐ أسباب أخرى ( خاص بمن تنطبق عليهم أحكام المادة (35-ج) من نظام إدارة الموارد البشرية في القطاع العام):", { size: S })]),
-        p([t(data.otherReasons || data.leaveReason || dots(60), { size: S })]),
-        p([t(dots(80), { size: S })]),
-        p([t(`عدد الأيام المستحقة بموجب أحكام المواد (53) و(54) من نظام إدارة الموارد البشرية في القطاع العام: ( ${data.daysEntitled || "  "} ) يوم`, { size: S })]),
-        p([t(`مجموع الإجازات العرضية التي تم منحها للموظف خلال العام: ( ${data.totalLeavesThisYear || "  "} ) يوم`, { size: S })]),
-        p([t(`تاريخ ابتداء الإجازة: ${data.startDate || "  /  /  "}                    تاريخ انتهاء الإجازة: ${data.endDate || "  /  /  "}`, { size: S })]),
-        p([t(`ملاحظات: ${data.notes || dots(60)}`, { size: S })]),
-        p([t(dots(80), { size: S })]),
+        p([t("سبب الإجازة:", { bold: true, size: M })], AlignmentType.RIGHT),
+        p([t("وفاة أحد الأقارب:  ☐  من الدرجة الأولى    من الدرجة الثانية    من الدرجة الثالثة    زوجة/ زوج", { size: S })], AlignmentType.RIGHT),
+        p([t("☐ أسباب أخرى ( خاص بمن تنطبق عليهم أحكام المادة (35-ج) من نظام إدارة الموارد البشرية في القطاع العام):", { size: S })], AlignmentType.RIGHT),
+        p([t(data.otherReasons || data.leaveReason || dots(60), { size: S })], AlignmentType.RIGHT),
+        p([t(dots(80), { size: S })], AlignmentType.RIGHT),
+        p([t(`عدد الأيام المستحقة بموجب أحكام المواد (53) و(54) من نظام إدارة الموارد البشرية في القطاع العام: ( ${data.daysEntitled || "  "} ) يوم`, { size: S })], AlignmentType.RIGHT),
+        p([t(`مجموع الإجازات العرضية التي تم منحها للموظف خلال العام: ( ${data.totalLeavesThisYear || "  "} ) يوم`, { size: S })], AlignmentType.RIGHT),
+        p([t(`تاريخ ابتداء الإجازة: ${data.startDate || "  /  /  "}                    تاريخ انتهاء الإجازة: ${data.endDate || "  /  /  "}`, { size: S })], AlignmentType.RIGHT),
+        p([t(`ملاحظات: ${data.notes || dots(60)}`, { size: S })], AlignmentType.RIGHT),
+        p([t(dots(80), { size: S })], AlignmentType.RIGHT),
         gap(20),
-        p([t("الأسم:                    المسمى الوظيفي:                    التوقيع:", { size: M })]),
+        p([t("الأسم:                    المسمى الوظيفي:                    التوقيع:", { size: M })], AlignmentType.RIGHT),
         gap(10),
         new Table({
           rows: [new TableRow({ children: [c("قرار الأمين العام", { bold: true, shading: H, size: M })] })],
           width: { size: 100, type: WidthType.PERCENTAGE },
         }),
-        p([t(dots(80), { size: S })]),
-        p([t(dots(80), { size: S })]),
-        p([t(dots(80), { size: S })]),
+        p([t(dots(80), { size: S })], AlignmentType.RIGHT),
+        p([t(dots(80), { size: S })], AlignmentType.RIGHT),
+        p([t(dots(80), { size: S })], AlignmentType.RIGHT),
         gap(20),
-        p([t("التاريخ:    /    /                                                    التوقيع", { size: M })]),
+        p([t("التاريخ:    /    /                                                    التوقيع", { size: M })], AlignmentType.RIGHT),
       ],
     }],
   });
@@ -282,9 +282,9 @@ export async function fillNoPaymentForm(data: NoPaymentData) {
         gap(20),
         p([t("━".repeat(70), { size: 14 })], AlignmentType.CENTER),
         gap(20),
-        p([t(`الرقم:`, { size: M })]),
-        p([t(`التاريخ: ${data.date || ""}`, { size: M })]),
-        p([t(`الموافق:`, { size: M })]),
+        p([t(`الرقم:`, { size: M })], AlignmentType.RIGHT),
+        p([t(`التاريخ: ${data.date || ""}`, { size: M })], AlignmentType.RIGHT),
+        p([t(`الموافق:`, { size: M })], AlignmentType.RIGHT),
         gap(40),
         p([t(`السيد / ${data.employeeName}`, { bold: true, size: L })], AlignmentType.CENTER),
         p([t(`المعلم في ${data.school}`, { bold: true, size: M })], AlignmentType.CENTER),
@@ -292,17 +292,17 @@ export async function fillNoPaymentForm(data: NoPaymentData) {
         gap(30),
         p([t("السلام عليكم ورحمة الله وبركاته   ،،،", { size: M })], AlignmentType.CENTER),
         gap(30),
-        p([t(`إشارة إلى جوابك المؤرخ    /    / رقم              ، واستناداً إلى أحكام المادة (22) من نظام الخدمة المدنية لسنة 2020 وتعديلاته ودلالة المادة (143).`, { size: S })]),
-        p([t(`وبموجب الصلاحيات المفوضة الى بكتاب وزير التربية والتعليم رقم 1/70/7886 تاريخ 10/2/2020.`, { size: S })]),
-        p([t(`قررت عدم صرف راتبك عن يوم / الأيام  ${data.reason || dots(40)} بسبب تغيبك عن العمل دون إجازة قانونية أو عذر مشروع بعد انتهاء اجازتك مباشرة.`, { bold: true, size: M })]),
+        p([t(`إشارة إلى جوابك المؤرخ    /    / رقم              ، واستناداً إلى أحكام المادة (22) من نظام الخدمة المدنية لسنة 2020 وتعديلاته ودلالة المادة (143).`, { size: S })], AlignmentType.RIGHT),
+        p([t(`وبموجب الصلاحيات المفوضة الى بكتاب وزير التربية والتعليم رقم 1/70/7886 تاريخ 10/2/2020.`, { size: S })], AlignmentType.RIGHT),
+        p([t(`قررت عدم صرف راتبك عن يوم / الأيام  ${data.reason || dots(40)} بسبب تغيبك عن العمل دون إجازة قانونية أو عذر مشروع بعد انتهاء اجازتك مباشرة.`, { bold: true, size: M })], AlignmentType.RIGHT),
         gap(60),
         p([t("وتفضلوا بقبول فائق الاحترام", { bold: true, size: M })], AlignmentType.CENTER),
         gap(60),
-        p([t("مدير المدرسة", { bold: true, size: M })]),
-        p([t(data.directorName, { bold: true, size: M })]),
+        p([t("مدير المدرسة", { bold: true, size: M })], AlignmentType.RIGHT),
+        p([t(data.directorName, { bold: true, size: M })], AlignmentType.RIGHT),
         gap(150),
-        p([t(`نسخة / مدير التربية والتعليم ${data.directorate || "للواءي الطيبة والوسطية"}/محافظة اربد`, { bold: true, size: S })]),
-        p([t("نسخة/للملف", { bold: true, size: S })]),
+        p([t(`نسخة / مدير التربية والتعليم ${data.directorate || "للواءي الطيبة والوسطية"}/محافظة اربد`, { bold: true, size: S })], AlignmentType.RIGHT),
+        p([t("نسخة/للملف", { bold: true, size: S })], AlignmentType.RIGHT),
       ],
     }],
   });
@@ -332,7 +332,8 @@ export interface InventoryCustodyData {
   categoryLabel: string;
   items: InventoryCustodyItem[];
   directorName: string;
-  committeeMember: string;
+  committeeMember1: string;
+  committeeMember2: string;
   custodian: string;
   date: string;
 }
@@ -404,17 +405,43 @@ export async function exportInventoryCustodyDocx(data: InventoryCustodyData) {
       p([t("وزارة التربية والتعليم", { bold: true, size: L })], AlignmentType.CENTER),
       p([t(`نموذج جرد مستودعات المدارس ( ${data.categoryLabel} )${pageLabel}`, { bold: true, size: XL, underline: true })], AlignmentType.CENTER),
       gap(10),
-      p([t(`اسم المدرسة : ${data.school}                              مديرية التربية والتعليم : ${data.directorate || dots(20)}`, { size: S })]),
+      p([t(`اسم المدرسة : ${data.school}                              مديرية التربية والتعليم : ${data.directorate || dots(20)}`, { size: S })], AlignmentType.RIGHT),
       gap(10),
       table,
       gap(20),
-      p([t("أقر أنا المسؤول عن العهدة بأن الجرد تم بحضوري ومعرفتي وأوافق على صحة القوائم ونتائجها من حيث النقص أو الزيادة ولا توجد أية مستودعات أخرى للوازم بالمدرسة غير التي جرى عليها الجرد وعليه أوقع على هذا المحضر", { size: 16 })]),
+      p([t("أقر أنا المسؤول عن العهدة بأن الجرد تم بحضوري ومعرفتي وأوافق على صحة القوائم ونتائجها من حيث النقص أو الزيادة ولا توجد أية مستودعات أخرى للوازم بالمدرسة غير التي جرى عليها الجرد وعليه أوقع على هذا المحضر", { size: 16 })], AlignmentType.RIGHT),
       gap(10),
-      p([t(`عضو:                    اسم المعني بالعهدة: ${data.custodian || ""}                    اسم مدير المدرسة: ${data.directorName}`, { size: S })]),
-      p([t("                                                والختم الرسمي", { size: S })]),
-      p([t(`الاسم :                    الاسم : ${data.custodian || ""}                    الاسم : ${data.directorName}`, { size: S })]),
-      p([t("التوقيع :                    التوقيع :                    التوقيع :", { size: S })]),
-      p([t(`التاريخ : ${data.date}`, { size: S })]),
+      // Committee: Director + 2 members + Custodian
+      new Table({
+        rows: [
+          new TableRow({ children: [
+            c("الخاتم الرسمي", { bold: true, width: 25, shading: H }),
+            c("مدير المدرسة", { bold: true, width: 25, shading: H }),
+            c("عضو", { bold: true, width: 25, shading: H }),
+            c("المعني بالعهدة", { bold: true, width: 25, shading: H }),
+          ]}),
+          new TableRow({ children: [
+            c(""),
+            c(`الاسم: ${data.directorName}`, { align: AlignmentType.RIGHT }),
+            c(`الاسم: ${data.committeeMember1 || ""}`, { align: AlignmentType.RIGHT }),
+            c(`الاسم: ${data.custodian || ""}`, { align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            c(""),
+            c("التوقيع:", { align: AlignmentType.RIGHT }),
+            c("التوقيع:", { align: AlignmentType.RIGHT }),
+            c("التوقيع:", { align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            c(""),
+            c(`عضو: ${data.committeeMember2 || ""}`, { align: AlignmentType.RIGHT }),
+            c("التوقيع:", { align: AlignmentType.RIGHT }),
+            c(""),
+          ]}),
+        ],
+        width: { size: 100, type: WidthType.PERCENTAGE },
+      }),
+      p([t(`التاريخ : ${data.date}`, { size: S })], AlignmentType.RIGHT),
       p([t("Form#QF72-4-24 rev.a", { size: 14 })], AlignmentType.LEFT),
     ];
   }
@@ -427,4 +454,179 @@ export async function exportInventoryCustodyDocx(data: InventoryCustodyData) {
   const doc = new Document({ sections });
   const blob = await Packer.toBlob(doc);
   saveAs(blob, `جرد_${data.categoryLabel}_${data.school}.docx`);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 5. نموذج إتلاف - 9 items per page (matching official template)
+// ═══════════════════════════════════════════════════════════════
+export interface DisposalDocxItem {
+  serialNumber: number;
+  pageNumber: string;
+  itemName: string;
+  grade: string;
+  editionDate: string;
+  quantityNum: number;
+  quantityWords: string;
+  unitPrice: number;
+  totalPrice: number;
+  entryDate: string;
+  reason: string;
+}
+
+export interface DisposalDocxData {
+  school: string;
+  directorate: string;
+  categoryLabel: string;
+  items: DisposalDocxItem[];
+  directorName: string;
+  committeeMember1: string;
+  committeeMember2: string;
+  committeeMember3: string;
+  date: string;
+}
+
+export async function exportDisposalDocx(data: DisposalDocxData) {
+  const logo = await getLogoBuffer();
+  const ITEMS_PER_PAGE = 9;
+  const H = "D6E4F0";
+
+  const pages: DisposalDocxItem[][] = [];
+  for (let i = 0; i < data.items.length; i += ITEMS_PER_PAGE) {
+    pages.push(data.items.slice(i, i + ITEMS_PER_PAGE));
+  }
+  if (pages.length === 0) pages.push([]);
+
+  const splitPrice = (n: number) => {
+    const d = Math.floor(n);
+    const f = Math.round((n - d) * 1000);
+    return { d: d > 0 ? String(d) : "", f: f > 0 ? String(f) : "" };
+  };
+
+  function buildPage(pageItems: DisposalDocxItem[], pageNum: number, totalPages: number) {
+    // RTL table: columns from right to left
+    const headerRow = new TableRow({
+      children: [
+        c("سبب الاتلاف", { bold: true, width: 9, shading: H, size: 14 }),
+        c("تاريخ الادخال", { bold: true, width: 8, shading: H, size: 14 }),
+        c("السعر الاجمالي", { bold: true, width: 8, shading: H, colspan: 2, size: 14 }),
+        c("السعر الافرادي", { bold: true, width: 8, shading: H, colspan: 2, size: 14 }),
+        c("الكمية بالحروف", { bold: true, width: 10, shading: H, size: 14 }),
+        c("الكمية بالأرقام", { bold: true, width: 6, shading: H, size: 14 }),
+        c("تاريخ الطبعة", { bold: true, width: 7, shading: H, size: 14 }),
+        c("الصف", { bold: true, width: 9, shading: H, size: 14 }),
+        c("اسم الكتاب", { bold: true, width: 14, shading: H, size: 14 }),
+        c("رقم صفحة السجل", { bold: true, width: 6, shading: H, size: 14 }),
+        c("الرقم", { bold: true, width: 5, shading: H, size: 14 }),
+      ],
+      tableHeader: true,
+    });
+
+    // Sub-header row for price split
+    const subHeaderRow = new TableRow({
+      children: [
+        c("", { size: 12 }),
+        c("", { size: 12 }),
+        c("د", { bold: true, size: 14, shading: H }), c("ف", { bold: true, size: 14, shading: H }),
+        c("د", { bold: true, size: 14, shading: H }), c("ف", { bold: true, size: 14, shading: H }),
+        c("", { size: 12 }),
+        c("", { size: 12 }),
+        c("", { size: 12 }),
+        c("", { size: 12 }),
+        c("", { size: 12 }),
+        c("", { size: 12 }),
+        c("", { size: 12 }),
+      ],
+    });
+
+    const dataRows = pageItems.map(item => {
+      const up = splitPrice(item.unitPrice);
+      const tp = splitPrice(item.totalPrice);
+      return new TableRow({ children: [
+        c(item.reason || "", { size: 14 }),
+        c(item.entryDate || "", { size: 14 }),
+        c(tp.d, { size: 14 }), c(tp.f, { size: 14 }),
+        c(up.d, { size: 14 }), c(up.f, { size: 14 }),
+        c(item.quantityWords || "", { size: 14 }),
+        c(String(item.quantityNum || ""), { size: 14 }),
+        c(item.editionDate || "", { size: 14 }),
+        c(item.grade || "", { size: 14, align: AlignmentType.RIGHT }),
+        c(item.itemName || "", { size: 14, align: AlignmentType.RIGHT }),
+        c(item.pageNumber || "", { size: 14 }),
+        c(String(item.serialNumber), { size: 14 }),
+      ]});
+    });
+
+    // Fill empty rows
+    for (let i = pageItems.length; i < ITEMS_PER_PAGE; i++) {
+      dataRows.push(new TableRow({ children: Array(13).fill(null).map(() => c("")) }));
+    }
+
+    const table = new Table({
+      rows: [headerRow, subHeaderRow, ...dataRows],
+      width: { size: 100, type: WidthType.PERCENTAGE },
+    });
+
+    const pageLabel = totalPages > 1 ? ` - صفحة ${pageNum} من ${totalPages}` : "";
+
+    return [
+      logoHeader(logo),
+      p([t("وزارة التربية والتعليم", { bold: true, size: L })], AlignmentType.CENTER),
+      p([t(`مديرية التربية والتعليم ${data.directorate || "لواءي الطيبة والوسطية"}`, { bold: true, size: M })], AlignmentType.CENTER),
+      p([t(`اسم المدرسة: ${data.school}`, { bold: true, size: M })], AlignmentType.RIGHT),
+      p([t(`كشف أسماء الكتب وكميات الكتب الملغاة وغير الصالحة للاستعمال والمراد اتلافها ( ${data.categoryLabel} )${pageLabel}`, { bold: true, size: M, underline: true })], AlignmentType.CENTER),
+      gap(5),
+      table,
+      gap(10),
+      // Certificate
+      p([t("شهادة لجنة التبرعات المدرسية", { bold: true, size: M, underline: true })], AlignmentType.CENTER),
+      p([t(`نشهد نحن أعضاء لجنة التبرعات في مدرسة (${data.school}) بأننا عاينا الكتب المذكورة أعلاه فوجدناها ملغاة وغير صالحة للاستعمال، ونوصي باتلافها حسب الطبعات المعتمدة.`, { size: 16 })], AlignmentType.RIGHT),
+      gap(10),
+      // Committee signatures
+      new Table({
+        rows: [
+          new TableRow({ children: [
+            c("الخاتم الرسمي", { bold: true, width: 20, shading: H }),
+            c("مدير المدرسة", { bold: true, width: 20, shading: H }),
+            c("عضو", { bold: true, width: 20, shading: H }),
+            c("عضو", { bold: true, width: 20, shading: H }),
+            c("عضو", { bold: true, width: 20, shading: H }),
+          ]}),
+          new TableRow({ children: [
+            c(""),
+            c(`الاسم: ${data.directorName}`, { align: AlignmentType.RIGHT, size: 14 }),
+            c(`الاسم: ${data.committeeMember1 || ""}`, { align: AlignmentType.RIGHT, size: 14 }),
+            c(`الاسم: ${data.committeeMember2 || ""}`, { align: AlignmentType.RIGHT, size: 14 }),
+            c(`الاسم: ${data.committeeMember3 || ""}`, { align: AlignmentType.RIGHT, size: 14 }),
+          ]}),
+          new TableRow({ children: [
+            c(""),
+            c("التوقيع:", { align: AlignmentType.RIGHT, size: 14 }),
+            c("التوقيع:", { align: AlignmentType.RIGHT, size: 14 }),
+            c("التوقيع:", { align: AlignmentType.RIGHT, size: 14 }),
+            c("التوقيع:", { align: AlignmentType.RIGHT, size: 14 }),
+          ]}),
+          new TableRow({ children: [
+            c(""),
+            c("التاريخ:", { align: AlignmentType.RIGHT, size: 14 }),
+            c("التاريخ:", { align: AlignmentType.RIGHT, size: 14 }),
+            c("التاريخ:", { align: AlignmentType.RIGHT, size: 14 }),
+            c("التاريخ:", { align: AlignmentType.RIGHT, size: 14 }),
+          ]}),
+        ],
+        width: { size: 100, type: WidthType.PERCENTAGE },
+      }),
+      gap(5),
+      p([t("ملاحظة: تنظم قائمة لكل سجل على حدة على غرار هذا النموذج وعلى أربع نسخ", { size: 14 })], AlignmentType.RIGHT),
+      p([t("Form # QF72-4-43 rev.a", { size: 14 })], AlignmentType.LEFT),
+    ];
+  }
+
+  const sections = pages.map((pageItems, idx) => ({
+    properties: { page: { ...PAGE_A4, margin: { top: 400, bottom: 300, left: 400, right: 400 } } },
+    children: buildPage(pageItems, idx + 1, pages.length),
+  }));
+
+  const doc = new Document({ sections });
+  const blob = await Packer.toBlob(doc);
+  saveAs(blob, `إتلاف_${data.categoryLabel}_${data.school}.docx`);
 }
