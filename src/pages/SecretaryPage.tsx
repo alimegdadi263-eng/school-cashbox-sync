@@ -242,7 +242,8 @@ function InventoryTab({ category, userId, schoolName, directorName, committeeMem
       categoryLabel: category.label,
       items: custodyItems,
       directorName,
-      committeeMember,
+      committeeMember1: committeeMember,
+      committeeMember2: "",
       custodian: "",
       date: new Date().toLocaleDateString("ar"),
     });
