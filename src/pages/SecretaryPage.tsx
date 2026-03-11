@@ -24,7 +24,9 @@ import { saveAs } from "file-saver";
 import PizZip from "pizzip";
 import {
   fillInterrogationForm, fillCasualLeaveForm, fillNoPaymentForm, exportInventoryCustodyDocx,
+  exportDisposalDocx,
   type InventoryCustodyItem,
+  type DisposalDocxItem,
 } from "@/lib/fillSecretaryForms";
 
 // ─── Types ───
@@ -43,10 +45,16 @@ interface InventoryItem {
 interface DisposalItem {
   id: string;
   serialNumber: number;
+  pageNumber: string;
   itemName: string;
-  quantity: number;
+  grade: string;
+  editionDate: string;
+  quantityNum: number;
+  quantityWords: string;
+  unitPrice: number;
+  totalPrice: number;
+  entryDate: string;
   reason: string;
-  notes: string;
 }
 
 interface DisposalRecord {
@@ -240,7 +248,8 @@ function InventoryTab({ category, userId, schoolName, directorName, committeeMem
       categoryLabel: category.label,
       items: custodyItems,
       directorName,
-      committeeMember,
+      committeeMember1: committeeMember,
+      committeeMember2: "",
       custodian: "",
       date: new Date().toLocaleDateString("ar"),
     });
@@ -445,15 +454,29 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
     setItems(prev => [...prev, {
       id: generateId(),
       serialNumber: prev.length + 1,
+      pageNumber: "",
       itemName: "",
-      quantity: 1,
-      reason: "",
-      notes: "",
+      grade: "",
+      editionDate: "",
+      quantityNum: 1,
+      quantityWords: "",
+      unitPrice: 0,
+      totalPrice: 0,
+      entryDate: "",
+      reason: "الغاء مادة",
     }]);
   };
 
   const updateItem = (id: string, field: keyof DisposalItem, value: string | number) => {
-    setItems(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
+    setItems(prev => prev.map(item => {
+      if (item.id !== id) return item;
+      const updated = { ...item, [field]: value };
+      // Auto-calc total price
+      if (field === "unitPrice" || field === "quantityNum") {
+        updated.totalPrice = Number(updated.quantityNum) * Number(updated.unitPrice);
+      }
+      return updated;
+    }));
   };
 
   const removeItem = (id: string) => {
@@ -482,19 +505,47 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
     toast({ title: "تم حفظ قائمة الإتلاف بنجاح" });
   };
 
+  const handleExportDocx = async (record: DisposalRecord) => {
+    const docxItems: DisposalDocxItem[] = record.items.map(item => ({
+      serialNumber: item.serialNumber,
+      pageNumber: item.pageNumber,
+      itemName: item.itemName,
+      grade: item.grade,
+      editionDate: item.editionDate,
+      quantityNum: item.quantityNum,
+      quantityWords: item.quantityWords,
+      unitPrice: item.unitPrice,
+      totalPrice: item.totalPrice,
+      entryDate: item.entryDate,
+      reason: item.reason,
+    }));
+    await exportDisposalDocx({
+      school: schoolName,
+      directorate: "",
+      categoryLabel: record.category,
+      items: docxItems,
+      directorName: record.directorName,
+      committeeMember1: record.committeeMember1,
+      committeeMember2: record.committeeMember2,
+      committeeMember3: record.committeeMember3,
+      date: record.date,
+    });
+    toast({ title: "تم تصدير قائمة الإتلاف (Word)" });
+  };
+
   const exportDisposalExcel = async (record: DisposalRecord) => {
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet("قائمة إتلاف");
     ws.views = [{ rightToLeft: true }];
 
     ws.addRow([`${schoolName} - قائمة إتلاف - ${record.category}`]);
-    ws.mergeCells(1, 1, 1, 5);
+    ws.mergeCells(1, 1, 1, 11);
     ws.getRow(1).getCell(1).font = { name: FONT_NAME, bold: true, size: 16 };
     ws.getRow(1).getCell(1).alignment = { horizontal: "center" };
     ws.addRow([`التاريخ: ${record.date}`]);
     ws.addRow([]);
 
-    const hRow = ws.addRow(["م", "اسم المادة", "الكمية", "سبب الإتلاف", "ملاحظات"]);
+    const hRow = ws.addRow(["الرقم", "رقم صفحة السجل", "اسم الكتاب", "الصف", "تاريخ الطبعة", "الكمية بالأرقام", "الكمية بالحروف", "السعر الافرادي", "السعر الاجمالي", "تاريخ الادخال", "سبب الاتلاف"]);
     hRow.eachCell(c => {
       c.font = { name: FONT_NAME, bold: true, size: 12, color: { argb: "FFFFFFFF" } };
       c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF8B0000" } };
@@ -503,7 +554,11 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
     });
 
     record.items.forEach(item => {
-      const row = ws.addRow([item.serialNumber, item.itemName, item.quantity, item.reason, item.notes]);
+      const row = ws.addRow([
+        item.serialNumber, item.pageNumber, item.itemName, item.grade, item.editionDate,
+        item.quantityNum, item.quantityWords, item.unitPrice, item.totalPrice,
+        item.entryDate, item.reason,
+      ]);
       row.eachCell(c => {
         c.font = { name: FONT_NAME, size: 11 };
         c.alignment = { horizontal: "center", vertical: "middle" };
@@ -512,17 +567,14 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
     });
 
     ws.addRow([]);
-    ws.addRow([`لجنة الجرد والإتلاف:`]);
-    ws.addRow([`1. ${record.committeeMember1}`]);
-    ws.addRow([`2. ${record.committeeMember2}`]);
-    ws.addRow([`3. ${record.committeeMember3}`]);
+    ws.addRow([`لجنة الإتلاف:`]);
     ws.addRow([`مدير المدرسة: ${record.directorName}`]);
+    ws.addRow([`عضو: ${record.committeeMember1}`]);
+    ws.addRow([`عضو: ${record.committeeMember2}`]);
+    ws.addRow([`عضو: ${record.committeeMember3}`]);
 
-    ws.getColumn(1).width = 8;
-    ws.getColumn(2).width = 30;
-    ws.getColumn(3).width = 12;
-    ws.getColumn(4).width = 25;
-    ws.getColumn(5).width = 25;
+    ws.columns.forEach(col => { col.width = 16; });
+    ws.getColumn(3).width = 28;
 
     const buffer = await wb.xlsx.writeBuffer();
     saveAs(new Blob([buffer]), `قائمة_إتلاف_${record.category}_${record.date}.xlsx`);
@@ -566,12 +618,18 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-12 text-center">م</TableHead>
-                    <TableHead>اسم المادة</TableHead>
-                    <TableHead className="w-20 text-center">الكمية</TableHead>
-                    <TableHead>سبب الإتلاف</TableHead>
-                    <TableHead>ملاحظات</TableHead>
-                    <TableHead className="w-12"></TableHead>
+                    <TableHead className="w-10 text-center">م</TableHead>
+                    <TableHead className="w-16 text-center">رقم صفحة السجل</TableHead>
+                    <TableHead>اسم الكتاب/المادة</TableHead>
+                    <TableHead className="w-24">الصف</TableHead>
+                    <TableHead className="w-20 text-center">تاريخ الطبعة</TableHead>
+                    <TableHead className="w-16 text-center">الكمية</TableHead>
+                    <TableHead className="w-24">الكمية بالحروف</TableHead>
+                    <TableHead className="w-20 text-center">السعر الافرادي</TableHead>
+                    <TableHead className="w-20 text-center">السعر الاجمالي</TableHead>
+                    <TableHead className="w-20 text-center">تاريخ الادخال</TableHead>
+                    <TableHead className="w-24">سبب الاتلاف</TableHead>
+                    <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -579,16 +637,32 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
                     <TableRow key={item.id}>
                       <TableCell className="text-center">{item.serialNumber}</TableCell>
                       <TableCell>
+                        <Input value={item.pageNumber} onChange={e => updateItem(item.id, "pageNumber", e.target.value)} className="h-8 text-center" />
+                      </TableCell>
+                      <TableCell>
                         <Input value={item.itemName} onChange={e => updateItem(item.id, "itemName", e.target.value)} className="h-8" />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" min={0} value={item.quantity} onChange={e => updateItem(item.id, "quantity", Number(e.target.value))} className="h-8 text-center" />
+                        <Input value={item.grade} onChange={e => updateItem(item.id, "grade", e.target.value)} className="h-8" />
+                      </TableCell>
+                      <TableCell>
+                        <Input value={item.editionDate} onChange={e => updateItem(item.id, "editionDate", e.target.value)} className="h-8 text-center" />
+                      </TableCell>
+                      <TableCell>
+                        <Input type="number" min={0} value={item.quantityNum} onChange={e => updateItem(item.id, "quantityNum", Number(e.target.value))} className="h-8 text-center" />
+                      </TableCell>
+                      <TableCell>
+                        <Input value={item.quantityWords} onChange={e => updateItem(item.id, "quantityWords", e.target.value)} className="h-8" />
+                      </TableCell>
+                      <TableCell>
+                        <Input type="number" min={0} step={0.001} value={item.unitPrice} onChange={e => updateItem(item.id, "unitPrice", Number(e.target.value))} className="h-8 text-center" />
+                      </TableCell>
+                      <TableCell className="text-center font-medium">{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</TableCell>
+                      <TableCell>
+                        <Input value={item.entryDate} onChange={e => updateItem(item.id, "entryDate", e.target.value)} className="h-8 text-center" />
                       </TableCell>
                       <TableCell>
                         <Input value={item.reason} onChange={e => updateItem(item.id, "reason", e.target.value)} className="h-8" />
-                      </TableCell>
-                      <TableCell>
-                        <Input value={item.notes} onChange={e => updateItem(item.id, "notes", e.target.value)} className="h-8" />
                       </TableCell>
                       <TableCell>
                         <Button size="icon" variant="ghost" onClick={() => removeItem(item.id)} className="h-7 w-7 text-destructive">
@@ -633,9 +707,14 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
                       {record.committeeMember3 ? ` ، ${record.committeeMember3}` : ""}
                     </p>
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => exportDisposalExcel(record)}>
-                    <FileDown className="w-4 h-4 ml-1" /> تصدير
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => handleExportDocx(record)}>
+                      <FileText className="w-4 h-4 ml-1" /> Word
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => exportDisposalExcel(record)}>
+                      <FileDown className="w-4 h-4 ml-1" /> Excel
+                    </Button>
+                  </div>
                 </div>
               ))
             )}
