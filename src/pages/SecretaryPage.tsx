@@ -45,10 +45,16 @@ interface InventoryItem {
 interface DisposalItem {
   id: string;
   serialNumber: number;
+  pageNumber: string;
   itemName: string;
-  quantity: number;
+  grade: string;
+  editionDate: string;
+  quantityNum: number;
+  quantityWords: string;
+  unitPrice: number;
+  totalPrice: number;
+  entryDate: string;
   reason: string;
-  notes: string;
 }
 
 interface DisposalRecord {
