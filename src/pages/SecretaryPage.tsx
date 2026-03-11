@@ -24,7 +24,9 @@ import { saveAs } from "file-saver";
 import PizZip from "pizzip";
 import {
   fillInterrogationForm, fillCasualLeaveForm, fillNoPaymentForm, exportInventoryCustodyDocx,
+  exportDisposalDocx,
   type InventoryCustodyItem,
+  type DisposalDocxItem,
 } from "@/lib/fillSecretaryForms";
 
 // ─── Types ───
