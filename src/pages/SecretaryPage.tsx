@@ -125,8 +125,8 @@ function saveDisposals(userId: string, records: DisposalRecord[]) {
 }
 
 // ─── Inventory Tab Component ───
-function InventoryTab({ category, userId, schoolName, directorName, committeeMember }: {
-  category: typeof INVENTORY_CATEGORIES[0]; userId: string; schoolName: string; directorName: string; committeeMember: string;
+function InventoryTab({ category, userId, schoolName, directorName, committeeMember, committeeMember2 }: {
+  category: typeof INVENTORY_CATEGORIES[0]; userId: string; schoolName: string; directorName: string; committeeMember: string; committeeMember2: string;
 }) {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const { toast } = useToast();
