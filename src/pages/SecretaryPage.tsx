@@ -353,7 +353,7 @@ function InventoryTab({ category, userId, schoolName, directorName, committeeMem
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" dir="rtl">
       <div className="flex flex-wrap gap-2 items-center justify-between">
         <h3 className="font-semibold flex items-center gap-2">
           <span>{category.icon}</span> جرد {category.label}
@@ -581,7 +581,7 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" dir="rtl">
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
@@ -828,7 +828,7 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" dir="rtl">
       {/* Interrogation */}
       <Card>
         <CardHeader>
