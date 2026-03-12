@@ -353,7 +353,7 @@ function InventoryTab({ category, userId, schoolName, directorName, committeeMem
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" dir="rtl">
       <div className="flex flex-wrap gap-2 items-center justify-between">
         <h3 className="font-semibold flex items-center gap-2">
           <span>{category.icon}</span> جرد {category.label}
