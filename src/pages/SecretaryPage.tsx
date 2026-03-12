@@ -581,7 +581,7 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" dir="rtl">
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
