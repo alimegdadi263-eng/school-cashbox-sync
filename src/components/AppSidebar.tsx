@@ -50,7 +50,29 @@ export default function AppSidebar() {
   const financeActive = financePaths.includes(location.pathname);
   const [financeOpen, setFinanceOpen] = useState(financeActive);
 
-  const entries: SidebarEntry[] = [
+  // Update state
+  const isElectron = typeof window !== "undefined" && (window as any).electronAPI?.checkForUpdates;
+  const [updateStatus, setUpdateStatus] = useState<string>("idle");
+  const [updateVersion, setUpdateVersion] = useState("");
+  const [updateProgress, setUpdateProgress] = useState(0);
+
+  useEffect(() => {
+    if (!isElectron) return;
+    (window as any).electronAPI.onUpdateStatus?.((data: { status: string; version?: string; progress?: number }) => {
+      setUpdateStatus(data.status);
+      if (data.version) setUpdateVersion(data.version);
+      if (data.progress !== undefined) setUpdateProgress(data.progress);
+    });
+  }, [isElectron]);
+
+  const hasUpdate = updateStatus === "available" || updateStatus === "downloaded";
+  const isUpdating = updateStatus === "checking" || updateStatus === "downloading";
+
+  const handleUpdateClick = () => {
+    if (isElectron) {
+      (window as any).electronAPI.checkForUpdates();
+    }
+  };
     { path: "/", label: "لوحة التحكم", icon: LayoutDashboard },
     {
       label: "مالية المدرسة",
