@@ -158,6 +158,39 @@ export default function AppSidebar() {
       </nav>
 
       <div className="p-4 border-t border-sidebar-border space-y-2">
+        {/* Update Button */}
+        {isElectron && (
+          <Button
+            variant="ghost"
+            onClick={handleUpdateClick}
+            disabled={isUpdating}
+            className={`w-full justify-start gap-3 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 relative ${
+              hasUpdate ? "text-primary font-semibold" : ""
+            }`}
+          >
+            {isUpdating ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <div className="relative">
+                <Download className="w-5 h-5" />
+                {hasUpdate && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-destructive rounded-full animate-pulse" />
+                )}
+              </div>
+            )}
+            <span className="flex-1 text-right">
+              {updateStatus === "checking" ? "جاري التحقق..." :
+               updateStatus === "available" ? `تحديث ${updateVersion}` :
+               updateStatus === "downloading" ? `تحميل ${updateProgress}%` :
+               updateStatus === "downloaded" ? "تثبيت التحديث" :
+               "التحديثات"}
+            </span>
+          </Button>
+        )}
+        {isElectron && updateStatus === "downloading" && (
+          <Progress value={updateProgress} className="h-1.5 mx-2" />
+        )}
+
         <Button
           variant="ghost"
           onClick={signOut}
@@ -167,7 +200,7 @@ export default function AppSidebar() {
           تسجيل الخروج
         </Button>
         <p className="text-sidebar-foreground/40 text-xs text-center">
-          {isAdmin ? "مدير النظام" : "مدرسة"} • الإصدار 1.0
+          {isAdmin ? "مدير النظام" : "مدرسة"} • الإصدار 1.1.1
         </p>
         <p className="text-sidebar-foreground/40 text-[10px] text-center mt-1">
           © {new Date().getFullYear()} Ali Megdadi. جميع الحقوق محفوظة
