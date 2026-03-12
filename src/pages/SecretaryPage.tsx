@@ -1010,7 +1010,7 @@ export default function SecretaryPage() {
               </TabsList>
               {INVENTORY_CATEGORIES.map(c => (
                 <TabsContent key={c.id} value={c.id} className="mt-4">
-                  <InventoryTab category={c} userId={userId} schoolName={school} directorName={directorName} committeeMember={member1} />
+                  <InventoryTab category={c} userId={userId} schoolName={school} directorName={directorName} committeeMember={member1} committeeMember2={member2} />
                 </TabsContent>
               ))}
             </Tabs>
