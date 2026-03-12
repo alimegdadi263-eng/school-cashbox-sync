@@ -125,8 +125,8 @@ function saveDisposals(userId: string, records: DisposalRecord[]) {
 }
 
 // ─── Inventory Tab Component ───
-function InventoryTab({ category, userId, schoolName, directorName, committeeMember }: {
-  category: typeof INVENTORY_CATEGORIES[0]; userId: string; schoolName: string; directorName: string; committeeMember: string;
+function InventoryTab({ category, userId, schoolName, directorName, committeeMember, committeeMember2 }: {
+  category: typeof INVENTORY_CATEGORIES[0]; userId: string; schoolName: string; directorName: string; committeeMember: string; committeeMember2: string;
 }) {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const { toast } = useToast();
@@ -249,7 +249,7 @@ function InventoryTab({ category, userId, schoolName, directorName, committeeMem
       items: custodyItems,
       directorName,
       committeeMember1: committeeMember,
-      committeeMember2: "",
+      committeeMember2: committeeMember2,
       custodian: "",
       date: new Date().toLocaleDateString("ar"),
     });
@@ -1010,7 +1010,7 @@ export default function SecretaryPage() {
               </TabsList>
               {INVENTORY_CATEGORIES.map(c => (
                 <TabsContent key={c.id} value={c.id} className="mt-4">
-                  <InventoryTab category={c} userId={userId} schoolName={school} directorName={directorName} committeeMember={member1} />
+                  <InventoryTab category={c} userId={userId} schoolName={school} directorName={directorName} committeeMember={member1} committeeMember2={member2} />
                 </TabsContent>
               ))}
             </Tabs>

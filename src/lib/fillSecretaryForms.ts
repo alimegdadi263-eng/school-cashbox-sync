@@ -411,37 +411,36 @@ export async function exportInventoryCustodyDocx(data: InventoryCustodyData) {
       gap(20),
       p([t("أقر أنا المسؤول عن العهدة بأن الجرد تم بحضوري ومعرفتي وأوافق على صحة القوائم ونتائجها من حيث النقص أو الزيادة ولا توجد أية مستودعات أخرى للوازم بالمدرسة غير التي جرى عليها الجرد وعليه أوقع على هذا المحضر", { size: 16 })], AlignmentType.RIGHT),
       gap(10),
-      // Committee: Director + 2 members + Custodian
+      // Committee: المعني بالعهدة + مدير المدرسة + عضو + عضو
       new Table({
         rows: [
           new TableRow({ children: [
-            c("الخاتم الرسمي", { bold: true, width: 25, shading: H }),
+            c("المعني بالعهدة", { bold: true, width: 25, shading: H }),
             c("مدير المدرسة", { bold: true, width: 25, shading: H }),
             c("عضو", { bold: true, width: 25, shading: H }),
-            c("المعني بالعهدة", { bold: true, width: 25, shading: H }),
+            c("عضو", { bold: true, width: 25, shading: H }),
           ]}),
           new TableRow({ children: [
-            c(""),
+            c(`الاسم: ${data.custodian || ""}`, { align: AlignmentType.RIGHT }),
             c(`الاسم: ${data.directorName}`, { align: AlignmentType.RIGHT }),
             c(`الاسم: ${data.committeeMember1 || ""}`, { align: AlignmentType.RIGHT }),
-            c(`الاسم: ${data.custodian || ""}`, { align: AlignmentType.RIGHT }),
+            c(`الاسم: ${data.committeeMember2 || ""}`, { align: AlignmentType.RIGHT }),
           ]}),
           new TableRow({ children: [
-            c(""),
+            c("التوقيع:", { align: AlignmentType.RIGHT }),
             c("التوقيع:", { align: AlignmentType.RIGHT }),
             c("التوقيع:", { align: AlignmentType.RIGHT }),
             c("التوقيع:", { align: AlignmentType.RIGHT }),
           ]}),
           new TableRow({ children: [
-            c(""),
-            c(`عضو: ${data.committeeMember2 || ""}`, { align: AlignmentType.RIGHT }),
-            c("التوقيع:", { align: AlignmentType.RIGHT }),
-            c(""),
+            c(`التاريخ: ${data.date}`, { align: AlignmentType.RIGHT }),
+            c(`التاريخ: ${data.date}`, { align: AlignmentType.RIGHT }),
+            c(`التاريخ: ${data.date}`, { align: AlignmentType.RIGHT }),
+            c(`التاريخ: ${data.date}`, { align: AlignmentType.RIGHT }),
           ]}),
         ],
         width: { size: 100, type: WidthType.PERCENTAGE },
       }),
-      p([t(`التاريخ : ${data.date}`, { size: S })], AlignmentType.RIGHT),
       p([t("Form#QF72-4-24 rev.a", { size: 14 })], AlignmentType.LEFT),
     ];
   }
