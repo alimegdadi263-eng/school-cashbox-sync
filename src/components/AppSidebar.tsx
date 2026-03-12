@@ -73,6 +73,7 @@ export default function AppSidebar() {
       (window as any).electronAPI.checkForUpdates();
     }
   };
+  const entries: SidebarEntry[] = [
     { path: "/", label: "لوحة التحكم", icon: LayoutDashboard },
     {
       label: "مالية المدرسة",
