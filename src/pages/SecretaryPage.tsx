@@ -828,7 +828,7 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" dir="rtl">
       {/* Interrogation */}
       <Card>
         <CardHeader>

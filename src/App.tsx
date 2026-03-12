@@ -58,6 +58,7 @@ const App = () => (
           <TimetableProvider>
           <Toaster />
           <Sonner />
+          <UpdateNotification />
           <Router>
             <Routes>
               <Route path="/login" element={<AuthRoute><Auth /></AuthRoute>} />
