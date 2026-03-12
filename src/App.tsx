@@ -21,6 +21,7 @@ import PresentationExport from "./pages/PresentationExport";
 import TimetablePage from "./pages/TimetablePage";
 import SecretaryPage from "./pages/SecretaryPage";
 import { TimetableProvider } from "@/context/TimetableContext";
+import UpdateNotification from "@/components/UpdateNotification";
 
 const queryClient = new QueryClient();
 const isElectron = typeof navigator !== "undefined" && navigator.userAgent.toLowerCase().includes("electron");
