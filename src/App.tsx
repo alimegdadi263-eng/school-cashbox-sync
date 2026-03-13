@@ -20,6 +20,7 @@ import CodeDocumentation from "./pages/CodeDocumentation";
 import PresentationExport from "./pages/PresentationExport";
 import TimetablePage from "./pages/TimetablePage";
 import SecretaryPage from "./pages/SecretaryPage";
+import SdiAnalysis from "./pages/SdiAnalysis";
 import { TimetableProvider } from "@/context/TimetableContext";
 import UpdateNotification from "@/components/UpdateNotification";
 
