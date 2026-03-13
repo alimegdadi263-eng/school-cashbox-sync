@@ -150,7 +150,7 @@ export default function CodeDocumentation() {
             <Code className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">توثيق الكود البرمجي</h1>
+            <h1 className="text-2xl font-bold text-foreground">توثيق الكود البرمجي - الادارة المدرسية</h1>
             <p className="text-sm text-muted-foreground">شرح شامل لكل جزء من أجزاء البرمجية</p>
           </div>
         </div>
