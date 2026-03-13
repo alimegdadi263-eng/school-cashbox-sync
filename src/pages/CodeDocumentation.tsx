@@ -135,6 +135,8 @@ const sections: DocSection[] = [
       { file: "electron-builder.yml", description: "إعدادات بناء ملف EXE: تحديد اسم التطبيق، ASAR، مجلد الإخراج، وخيارات التثبيت (NSIS)." },
       { file: ".github/workflows/build-windows.yml", description: "سير عمل GitHub Actions: بناء تلقائي لملف EXE مع خطوات التشفير وفحص السلامة." },
       { file: "package.json scripts", description: "أوامر البناء: electron:dev (تطوير)، electron:build (بناء كامل مع تشفير + integrity + تجميع)." },
+      { file: "electron/updater.cjs", description: "نظام التحديث التلقائي: يتحقق من التحديثات عبر GitHub Releases تلقائياً بعد 5 ثوانٍ من بدء التشغيل. يرسل حالة التحديث (checking/available/downloading/downloaded) إلى واجهة المستخدم عبر IPC." },
+      { file: "التحديث اليدوي", description: "خطوات رفع تحديث: 1) تغيير version في package.json 2) بناء EXE: npm run electron:build 3) رفع .exe + latest.yml على GitHub Release بتاغ vX.X.X. المستخدمون يتلقون التنبيه تلقائياً عبر زر التحديثات في الشريط الجانبي." },
     ],
   },
 ];
