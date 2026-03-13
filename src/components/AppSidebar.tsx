@@ -122,7 +122,7 @@ export default function AppSidebar() {
             <School className="w-5 h-5 text-accent-foreground" />
           </div>
           <div>
-            <h1 className="text-sidebar-foreground font-bold text-lg leading-tight">مالية المدارس</h1>
+            <h1 className="text-sidebar-foreground font-bold text-lg leading-tight">الادارة المدرسية</h1>
             <p className="text-sidebar-foreground/60 text-xs">{schoolName || "نظام إدارة مالية"}</p>
           </div>
         </div>

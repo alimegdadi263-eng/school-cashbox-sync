@@ -2,11 +2,11 @@ import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, T
 import { saveAs } from "file-saver";
 
 const FONT = "Traditional Arabic";
-const S = 18; // compact body
-const M = 20; // normal body  
-const L = 24; // section headers
-const XL = 28; // titles
-const XXL = 30; // big titles
+const S = 22; // compact body (was 18)
+const M = 24; // normal body (was 20)
+const L = 28; // section headers (was 24)
+const XL = 32; // titles (was 28)
+const XXL = 34; // big titles (was 30)
 
 // ─── Logo ───
 let logoBuffer: ArrayBuffer | null = null;
