@@ -20,6 +20,7 @@ import CodeDocumentation from "./pages/CodeDocumentation";
 import PresentationExport from "./pages/PresentationExport";
 import TimetablePage from "./pages/TimetablePage";
 import SecretaryPage from "./pages/SecretaryPage";
+import SdiAnalysis from "./pages/SdiAnalysis";
 import { TimetableProvider } from "@/context/TimetableContext";
 import UpdateNotification from "@/components/UpdateNotification";
 
@@ -70,6 +71,7 @@ const App = () => (
               <Route path="/instructions" element={<ProtectedRoute><InstructionsPage /></ProtectedRoute>} />
               <Route path="/timetable" element={<ProtectedRoute><TimetablePage /></ProtectedRoute>} />
               <Route path="/secretary" element={<ProtectedRoute><SecretaryPage /></ProtectedRoute>} />
+              <Route path="/sdi-analysis" element={<ProtectedRoute><SdiAnalysis /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
               <Route path="/code-docs" element={<AdminRoute><CodeDocumentation /></AdminRoute>} />

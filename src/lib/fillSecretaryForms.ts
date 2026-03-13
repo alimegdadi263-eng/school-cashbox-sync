@@ -2,11 +2,11 @@ import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, T
 import { saveAs } from "file-saver";
 
 const FONT = "Traditional Arabic";
-const S = 18; // compact body
-const M = 20; // normal body  
-const L = 24; // section headers
-const XL = 28; // titles
-const XXL = 30; // big titles
+const S = 22; // compact body (was 18)
+const M = 24; // normal body (was 20)
+const L = 28; // section headers (was 24)
+const XL = 32; // titles (was 28)
+const XXL = 34; // big titles (was 30)
 
 // ─── Logo ───
 let logoBuffer: ArrayBuffer | null = null;
@@ -357,7 +357,7 @@ export async function exportInventoryCustodyDocx(data: InventoryCustodyData) {
   };
 
   function buildPage(pageItems: InventoryCustodyItem[], pageNum: number, totalPages: number) {
-    const headerRow = new TableRow({
+     const headerRow = new TableRow({
       children: [
         c("ملاحظات", { bold: true, width: 8, shading: H }),
         c("السعر الإجمالي", { bold: true, width: 10, shading: H, colspan: 2 }),
@@ -370,6 +370,21 @@ export async function exportInventoryCustodyDocx(data: InventoryCustodyData) {
         c("رقم صفحة السجل", { bold: true, width: 8, shading: H }),
       ],
       tableHeader: true,
+    });
+
+    // Sub-header row for dinar/fils
+    const subHeaderRow = new TableRow({
+      children: [
+        c("", { size: S }),
+        c("د", { bold: true, shading: H }), c("ف", { bold: true, shading: H }),
+        c("د", { bold: true, shading: H }), c("ف", { bold: true, shading: H }),
+        c("", { size: S }),
+        c("", { size: S }),
+        c("", { size: S }),
+        c("", { size: S }),
+        c("", { size: S }),
+        c("", { size: S }),
+      ],
     });
 
     const dataRows = pageItems.map(item => {
@@ -394,7 +409,7 @@ export async function exportInventoryCustodyDocx(data: InventoryCustodyData) {
     }
 
     const table = new Table({
-      rows: [headerRow, ...dataRows],
+      rows: [headerRow, subHeaderRow, ...dataRows],
       width: { size: 100, type: WidthType.PERCENTAGE },
     });
 

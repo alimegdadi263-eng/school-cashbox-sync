@@ -19,6 +19,7 @@ import {
   Archive,
   Download,
   Loader2,
+  BarChart3,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -46,7 +47,7 @@ export default function AppSidebar() {
   const location = useLocation();
   const { isAdmin, schoolName, signOut } = useAuth();
 
-  const financePaths = ["/cashbook", "/transaction", "/summary", "/forms"];
+  const financePaths = ["/cashbook", "/transaction", "/summary", "/forms", "/sdi-analysis"];
   const financeActive = financePaths.includes(location.pathname);
   const [financeOpen, setFinanceOpen] = useState(financeActive);
 
@@ -83,6 +84,7 @@ export default function AppSidebar() {
         { path: "/transaction", label: "إضافة حركة", icon: PlusCircle },
         { path: "/summary", label: "خلاصة الحسابات", icon: FileText },
         { path: "/forms", label: "المعاملات المالية", icon: FolderOpen },
+        { path: "/sdi-analysis", label: "تحليل منحة SDI", icon: BarChart3 },
       ],
     },
     { path: "/timetable", label: "الجدول المدرسي", icon: CalendarDays },
@@ -122,7 +124,7 @@ export default function AppSidebar() {
             <School className="w-5 h-5 text-accent-foreground" />
           </div>
           <div>
-            <h1 className="text-sidebar-foreground font-bold text-lg leading-tight">مالية المدارس</h1>
+            <h1 className="text-sidebar-foreground font-bold text-lg leading-tight">الادارة المدرسية</h1>
             <p className="text-sidebar-foreground/60 text-xs">{schoolName || "نظام إدارة مالية"}</p>
           </div>
         </div>

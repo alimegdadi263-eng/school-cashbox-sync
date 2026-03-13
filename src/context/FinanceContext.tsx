@@ -25,7 +25,7 @@ const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 const STORAGE_KEY_PREFIX = "school-finance-data";
 
 const defaultState: FinanceState = {
-  schoolName: "المدرسة الثانوية الشاملة",
+  schoolName: "المدرسة",
   directorateName: "",
   directorName: "",
   member1Name: "",
