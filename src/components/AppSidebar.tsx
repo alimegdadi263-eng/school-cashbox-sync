@@ -84,6 +84,7 @@ export default function AppSidebar() {
         { path: "/transaction", label: "إضافة حركة", icon: PlusCircle },
         { path: "/summary", label: "خلاصة الحسابات", icon: FileText },
         { path: "/forms", label: "المعاملات المالية", icon: FolderOpen },
+        { path: "/sdi-analysis", label: "تحليل منحة SDI", icon: BarChart3 },
       ],
     },
     { path: "/timetable", label: "الجدول المدرسي", icon: CalendarDays },
