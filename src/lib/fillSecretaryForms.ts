@@ -409,7 +409,7 @@ export async function exportInventoryCustodyDocx(data: InventoryCustodyData) {
     }
 
     const table = new Table({
-      rows: [headerRow, ...dataRows],
+      rows: [headerRow, subHeaderRow, ...dataRows],
       width: { size: 100, type: WidthType.PERCENTAGE },
     });
 
