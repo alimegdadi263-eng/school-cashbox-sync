@@ -19,6 +19,7 @@ import {
   Archive,
   Download,
   Loader2,
+  BarChart3,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
