@@ -84,6 +84,7 @@ const sections: DocSection[] = [
       { file: "src/lib/generateLocalPurchaseDocx.ts", description: "توليد طلب المشترى المحلي: إنشاء ملف Word بجدول ديناميكي مع أعمدة فرعية (دينار/فلس)." },
       { file: "src/lib/generateMonthlySummaryDocx.ts", description: "توليد الخلاصة الشهرية: إنشاء ملف Word أفقي معقد للخلاصة الشهرية." },
       { file: "src/lib/exportMonthlySummaryExcel.ts", description: "تصدير الخلاصة الشهرية كملف Excel مع تنسيق احترافي باستخدام exceljs." },
+      { file: "src/pages/SdiAnalysis.tsx", description: "تحليل منحة SDI: تبويب مالي لتحليل أوجه صرف منح المدرسة ضمن 5 مجالات (تعلم، صيانة، شراكة، تعلم عن بعد، تميز) مع فلترة بتاريخ بداية/نهاية، توزيع تلقائي لحركات SDI، وتصدير Excel مطابق للنموذج الرسمي." },
       { file: "public/templates/", description: "مجلد القوالب: يحتوي على ملفات Word الجاهزة التي يتم تعبئتها (مطالبة، تكليف، مشترى محلي، سند صرف)." },
     ],
   },
