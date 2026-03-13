@@ -47,7 +47,7 @@ export default function AppSidebar() {
   const location = useLocation();
   const { isAdmin, schoolName, signOut } = useAuth();
 
-  const financePaths = ["/cashbook", "/transaction", "/summary", "/forms"];
+  const financePaths = ["/cashbook", "/transaction", "/summary", "/forms", "/sdi-analysis"];
   const financeActive = financePaths.includes(location.pathname);
   const [financeOpen, setFinanceOpen] = useState(financeActive);
 
