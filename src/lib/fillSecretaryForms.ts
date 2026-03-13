@@ -357,7 +357,7 @@ export async function exportInventoryCustodyDocx(data: InventoryCustodyData) {
   };
 
   function buildPage(pageItems: InventoryCustodyItem[], pageNum: number, totalPages: number) {
-    const headerRow = new TableRow({
+     const headerRow = new TableRow({
       children: [
         c("ملاحظات", { bold: true, width: 8, shading: H }),
         c("السعر الإجمالي", { bold: true, width: 10, shading: H, colspan: 2 }),
@@ -370,6 +370,21 @@ export async function exportInventoryCustodyDocx(data: InventoryCustodyData) {
         c("رقم صفحة السجل", { bold: true, width: 8, shading: H }),
       ],
       tableHeader: true,
+    });
+
+    // Sub-header row for dinar/fils
+    const subHeaderRow = new TableRow({
+      children: [
+        c("", { size: S }),
+        c("د", { bold: true, shading: H }), c("ف", { bold: true, shading: H }),
+        c("د", { bold: true, shading: H }), c("ف", { bold: true, shading: H }),
+        c("", { size: S }),
+        c("", { size: S }),
+        c("", { size: S }),
+        c("", { size: S }),
+        c("", { size: S }),
+        c("", { size: S }),
+      ],
     });
 
     const dataRows = pageItems.map(item => {
