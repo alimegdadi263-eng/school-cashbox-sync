@@ -52,7 +52,7 @@ export default function AppSidebar() {
   const [financeOpen, setFinanceOpen] = useState(financeActive);
 
   // Update state
-  const isElectron = typeof window !== "undefined" && (window as any).electronAPI?.checkForUpdates;
+  const isElectron = typeof window !== "undefined" && ((window as any).electronAPI?.runUpdateAction || (window as any).electronAPI?.checkForUpdates);
   const [updateStatus, setUpdateStatus] = useState<string>("idle");
   const [updateVersion, setUpdateVersion] = useState("");
   const [updateProgress, setUpdateProgress] = useState(0);

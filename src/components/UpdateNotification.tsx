@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 
 export default function UpdateNotification() {
-  const isElectron = typeof window !== "undefined" && (window as any).electronAPI?.checkForUpdates;
+  const isElectron = typeof window !== "undefined" && ((window as any).electronAPI?.runUpdateAction || (window as any).electronAPI?.checkForUpdates);
   const [status, setStatus] = useState<string>("idle");
   const [version, setVersion] = useState("");
   const [progress, setProgress] = useState(0);
