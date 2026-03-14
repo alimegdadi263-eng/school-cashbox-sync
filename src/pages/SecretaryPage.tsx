@@ -569,7 +569,7 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
       const sheet = workbook.worksheets[0];
       if (!sheet) throw new Error("لا يوجد شيت في ملف Excel");
 
-      const getCellText = (row: ExcelJS.Row, colIndex: number) => {
+      const getCellText = (row: any, colIndex: number) => {
         const raw = row.getCell(colIndex).value as any;
         if (raw === null || raw === undefined) return "";
         if (typeof raw === "object" && raw.result !== undefined && raw.result !== null) return String(raw.result);
