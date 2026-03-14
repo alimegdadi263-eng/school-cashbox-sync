@@ -446,41 +446,224 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
   const [committeeMember3, setCommitteeMember3] = useState("");
   const [showHistory, setShowHistory] = useState(false);
 
+  const disposalExcelInputRef = useRef<HTMLInputElement>(null);
+  const disposalWordInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     setRecords(loadDisposals(userId));
   }, [userId]);
 
+  const normalizeDigits = (input: string) =>
+    input
+      .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
+      .replace(/[٫]/g, ".")
+      .replace(/[٬,]/g, "")
+      .trim();
+
+  const toNumber = (value: unknown) => {
+    if (value === null || value === undefined) return 0;
+    const raw = normalizeDigits(String(value));
+    if (!raw) return 0;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const parseDisposalCells = (cells: string[]): Omit<DisposalItem, "id" | "serialNumber"> | null => {
+    const values = cells.map((cell) => cell.trim());
+    if (values.every((v) => !v)) return null;
+
+    const rowText = values.join(" ");
+    if (
+      rowText.includes("لجنة الإتلاف") ||
+      rowText.includes("مدير المدرسة") ||
+      rowText.includes("الاسم:") ||
+      rowText.includes("التوقيع") ||
+      rowText.includes("التاريخ")
+    ) {
+      return null;
+    }
+
+    // Format exported from disposal Word template (13 columns with دينار/فلس split)
+    if (values.length >= 13 && (values[10] || values[11])) {
+      const totalPrice = toNumber(values[2]) + toNumber(values[3]) / 1000;
+      const unitPrice = toNumber(values[4]) + toNumber(values[5]) / 1000;
+      if (!values[10]) return null;
+      return {
+        pageNumber: values[11] || "",
+        itemName: values[10] || "",
+        grade: values[9] || "",
+        editionDate: values[8] || "",
+        quantityNum: toNumber(values[7]) || 0,
+        quantityWords: values[6] || "",
+        unitPrice,
+        totalPrice,
+        entryDate: values[1] || "",
+        reason: values[0] || "",
+      };
+    }
+
+    // Generic Excel format (11 columns)
+    if (values.length >= 11 && (values[2] || values[1])) {
+      if (!values[2]) return null;
+      return {
+        pageNumber: values[1] || "",
+        itemName: values[2] || "",
+        grade: values[3] || "",
+        editionDate: values[4] || "",
+        quantityNum: toNumber(values[5]) || 0,
+        quantityWords: values[6] || "",
+        unitPrice: toNumber(values[7]),
+        totalPrice: toNumber(values[8]),
+        entryDate: values[9] || "",
+        reason: values[10] || "الغاء مادة",
+      };
+    }
+
+    return null;
+  };
+
   const addItem = () => {
-    setItems(prev => [...prev, {
-      id: generateId(),
-      serialNumber: prev.length + 1,
-      pageNumber: "",
-      itemName: "",
-      grade: "",
-      editionDate: "",
-      quantityNum: 1,
-      quantityWords: "",
-      unitPrice: 0,
-      totalPrice: 0,
-      entryDate: "",
-      reason: "الغاء مادة",
-    }]);
+    setItems((prev) => [
+      ...prev,
+      {
+        id: generateId(),
+        serialNumber: prev.length + 1,
+        pageNumber: "",
+        itemName: "",
+        grade: "",
+        editionDate: "",
+        quantityNum: 1,
+        quantityWords: "",
+        unitPrice: 0,
+        totalPrice: 0,
+        entryDate: "",
+        reason: "الغاء مادة",
+      },
+    ]);
   };
 
   const updateItem = (id: string, field: keyof DisposalItem, value: string | number) => {
-    setItems(prev => prev.map(item => {
-      if (item.id !== id) return item;
-      const updated = { ...item, [field]: value };
-      // Auto-calc total price
-      if (field === "unitPrice" || field === "quantityNum") {
-        updated.totalPrice = Number(updated.quantityNum) * Number(updated.unitPrice);
-      }
-      return updated;
-    }));
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const updated = { ...item, [field]: value };
+        if (field === "unitPrice" || field === "quantityNum") {
+          updated.totalPrice = Number(updated.quantityNum) * Number(updated.unitPrice);
+        }
+        return updated;
+      })
+    );
   };
 
   const removeItem = (id: string) => {
-    setItems(prev => prev.filter(i => i.id !== id).map((item, idx) => ({ ...item, serialNumber: idx + 1 })));
+    setItems((prev) => prev.filter((i) => i.id !== id).map((item, idx) => ({ ...item, serialNumber: idx + 1 })));
+  };
+
+  const importDisposalExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(await file.arrayBuffer());
+      const sheet = workbook.worksheets[0];
+      if (!sheet) throw new Error("لا يوجد شيت في ملف Excel");
+
+      const getCellText = (row: ExcelJS.Row, colIndex: number) => {
+        const raw = row.getCell(colIndex).value as any;
+        if (raw === null || raw === undefined) return "";
+        if (typeof raw === "object" && raw.result !== undefined && raw.result !== null) return String(raw.result);
+        if (typeof raw === "object" && raw.text !== undefined && raw.text !== null) return String(raw.text);
+        return String(raw);
+      };
+
+      let startRow = 1;
+      sheet.eachRow((row, rowNumber) => {
+        const rowText = Array.from({ length: 13 }, (_, index) => getCellText(row, index + 1)).join(" ");
+        if (rowText.includes("اسم الكتاب") || rowText.includes("رقم صفحة السجل")) {
+          startRow = rowNumber + 1;
+        }
+      });
+
+      const importedItems: DisposalItem[] = [];
+      sheet.eachRow((row, rowNumber) => {
+        if (rowNumber < startRow) return;
+
+        const cells = Array.from({ length: 13 }, (_, index) => getCellText(row, index + 1));
+        const parsed = parseDisposalCells(cells);
+        if (!parsed) return;
+
+        importedItems.push({
+          id: generateId(),
+          serialNumber: importedItems.length + 1,
+          ...parsed,
+        });
+      });
+
+      if (importedItems.length === 0) throw new Error("لم يتم العثور على بيانات قابلة للاستيراد");
+      setItems(importedItems);
+      toast({ title: "تم الاستيراد", description: `تم استيراد ${importedItems.length} مادة من Excel` });
+    } catch (error) {
+      toast({ title: "خطأ في الاستيراد", description: String(error), variant: "destructive" });
+    }
+
+    if (disposalExcelInputRef.current) disposalExcelInputRef.current.value = "";
+  };
+
+  const importDisposalWord = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const zip = new PizZip(await file.arrayBuffer());
+      const xml = zip.file("word/document.xml")?.asText();
+      if (!xml) throw new Error("ملف Word غير صالح");
+
+      const rowMatches = xml.match(/<w:tr\b[^>]*>[\s\S]*?<\/w:tr>/g) || [];
+      const importedItems: DisposalItem[] = [];
+      let headerFound = false;
+
+      for (const rowXml of rowMatches) {
+        const cellMatches = rowXml.match(/<w:tc\b[^>]*>[\s\S]*?<\/w:tc>/g) || [];
+        const cells = cellMatches.map((cellXml) => {
+          const textParts = cellXml.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [];
+          return textParts.map((part) => part.replace(/<[^>]*>/g, "")).join("").trim();
+        });
+
+        if (!headerFound) {
+          const joined = cells.join(" ");
+          if (joined.includes("اسم الكتاب") || joined.includes("رقم صفحة السجل")) {
+            headerFound = true;
+          }
+          continue;
+        }
+
+        const parsed = parseDisposalCells(cells);
+        if (!parsed) continue;
+
+        importedItems.push({
+          id: generateId(),
+          serialNumber: importedItems.length + 1,
+          ...parsed,
+        });
+      }
+
+      if (importedItems.length === 0) throw new Error("لم يتم العثور على بيانات قابلة للاستيراد");
+      setItems(importedItems);
+      toast({ title: "تم الاستيراد", description: `تم استيراد ${importedItems.length} مادة من Word` });
+    } catch (error) {
+      toast({ title: "خطأ في الاستيراد", description: String(error), variant: "destructive" });
+    }
+
+    if (disposalWordInputRef.current) disposalWordInputRef.current.value = "";
+  };
+
+  const deleteRecord = (recordId: string) => {
+    if (!window.confirm("هل تريد شطب/حذف قائمة الإتلاف هذه؟")) return;
+    const updated = records.filter((record) => record.id !== recordId);
+    setRecords(updated);
+    saveDisposals(userId, updated);
+    toast({ title: "تم شطب قائمة الإتلاف" });
   };
 
   const saveDisposal = () => {
@@ -491,7 +674,7 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
     const record: DisposalRecord = {
       id: generateId(),
       date: new Date().toLocaleDateString("ar"),
-      category: INVENTORY_CATEGORIES.find(c => c.id === category)?.label || category,
+      category: INVENTORY_CATEGORIES.find((c) => c.id === category)?.label || category,
       items: [...items],
       committeeMember1: member1,
       committeeMember2: member2,
@@ -506,7 +689,7 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
   };
 
   const handleExportDocx = async (record: DisposalRecord) => {
-    const docxItems: DisposalDocxItem[] = record.items.map(item => ({
+    const docxItems: DisposalDocxItem[] = record.items.map((item) => ({
       serialNumber: item.serialNumber,
       pageNumber: item.pageNumber,
       itemName: item.itemName,
@@ -546,20 +729,28 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
     ws.addRow([]);
 
     const hRow = ws.addRow(["الرقم", "رقم صفحة السجل", "اسم الكتاب", "الصف", "تاريخ الطبعة", "الكمية بالأرقام", "الكمية بالحروف", "السعر الافرادي", "السعر الاجمالي", "تاريخ الادخال", "سبب الاتلاف"]);
-    hRow.eachCell(c => {
+    hRow.eachCell((c) => {
       c.font = { name: FONT_NAME, bold: true, size: 12, color: { argb: "FFFFFFFF" } };
       c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF8B0000" } };
       c.alignment = { horizontal: "center", vertical: "middle" };
       c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
     });
 
-    record.items.forEach(item => {
+    record.items.forEach((item) => {
       const row = ws.addRow([
-        item.serialNumber, item.pageNumber, item.itemName, item.grade, item.editionDate,
-        item.quantityNum, item.quantityWords, item.unitPrice, item.totalPrice,
-        item.entryDate, item.reason,
+        item.serialNumber,
+        item.pageNumber,
+        item.itemName,
+        item.grade,
+        item.editionDate,
+        item.quantityNum,
+        item.quantityWords,
+        item.unitPrice,
+        item.totalPrice,
+        item.entryDate,
+        item.reason,
       ]);
-      row.eachCell(c => {
+      row.eachCell((c) => {
         c.font = { name: FONT_NAME, size: 11 };
         c.alignment = { horizontal: "center", vertical: "middle" };
         c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
@@ -573,7 +764,9 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
     ws.addRow([`عضو: ${record.committeeMember2}`]);
     ws.addRow([`عضو: ${record.committeeMember3}`]);
 
-    ws.columns.forEach(col => { col.width = 16; });
+    ws.columns.forEach((col) => {
+      col.width = 16;
+    });
     ws.getColumn(3).width = 28;
 
     const buffer = await wb.xlsx.writeBuffer();
