@@ -70,9 +70,13 @@ export default function AppSidebar() {
   const isUpdating = updateStatus === "checking" || updateStatus === "downloading";
 
   const handleUpdateClick = () => {
-    if (isElectron) {
-      (window as any).electronAPI.checkForUpdates();
+    if (!isElectron) return;
+    const api = (window as any).electronAPI;
+    if (api?.runUpdateAction) {
+      api.runUpdateAction();
+      return;
     }
+    api?.checkForUpdates?.();
   };
   const entries: SidebarEntry[] = [
     { path: "/", label: "لوحة التحكم", icon: LayoutDashboard },
