@@ -2,7 +2,7 @@ const { app, BrowserWindow, session, globalShortcut, dialog, ipcMain } = require
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
-const { setupAutoUpdater, checkForUpdates, checkForUpdatesSilent } = require('./updater.cjs');
+const { setupAutoUpdater, checkForUpdates, checkForUpdatesSilent, runUpdateAction } = require('./updater.cjs');
 
 const isDev = !app.isPackaged;
 
@@ -221,6 +221,20 @@ app.whenReady().then(() => {
       return;
     }
     checkForUpdates();
+  });
+
+  // IPC: One-click update action (check → download → install)
+  ipcMain.on('run-update-action', () => {
+    if (isDev) {
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'التحديث',
+        message: 'التحديث التلقائي غير متوفر في وضع التطوير.',
+        buttons: ['حسناً'],
+      });
+      return;
+    }
+    runUpdateAction();
   });
 
   app.on('activate', () => {
