@@ -2,6 +2,13 @@ import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
+const quickStart = [
+  "سجّل الدخول بالحساب المدرسي، ثم تأكد من تعبئة الإعدادات الأساسية (اسم المدرسة، المديرية، المدير، أعضاء اللجنة).",
+  "أضف الحركات من تبويب (إضافة حركة) مع اختيار نوع الحركة والحسابات بشكل صحيح.",
+  "راجع النتائج في (دفتر الصندوق) و(خلاصة الحسابات) قبل التصدير.",
+  "استخدم التصدير Word/Excel لكل نموذج واحفظ نسخة أرشيفية شهرية.",
+];
+
 const movementInstructions = [
   {
     title: "سند القبض",
@@ -19,19 +26,19 @@ const movementInstructions = [
     title: "القيد",
     from: "من البنك",
     to: "إلى الصندوق",
-    details: "حركة ثابتة لتثبيت القيود المحاسبية.",
+    details: "حركة تثبيت للقيود المحاسبية.",
   },
   {
     title: "سحب سلفة",
     from: "من السلفة",
     to: "إلى البنك",
-    details: "تُسجّل كـ سحب سلفة في الإدخال وتُعرض كصرف في دفتر الصندوق.",
+    details: "تُسجّل كسحب سلفة في الإدخال وتُعرض كصرف في الدفتر.",
   },
   {
-    title: "صرف سلفة",
+    title: "صرف السلفة",
     from: "من التبرعات",
     to: "إلى السلفة",
-    details: "تُسجّل كـ صرف سلفة في الإدخال وتُعرض كصرف في دفتر الصندوق.",
+    details: "تُسجّل كصرف سلفة في الإدخال وتُعرض كصرف في الدفتر.",
   },
 ];
 
@@ -61,20 +68,49 @@ const requiredDocuments = [
   },
   {
     transaction: "صرف السلفة",
-    docs: [
-      "مستند صرف",
-      "كشف تسديد السلفة",
-      "فواتير السلفة كاملة",
-      "طلب مشترى محلي",
-    ],
+    docs: ["مستند صرف", "كشف تسديد السلفة", "فواتير السلفة كاملة", "طلب مشترى محلي"],
   },
+];
+
+const secretaryUsage = [
+  "تبويب الجرد: إضافة مواد يدوياً أو استيراد Word/Excel ثم التصدير بالنموذج الرسمي.",
+  "تبويب الإتلاف: إضافة المواد أو استيراد Word/Excel، ثم حفظ قائمة الإتلاف.",
+  "قوائم الإتلاف المحفوظة: يمكنك إعادة التصدير أو شطب أي قائمة من السجل المحفوظ.",
+  "النماذج الإدارية: استجواب، إجازة عرضية، عدم صرف مع تعبئة تلقائية من البيانات المدخلة.",
+];
+
+const updateInstructions = [
+  "للمستخدم النهائي: اضغط زر (التحديثات) مرة واحدة؛ الزر ينفّذ تلقائياً (تحقق ← تنزيل ← تثبيت).",
+  "عند اكتمال التنزيل ستظهر رسالة إعادة التشغيل لتثبيت النسخة الجديدة مباشرة.",
+  "للنشر: رفع رقم الإصدار ثم بناء نسخة Windows ورفع ملفات الإصدار إلى GitHub Releases.",
+  "في حال عدم ظهور تحديث: تأكد من اتصال الإنترنت وأن الإصدار الجديد مرفوع بشكل صحيح.",
+];
+
+const troubleshooting = [
+  "إذا لم يظهر ملف التصدير: تأكد من السماح بالتحميلات في النظام ومسار الحفظ.",
+  "إذا كانت النتائج غير صحيحة: راجع اتجاه الحركة (من/إلى) وتاريخ الحركة والحسابات المختارة.",
+  "إذا فشل الاستيراد: استخدم أول شيت في Excel وتأكد أن الصفوف تحتوي أعمدة النموذج الرسمية.",
+  "إذا حدث تعارض أرقام: راجع الإعدادات وأعد حفظ الأرصدة الافتتاحية قبل إدخال الحركات الجديدة.",
 ];
 
 export default function InstructionsPage() {
   return (
     <AppLayout>
-      <div className="space-y-6 max-w-5xl">
-        <h1 className="text-2xl font-bold text-foreground">تعليمات الاستخدام والمعاملات</h1>
+      <div className="space-y-6 max-w-6xl" dir="rtl">
+        <h1 className="text-2xl font-bold text-foreground">دليل استخدام البرمجية الكامل</h1>
+
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle>البدء السريع</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ol className="list-decimal pr-5 space-y-2 text-sm text-muted-foreground">
+              {quickStart.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
 
         <Card className="shadow-card">
           <CardHeader>
@@ -111,7 +147,46 @@ export default function InstructionsPage() {
 
         <Card className="shadow-card">
           <CardHeader>
-            <CardTitle>معلومات عن صاحب البرمجية</CardTitle>
+            <CardTitle>استخدام تبويب السكرتير (الجرد والإتلاف والنماذج)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
+              {secretaryUsage.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle>آلية التحديث</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
+              {updateInstructions.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle>حل المشاكل الشائعة</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
+              {troubleshooting.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle>الدعم الفني</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <p>
@@ -122,7 +197,7 @@ export default function InstructionsPage() {
             </p>
             <Separator />
             <p>
-              الهدف من البرمجية: <span className="text-foreground">التسهيل على المستخدم في التعامل مع الحركات والمعاملات المالية بشكل واضح ومنظّم.</span>
+              الهدف من البرمجية: <span className="text-foreground">تسهيل إدارة الحركات المالية والجرد والإتلاف والنماذج الرسمية بدقة ووقت أقل.</span>
             </p>
           </CardContent>
         </Card>
