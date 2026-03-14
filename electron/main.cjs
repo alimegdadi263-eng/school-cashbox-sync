@@ -223,6 +223,20 @@ app.whenReady().then(() => {
     checkForUpdates();
   });
 
+  // IPC: One-click update action (check → download → install)
+  ipcMain.on('run-update-action', () => {
+    if (isDev) {
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'التحديث',
+        message: 'التحديث التلقائي غير متوفر في وضع التطوير.',
+        buttons: ['حسناً'],
+      });
+      return;
+    }
+    runUpdateAction();
+  });
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
