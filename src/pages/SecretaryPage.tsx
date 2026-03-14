@@ -931,6 +931,9 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
                     <Button size="sm" variant="outline" onClick={() => exportDisposalExcel(record)}>
                       <FileDown className="w-4 h-4 ml-1" /> Excel
                     </Button>
+                    <Button size="sm" variant="destructive" onClick={() => deleteRecord(record.id)}>
+                      <Trash2 className="w-4 h-4 ml-1" /> شطب
+                    </Button>
                   </div>
                 </div>
               ))
