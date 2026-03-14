@@ -801,9 +801,33 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <Label className="font-bold">المواد المراد إتلافها</Label>
-            <Button size="sm" onClick={addItem}><Plus className="w-4 h-4 ml-1" /> إضافة مادة</Button>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={() => disposalExcelInputRef.current?.click()}>
+                <FileUp className="w-4 h-4 ml-1" /> استيراد Excel
+              </Button>
+              <input
+                ref={disposalExcelInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                className="hidden"
+                onChange={importDisposalExcel}
+              />
+              <Button size="sm" variant="outline" onClick={() => disposalWordInputRef.current?.click()}>
+                <FileUp className="w-4 h-4 ml-1" /> استيراد Word
+              </Button>
+              <input
+                ref={disposalWordInputRef}
+                type="file"
+                accept=".docx"
+                className="hidden"
+                onChange={importDisposalWord}
+              />
+              <Button size="sm" onClick={addItem}>
+                <Plus className="w-4 h-4 ml-1" /> إضافة مادة
+              </Button>
+            </div>
           </div>
 
           {items.length > 0 && (
