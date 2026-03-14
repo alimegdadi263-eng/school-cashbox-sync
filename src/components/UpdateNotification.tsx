@@ -29,11 +29,13 @@ export default function UpdateNotification() {
   if (status === "idle" || status === "not-available") return null;
 
   const handleClick = () => {
-    if (status === "available") {
-      // Trigger the update check which will show the native dialog to download
-      (window as any).electronAPI.checkForUpdates();
-    } else if (status === "downloaded") {
-      (window as any).electronAPI.checkForUpdates();
+    const api = (window as any).electronAPI;
+    if (status === "available" || status === "downloaded") {
+      if (api?.runUpdateAction) {
+        api.runUpdateAction();
+      } else {
+        api?.checkForUpdates?.();
+      }
     }
     setExpanded(!expanded);
   };
