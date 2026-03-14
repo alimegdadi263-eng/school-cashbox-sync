@@ -2,7 +2,7 @@ const { app, BrowserWindow, session, globalShortcut, dialog, ipcMain } = require
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
-const { setupAutoUpdater, checkForUpdates, checkForUpdatesSilent } = require('./updater.cjs');
+const { setupAutoUpdater, checkForUpdates, checkForUpdatesSilent, runUpdateAction } = require('./updater.cjs');
 
 const isDev = !app.isPackaged;
 
