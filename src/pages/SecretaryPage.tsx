@@ -1233,7 +1233,7 @@ function DisposalSection({
                         <Input value={item.grade} onChange={e => updateItem(item.id, "grade", e.target.value)} className="h-8" />
                       </TableCell>
                       <TableCell>
-                        <Input value={item.editionDate} onChange={e => updateItem(item.id, "editionDate", e.target.value)} className="h-8 text-center" />
+                        <Input type="date" value={item.editionDate} onChange={e => updateItem(item.id, "editionDate", e.target.value)} className="h-8 text-center" />
                       </TableCell>
                       <TableCell>
                         <Input type="number" min={0} value={item.quantityNum} onChange={e => updateItem(item.id, "quantityNum", Number(e.target.value))} className="h-8 text-center" />
@@ -1246,7 +1246,7 @@ function DisposalSection({
                       </TableCell>
                       <TableCell className="text-center font-medium">{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</TableCell>
                       <TableCell>
-                        <Input value={item.entryDate} onChange={e => updateItem(item.id, "entryDate", e.target.value)} className="h-8 text-center" />
+                        <Input type="date" value={item.entryDate} onChange={e => updateItem(item.id, "entryDate", e.target.value)} className="h-8 text-center" />
                       </TableCell>
                       <TableCell>
                         <Input value={item.reason} onChange={e => updateItem(item.id, "reason", e.target.value)} className="h-8" />
