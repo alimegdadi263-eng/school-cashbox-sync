@@ -170,6 +170,32 @@ function saveInventory(userId: string, category: string, items: InventoryItem[])
   localStorage.setItem(`${STORAGE_KEY_PREFIX}${userId}_${category}`, JSON.stringify(items));
 }
 
+function loadInventoryRecords(userId: string, category: string): InventoryRecord[] {
+  try {
+    const data = localStorage.getItem(`${INVENTORY_RECORDS_KEY_PREFIX}${userId}_${category}`);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveInventoryRecords(userId: string, category: string, records: InventoryRecord[]) {
+  localStorage.setItem(`${INVENTORY_RECORDS_KEY_PREFIX}${userId}_${category}`, JSON.stringify(records));
+}
+
+function loadInventoryDisposalQueue(userId: string): InventoryToDisposalItem[] {
+  try {
+    const data = localStorage.getItem(`${INVENTORY_DISPOSAL_QUEUE_KEY}_${userId}`);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveInventoryDisposalQueue(userId: string, items: InventoryToDisposalItem[]) {
+  localStorage.setItem(`${INVENTORY_DISPOSAL_QUEUE_KEY}_${userId}`, JSON.stringify(items));
+}
+
 function loadDisposals(userId: string): DisposalRecord[] {
   try {
     const data = localStorage.getItem(`${DISPOSAL_STORAGE_KEY}_${userId}`);
