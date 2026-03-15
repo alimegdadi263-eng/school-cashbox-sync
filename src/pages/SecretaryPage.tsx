@@ -16,7 +16,18 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import {
-  Plus, Trash2, FileDown, FileUp, FileText, ClipboardList, Package, Save, History, CalendarIcon,
+  Plus,
+  Trash2,
+  FileDown,
+  FileUp,
+  FileText,
+  ClipboardList,
+  Package,
+  Save,
+  History,
+  CalendarIcon,
+  ArrowRightLeft,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ExcelJS from "exceljs";
@@ -80,13 +91,59 @@ const INVENTORY_CATEGORIES = [
   { id: "textbooks", label: "الكتب المدرسية", icon: "📚" },
 ];
 
+interface InventoryRecord {
+  id: string;
+  savedAt: string;
+  categoryId: string;
+  categoryLabel: string;
+  items: InventoryItem[];
+}
+
+interface InventoryToDisposalItem {
+  sourceCategoryId: string;
+  sourceCategoryLabel: string;
+  itemName: string;
+  grade: string;
+  unitPrice: number;
+  quantityNum: number;
+}
+
 const STORAGE_KEY_PREFIX = "school_inventory_";
+const INVENTORY_RECORDS_KEY_PREFIX = "school_inventory_records_";
+const INVENTORY_DISPOSAL_QUEUE_KEY = "inventory_disposal_queue";
 const DISPOSAL_STORAGE_KEY = "school_disposal_records";
 const FONT_NAME = "Traditional Arabic";
 
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
+
+const normalizeDigits = (input: string) =>
+  input
+    .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
+    .replace(/[٫]/g, ".")
+    .replace(/[٬,]/g, "")
+    .trim();
+
+const toNumber = (value: unknown) => {
+  if (value === null || value === undefined) return 0;
+  const raw = normalizeDigits(String(value));
+  if (!raw) return 0;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const splitToDinarFils = (value: number) => {
+  const normalized = Number.isFinite(value) ? Number(value) : 0;
+  const dinar = Math.floor(normalized);
+  const fils = Math.round((normalized - dinar) * 1000);
+  return {
+    dinar,
+    fils,
+    dinarText: dinar ? String(dinar) : "0",
+    filsText: fils ? String(fils).padStart(3, "0") : "000",
+  };
+};
 
 // ─── LocalStorage helpers ───
 function loadInventory(userId: string, category: string): InventoryItem[] {
@@ -113,6 +170,32 @@ function saveInventory(userId: string, category: string, items: InventoryItem[])
   localStorage.setItem(`${STORAGE_KEY_PREFIX}${userId}_${category}`, JSON.stringify(items));
 }
 
+function loadInventoryRecords(userId: string, category: string): InventoryRecord[] {
+  try {
+    const data = localStorage.getItem(`${INVENTORY_RECORDS_KEY_PREFIX}${userId}_${category}`);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveInventoryRecords(userId: string, category: string, records: InventoryRecord[]) {
+  localStorage.setItem(`${INVENTORY_RECORDS_KEY_PREFIX}${userId}_${category}`, JSON.stringify(records));
+}
+
+function loadInventoryDisposalQueue(userId: string): InventoryToDisposalItem[] {
+  try {
+    const data = localStorage.getItem(`${INVENTORY_DISPOSAL_QUEUE_KEY}_${userId}`);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveInventoryDisposalQueue(userId: string, items: InventoryToDisposalItem[]) {
+  localStorage.setItem(`${INVENTORY_DISPOSAL_QUEUE_KEY}_${userId}`, JSON.stringify(items));
+}
+
 function loadDisposals(userId: string): DisposalRecord[] {
   try {
     const data = localStorage.getItem(`${DISPOSAL_STORAGE_KEY}_${userId}`);
@@ -125,58 +208,218 @@ function saveDisposals(userId: string, records: DisposalRecord[]) {
 }
 
 // ─── Inventory Tab Component ───
-function InventoryTab({ category, userId, schoolName, directorName, committeeMember, committeeMember2 }: {
-  category: typeof INVENTORY_CATEGORIES[0]; userId: string; schoolName: string; directorName: string; committeeMember: string; committeeMember2: string;
+function InventoryTab({
+  category,
+  userId,
+  schoolName,
+  directorateName,
+  directorName,
+  committeeMember,
+  committeeMember2,
+}: {
+  category: typeof INVENTORY_CATEGORIES[0];
+  userId: string;
+  schoolName: string;
+  directorateName: string;
+  directorName: string;
+  committeeMember: string;
+  committeeMember2: string;
 }) {
   const [items, setItems] = useState<InventoryItem[]>([]);
+  const [records, setRecords] = useState<InventoryRecord[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const wordInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setItems(loadInventory(userId, category.id));
+    setRecords(loadInventoryRecords(userId, category.id));
   }, [userId, category.id]);
 
   const save = (newItems: InventoryItem[]) => {
-    setItems(newItems);
-    saveInventory(userId, category.id, newItems);
+    const normalized = newItems.map((item, idx) => ({ ...item, serialNumber: idx + 1 }));
+    setItems(normalized);
+    saveInventory(userId, category.id, normalized);
+  };
+
+  const parseInventoryCells = (cells: string[]): Omit<InventoryItem, "id" | "serialNumber"> | null => {
+    const values = cells.map((cell) => cell.trim());
+    if (values.every((value) => !value)) return null;
+
+    const rowText = values.join(" ");
+    if (
+      rowText.includes("اللوازم") ||
+      rowText.includes("السعر") ||
+      rowText.includes("لجنة") ||
+      rowText.includes("التوقيع") ||
+      rowText.includes("التاريخ")
+    ) {
+      return null;
+    }
+
+    // New Word/Excel format with دينار/فلس split (11 cols)
+    if (values.length >= 11 && values[9]) {
+      const unitPrice = toNumber(values[3]) + toNumber(values[4]) / 1000;
+      const totalPrice = toNumber(values[1]) + toNumber(values[2]) / 1000;
+      const actualBalance = toNumber(values[8]);
+      const existing = toNumber(values[7]);
+      let shortage = toNumber(values[6]);
+      let surplus = toNumber(values[5]);
+
+      if (!shortage && !surplus) {
+        const diff = existing - actualBalance;
+        shortage = diff < 0 ? Math.abs(diff) : 0;
+        surplus = diff > 0 ? diff : 0;
+      }
+
+      return {
+        itemName: values[9],
+        actualBalance,
+        existing,
+        shortage,
+        surplus,
+        unitPrice,
+        totalPrice: totalPrice || unitPrice * shortage,
+      };
+    }
+
+    // Legacy 8-column format
+    if (values.length >= 8 && (values[1] || values[0])) {
+      const itemName = values[1] || values[0];
+      if (!itemName) return null;
+      const actualBalance = toNumber(values[2]);
+      const existing = toNumber(values[3]);
+      const shortage = toNumber(values[4]);
+      const surplus = toNumber(values[5]);
+      const unitPrice = toNumber(values[6]);
+      const totalPrice = toNumber(values[7]) || unitPrice * shortage;
+
+      return {
+        itemName,
+        actualBalance,
+        existing,
+        shortage,
+        surplus,
+        unitPrice,
+        totalPrice,
+      };
+    }
+
+    return null;
   };
 
   const addItem = () => {
-    const newItem: InventoryItem = {
-      id: generateId(),
-      serialNumber: items.length + 1,
-      itemName: "",
-      actualBalance: 0,
-      existing: 0,
-      shortage: 0,
-      surplus: 0,
-      unitPrice: 0,
-      totalPrice: 0,
-    };
-    save([...items, newItem]);
+    save([
+      ...items,
+      {
+        id: generateId(),
+        serialNumber: items.length + 1,
+        itemName: "",
+        actualBalance: 0,
+        existing: 0,
+        shortage: 0,
+        surplus: 0,
+        unitPrice: 0,
+        totalPrice: 0,
+      },
+    ]);
   };
 
   const updateItem = (id: string, field: keyof InventoryItem, value: string | number) => {
-    save(items.map(item => {
-      if (item.id !== id) return item;
-      const updated = { ...item, [field]: value };
-      // Auto-calc shortage/surplus/total
-      if (field === "actualBalance" || field === "existing") {
-        const diff = Number(updated.existing) - Number(updated.actualBalance);
-        updated.shortage = diff < 0 ? Math.abs(diff) : 0;
-        updated.surplus = diff > 0 ? diff : 0;
-      }
-      if (field === "unitPrice" || field === "shortage") {
-        updated.totalPrice = Number(updated.shortage) * Number(updated.unitPrice);
-      }
-      return updated;
-    }));
+    save(
+      items.map((item) => {
+        if (item.id !== id) return item;
+        const updated = { ...item, [field]: value };
+        if (field === "actualBalance" || field === "existing") {
+          const diff = Number(updated.existing) - Number(updated.actualBalance);
+          updated.shortage = diff < 0 ? Math.abs(diff) : 0;
+          updated.surplus = diff > 0 ? diff : 0;
+        }
+        if (field === "unitPrice" || field === "shortage") {
+          updated.totalPrice = Number(updated.shortage) * Number(updated.unitPrice);
+        }
+        return updated;
+      })
+    );
   };
 
   const removeItem = (id: string) => {
-    const filtered = items.filter(item => item.id !== id);
-    save(filtered.map((item, idx) => ({ ...item, serialNumber: idx + 1 })));
+    save(items.filter((item) => item.id !== id));
+  };
+
+  const saveCurrentInventoryList = () => {
+    if (items.length === 0) {
+      toast({ title: "لا توجد بيانات للحفظ", variant: "destructive" });
+      return;
+    }
+    const record: InventoryRecord = {
+      id: generateId(),
+      savedAt: format(new Date(), "yyyy/MM/dd"),
+      categoryId: category.id,
+      categoryLabel: category.label,
+      items: items.map((item) => ({ ...item, id: generateId() })),
+    };
+    const updated = [record, ...records];
+    setRecords(updated);
+    saveInventoryRecords(userId, category.id, updated);
+    toast({ title: "تم حفظ قائمة الجرد" });
+  };
+
+  const restoreInventoryRecord = (recordId: string) => {
+    const record = records.find((entry) => entry.id === recordId);
+    if (!record) return;
+    save(record.items.map((item) => ({ ...item, id: generateId() })));
+    toast({ title: "تم تحميل قائمة الجرد المحفوظة" });
+  };
+
+  const deleteInventoryRecord = (recordId: string) => {
+    if (!window.confirm("هل تريد شطب هذه القائمة المحفوظة؟")) return;
+    const updated = records.filter((record) => record.id !== recordId);
+    setRecords(updated);
+    saveInventoryRecords(userId, category.id, updated);
+    toast({ title: "تم شطب قائمة الجرد" });
+  };
+
+  const moveItemToDisposal = (item: InventoryItem) => {
+    if (!item.itemName.trim()) {
+      toast({ title: "أدخل اسم المادة أولاً", variant: "destructive" });
+      return;
+    }
+
+    const queue = loadInventoryDisposalQueue(userId);
+    queue.push({
+      sourceCategoryId: category.id,
+      sourceCategoryLabel: category.label,
+      itemName: item.itemName,
+      grade: "",
+      unitPrice: item.unitPrice || 0,
+      quantityNum: item.shortage || item.existing || 1,
+    });
+    saveInventoryDisposalQueue(userId, queue);
+    toast({ title: "تم ترحيل المادة إلى قائمة الإتلاف" });
+  };
+
+  const moveAllShortagesToDisposal = () => {
+    const candidates = items.filter((item) => item.itemName.trim() && (item.shortage > 0 || item.existing > 0));
+    if (candidates.length === 0) {
+      toast({ title: "لا توجد مواد قابلة للترحيل", variant: "destructive" });
+      return;
+    }
+
+    const queue = loadInventoryDisposalQueue(userId);
+    candidates.forEach((item) => {
+      queue.push({
+        sourceCategoryId: category.id,
+        sourceCategoryLabel: category.label,
+        itemName: item.itemName,
+        grade: "",
+        unitPrice: item.unitPrice || 0,
+        quantityNum: item.shortage || item.existing || 1,
+      });
+    });
+    saveInventoryDisposalQueue(userId, queue);
+    toast({ title: `تم ترحيل ${candidates.length} مادة إلى الإتلاف` });
   };
 
   const exportExcel = async () => {
@@ -184,7 +427,6 @@ function InventoryTab({ category, userId, schoolName, directorName, committeeMem
     const ws = wb.addWorksheet(category.label);
     ws.views = [{ rightToLeft: true }];
 
-    // Header
     ws.addRow(["وزارة التربية والتعليم"]);
     ws.mergeCells(1, 1, 1, 8);
     ws.getRow(1).getCell(1).font = { name: FONT_NAME, bold: true, size: 14 };
@@ -198,22 +440,28 @@ function InventoryTab({ category, userId, schoolName, directorName, committeeMem
 
     const headers = ["رقم السجل", "اللوازم", "الرصيد الفعلي", "الموجود", "النقص", "الزيادة", "السعر الإفرادي", "السعر الإجمالي"];
     const hRow = ws.addRow(headers);
-    hRow.eachCell(c => {
-      c.font = { name: FONT_NAME, bold: true, size: 12, color: { argb: "FFFFFFFF" } };
-      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2B3A55" } };
-      c.alignment = { horizontal: "center", vertical: "middle" };
-      c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+    hRow.eachCell((cell) => {
+      cell.font = { name: FONT_NAME, bold: true, size: 12, color: { argb: "FFFFFFFF" } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2B3A55" } };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+      cell.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
     });
 
-    items.forEach(item => {
+    items.forEach((item) => {
       const row = ws.addRow([
-        item.serialNumber, item.itemName, item.actualBalance, item.existing,
-        item.shortage, item.surplus, item.unitPrice, item.totalPrice,
+        item.serialNumber,
+        item.itemName,
+        item.actualBalance,
+        item.existing,
+        item.shortage,
+        item.surplus,
+        item.unitPrice,
+        item.totalPrice,
       ]);
-      row.eachCell(c => {
-        c.font = { name: FONT_NAME, size: 11 };
-        c.alignment = { horizontal: "center", vertical: "middle" };
-        c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+      row.eachCell((cell) => {
+        cell.font = { name: FONT_NAME, size: 12 };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+        cell.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
       });
     });
 
@@ -228,11 +476,11 @@ function InventoryTab({ category, userId, schoolName, directorName, committeeMem
 
     const buffer = await wb.xlsx.writeBuffer();
     saveAs(new Blob([buffer]), `جرد_${category.label}_${schoolName}.xlsx`);
-    toast({ title: "تم التصدير بنجاح" });
+    toast({ title: "تم تصدير الجرد إلى Excel" });
   };
 
   const exportDocx = async () => {
-    const custodyItems: InventoryCustodyItem[] = items.map(item => ({
+    const custodyItems: InventoryCustodyItem[] = items.map((item) => ({
       serialNumber: item.serialNumber,
       itemName: item.itemName,
       actualBalance: item.actualBalance,
@@ -242,113 +490,117 @@ function InventoryTab({ category, userId, schoolName, directorName, committeeMem
       unitPrice: item.unitPrice,
       totalPrice: item.totalPrice,
     }));
+
     await exportInventoryCustodyDocx({
       school: schoolName,
-      directorate: "",
+      directorate: directorateName,
       categoryLabel: category.label,
       items: custodyItems,
       directorName,
       committeeMember1: committeeMember,
       committeeMember2: committeeMember2,
       custodian: "",
-      date: new Date().toLocaleDateString("ar"),
+      date: format(new Date(), "yyyy/MM/dd"),
     });
+
     toast({ title: "تم تصدير نموذج الجرد (Word)" });
   };
 
-  const importWord = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const importWord = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
+
     try {
       const arrayBuffer = await file.arrayBuffer();
       const zip = new PizZip(arrayBuffer);
       const xml = zip.file("word/document.xml")?.asText();
-      if (!xml) throw new Error("ملف غير صالح");
+      if (!xml) throw new Error("ملف Word غير صالح");
 
-      // Parse table rows from XML
-      const imported: InventoryItem[] = [];
-      const rowMatches = xml.match(/<w:tr\b[^>]*>[\s\S]*?<\/w:tr>/g);
-      if (rowMatches) {
-        let headerFound = false;
-        for (const rowXml of rowMatches) {
-          const cellTexts: string[] = [];
-          const cellMatches = rowXml.match(/<w:tc\b[^>]*>[\s\S]*?<\/w:tc>/g);
-          if (cellMatches) {
-            for (const cellXml of cellMatches) {
-              const textParts = cellXml.match(/<w:t[^>]*>([^<]*)<\/w:t>/g);
-              const text = textParts ? textParts.map(t => t.replace(/<[^>]*>/g, "")).join("") : "";
-              cellTexts.push(text.trim());
-            }
+      const importedItems: InventoryItem[] = [];
+      const rowMatches = xml.match(/<w:tr\b[^>]*>[\s\S]*?<\/w:tr>/g) || [];
+      let dataSectionStarted = false;
+
+      for (const rowXml of rowMatches) {
+        const cellMatches = rowXml.match(/<w:tc\b[^>]*>[\s\S]*?<\/w:tc>/g) || [];
+        const cells = cellMatches.map((cellXml) => {
+          const textParts = cellXml.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [];
+          return textParts.map((part) => part.replace(/<[^>]*>/g, "")).join("").trim();
+        });
+
+        if (!dataSectionStarted) {
+          if (cells.join(" ").includes("اللوازم") || cells.join(" ").includes("رقم صفحة السجل")) {
+            dataSectionStarted = true;
           }
-          // Detect header row
-          if (cellTexts.some(t => t.includes("اللوازم") || t.includes("السجل"))) {
-            headerFound = true;
-            continue;
-          }
-          if (!headerFound) continue;
-          const name = cellTexts[1] || cellTexts[0] || "";
-          if (!name.trim() || name === "") continue;
-          imported.push({
-            id: generateId(),
-            serialNumber: imported.length + 1,
-            itemName: name,
-            actualBalance: Number(cellTexts[2]) || 0,
-            existing: Number(cellTexts[3]) || 0,
-            shortage: Number(cellTexts[4]) || 0,
-            surplus: Number(cellTexts[5]) || 0,
-            unitPrice: Number(cellTexts[6]) || 0,
-            totalPrice: Number(cellTexts[7]) || 0,
-          });
+          continue;
         }
+
+        const parsed = parseInventoryCells(cells);
+        if (!parsed) continue;
+
+        importedItems.push({
+          id: generateId(),
+          serialNumber: importedItems.length + 1,
+          ...parsed,
+        });
       }
-      if (imported.length === 0) throw new Error("لم يتم العثور على بيانات في الملف");
-      save(imported);
-      toast({ title: "تم الاستيراد", description: `تم استيراد ${imported.length} عنصر من Word` });
-    } catch (err) {
-      toast({ title: "خطأ في الاستيراد", description: String(err), variant: "destructive" });
+
+      if (importedItems.length === 0) throw new Error("لم يتم العثور على بيانات قابلة للاستيراد");
+      save(importedItems);
+      toast({ title: "تم الاستيراد", description: `تم استيراد ${importedItems.length} عنصر من Word` });
+    } catch (error) {
+      toast({ title: "خطأ في الاستيراد", description: String(error), variant: "destructive" });
     }
+
     if (wordInputRef.current) wordInputRef.current.value = "";
   };
 
-  const importExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const importExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
 
     try {
-      const wb = new ExcelJS.Workbook();
-      await wb.xlsx.load(await file.arrayBuffer());
-      const ws = wb.worksheets[0];
-      if (!ws) throw new Error("لا يوجد بيانات");
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(await file.arrayBuffer());
+      const sheet = workbook.worksheets[0];
+      if (!sheet) throw new Error("لا يوجد بيانات في ملف Excel");
 
-      const imported: InventoryItem[] = [];
+      const getCellText = (row: ExcelJS.Row, colIndex: number) => {
+        const raw = row.getCell(colIndex).value as any;
+        if (raw === null || raw === undefined) return "";
+        if (typeof raw === "object" && raw.result !== undefined && raw.result !== null) return String(raw.result);
+        if (typeof raw === "object" && raw.text !== undefined && raw.text !== null) return String(raw.text);
+        return String(raw);
+      };
+
       let startRow = 1;
-      ws.eachRow((row, rowNumber) => {
-        const val = row.getCell(1).value?.toString() || "";
-        if (val === "رقم السجل" || val === "م" || val === "الرقم") startRow = rowNumber + 1;
+      sheet.eachRow((row, rowNumber) => {
+        const rowText = Array.from({ length: 13 }, (_, index) => getCellText(row, index + 1)).join(" ");
+        if (rowText.includes("اللوازم") || rowText.includes("رقم صفحة السجل")) {
+          startRow = rowNumber + 1;
+        }
       });
 
-      ws.eachRow((row, rowNumber) => {
+      const importedItems: InventoryItem[] = [];
+      sheet.eachRow((row, rowNumber) => {
         if (rowNumber < startRow) return;
-        const name = row.getCell(2).value?.toString() || "";
-        if (!name.trim()) return;
-        imported.push({
+        const cells = Array.from({ length: 13 }, (_, index) => getCellText(row, index + 1));
+        const parsed = parseInventoryCells(cells);
+        if (!parsed) return;
+
+        importedItems.push({
           id: generateId(),
-          serialNumber: imported.length + 1,
-          itemName: name,
-          actualBalance: Number(row.getCell(3).value) || 0,
-          existing: Number(row.getCell(4).value) || 0,
-          shortage: Number(row.getCell(5).value) || 0,
-          surplus: Number(row.getCell(6).value) || 0,
-          unitPrice: Number(row.getCell(7).value) || 0,
-          totalPrice: Number(row.getCell(8).value) || 0,
+          serialNumber: importedItems.length + 1,
+          ...parsed,
         });
       });
 
-      save(imported);
-      toast({ title: "تم الاستيراد", description: `تم استيراد ${imported.length} عنصر` });
-    } catch (err) {
-      toast({ title: "خطأ في الاستيراد", description: String(err), variant: "destructive" });
+      if (importedItems.length === 0) throw new Error("لم يتم العثور على بيانات قابلة للاستيراد");
+      save(importedItems);
+      toast({ title: "تم الاستيراد", description: `تم استيراد ${importedItems.length} عنصر من Excel` });
+    } catch (error) {
+      toast({ title: "خطأ في الاستيراد", description: String(error), variant: "destructive" });
     }
+
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -356,23 +608,32 @@ function InventoryTab({ category, userId, schoolName, directorName, committeeMem
     <div className="space-y-4" dir="rtl">
       <div className="flex flex-wrap gap-2 items-center justify-between">
         <h3 className="font-semibold flex items-center gap-2">
-          <span>{category.icon}</span> جرد {category.label}
+          <span>{category.icon}</span>
+          جرد {category.label}
           <span className="text-muted-foreground text-sm">({items.length} عنصر)</span>
         </h3>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()}>
             <FileUp className="w-4 h-4 ml-1" /> استيراد Excel
           </Button>
           <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={importExcel} />
+
           <Button size="sm" variant="outline" onClick={() => wordInputRef.current?.click()}>
             <FileUp className="w-4 h-4 ml-1" /> استيراد Word
           </Button>
           <input ref={wordInputRef} type="file" accept=".docx" className="hidden" onChange={importWord} />
+
           <Button size="sm" variant="outline" onClick={exportExcel} disabled={items.length === 0}>
             <FileDown className="w-4 h-4 ml-1" /> تصدير Excel
           </Button>
           <Button size="sm" variant="outline" onClick={exportDocx} disabled={items.length === 0}>
             <FileText className="w-4 h-4 ml-1" /> تصدير Word
+          </Button>
+          <Button size="sm" variant="outline" onClick={saveCurrentInventoryList} disabled={items.length === 0}>
+            <Save className="w-4 h-4 ml-1" /> حفظ قائمة الجرد
+          </Button>
+          <Button size="sm" variant="outline" onClick={moveAllShortagesToDisposal} disabled={items.length === 0}>
+            <ArrowRightLeft className="w-4 h-4 ml-1" /> ترحيل للإتلاف
           </Button>
           <Button size="sm" onClick={addItem}>
             <Plus className="w-4 h-4 ml-1" /> إضافة
@@ -391,53 +652,141 @@ function InventoryTab({ category, userId, schoolName, directorName, committeeMem
                 <TableHead className="w-20 text-center">الموجود</TableHead>
                 <TableHead className="w-16 text-center">النقص</TableHead>
                 <TableHead className="w-16 text-center">الزيادة</TableHead>
-                <TableHead className="w-20 text-center">السعر الإفرادي</TableHead>
-                <TableHead className="w-20 text-center">السعر الإجمالي</TableHead>
-                <TableHead className="w-12"></TableHead>
+                <TableHead className="w-36 text-center">السعر الإفرادي</TableHead>
+                <TableHead className="w-36 text-center">السعر الإجمالي</TableHead>
+                <TableHead className="w-24 text-center">إتلاف</TableHead>
+                <TableHead className="w-12" />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {items.map(item => (
-                <TableRow key={item.id}>
-                  <TableCell className="text-center font-medium">{item.serialNumber}</TableCell>
-                  <TableCell>
-                    <Input value={item.itemName} onChange={e => updateItem(item.id, "itemName", e.target.value)} className="h-8" placeholder="اسم المادة" />
-                  </TableCell>
-                  <TableCell>
-                    <Input type="number" min={0} value={item.actualBalance} onChange={e => updateItem(item.id, "actualBalance", Number(e.target.value))} className="h-8 text-center" />
-                  </TableCell>
-                  <TableCell>
-                    <Input type="number" min={0} value={item.existing} onChange={e => updateItem(item.id, "existing", Number(e.target.value))} className="h-8 text-center" />
-                  </TableCell>
-                  <TableCell className="text-center text-destructive font-medium">{item.shortage || ""}</TableCell>
-                  <TableCell className="text-center text-green-600 font-medium">{item.surplus || ""}</TableCell>
-                  <TableCell>
-                    <Input type="number" min={0} step={0.01} value={item.unitPrice} onChange={e => updateItem(item.id, "unitPrice", Number(e.target.value))} className="h-8 text-center" />
-                  </TableCell>
-                  <TableCell className="text-center font-medium">{item.totalPrice ? item.totalPrice.toFixed(2) : ""}</TableCell>
-                  <TableCell>
-                    <Button size="icon" variant="ghost" onClick={() => removeItem(item.id)} className="h-7 w-7 text-destructive">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {items.map((item) => {
+                const unitSplit = splitToDinarFils(item.unitPrice);
+                const totalSplit = splitToDinarFils(item.totalPrice);
+                return (
+                  <TableRow key={item.id}>
+                    <TableCell className="text-center font-medium">{item.serialNumber}</TableCell>
+                    <TableCell>
+                      <Input
+                        value={item.itemName}
+                        onChange={(e) => updateItem(item.id, "itemName", e.target.value)}
+                        className="h-8"
+                        placeholder="اسم المادة"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={item.actualBalance}
+                        onChange={(e) => updateItem(item.id, "actualBalance", Number(e.target.value))}
+                        className="h-8 text-center"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={item.existing}
+                        onChange={(e) => updateItem(item.id, "existing", Number(e.target.value))}
+                        className="h-8 text-center"
+                      />
+                    </TableCell>
+                    <TableCell className="text-center text-destructive font-medium">{item.shortage || ""}</TableCell>
+                    <TableCell className="text-center font-medium text-primary">{item.surplus || ""}</TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={0.001}
+                        value={item.unitPrice}
+                        onChange={(e) => updateItem(item.id, "unitPrice", Number(e.target.value))}
+                        className="h-8 text-center"
+                      />
+                      <p className="text-[11px] text-muted-foreground text-center mt-1">
+                        د {unitSplit.dinarText} / ف {unitSplit.filsText}
+                      </p>
+                    </TableCell>
+                    <TableCell className="text-center font-medium">
+                      <div>{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</div>
+                      <p className="text-[11px] text-muted-foreground">
+                        د {totalSplit.dinarText} / ف {totalSplit.filsText}
+                      </p>
+                    </TableCell>
+                    <TableCell>
+                      <Button size="sm" variant="outline" onClick={() => moveItemToDisposal(item)}>
+                        <ArrowRightLeft className="w-3.5 h-3.5 ml-1" />
+                        إتلاف
+                      </Button>
+                    </TableCell>
+                    <TableCell>
+                      <Button size="icon" variant="ghost" onClick={() => removeItem(item.id)} className="h-7 w-7 text-destructive">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
       ) : (
         <div className="text-center py-10 text-muted-foreground border rounded-lg">
           <Package className="w-10 h-10 mx-auto mb-2 opacity-40" />
-          <p>لا توجد عناصر - أضف عنصراً أو استورد من Excel</p>
+          <p>لا توجد عناصر - أضف عنصراً أو استورد من Excel/Word</p>
         </div>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2 cursor-pointer" onClick={() => setShowHistory((prev) => !prev)}>
+            <History className="w-4 h-4" />
+            قوائم الجرد المحفوظة ({records.length})
+          </CardTitle>
+        </CardHeader>
+        {showHistory && (
+          <CardContent className="space-y-2">
+            {records.length === 0 ? (
+              <p className="text-sm text-muted-foreground">لا توجد قوائم جرد محفوظة بعد.</p>
+            ) : (
+              records.map((record) => (
+                <div key={record.id} className="border rounded-md p-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-medium">{record.categoryLabel}</p>
+                    <p className="text-xs text-muted-foreground">{record.savedAt} • {record.items.length} مادة</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => restoreInventoryRecord(record.id)}>
+                      <RefreshCw className="w-3.5 h-3.5 ml-1" /> تحميل
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => deleteInventoryRecord(record.id)}>
+                      <Trash2 className="w-3.5 h-3.5 ml-1" /> شطب
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        )}
+      </Card>
     </div>
   );
 }
 
 // ─── Disposal Section ───
-function DisposalSection({ userId, schoolName, directorName, member1, member2 }: {
-  userId: string; schoolName: string; directorName: string; member1: string; member2: string;
+function DisposalSection({
+  userId,
+  schoolName,
+  directorateName,
+  directorName,
+  member1,
+  member2,
+}: {
+  userId: string;
+  schoolName: string;
+  directorateName: string;
+  directorName: string;
+  member1: string;
+  member2: string;
 }) {
   const { toast } = useToast();
   const [records, setRecords] = useState<DisposalRecord[]>([]);
@@ -445,32 +794,19 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
   const [category, setCategory] = useState(INVENTORY_CATEGORIES[0].id);
   const [committeeMember3, setCommitteeMember3] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+  const [queuedInventoryCount, setQueuedInventoryCount] = useState(0);
 
   const disposalExcelInputRef = useRef<HTMLInputElement>(null);
   const disposalWordInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setRecords(loadDisposals(userId));
+    setQueuedInventoryCount(loadInventoryDisposalQueue(userId).length);
   }, [userId]);
-
-  const normalizeDigits = (input: string) =>
-    input
-      .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
-      .replace(/[٫]/g, ".")
-      .replace(/[٬,]/g, "")
-      .trim();
-
-  const toNumber = (value: unknown) => {
-    if (value === null || value === undefined) return 0;
-    const raw = normalizeDigits(String(value));
-    if (!raw) return 0;
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) ? parsed : 0;
-  };
 
   const parseDisposalCells = (cells: string[]): Omit<DisposalItem, "id" | "serialNumber"> | null => {
     const values = cells.map((cell) => cell.trim());
-    if (values.every((v) => !v)) return null;
+    if (values.every((value) => !value)) return null;
 
     const rowText = values.join(" ");
     if (
@@ -478,16 +814,16 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
       rowText.includes("مدير المدرسة") ||
       rowText.includes("الاسم:") ||
       rowText.includes("التوقيع") ||
-      rowText.includes("التاريخ")
+      rowText.includes("التاريخ") ||
+      rowText.includes("سبب الاتلاف")
     ) {
       return null;
     }
 
-    // Format exported from disposal Word template (13 columns with دينار/فلس split)
-    if (values.length >= 13 && (values[10] || values[11])) {
+    // Official format with split دينار/فلس (13 columns)
+    if (values.length >= 13 && values[10]) {
       const totalPrice = toNumber(values[2]) + toNumber(values[3]) / 1000;
       const unitPrice = toNumber(values[4]) + toNumber(values[5]) / 1000;
-      if (!values[10]) return null;
       return {
         pageNumber: values[11] || "",
         itemName: values[10] || "",
@@ -498,13 +834,12 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
         unitPrice,
         totalPrice,
         entryDate: values[1] || "",
-        reason: values[0] || "",
+        reason: values[0] || "الغاء مادة",
       };
     }
 
-    // Generic Excel format (11 columns)
-    if (values.length >= 11 && (values[2] || values[1])) {
-      if (!values[2]) return null;
+    // Generic format (11 columns)
+    if (values.length >= 11 && values[2]) {
       return {
         pageNumber: values[1] || "",
         itemName: values[2] || "",
@@ -673,7 +1008,7 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
     }
     const record: DisposalRecord = {
       id: generateId(),
-      date: new Date().toLocaleDateString("ar"),
+      date: format(new Date(), "yyyy/MM/dd"),
       category: INVENTORY_CATEGORIES.find((c) => c.id === category)?.label || category,
       items: [...items],
       committeeMember1: member1,
@@ -686,6 +1021,37 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
     saveDisposals(userId, updated);
     setItems([]);
     toast({ title: "تم حفظ قائمة الإتلاف بنجاح" });
+  };
+
+  const importQueuedInventory = () => {
+    const queued = loadInventoryDisposalQueue(userId);
+    if (queued.length === 0) {
+      toast({ title: "لا توجد مواد مرحّلة من الجرد", variant: "destructive" });
+      return;
+    }
+
+    const mapped = queued.map((queuedItem, idx) => ({
+      id: generateId(),
+      serialNumber: items.length + idx + 1,
+      pageNumber: "",
+      itemName: queuedItem.itemName,
+      grade: queuedItem.grade || "",
+      editionDate: "",
+      quantityNum: queuedItem.quantityNum || 1,
+      quantityWords: "",
+      unitPrice: queuedItem.unitPrice || 0,
+      totalPrice: (queuedItem.quantityNum || 1) * (queuedItem.unitPrice || 0),
+      entryDate: format(new Date(), "yyyy-MM-dd"),
+      reason: "الغاء مادة",
+    }));
+
+    setItems((prev) => [...prev, ...mapped].map((item, index) => ({ ...item, serialNumber: index + 1 })));
+    if (queued[0]?.sourceCategoryId) {
+      setCategory(queued[0].sourceCategoryId);
+    }
+    saveInventoryDisposalQueue(userId, []);
+    setQueuedInventoryCount(0);
+    toast({ title: `تم استيراد ${mapped.length} مادة من الجرد` });
   };
 
   const handleExportDocx = async (record: DisposalRecord) => {
@@ -704,7 +1070,7 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
     }));
     await exportDisposalDocx({
       school: schoolName,
-      directorate: "",
+      directorate: directorateName,
       categoryLabel: record.category,
       items: docxItems,
       directorName: record.directorName,
@@ -824,6 +1190,10 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
                 className="hidden"
                 onChange={importDisposalWord}
               />
+              <Button size="sm" variant="outline" onClick={importQueuedInventory} disabled={queuedInventoryCount === 0}>
+                <ArrowRightLeft className="w-4 h-4 ml-1" />
+                من الجرد ({queuedInventoryCount})
+              </Button>
               <Button size="sm" onClick={addItem}>
                 <Plus className="w-4 h-4 ml-1" /> إضافة مادة
               </Button>
@@ -863,7 +1233,7 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
                         <Input value={item.grade} onChange={e => updateItem(item.id, "grade", e.target.value)} className="h-8" />
                       </TableCell>
                       <TableCell>
-                        <Input value={item.editionDate} onChange={e => updateItem(item.id, "editionDate", e.target.value)} className="h-8 text-center" />
+                        <Input type="date" value={item.editionDate} onChange={e => updateItem(item.id, "editionDate", e.target.value)} className="h-8 text-center" />
                       </TableCell>
                       <TableCell>
                         <Input type="number" min={0} value={item.quantityNum} onChange={e => updateItem(item.id, "quantityNum", Number(e.target.value))} className="h-8 text-center" />
@@ -876,7 +1246,7 @@ function DisposalSection({ userId, schoolName, directorName, member1, member2 }:
                       </TableCell>
                       <TableCell className="text-center font-medium">{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</TableCell>
                       <TableCell>
-                        <Input value={item.entryDate} onChange={e => updateItem(item.id, "entryDate", e.target.value)} className="h-8 text-center" />
+                        <Input type="date" value={item.entryDate} onChange={e => updateItem(item.id, "entryDate", e.target.value)} className="h-8 text-center" />
                       </TableCell>
                       <TableCell>
                         <Input value={item.reason} onChange={e => updateItem(item.id, "reason", e.target.value)} className="h-8" />
@@ -1198,6 +1568,7 @@ export default function SecretaryPage() {
   const { state } = useFinance();
   const userId = user?.id || "anonymous";
   const school = authSchoolName || state.schoolName || "المدرسة";
+  const directorateName = state.directorateName || "";
   const directorName = state.directorName || "";
   const member1 = state.member1Name || "";
   const member2 = state.member2Name || "";
@@ -1222,15 +1593,23 @@ export default function SecretaryPage() {
           <TabsContent value="inventory" className="mt-4">
             <Tabs defaultValue={INVENTORY_CATEGORIES[0].id}>
               <TabsList className="flex flex-wrap h-auto gap-1">
-                {INVENTORY_CATEGORIES.map(c => (
+                {INVENTORY_CATEGORIES.map((c) => (
                   <TabsTrigger key={c.id} value={c.id} className="text-xs">
                     {c.icon} {c.label}
                   </TabsTrigger>
                 ))}
               </TabsList>
-              {INVENTORY_CATEGORIES.map(c => (
+              {INVENTORY_CATEGORIES.map((c) => (
                 <TabsContent key={c.id} value={c.id} className="mt-4">
-                  <InventoryTab category={c} userId={userId} schoolName={school} directorName={directorName} committeeMember={member1} committeeMember2={member2} />
+                  <InventoryTab
+                    category={c}
+                    userId={userId}
+                    schoolName={school}
+                    directorateName={directorateName}
+                    directorName={directorName}
+                    committeeMember={member1}
+                    committeeMember2={member2}
+                  />
                 </TabsContent>
               ))}
             </Tabs>
@@ -1240,6 +1619,7 @@ export default function SecretaryPage() {
             <DisposalSection
               userId={userId}
               schoolName={school}
+              directorateName={directorateName}
               directorName={directorName}
               member1={member1}
               member2={member2}
