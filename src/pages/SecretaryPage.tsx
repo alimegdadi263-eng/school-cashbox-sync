@@ -1190,6 +1190,10 @@ function DisposalSection({
                 className="hidden"
                 onChange={importDisposalWord}
               />
+              <Button size="sm" variant="outline" onClick={importQueuedInventory} disabled={queuedInventoryCount === 0}>
+                <ArrowRightLeft className="w-4 h-4 ml-1" />
+                من الجرد ({queuedInventoryCount})
+              </Button>
               <Button size="sm" onClick={addItem}>
                 <Plus className="w-4 h-4 ml-1" /> إضافة مادة
               </Button>
