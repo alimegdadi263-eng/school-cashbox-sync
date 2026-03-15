@@ -1008,7 +1008,7 @@ function DisposalSection({
     }
     const record: DisposalRecord = {
       id: generateId(),
-      date: new Date().toLocaleDateString("ar"),
+      date: format(new Date(), "yyyy/MM/dd"),
       category: INVENTORY_CATEGORIES.find((c) => c.id === category)?.label || category,
       items: [...items],
       committeeMember1: member1,
@@ -1021,6 +1021,37 @@ function DisposalSection({
     saveDisposals(userId, updated);
     setItems([]);
     toast({ title: "تم حفظ قائمة الإتلاف بنجاح" });
+  };
+
+  const importQueuedInventory = () => {
+    const queued = loadInventoryDisposalQueue(userId);
+    if (queued.length === 0) {
+      toast({ title: "لا توجد مواد مرحّلة من الجرد", variant: "destructive" });
+      return;
+    }
+
+    const mapped = queued.map((queuedItem, idx) => ({
+      id: generateId(),
+      serialNumber: items.length + idx + 1,
+      pageNumber: "",
+      itemName: queuedItem.itemName,
+      grade: queuedItem.grade || "",
+      editionDate: "",
+      quantityNum: queuedItem.quantityNum || 1,
+      quantityWords: "",
+      unitPrice: queuedItem.unitPrice || 0,
+      totalPrice: (queuedItem.quantityNum || 1) * (queuedItem.unitPrice || 0),
+      entryDate: format(new Date(), "yyyy-MM-dd"),
+      reason: "الغاء مادة",
+    }));
+
+    setItems((prev) => [...prev, ...mapped].map((item, index) => ({ ...item, serialNumber: index + 1 })));
+    if (queued[0]?.sourceCategoryId) {
+      setCategory(queued[0].sourceCategoryId);
+    }
+    saveInventoryDisposalQueue(userId, []);
+    setQueuedInventoryCount(0);
+    toast({ title: `تم استيراد ${mapped.length} مادة من الجرد` });
   };
 
   const handleExportDocx = async (record: DisposalRecord) => {
@@ -1039,7 +1070,7 @@ function DisposalSection({
     }));
     await exportDisposalDocx({
       school: schoolName,
-      directorate: "",
+      directorate: directorateName,
       categoryLabel: record.category,
       items: docxItems,
       directorName: record.directorName,
