@@ -1568,6 +1568,7 @@ export default function SecretaryPage() {
   const { state } = useFinance();
   const userId = user?.id || "anonymous";
   const school = authSchoolName || state.schoolName || "المدرسة";
+  const directorateName = state.directorateName || "";
   const directorName = state.directorName || "";
   const member1 = state.member1Name || "";
   const member2 = state.member2Name || "";
@@ -1592,15 +1593,23 @@ export default function SecretaryPage() {
           <TabsContent value="inventory" className="mt-4">
             <Tabs defaultValue={INVENTORY_CATEGORIES[0].id}>
               <TabsList className="flex flex-wrap h-auto gap-1">
-                {INVENTORY_CATEGORIES.map(c => (
+                {INVENTORY_CATEGORIES.map((c) => (
                   <TabsTrigger key={c.id} value={c.id} className="text-xs">
                     {c.icon} {c.label}
                   </TabsTrigger>
                 ))}
               </TabsList>
-              {INVENTORY_CATEGORIES.map(c => (
+              {INVENTORY_CATEGORIES.map((c) => (
                 <TabsContent key={c.id} value={c.id} className="mt-4">
-                  <InventoryTab category={c} userId={userId} schoolName={school} directorName={directorName} committeeMember={member1} committeeMember2={member2} />
+                  <InventoryTab
+                    category={c}
+                    userId={userId}
+                    schoolName={school}
+                    directorateName={directorateName}
+                    directorName={directorName}
+                    committeeMember={member1}
+                    committeeMember2={member2}
+                  />
                 </TabsContent>
               ))}
             </Tabs>
@@ -1610,6 +1619,7 @@ export default function SecretaryPage() {
             <DisposalSection
               userId={userId}
               schoolName={school}
+              directorateName={directorateName}
               directorName={directorName}
               member1={member1}
               member2={member2}
