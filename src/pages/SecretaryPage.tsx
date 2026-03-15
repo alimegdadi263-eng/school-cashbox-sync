@@ -91,13 +91,59 @@ const INVENTORY_CATEGORIES = [
   { id: "textbooks", label: "الكتب المدرسية", icon: "📚" },
 ];
 
+interface InventoryRecord {
+  id: string;
+  savedAt: string;
+  categoryId: string;
+  categoryLabel: string;
+  items: InventoryItem[];
+}
+
+interface InventoryToDisposalItem {
+  sourceCategoryId: string;
+  sourceCategoryLabel: string;
+  itemName: string;
+  grade: string;
+  unitPrice: number;
+  quantityNum: number;
+}
+
 const STORAGE_KEY_PREFIX = "school_inventory_";
+const INVENTORY_RECORDS_KEY_PREFIX = "school_inventory_records_";
+const INVENTORY_DISPOSAL_QUEUE_KEY = "inventory_disposal_queue";
 const DISPOSAL_STORAGE_KEY = "school_disposal_records";
 const FONT_NAME = "Traditional Arabic";
 
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
+
+const normalizeDigits = (input: string) =>
+  input
+    .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
+    .replace(/[٫]/g, ".")
+    .replace(/[٬,]/g, "")
+    .trim();
+
+const toNumber = (value: unknown) => {
+  if (value === null || value === undefined) return 0;
+  const raw = normalizeDigits(String(value));
+  if (!raw) return 0;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const splitToDinarFils = (value: number) => {
+  const normalized = Number.isFinite(value) ? Number(value) : 0;
+  const dinar = Math.floor(normalized);
+  const fils = Math.round((normalized - dinar) * 1000);
+  return {
+    dinar,
+    fils,
+    dinarText: dinar ? String(dinar) : "0",
+    filsText: fils ? String(fils).padStart(3, "0") : "000",
+  };
+};
 
 // ─── LocalStorage helpers ───
 function loadInventory(userId: string, category: string): InventoryItem[] {
