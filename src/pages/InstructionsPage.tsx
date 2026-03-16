@@ -185,6 +185,45 @@ export default function InstructionsPage() {
 
         <Card className="shadow-card">
           <CardHeader>
+            <CardTitle>الجدول المدرسي وكشف الأنصبة</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
+              {timetableUsage.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle>جداول الامتحانات</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
+              {examUsage.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle>تحليل منحة SDI</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
+              {sdiUsage.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card">
+          <CardHeader>
             <CardTitle>آلية التحديث</CardTitle>
           </CardHeader>
           <CardContent>
