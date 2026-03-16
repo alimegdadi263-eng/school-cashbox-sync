@@ -348,3 +348,114 @@ export async function exportMalhafaTransposedExcel(
   const buffer = await wb.xlsx.writeBuffer();
   saveAs(new Blob([buffer]), `ملحفة_معكوسة_${schoolName}.xlsx`);
 }
+
+/** كشف أنصبة المعلمين - Teacher Workload Report */
+export async function exportTeacherWorkloadExcel(
+  teachers: Teacher[],
+  timetable: ClassTimetable,
+  periodsPerDay: number,
+  schoolName: string
+) {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("كشف الأنصبة");
+  ws.views = [{ rightToLeft: true }];
+
+  const border: Partial<ExcelJS.Borders> = {
+    top: { style: "thin" }, bottom: { style: "thin" },
+    left: { style: "thin" }, right: { style: "thin" },
+  };
+
+  // Title
+  const titleRow = ws.addRow([`${schoolName} - كشف أنصبة المعلمين`]);
+  ws.mergeCells(1, 1, 1, 6);
+  titleRow.getCell(1).font = { name: FONT_NAME, bold: true, size: 16, color: { argb: "FF2B3A55" } };
+  titleRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
+  titleRow.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD4A84B" } };
+  titleRow.height = 35;
+
+  ws.addRow([]);
+
+  // Headers
+  const headerRow = ws.addRow(["م", "اسم المعلم/ة", "المادة", "الصف/الشعبة", "الحصص الأسبوعية", "إجمالي الأنصبة"]);
+  headerRow.height = 30;
+  headerRow.eachCell(c => styleHeader(c));
+
+  let rowNum = 0;
+  for (const teacher of teachers) {
+    const totalPeriods = teacher.subjects.reduce((sum, s) => sum + s.periodsPerWeek, 0);
+    
+    // Count actual scheduled periods from timetable
+    let actualPeriods = 0;
+    for (const [, days] of Object.entries(timetable)) {
+      for (const periods of days) {
+        for (const cell of periods) {
+          if (cell && cell.teacherId === teacher.id) actualPeriods++;
+        }
+      }
+    }
+
+    if (teacher.subjects.length === 0) {
+      rowNum++;
+      const row = ws.addRow([rowNum, teacher.name, "—", "—", 0, 0]);
+      row.eachCell(c => { c.font = { name: FONT_NAME, size: 11 }; c.border = border; c.alignment = { horizontal: "center", vertical: "middle" }; });
+      continue;
+    }
+
+    for (let si = 0; si < teacher.subjects.length; si++) {
+      const s = teacher.subjects[si];
+      const isFirst = si === 0;
+      if (isFirst) rowNum++;
+      const row = ws.addRow([
+        isFirst ? rowNum : "",
+        isFirst ? teacher.name : "",
+        s.subjectName,
+        `${s.className}/${s.section}`,
+        s.periodsPerWeek,
+        isFirst ? actualPeriods : "",
+      ]);
+      row.eachCell((c, colNum) => {
+        c.font = { name: FONT_NAME, size: 11, bold: (colNum === 6 && isFirst) };
+        c.border = border;
+        c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+      });
+    }
+
+    // Merge teacher name and number cells if multiple subjects
+    if (teacher.subjects.length > 1) {
+      const startR = ws.rowCount - teacher.subjects.length + 1;
+      const endR = ws.rowCount;
+      ws.mergeCells(startR, 1, endR, 1);
+      ws.mergeCells(startR, 2, endR, 2);
+      ws.mergeCells(startR, 6, endR, 6);
+    }
+  }
+
+  // Summary row
+  ws.addRow([]);
+  const totalTeachers = teachers.length;
+  let grandTotal = 0;
+  for (const [, days] of Object.entries(timetable)) {
+    for (const periods of days) {
+      for (const cell of periods) {
+        if (cell) grandTotal++;
+      }
+    }
+  }
+  // Count unique - each period counted once per teacher
+  const summaryRow = ws.addRow(["", `إجمالي المعلمين: ${totalTeachers}`, "", "", "", `إجمالي الحصص: ${grandTotal}`]);
+  summaryRow.eachCell(c => {
+    c.font = { name: FONT_NAME, bold: true, size: 12 };
+    c.alignment = { horizontal: "center", vertical: "middle" };
+  });
+
+  // Column widths
+  ws.getColumn(1).width = 6;
+  ws.getColumn(2).width = 25;
+  ws.getColumn(3).width = 20;
+  ws.getColumn(4).width = 18;
+  ws.getColumn(5).width = 18;
+  ws.getColumn(6).width = 18;
+
+  const buffer = await wb.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), `كشف_أنصبة_المعلمين_${schoolName}.xlsx`);
+}

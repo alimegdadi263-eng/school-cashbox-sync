@@ -17,6 +17,7 @@ import {
   exportFullSchoolTimetableExcel,
   exportMalhafaExcel,
   exportMalhafaTransposedExcel,
+  exportTeacherWorkloadExcel,
 } from "@/lib/exportTimetableExcel";
 import {
   exportClassTimetableDocx,
@@ -189,6 +190,14 @@ export default function TimetablePage() {
                 <Button variant="outline" className="border-teal-700 text-teal-700 hover:bg-teal-50" onClick={() => exportMalhafaTransposedDocx(timetable, periodsPerDay, school)}>
                   <FileText className="w-4 h-4 ml-2" />
                   ملحفة معكوسة (Word)
+                </Button>
+              </div>
+
+              {/* Export Teacher Workload */}
+              <div className="flex flex-wrap gap-3">
+                <Button className="bg-indigo-700 hover:bg-indigo-800 text-white" onClick={() => exportTeacherWorkloadExcel(teachers, timetable, periodsPerDay, school)}>
+                  <FileSpreadsheet className="w-4 h-4 ml-2" />
+                  كشف أنصبة المعلمين (Excel)
                 </Button>
               </div>
             </CardContent>

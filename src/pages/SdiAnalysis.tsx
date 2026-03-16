@@ -101,21 +101,41 @@ export default function SdiAnalysis() {
   const sdiTransactions = useMemo(() => {
     return state.transactions.filter(tx => {
       if (tx.status !== "active") return false;
-      // Check if this transaction has SDI amounts (credit side = spending from SDI)
+      // Check if this transaction has SDI amounts
       const sdiAmount = tx.amounts?.sdi;
       if (!sdiAmount) return false;
       // SDI spending: debit (من) means money came from SDI
       const amount = sdiAmount.debit || 0;
       if (amount <= 0) return false;
 
-      // Date filter
-      if (startDate) {
-        const txDate = new Date(tx.date);
-        if (txDate < startDate) return false;
-      }
-      if (endDate) {
-        const txDate = new Date(tx.date);
-        if (txDate > endDate) return false;
+      // Date filter - normalize dates to compare day-level only
+      if (startDate || endDate) {
+        const txDateParts = tx.date.split(/[\/\-\.]/);
+        let txDate: Date;
+        // Handle various date formats: yyyy/mm/dd, dd/mm/yyyy, yyyy-mm-dd
+        if (txDateParts.length === 3) {
+          if (txDateParts[0].length === 4) {
+            // yyyy/mm/dd or yyyy-mm-dd
+            txDate = new Date(Number(txDateParts[0]), Number(txDateParts[1]) - 1, Number(txDateParts[2]));
+          } else {
+            // dd/mm/yyyy
+            txDate = new Date(Number(txDateParts[2]), Number(txDateParts[1]) - 1, Number(txDateParts[0]));
+          }
+        } else {
+          txDate = new Date(tx.date);
+        }
+        txDate.setHours(0, 0, 0, 0);
+
+        if (startDate) {
+          const start = new Date(startDate);
+          start.setHours(0, 0, 0, 0);
+          if (txDate < start) return false;
+        }
+        if (endDate) {
+          const end = new Date(endDate);
+          end.setHours(23, 59, 59, 999);
+          if (txDate > end) return false;
+        }
       }
       return true;
     });

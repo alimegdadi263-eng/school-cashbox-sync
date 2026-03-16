@@ -7,6 +7,8 @@ const quickStart = [
   "أضف الحركات من تبويب (إضافة حركة) مع اختيار نوع الحركة والحسابات بشكل صحيح.",
   "راجع النتائج في (دفتر الصندوق) و(خلاصة الحسابات) قبل التصدير.",
   "استخدم التصدير Word/Excel لكل نموذج واحفظ نسخة أرشيفية شهرية.",
+  "يمكنك إنشاء جداول الامتحانات من تبويب (جداول الامتحانات) مع تحديد الصف ونوع الامتحان وتاريخ البداية.",
+  "لتصدير كشف أنصبة المعلمين استخدم زر (كشف أنصبة المعلمين) في تبويب الجدول المدرسي بعد توليد الجدول.",
 ];
 
 const movementInstructions = [
@@ -73,10 +75,33 @@ const requiredDocuments = [
 ];
 
 const secretaryUsage = [
-  "تبويب الجرد: إضافة مواد يدوياً أو استيراد Word/Excel ثم التصدير بالنموذج الرسمي.",
-  "تبويب الإتلاف: إضافة المواد أو استيراد Word/Excel، ثم حفظ قائمة الإتلاف.",
+  "تبويب الجرد: إضافة مواد يدوياً أو استيراد Word/Excel ثم التصدير بالنموذج الرسمي. يمكنك حفظ قوائم الجرد واسترجاعها أو شطبها.",
+  "تبويب الإتلاف: إضافة المواد أو استيراد Word/Excel، ثم حفظ قائمة الإتلاف. يمكن ترحيل مواد من الجرد للإتلاف مباشرة.",
   "قوائم الإتلاف المحفوظة: يمكنك إعادة التصدير أو شطب أي قائمة من السجل المحفوظ.",
   "النماذج الإدارية: استجواب، إجازة عرضية، عدم صرف مع تعبئة تلقائية من البيانات المدخلة.",
+];
+
+const timetableUsage = [
+  "أضف المعلمين ومواد كل معلم من تبويب (الجدول المدرسي).",
+  "اضغط (توليد الجدول) لإنشاء الجدول تلقائياً مع مراعاة عدم تعارض المعلمين.",
+  "يمكنك تصدير جدول الصف أو المعلم أو المدرسة كاملة إلى Excel أو Word.",
+  "كشف أنصبة المعلمين: اضغط الزر المخصص لتصدير كشف يوضح اسم المعلم ومواده وعدد حصصه الأسبوعية.",
+];
+
+const examUsage = [
+  "اختر الصف المراد إنشاء جدول امتحان له من القائمة.",
+  "حدد تاريخ البداية عبر التقويم ثم اضغط (توليد تلقائي) لتوزيع المواد تلقائياً على الأيام.",
+  "يمكنك التعديل يدوياً: تغيير المادة أو التاريخ أو إضافة/حذف مادة.",
+  "يوجد 3 تبويبات: امتحان الشهر الأول، الشهر الثاني، والنهائي لكل صف على حدا.",
+  "اضغط (تصدير Excel) لتصدير جدول الامتحان بتنسيق احترافي.",
+];
+
+const sdiUsage = [
+  "حدد تاريخ البداية والنهاية من التقويم لفلترة حركات الصرف من حساب SDI ضمن هذه الفترة.",
+  "أدخل الرصيد السابق (المدور) والمنحة للسنة الحالية.",
+  "وزّع كل حركة على المجال المناسب من القائمة المنسدلة.",
+  "راقب النسب المئوية: الأحمر = تجاوز الحد، الأزرق = أقل من الحد الأدنى.",
+  "اضغط (تصدير Excel) لإنشاء ملف يطابق النموذج الرسمي.",
 ];
 
 const updateInstructions = [
@@ -152,6 +177,45 @@ export default function InstructionsPage() {
           <CardContent>
             <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
               {secretaryUsage.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle>الجدول المدرسي وكشف الأنصبة</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
+              {timetableUsage.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle>جداول الامتحانات</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
+              {examUsage.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle>تحليل منحة SDI</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
+              {sdiUsage.map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ul>

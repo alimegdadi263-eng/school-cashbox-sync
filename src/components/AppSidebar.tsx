@@ -14,6 +14,7 @@ import {
   Code,
   Presentation,
   CalendarDays,
+  ClipboardList,
   ChevronDown,
   Wallet,
   Archive,
@@ -92,6 +93,7 @@ export default function AppSidebar() {
       ],
     },
     { path: "/timetable", label: "الجدول المدرسي", icon: CalendarDays },
+    { path: "/exams", label: "جداول الامتحانات", icon: ClipboardList },
     { path: "/secretary", label: "السكرتير", icon: Archive },
     { path: "/instructions", label: "التعليمات", icon: CircleHelp },
     { path: "/settings", label: "الإعدادات", icon: Settings },
@@ -205,7 +207,7 @@ export default function AppSidebar() {
           تسجيل الخروج
         </Button>
         <p className="text-sidebar-foreground/40 text-xs text-center">
-          {isAdmin ? "مدير النظام" : "مدرسة"} • الإصدار 1.1.1
+          {isAdmin ? "مدير النظام" : "مدرسة"} • الإصدار {(window as any).electronAPI?.appVersion || "2.0.0"}
         </p>
         <p className="text-sidebar-foreground/40 text-[10px] text-center mt-1">
           © {new Date().getFullYear()} Ali Megdadi. جميع الحقوق محفوظة

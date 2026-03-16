@@ -68,7 +68,7 @@ function createWindow() {
     height: 900,
     minWidth: 1100,
     minHeight: 700,
-    title: 'مالية المدارس - Ali Megdadi',
+    title: 'الادارة المدرسية - Ali Megdadi',
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
