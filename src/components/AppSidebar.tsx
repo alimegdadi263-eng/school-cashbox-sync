@@ -14,6 +14,7 @@ import {
   Code,
   Presentation,
   CalendarDays,
+  ClipboardList,
   ChevronDown,
   Wallet,
   Archive,
