@@ -104,5 +104,15 @@
     "vitest": "^3.2.4",
     "electron": "^40.6.1",
     "electron-builder": "^26.8.1"
+  },
+  "build": {
+    "appId": "school.cashbox.app",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "alimegdadi263-eng",
+        "repo": "school-cashbox-sync"
+      }
+    ]
   }
 }
