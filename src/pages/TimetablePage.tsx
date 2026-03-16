@@ -17,6 +17,7 @@ import {
   exportFullSchoolTimetableExcel,
   exportMalhafaExcel,
   exportMalhafaTransposedExcel,
+  exportTeacherWorkloadExcel,
 } from "@/lib/exportTimetableExcel";
 import {
   exportClassTimetableDocx,
