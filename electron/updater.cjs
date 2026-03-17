@@ -2,7 +2,14 @@
  * Auto-updater module using electron-updater with GitHub Releases.
  * Shows native dialogs to the user when an update is available.
  */
-const { dialog } = require('electron');
+const { dialog, app } = require('electron');
+
+const UPDATE_FEED = {
+  provider: 'github',
+  owner: 'alimegdadi263-eng',
+  repo: 'school-cashbox-sync',
+  private: false,
+};
 
 let autoUpdater;
 try {
@@ -45,9 +52,16 @@ function setupAutoUpdater(mainWindow) {
     console.warn('electron-log not available, using default logger.');
   }
 
-  // Don't auto-download, let the user decide
+  autoUpdater.setFeedURL(UPDATE_FEED);
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.allowPrerelease = false;
+  autoUpdater.allowDowngrade = false;
+
+  autoUpdater.logger?.info?.('Auto updater configured', {
+    currentVersion: app.getVersion(),
+    feed: UPDATE_FEED,
+  });
 
   // ── Events ──────────────────────────────────────────────────────────────
 

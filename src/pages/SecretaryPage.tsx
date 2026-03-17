@@ -142,19 +142,31 @@ function loadInventory(userId: string, category: string): InventoryItem[] {
     const data = localStorage.getItem(`${STORAGE_KEY_PREFIX}${userId}_${category}`);
     if (!data) return [];
     const parsed = JSON.parse(data);
-    // Migrate old format
-    return parsed.map((item: any) => ({
-      id: item.id || generateId(),
-      serialNumber: item.serialNumber || 1,
-      itemName: item.itemName || "",
-      actualBalance: item.actualBalance ?? item.quantity ?? 0,
-      existing: item.existing ?? item.quantity ?? 0,
-      shortage: item.shortage ?? 0,
-      surplus: item.surplus ?? 0,
-      unitPrice: item.unitPrice ?? 0,
-      totalPrice: item.totalPrice ?? 0,
-    }));
-  } catch { return []; }
+
+    return parsed.map((item: any) => {
+      const actualBalance = Number(item.actualBalance ?? item.quantity ?? 0);
+      const existing = Number(item.existing ?? item.quantity ?? 0);
+      const shortage = Number(item.shortage ?? 0);
+      const surplus = Number(item.surplus ?? 0);
+      const unitPrice = Number(item.unitPrice ?? 0);
+      const totalPrice = Number(item.totalPrice ?? 0);
+
+      return {
+        id: item.id || generateId(),
+        serialNumber: item.serialNumber || 1,
+        itemName: item.itemName || "",
+        actualBalance,
+        existing,
+        shortage,
+        surplus,
+        unitPrice,
+        totalPrice,
+        disposalQuantity: getInitialDisposalQuantity(existing, shortage, Number(item.disposalQuantity)),
+      };
+    });
+  } catch {
+    return [];
+  }
 }
 
 function saveInventory(userId: string, category: string, items: InventoryItem[]) {
