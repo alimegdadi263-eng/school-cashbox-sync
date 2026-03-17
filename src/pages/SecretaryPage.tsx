@@ -51,6 +51,7 @@ interface InventoryItem {
   surplus: number;
   unitPrice: number;
   totalPrice: number;
+  disposalQuantity: number;
 }
 
 interface DisposalItem {
@@ -66,42 +67,14 @@ interface DisposalItem {
   totalPrice: number;
   entryDate: string;
   reason: string;
+  sourceCategoryId?: string;
+  sourceItemId?: string;
 }
-
-interface DisposalRecord {
-  id: string;
-  date: string;
-  category: string;
-  items: DisposalItem[];
-  committeeMember1: string;
-  committeeMember2: string;
-  committeeMember3: string;
-  directorName: string;
-}
-
-// ─── Constants ───
-const INVENTORY_CATEGORIES = [
-  { id: "sports", label: "المواد الرياضية", icon: "🏀" },
-  { id: "vocational", label: "المواد المهنية", icon: "🔧" },
-  { id: "furniture", label: "الأثاث المدرسي", icon: "🪑" },
-  { id: "computers", label: "الحاسوب", icon: "💻" },
-  { id: "physics_lab", label: "مختبر الفيزياء", icon: "⚡" },
-  { id: "biology_lab", label: "مختبر الأحياء", icon: "🔬" },
-  { id: "chemistry_lab", label: "مختبر الكيمياء", icon: "🧪" },
-  { id: "textbooks", label: "الكتب المدرسية", icon: "📚" },
-];
-
-interface InventoryRecord {
-  id: string;
-  savedAt: string;
-  categoryId: string;
-  categoryLabel: string;
-  items: InventoryItem[];
-}
-
+...
 interface InventoryToDisposalItem {
   sourceCategoryId: string;
   sourceCategoryLabel: string;
+  sourceItemId: string;
   itemName: string;
   grade: string;
   unitPrice: number;
