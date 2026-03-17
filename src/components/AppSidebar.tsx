@@ -196,10 +196,10 @@ export default function AppSidebar() {
             </div>
           )}
           <span className="flex-1 text-right">
-            {updateStatus === "checking" ? "جاري التحقق..." :
-             updateStatus === "available" ? `تحديث ${updateVersion}` :
-             updateStatus === "downloading" ? `تحميل ${updateProgress}%` :
-             updateStatus === "downloaded" ? "تثبيت التحديث" :
+            {updateStatus === "checking" ? `جاري التحقق من GitHub Releases...` :
+             updateStatus === "available" ? `تحديث متاح ${updateVersion} • الحالي ${currentVersion}` :
+             updateStatus === "downloading" ? `تحميل ${updateProgress}% • الجديد ${updateVersion}` :
+             updateStatus === "downloaded" ? `جاهز للتثبيت ${updateVersion}` :
              "التحديثات"}
           </span>
         </Button>
@@ -216,7 +216,7 @@ export default function AppSidebar() {
           تسجيل الخروج
         </Button>
         <p className="text-sidebar-foreground/40 text-xs text-center">
-          {isAdmin ? "مدير النظام" : "مدرسة"} • الإصدار {(window as any).electronAPI?.appVersion || "2.0.0"}
+          {isAdmin ? "مدير النظام" : "مدرسة"} • الإصدار {currentVersion}
         </p>
         <p className="text-sidebar-foreground/40 text-[10px] text-center mt-1">
           © {new Date().getFullYear()} Ali Megdadi. جميع الحقوق محفوظة

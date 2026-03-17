@@ -1341,7 +1341,7 @@ function DisposalSection({
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )})}
                 </TableBody>
               </Table>
             </div>

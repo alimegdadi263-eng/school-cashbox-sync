@@ -41,9 +41,9 @@ jobs:
       - name: Build Electron Windows EXE
         run: npx electron-builder --win --config electron-builder.yml --publish never
 
-      - name: Upload EXE artifact
+      - name: Upload Windows release files
         uses: actions/upload-artifact@v4
         with:
-          name: School-Cashbox-Windows-Setup
-          path: release/*.exe
+          name: School-Cashbox-Windows-Release
+          path: release/*
           retention-days: 30
