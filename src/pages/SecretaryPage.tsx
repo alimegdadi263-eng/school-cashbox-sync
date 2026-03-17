@@ -70,7 +70,18 @@ interface DisposalItem {
   sourceCategoryId?: string;
   sourceItemId?: string;
 }
-...
+
+interface DisposalRecord {
+  id: string;
+  date: string;
+  category: string;
+  items: DisposalItem[];
+  committeeMember1: string;
+  committeeMember2: string;
+  committeeMember3: string;
+  directorName: string;
+}
+
 interface InventoryToDisposalItem {
   sourceCategoryId: string;
   sourceCategoryLabel: string;
