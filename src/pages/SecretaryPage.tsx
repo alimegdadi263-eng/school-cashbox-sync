@@ -1295,7 +1295,10 @@ function DisposalSection({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map(item => (
+                  {items.map(item => {
+                    const unitSplit = splitToDinarFils(item.unitPrice);
+                    const totalSplit = splitToDinarFils(item.totalPrice);
+                    return (
                     <TableRow key={item.id}>
                       <TableCell className="text-center">{item.serialNumber}</TableCell>
                       <TableCell>
@@ -1317,9 +1320,15 @@ function DisposalSection({
                         <Input value={item.quantityWords} onChange={e => updateItem(item.id, "quantityWords", e.target.value)} className="h-8" />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" min={0} step={0.001} value={item.unitPrice} onChange={e => updateItem(item.id, "unitPrice", Number(e.target.value))} className="h-8 text-center" />
+                        <Input type="number" min={0} step={0.001} value={item.unitPrice} onChange={e => updateItem(item.id, "unitPrice", Number(e.target.value))} className="h-8 text-center" placeholder="مثال 12.500" />
+                        <p className="text-[11px] text-muted-foreground text-center mt-1">
+                          {item.unitPrice ? `${item.unitPrice.toFixed(3)} = دينار ${unitSplit.dinarText} • فلس ${unitSplit.filsText}` : "أدخل القيمة بالدينار مع الفلس"}
+                        </p>
                       </TableCell>
-                      <TableCell className="text-center font-medium">{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</TableCell>
+                      <TableCell className="text-center font-medium">
+                        <div>{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</div>
+                        <p className="text-[11px] text-muted-foreground">{item.totalPrice ? `دينار ${totalSplit.dinarText} • فلس ${totalSplit.filsText}` : "يُحسب تلقائياً"}</p>
+                      </TableCell>
                       <TableCell>
                         <Input type="date" value={item.entryDate} onChange={e => updateItem(item.id, "entryDate", e.target.value)} className="h-8 text-center" />
                       </TableCell>
