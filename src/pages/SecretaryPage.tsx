@@ -92,6 +92,25 @@ interface InventoryToDisposalItem {
   quantityNum: number;
 }
 
+const INVENTORY_CATEGORIES = [
+  { id: "sports", label: "المواد الرياضية", icon: "🏀" },
+  { id: "vocational", label: "المواد المهنية", icon: "🔧" },
+  { id: "furniture", label: "الأثاث المدرسي", icon: "🪑" },
+  { id: "computers", label: "الحاسوب", icon: "💻" },
+  { id: "physics_lab", label: "مختبر الفيزياء", icon: "⚡" },
+  { id: "biology_lab", label: "مختبر الأحياء", icon: "🔬" },
+  { id: "chemistry_lab", label: "مختبر الكيمياء", icon: "🧪" },
+  { id: "textbooks", label: "الكتب المدرسية", icon: "📚" },
+];
+
+interface InventoryRecord {
+  id: string;
+  savedAt: string;
+  categoryId: string;
+  categoryLabel: string;
+  items: InventoryItem[];
+}
+
 const STORAGE_KEY_PREFIX = "school_inventory_";
 const INVENTORY_RECORDS_KEY_PREFIX = "school_inventory_records_";
 const INVENTORY_DISPOSAL_QUEUE_KEY = "inventory_disposal_queue";
