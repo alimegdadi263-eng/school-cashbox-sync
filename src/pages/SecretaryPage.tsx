@@ -336,6 +336,7 @@ function InventoryTab({
         surplus: 0,
         unitPrice: 0,
         totalPrice: 0,
+        disposalQuantity: 0,
       },
     ]);
   };
