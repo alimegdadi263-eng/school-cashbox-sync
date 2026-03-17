@@ -685,8 +685,9 @@ function InventoryTab({
                 <TableHead className="w-20 text-center">الموجود</TableHead>
                 <TableHead className="w-16 text-center">النقص</TableHead>
                 <TableHead className="w-16 text-center">الزيادة</TableHead>
-                <TableHead className="w-36 text-center">السعر الإفرادي</TableHead>
-                <TableHead className="w-36 text-center">السعر الإجمالي</TableHead>
+                <TableHead className="w-40 text-center">السعر الإفرادي</TableHead>
+                <TableHead className="w-40 text-center">السعر الإجمالي</TableHead>
+                <TableHead className="w-28 text-center">كمية الإتلاف</TableHead>
                 <TableHead className="w-24 text-center">إتلاف</TableHead>
                 <TableHead className="w-12" />
               </TableRow>
@@ -695,6 +696,7 @@ function InventoryTab({
               {items.map((item) => {
                 const unitSplit = splitToDinarFils(item.unitPrice);
                 const totalSplit = splitToDinarFils(item.totalPrice);
+                const allowedDisposalQuantity = getInitialDisposalQuantity(item.existing, item.shortage, item.disposalQuantity);
                 return (
                   <TableRow key={item.id}>
                     <TableCell className="text-center font-medium">{item.serialNumber}</TableCell>
@@ -734,16 +736,28 @@ function InventoryTab({
                         value={item.unitPrice}
                         onChange={(e) => updateItem(item.id, "unitPrice", Number(e.target.value))}
                         className="h-8 text-center"
+                        placeholder="مثال 12.500"
                       />
                       <p className="text-[11px] text-muted-foreground text-center mt-1">
-                        د {unitSplit.dinarText} / ف {unitSplit.filsText}
+                        {item.unitPrice ? `${item.unitPrice.toFixed(3)} = دينار ${unitSplit.dinarText} • فلس ${unitSplit.filsText}` : "أدخل القيمة بالدينار مع الفلس"}
                       </p>
                     </TableCell>
                     <TableCell className="text-center font-medium">
                       <div>{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</div>
                       <p className="text-[11px] text-muted-foreground">
-                        د {totalSplit.dinarText} / ف {totalSplit.filsText}
+                        {item.totalPrice ? `دينار ${totalSplit.dinarText} • فلس ${totalSplit.filsText}` : "يُحسب تلقائياً"}
                       </p>
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={Math.max(0, item.existing)}
+                        value={allowedDisposalQuantity}
+                        onChange={(e) => updateItem(item.id, "disposalQuantity", Number(e.target.value))}
+                        className="h-8 text-center"
+                      />
+                      <p className="text-[11px] text-muted-foreground text-center mt-1">المتاح للإتلاف: {item.existing}</p>
                     </TableCell>
                     <TableCell>
                       <Button size="sm" variant="outline" onClick={() => moveItemToDisposal(item)}>
