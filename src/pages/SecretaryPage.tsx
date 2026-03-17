@@ -410,21 +410,28 @@ function InventoryTab({
       return;
     }
 
+    const quantityToDispose = getInitialDisposalQuantity(item.existing, item.shortage, item.disposalQuantity);
+    if (quantityToDispose <= 0) {
+      toast({ title: "لا توجد كمية متاحة للإتلاف", variant: "destructive" });
+      return;
+    }
+
     const queue = loadInventoryDisposalQueue(userId);
     queue.push({
       sourceCategoryId: category.id,
       sourceCategoryLabel: category.label,
+      sourceItemId: item.id,
       itemName: item.itemName,
       grade: "",
       unitPrice: item.unitPrice || 0,
-      quantityNum: item.shortage || item.existing || 1,
+      quantityNum: quantityToDispose,
     });
     saveInventoryDisposalQueue(userId, queue);
-    toast({ title: "تم ترحيل المادة إلى قائمة الإتلاف" });
+    toast({ title: `تم ترحيل ${quantityToDispose} من المادة إلى قائمة الإتلاف` });
   };
 
   const moveAllShortagesToDisposal = () => {
-    const candidates = items.filter((item) => item.itemName.trim() && (item.shortage > 0 || item.existing > 0));
+    const candidates = items.filter((item) => item.itemName.trim() && getInitialDisposalQuantity(item.existing, item.shortage, item.disposalQuantity) > 0);
     if (candidates.length === 0) {
       toast({ title: "لا توجد مواد قابلة للترحيل", variant: "destructive" });
       return;
@@ -435,10 +442,11 @@ function InventoryTab({
       queue.push({
         sourceCategoryId: category.id,
         sourceCategoryLabel: category.label,
+        sourceItemId: item.id,
         itemName: item.itemName,
         grade: "",
         unitPrice: item.unitPrice || 0,
-        quantityNum: item.shortage || item.existing || 1,
+        quantityNum: getInitialDisposalQuantity(item.existing, item.shortage, item.disposalQuantity),
       });
     });
     saveInventoryDisposalQueue(userId, queue);
