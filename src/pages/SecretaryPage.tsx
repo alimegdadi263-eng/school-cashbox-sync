@@ -1053,6 +1053,30 @@ function DisposalSection({
       toast({ title: "خطأ", description: "أضف مواد للإتلاف", variant: "destructive" });
       return;
     }
+
+    const syncedCategories = new Set<string>();
+    items.forEach((item) => {
+      if (!item.sourceCategoryId || !item.sourceItemId || !item.quantityNum) return;
+      const categoryItems = loadInventory(userId, item.sourceCategoryId);
+      const updatedItems = categoryItems.map((inventoryItem) => {
+        if (inventoryItem.id !== item.sourceItemId) return inventoryItem;
+        const disposalQty = Math.min(Math.max(Number(item.quantityNum) || 0, 0), Math.max(0, inventoryItem.existing));
+        const nextExisting = Math.max(0, inventoryItem.existing - disposalQty);
+        const nextActualBalance = Math.max(0, inventoryItem.actualBalance - disposalQty);
+        const diff = nextExisting - nextActualBalance;
+        return {
+          ...inventoryItem,
+          existing: nextExisting,
+          actualBalance: nextActualBalance,
+          shortage: diff < 0 ? Math.abs(diff) : 0,
+          surplus: diff > 0 ? diff : 0,
+          disposalQuantity: getInitialDisposalQuantity(nextExisting, diff < 0 ? Math.abs(diff) : 0, inventoryItem.disposalQuantity),
+        };
+      });
+      saveInventory(userId, item.sourceCategoryId, updatedItems);
+      syncedCategories.add(item.sourceCategoryId);
+    });
+
     const record: DisposalRecord = {
       id: generateId(),
       date: format(new Date(), "yyyy/MM/dd"),
@@ -1067,7 +1091,7 @@ function DisposalSection({
     setRecords(updated);
     saveDisposals(userId, updated);
     setItems([]);
-    toast({ title: "تم حفظ قائمة الإتلاف بنجاح" });
+    toast({ title: syncedCategories.size > 0 ? "تم حفظ قائمة الإتلاف وتحديث الجرد" : "تم حفظ قائمة الإتلاف بنجاح" });
   };
 
   const importQueuedInventory = () => {
