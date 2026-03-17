@@ -1090,6 +1090,8 @@ function DisposalSection({
       totalPrice: (queuedItem.quantityNum || 1) * (queuedItem.unitPrice || 0),
       entryDate: format(new Date(), "yyyy-MM-dd"),
       reason: "الغاء مادة",
+      sourceCategoryId: queuedItem.sourceCategoryId,
+      sourceItemId: queuedItem.sourceItemId,
     }));
 
     setItems((prev) => [...prev, ...mapped].map((item, index) => ({ ...item, serialNumber: index + 1 })));
