@@ -314,6 +314,7 @@ function InventoryTab({
         surplus,
         unitPrice,
         totalPrice: totalPrice || unitPrice * shortage,
+        disposalQuantity: getInitialDisposalQuantity(existing, shortage),
       };
     }
 
