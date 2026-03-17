@@ -469,16 +469,18 @@ function InventoryTab({
     ws.getRow(2).getCell(1).alignment = { horizontal: "center" };
     ws.addRow([]);
 
-    const headers = ["رقم السجل", "اللوازم", "الرصيد الفعلي", "الموجود", "النقص", "الزيادة", "السعر الإفرادي", "السعر الإجمالي"];
+    const headers = ["رقم السجل", "اللوازم", "الرصيد الفعلي", "الموجود", "النقص", "الزيادة", "السعر الإفرادي (دينار/فلس)", "السعر الإجمالي (دينار/فلس)"];
     const hRow = ws.addRow(headers);
     hRow.eachCell((cell) => {
       cell.font = { name: FONT_NAME, bold: true, size: 12, color: { argb: "FFFFFFFF" } };
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2B3A55" } };
-      cell.alignment = { horizontal: "center", vertical: "middle" };
+      cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
       cell.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
     });
 
     items.forEach((item) => {
+      const unitLabel = `${item.unitPrice.toFixed(3)} (${getCurrencyBreakdownLabel(item.unitPrice)})`;
+      const totalLabel = `${item.totalPrice.toFixed(3)} (${getCurrencyBreakdownLabel(item.totalPrice)})`;
       const row = ws.addRow([
         item.serialNumber,
         item.itemName,
@@ -486,12 +488,12 @@ function InventoryTab({
         item.existing,
         item.shortage,
         item.surplus,
-        item.unitPrice,
-        item.totalPrice,
+        unitLabel,
+        totalLabel,
       ]);
       row.eachCell((cell) => {
         cell.font = { name: FONT_NAME, size: 12 };
-        cell.alignment = { horizontal: "center", vertical: "middle" };
+        cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
         cell.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
       });
     });
@@ -502,8 +504,8 @@ function InventoryTab({
     ws.getColumn(4).width = 12;
     ws.getColumn(5).width = 10;
     ws.getColumn(6).width = 10;
-    ws.getColumn(7).width = 14;
-    ws.getColumn(8).width = 14;
+    ws.getColumn(7).width = 28;
+    ws.getColumn(8).width = 28;
 
     const buffer = await wb.xlsx.writeBuffer();
     saveAs(new Blob([buffer]), `جرد_${category.label}_${schoolName}.xlsx`);
