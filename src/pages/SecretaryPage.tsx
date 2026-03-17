@@ -346,14 +346,22 @@ function InventoryTab({
       items.map((item) => {
         if (item.id !== id) return item;
         const updated = { ...item, [field]: value };
+
         if (field === "actualBalance" || field === "existing") {
           const diff = Number(updated.existing) - Number(updated.actualBalance);
           updated.shortage = diff < 0 ? Math.abs(diff) : 0;
           updated.surplus = diff > 0 ? diff : 0;
+          updated.disposalQuantity = getInitialDisposalQuantity(updated.existing, updated.shortage, updated.disposalQuantity);
         }
+
+        if (field === "disposalQuantity") {
+          updated.disposalQuantity = getInitialDisposalQuantity(updated.existing, updated.shortage, Number(value));
+        }
+
         if (field === "unitPrice" || field === "shortage") {
           updated.totalPrice = Number(updated.shortage) * Number(updated.unitPrice);
         }
+
         return updated;
       })
     );
