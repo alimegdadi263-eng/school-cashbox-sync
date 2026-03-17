@@ -52,19 +52,28 @@ export default function AppSidebar() {
   const financeActive = financePaths.includes(location.pathname);
   const [financeOpen, setFinanceOpen] = useState(financeActive);
 
-  // Update state
   const isElectron = typeof window !== "undefined" && ((window as any).electronAPI?.runUpdateAction || (window as any).electronAPI?.checkForUpdates);
   const [updateStatus, setUpdateStatus] = useState<string>("idle");
   const [updateVersion, setUpdateVersion] = useState("");
   const [updateProgress, setUpdateProgress] = useState(0);
+  const [currentVersion, setCurrentVersion] = useState<string>((window as any).electronAPI?.appVersion || "2.0.1");
 
   useEffect(() => {
     if (!isElectron) return;
-    (window as any).electronAPI.onUpdateStatus?.((data: { status: string; version?: string; progress?: number }) => {
+
+    void (window as any).electronAPI?.getAppVersion?.().then((version: string) => {
+      if (version) setCurrentVersion(version);
+    });
+
+    const unsubscribe = (window as any).electronAPI.onUpdateStatus?.((data: { status: string; version?: string; progress?: number }) => {
       setUpdateStatus(data.status);
       if (data.version) setUpdateVersion(data.version);
       if (data.progress !== undefined) setUpdateProgress(data.progress);
     });
+
+    return () => {
+      unsubscribe?.();
+    };
   }, [isElectron]);
 
   const hasUpdate = updateStatus === "available" || updateStatus === "downloaded";
@@ -187,10 +196,10 @@ export default function AppSidebar() {
             </div>
           )}
           <span className="flex-1 text-right">
-            {updateStatus === "checking" ? "جاري التحقق..." :
-             updateStatus === "available" ? `تحديث ${updateVersion}` :
-             updateStatus === "downloading" ? `تحميل ${updateProgress}%` :
-             updateStatus === "downloaded" ? "تثبيت التحديث" :
+            {updateStatus === "checking" ? `جاري التحقق من GitHub Releases...` :
+             updateStatus === "available" ? `تحديث متاح ${updateVersion} • الحالي ${currentVersion}` :
+             updateStatus === "downloading" ? `تحميل ${updateProgress}% • الجديد ${updateVersion}` :
+             updateStatus === "downloaded" ? `جاهز للتثبيت ${updateVersion}` :
              "التحديثات"}
           </span>
         </Button>
@@ -207,7 +216,7 @@ export default function AppSidebar() {
           تسجيل الخروج
         </Button>
         <p className="text-sidebar-foreground/40 text-xs text-center">
-          {isAdmin ? "مدير النظام" : "مدرسة"} • الإصدار {(window as any).electronAPI?.appVersion || "2.0.0"}
+          {isAdmin ? "مدير النظام" : "مدرسة"} • الإصدار {currentVersion}
         </p>
         <p className="text-sidebar-foreground/40 text-[10px] text-center mt-1">
           © {new Date().getFullYear()} Ali Megdadi. جميع الحقوق محفوظة

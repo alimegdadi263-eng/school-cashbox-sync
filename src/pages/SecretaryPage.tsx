@@ -51,6 +51,7 @@ interface InventoryItem {
   surplus: number;
   unitPrice: number;
   totalPrice: number;
+  disposalQuantity: number;
 }
 
 interface DisposalItem {
@@ -66,6 +67,8 @@ interface DisposalItem {
   totalPrice: number;
   entryDate: string;
   reason: string;
+  sourceCategoryId?: string;
+  sourceItemId?: string;
 }
 
 interface DisposalRecord {
@@ -79,7 +82,16 @@ interface DisposalRecord {
   directorName: string;
 }
 
-// ─── Constants ───
+interface InventoryToDisposalItem {
+  sourceCategoryId: string;
+  sourceCategoryLabel: string;
+  sourceItemId: string;
+  itemName: string;
+  grade: string;
+  unitPrice: number;
+  quantityNum: number;
+}
+
 const INVENTORY_CATEGORIES = [
   { id: "sports", label: "المواد الرياضية", icon: "🏀" },
   { id: "vocational", label: "المواد المهنية", icon: "🔧" },
@@ -97,15 +109,6 @@ interface InventoryRecord {
   categoryId: string;
   categoryLabel: string;
   items: InventoryItem[];
-}
-
-interface InventoryToDisposalItem {
-  sourceCategoryId: string;
-  sourceCategoryLabel: string;
-  itemName: string;
-  grade: string;
-  unitPrice: number;
-  quantityNum: number;
 }
 
 const STORAGE_KEY_PREFIX = "school_inventory_";
@@ -145,25 +148,55 @@ const splitToDinarFils = (value: number) => {
   };
 };
 
+const getCurrencyBreakdownLabel = (value: number) => {
+  const { dinarText, filsText } = splitToDinarFils(value);
+  return `دينار ${dinarText} • فلس ${filsText}`;
+};
+
+const getInitialDisposalQuantity = (existing: number, shortage: number, savedValue?: number) => {
+  const available = Math.max(0, Number(existing) || 0);
+  if (available === 0) return 0;
+
+  const preferred = typeof savedValue === "number" && Number.isFinite(savedValue)
+    ? savedValue
+    : Number(shortage) > 0
+      ? Number(shortage)
+      : 1;
+
+  return Math.min(Math.max(preferred, 1), available);
+};
+
 // ─── LocalStorage helpers ───
 function loadInventory(userId: string, category: string): InventoryItem[] {
   try {
     const data = localStorage.getItem(`${STORAGE_KEY_PREFIX}${userId}_${category}`);
     if (!data) return [];
     const parsed = JSON.parse(data);
-    // Migrate old format
-    return parsed.map((item: any) => ({
-      id: item.id || generateId(),
-      serialNumber: item.serialNumber || 1,
-      itemName: item.itemName || "",
-      actualBalance: item.actualBalance ?? item.quantity ?? 0,
-      existing: item.existing ?? item.quantity ?? 0,
-      shortage: item.shortage ?? 0,
-      surplus: item.surplus ?? 0,
-      unitPrice: item.unitPrice ?? 0,
-      totalPrice: item.totalPrice ?? 0,
-    }));
-  } catch { return []; }
+
+    return parsed.map((item: any) => {
+      const actualBalance = Number(item.actualBalance ?? item.quantity ?? 0);
+      const existing = Number(item.existing ?? item.quantity ?? 0);
+      const shortage = Number(item.shortage ?? 0);
+      const surplus = Number(item.surplus ?? 0);
+      const unitPrice = Number(item.unitPrice ?? 0);
+      const totalPrice = Number(item.totalPrice ?? 0);
+
+      return {
+        id: item.id || generateId(),
+        serialNumber: item.serialNumber || 1,
+        itemName: item.itemName || "",
+        actualBalance,
+        existing,
+        shortage,
+        surplus,
+        unitPrice,
+        totalPrice,
+        disposalQuantity: getInitialDisposalQuantity(existing, shortage, Number(item.disposalQuantity)),
+      };
+    });
+  } catch {
+    return [];
+  }
 }
 
 function saveInventory(userId: string, category: string, items: InventoryItem[]) {
@@ -281,6 +314,7 @@ function InventoryTab({
         surplus,
         unitPrice,
         totalPrice: totalPrice || unitPrice * shortage,
+        disposalQuantity: getInitialDisposalQuantity(existing, shortage),
       };
     }
 
@@ -303,6 +337,7 @@ function InventoryTab({
         surplus,
         unitPrice,
         totalPrice,
+        disposalQuantity: getInitialDisposalQuantity(existing, shortage),
       };
     }
 
@@ -322,6 +357,7 @@ function InventoryTab({
         surplus: 0,
         unitPrice: 0,
         totalPrice: 0,
+        disposalQuantity: 0,
       },
     ]);
   };
@@ -331,14 +367,22 @@ function InventoryTab({
       items.map((item) => {
         if (item.id !== id) return item;
         const updated = { ...item, [field]: value };
+
         if (field === "actualBalance" || field === "existing") {
           const diff = Number(updated.existing) - Number(updated.actualBalance);
           updated.shortage = diff < 0 ? Math.abs(diff) : 0;
           updated.surplus = diff > 0 ? diff : 0;
+          updated.disposalQuantity = getInitialDisposalQuantity(updated.existing, updated.shortage, updated.disposalQuantity);
         }
+
+        if (field === "disposalQuantity") {
+          updated.disposalQuantity = getInitialDisposalQuantity(updated.existing, updated.shortage, Number(value));
+        }
+
         if (field === "unitPrice" || field === "shortage") {
           updated.totalPrice = Number(updated.shortage) * Number(updated.unitPrice);
         }
+
         return updated;
       })
     );
@@ -387,21 +431,28 @@ function InventoryTab({
       return;
     }
 
+    const quantityToDispose = getInitialDisposalQuantity(item.existing, item.shortage, item.disposalQuantity);
+    if (quantityToDispose <= 0) {
+      toast({ title: "لا توجد كمية متاحة للإتلاف", variant: "destructive" });
+      return;
+    }
+
     const queue = loadInventoryDisposalQueue(userId);
     queue.push({
       sourceCategoryId: category.id,
       sourceCategoryLabel: category.label,
+      sourceItemId: item.id,
       itemName: item.itemName,
       grade: "",
       unitPrice: item.unitPrice || 0,
-      quantityNum: item.shortage || item.existing || 1,
+      quantityNum: quantityToDispose,
     });
     saveInventoryDisposalQueue(userId, queue);
-    toast({ title: "تم ترحيل المادة إلى قائمة الإتلاف" });
+    toast({ title: `تم ترحيل ${quantityToDispose} من المادة إلى قائمة الإتلاف` });
   };
 
   const moveAllShortagesToDisposal = () => {
-    const candidates = items.filter((item) => item.itemName.trim() && (item.shortage > 0 || item.existing > 0));
+    const candidates = items.filter((item) => item.itemName.trim() && getInitialDisposalQuantity(item.existing, item.shortage, item.disposalQuantity) > 0);
     if (candidates.length === 0) {
       toast({ title: "لا توجد مواد قابلة للترحيل", variant: "destructive" });
       return;
@@ -412,10 +463,11 @@ function InventoryTab({
       queue.push({
         sourceCategoryId: category.id,
         sourceCategoryLabel: category.label,
+        sourceItemId: item.id,
         itemName: item.itemName,
         grade: "",
         unitPrice: item.unitPrice || 0,
-        quantityNum: item.shortage || item.existing || 1,
+        quantityNum: getInitialDisposalQuantity(item.existing, item.shortage, item.disposalQuantity),
       });
     });
     saveInventoryDisposalQueue(userId, queue);
@@ -438,16 +490,18 @@ function InventoryTab({
     ws.getRow(2).getCell(1).alignment = { horizontal: "center" };
     ws.addRow([]);
 
-    const headers = ["رقم السجل", "اللوازم", "الرصيد الفعلي", "الموجود", "النقص", "الزيادة", "السعر الإفرادي", "السعر الإجمالي"];
+    const headers = ["رقم السجل", "اللوازم", "الرصيد الفعلي", "الموجود", "النقص", "الزيادة", "السعر الإفرادي (دينار/فلس)", "السعر الإجمالي (دينار/فلس)"];
     const hRow = ws.addRow(headers);
     hRow.eachCell((cell) => {
       cell.font = { name: FONT_NAME, bold: true, size: 12, color: { argb: "FFFFFFFF" } };
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2B3A55" } };
-      cell.alignment = { horizontal: "center", vertical: "middle" };
+      cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
       cell.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
     });
 
     items.forEach((item) => {
+      const unitLabel = `${item.unitPrice.toFixed(3)} (${getCurrencyBreakdownLabel(item.unitPrice)})`;
+      const totalLabel = `${item.totalPrice.toFixed(3)} (${getCurrencyBreakdownLabel(item.totalPrice)})`;
       const row = ws.addRow([
         item.serialNumber,
         item.itemName,
@@ -455,12 +509,12 @@ function InventoryTab({
         item.existing,
         item.shortage,
         item.surplus,
-        item.unitPrice,
-        item.totalPrice,
+        unitLabel,
+        totalLabel,
       ]);
       row.eachCell((cell) => {
         cell.font = { name: FONT_NAME, size: 12 };
-        cell.alignment = { horizontal: "center", vertical: "middle" };
+        cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
         cell.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
       });
     });
@@ -471,8 +525,8 @@ function InventoryTab({
     ws.getColumn(4).width = 12;
     ws.getColumn(5).width = 10;
     ws.getColumn(6).width = 10;
-    ws.getColumn(7).width = 14;
-    ws.getColumn(8).width = 14;
+    ws.getColumn(7).width = 28;
+    ws.getColumn(8).width = 28;
 
     const buffer = await wb.xlsx.writeBuffer();
     saveAs(new Blob([buffer]), `جرد_${category.label}_${schoolName}.xlsx`);
@@ -652,8 +706,9 @@ function InventoryTab({
                 <TableHead className="w-20 text-center">الموجود</TableHead>
                 <TableHead className="w-16 text-center">النقص</TableHead>
                 <TableHead className="w-16 text-center">الزيادة</TableHead>
-                <TableHead className="w-36 text-center">السعر الإفرادي</TableHead>
-                <TableHead className="w-36 text-center">السعر الإجمالي</TableHead>
+                <TableHead className="w-40 text-center">السعر الإفرادي</TableHead>
+                <TableHead className="w-40 text-center">السعر الإجمالي</TableHead>
+                <TableHead className="w-28 text-center">كمية الإتلاف</TableHead>
                 <TableHead className="w-24 text-center">إتلاف</TableHead>
                 <TableHead className="w-12" />
               </TableRow>
@@ -662,6 +717,7 @@ function InventoryTab({
               {items.map((item) => {
                 const unitSplit = splitToDinarFils(item.unitPrice);
                 const totalSplit = splitToDinarFils(item.totalPrice);
+                const allowedDisposalQuantity = getInitialDisposalQuantity(item.existing, item.shortage, item.disposalQuantity);
                 return (
                   <TableRow key={item.id}>
                     <TableCell className="text-center font-medium">{item.serialNumber}</TableCell>
@@ -701,16 +757,28 @@ function InventoryTab({
                         value={item.unitPrice}
                         onChange={(e) => updateItem(item.id, "unitPrice", Number(e.target.value))}
                         className="h-8 text-center"
+                        placeholder="مثال 12.500"
                       />
                       <p className="text-[11px] text-muted-foreground text-center mt-1">
-                        د {unitSplit.dinarText} / ف {unitSplit.filsText}
+                        {item.unitPrice ? `${item.unitPrice.toFixed(3)} = دينار ${unitSplit.dinarText} • فلس ${unitSplit.filsText}` : "أدخل القيمة بالدينار مع الفلس"}
                       </p>
                     </TableCell>
                     <TableCell className="text-center font-medium">
                       <div>{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</div>
                       <p className="text-[11px] text-muted-foreground">
-                        د {totalSplit.dinarText} / ف {totalSplit.filsText}
+                        {item.totalPrice ? `دينار ${totalSplit.dinarText} • فلس ${totalSplit.filsText}` : "يُحسب تلقائياً"}
                       </p>
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={Math.max(0, item.existing)}
+                        value={allowedDisposalQuantity}
+                        onChange={(e) => updateItem(item.id, "disposalQuantity", Number(e.target.value))}
+                        className="h-8 text-center"
+                      />
+                      <p className="text-[11px] text-muted-foreground text-center mt-1">المتاح للإتلاف: {item.existing}</p>
                     </TableCell>
                     <TableCell>
                       <Button size="sm" variant="outline" onClick={() => moveItemToDisposal(item)}>
@@ -1006,6 +1074,30 @@ function DisposalSection({
       toast({ title: "خطأ", description: "أضف مواد للإتلاف", variant: "destructive" });
       return;
     }
+
+    const syncedCategories = new Set<string>();
+    items.forEach((item) => {
+      if (!item.sourceCategoryId || !item.sourceItemId || !item.quantityNum) return;
+      const categoryItems = loadInventory(userId, item.sourceCategoryId);
+      const updatedItems = categoryItems.map((inventoryItem) => {
+        if (inventoryItem.id !== item.sourceItemId) return inventoryItem;
+        const disposalQty = Math.min(Math.max(Number(item.quantityNum) || 0, 0), Math.max(0, inventoryItem.existing));
+        const nextExisting = Math.max(0, inventoryItem.existing - disposalQty);
+        const nextActualBalance = Math.max(0, inventoryItem.actualBalance - disposalQty);
+        const diff = nextExisting - nextActualBalance;
+        return {
+          ...inventoryItem,
+          existing: nextExisting,
+          actualBalance: nextActualBalance,
+          shortage: diff < 0 ? Math.abs(diff) : 0,
+          surplus: diff > 0 ? diff : 0,
+          disposalQuantity: getInitialDisposalQuantity(nextExisting, diff < 0 ? Math.abs(diff) : 0, inventoryItem.disposalQuantity),
+        };
+      });
+      saveInventory(userId, item.sourceCategoryId, updatedItems);
+      syncedCategories.add(item.sourceCategoryId);
+    });
+
     const record: DisposalRecord = {
       id: generateId(),
       date: format(new Date(), "yyyy/MM/dd"),
@@ -1020,7 +1112,7 @@ function DisposalSection({
     setRecords(updated);
     saveDisposals(userId, updated);
     setItems([]);
-    toast({ title: "تم حفظ قائمة الإتلاف بنجاح" });
+    toast({ title: syncedCategories.size > 0 ? "تم حفظ قائمة الإتلاف وتحديث الجرد" : "تم حفظ قائمة الإتلاف بنجاح" });
   };
 
   const importQueuedInventory = () => {
@@ -1043,6 +1135,8 @@ function DisposalSection({
       totalPrice: (queuedItem.quantityNum || 1) * (queuedItem.unitPrice || 0),
       entryDate: format(new Date(), "yyyy-MM-dd"),
       reason: "الغاء مادة",
+      sourceCategoryId: queuedItem.sourceCategoryId,
+      sourceItemId: queuedItem.sourceItemId,
     }));
 
     setItems((prev) => [...prev, ...mapped].map((item, index) => ({ ...item, serialNumber: index + 1 })));
@@ -1094,15 +1188,17 @@ function DisposalSection({
     ws.addRow([`التاريخ: ${record.date}`]);
     ws.addRow([]);
 
-    const hRow = ws.addRow(["الرقم", "رقم صفحة السجل", "اسم الكتاب", "الصف", "تاريخ الطبعة", "الكمية بالأرقام", "الكمية بالحروف", "السعر الافرادي", "السعر الاجمالي", "تاريخ الادخال", "سبب الاتلاف"]);
+    const hRow = ws.addRow(["الرقم", "رقم صفحة السجل", "اسم الكتاب", "الصف", "تاريخ الطبعة", "الكمية بالأرقام", "الكمية بالحروف", "السعر الافرادي (دينار/فلس)", "السعر الاجمالي (دينار/فلس)", "تاريخ الادخال", "سبب الاتلاف"]);
     hRow.eachCell((c) => {
       c.font = { name: FONT_NAME, bold: true, size: 12, color: { argb: "FFFFFFFF" } };
       c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF8B0000" } };
-      c.alignment = { horizontal: "center", vertical: "middle" };
+      c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
       c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
     });
 
     record.items.forEach((item) => {
+      const unitLabel = `${item.unitPrice.toFixed(3)} (${getCurrencyBreakdownLabel(item.unitPrice)})`;
+      const totalLabel = `${item.totalPrice.toFixed(3)} (${getCurrencyBreakdownLabel(item.totalPrice)})`;
       const row = ws.addRow([
         item.serialNumber,
         item.pageNumber,
@@ -1111,14 +1207,14 @@ function DisposalSection({
         item.editionDate,
         item.quantityNum,
         item.quantityWords,
-        item.unitPrice,
-        item.totalPrice,
+        unitLabel,
+        totalLabel,
         item.entryDate,
         item.reason,
       ]);
       row.eachCell((c) => {
-        c.font = { name: FONT_NAME, size: 11 };
-        c.alignment = { horizontal: "center", vertical: "middle" };
+        c.font = { name: FONT_NAME, size: 12 };
+        c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
         c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
       });
     });
@@ -1131,7 +1227,7 @@ function DisposalSection({
     ws.addRow([`عضو: ${record.committeeMember3}`]);
 
     ws.columns.forEach((col) => {
-      col.width = 16;
+      col.width = 18;
     });
     ws.getColumn(3).width = 28;
 
@@ -1220,7 +1316,10 @@ function DisposalSection({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map(item => (
+                  {items.map(item => {
+                    const unitSplit = splitToDinarFils(item.unitPrice);
+                    const totalSplit = splitToDinarFils(item.totalPrice);
+                    return (
                     <TableRow key={item.id}>
                       <TableCell className="text-center">{item.serialNumber}</TableCell>
                       <TableCell>
@@ -1242,9 +1341,15 @@ function DisposalSection({
                         <Input value={item.quantityWords} onChange={e => updateItem(item.id, "quantityWords", e.target.value)} className="h-8" />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" min={0} step={0.001} value={item.unitPrice} onChange={e => updateItem(item.id, "unitPrice", Number(e.target.value))} className="h-8 text-center" />
+                        <Input type="number" min={0} step={0.001} value={item.unitPrice} onChange={e => updateItem(item.id, "unitPrice", Number(e.target.value))} className="h-8 text-center" placeholder="مثال 12.500" />
+                        <p className="text-[11px] text-muted-foreground text-center mt-1">
+                          {item.unitPrice ? `${item.unitPrice.toFixed(3)} = دينار ${unitSplit.dinarText} • فلس ${unitSplit.filsText}` : "أدخل القيمة بالدينار مع الفلس"}
+                        </p>
                       </TableCell>
-                      <TableCell className="text-center font-medium">{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</TableCell>
+                      <TableCell className="text-center font-medium">
+                        <div>{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</div>
+                        <p className="text-[11px] text-muted-foreground">{item.totalPrice ? `دينار ${totalSplit.dinarText} • فلس ${totalSplit.filsText}` : "يُحسب تلقائياً"}</p>
+                      </TableCell>
                       <TableCell>
                         <Input type="date" value={item.entryDate} onChange={e => updateItem(item.id, "entryDate", e.target.value)} className="h-8 text-center" />
                       </TableCell>
@@ -1257,7 +1362,7 @@ function DisposalSection({
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )})}
                 </TableBody>
               </Table>
             </div>

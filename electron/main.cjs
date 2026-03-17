@@ -209,6 +209,8 @@ app.whenReady().then(() => {
     setTimeout(() => checkForUpdatesSilent(), 5000);
   }
 
+  ipcMain.handle('get-app-version', () => app.getVersion());
+
   // IPC: Manual update check from renderer
   ipcMain.on('check-for-updates', () => {
     if (isDev) {
