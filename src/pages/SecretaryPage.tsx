@@ -118,6 +118,24 @@ const splitToDinarFils = (value: number) => {
   };
 };
 
+const getCurrencyBreakdownLabel = (value: number) => {
+  const { dinarText, filsText } = splitToDinarFils(value);
+  return `دينار ${dinarText} • فلس ${filsText}`;
+};
+
+const getInitialDisposalQuantity = (existing: number, shortage: number, savedValue?: number) => {
+  const available = Math.max(0, Number(existing) || 0);
+  if (available === 0) return 0;
+
+  const preferred = typeof savedValue === "number" && Number.isFinite(savedValue)
+    ? savedValue
+    : Number(shortage) > 0
+      ? Number(shortage)
+      : 1;
+
+  return Math.min(Math.max(preferred, 1), available);
+};
+
 // ─── LocalStorage helpers ───
 function loadInventory(userId: string, category: string): InventoryItem[] {
   try {
