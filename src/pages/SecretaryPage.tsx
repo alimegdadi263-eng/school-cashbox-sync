@@ -1167,15 +1167,17 @@ function DisposalSection({
     ws.addRow([`التاريخ: ${record.date}`]);
     ws.addRow([]);
 
-    const hRow = ws.addRow(["الرقم", "رقم صفحة السجل", "اسم الكتاب", "الصف", "تاريخ الطبعة", "الكمية بالأرقام", "الكمية بالحروف", "السعر الافرادي", "السعر الاجمالي", "تاريخ الادخال", "سبب الاتلاف"]);
+    const hRow = ws.addRow(["الرقم", "رقم صفحة السجل", "اسم الكتاب", "الصف", "تاريخ الطبعة", "الكمية بالأرقام", "الكمية بالحروف", "السعر الافرادي (دينار/فلس)", "السعر الاجمالي (دينار/فلس)", "تاريخ الادخال", "سبب الاتلاف"]);
     hRow.eachCell((c) => {
       c.font = { name: FONT_NAME, bold: true, size: 12, color: { argb: "FFFFFFFF" } };
       c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF8B0000" } };
-      c.alignment = { horizontal: "center", vertical: "middle" };
+      c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
       c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
     });
 
     record.items.forEach((item) => {
+      const unitLabel = `${item.unitPrice.toFixed(3)} (${getCurrencyBreakdownLabel(item.unitPrice)})`;
+      const totalLabel = `${item.totalPrice.toFixed(3)} (${getCurrencyBreakdownLabel(item.totalPrice)})`;
       const row = ws.addRow([
         item.serialNumber,
         item.pageNumber,
@@ -1184,14 +1186,14 @@ function DisposalSection({
         item.editionDate,
         item.quantityNum,
         item.quantityWords,
-        item.unitPrice,
-        item.totalPrice,
+        unitLabel,
+        totalLabel,
         item.entryDate,
         item.reason,
       ]);
       row.eachCell((c) => {
-        c.font = { name: FONT_NAME, size: 11 };
-        c.alignment = { horizontal: "center", vertical: "middle" };
+        c.font = { name: FONT_NAME, size: 12 };
+        c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
         c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
       });
     });
@@ -1204,7 +1206,7 @@ function DisposalSection({
     ws.addRow([`عضو: ${record.committeeMember3}`]);
 
     ws.columns.forEach((col) => {
-      col.width = 16;
+      col.width = 18;
     });
     ws.getColumn(3).width = 28;
 
