@@ -122,8 +122,12 @@ function setupAutoUpdater(mainWindow) {
   });
 
   autoUpdater.on('update-downloaded', (info) => {
-    updateCheckInProgress = false;
-    updateState(mainWindow, 'downloaded', info.version, 100);
+  updateCheckInProgress = false;
+  updateState(mainWindow, 'downloaded', info.version, 100);
+
+  console.log("Update downloaded - installing...");
+  autoUpdater.quitAndInstall();
+});
 
     dialog
       .showMessageBox(mainWindow, {
