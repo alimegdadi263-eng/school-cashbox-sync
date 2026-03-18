@@ -143,7 +143,6 @@ function setupAutoUpdater(mainWindow) {
           autoUpdater.quitAndInstall(false, true);
         }
       });
-  });
 
   autoUpdater.on('error', (err) => {
     updateCheckInProgress = false;
