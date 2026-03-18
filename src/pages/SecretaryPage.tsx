@@ -817,12 +817,12 @@ function InventoryTab({
                 const allowedDisposalQuantity = getInitialDisposalQuantity(item.existing, item.shortage, item.disposalQuantity);
                 return (
                   <TableRow key={item.id}>
-                    <TableCell className="text-center font-medium text-sm">{item.serialNumber}</TableCell>
+                    <TableCell className="text-center font-semibold text-base py-3">{item.serialNumber}</TableCell>
                     <TableCell>
                       <Input
                         value={item.itemName}
                         onChange={(e) => updateItem(item.id, "itemName", e.target.value)}
-                        className="h-9 min-w-[160px] text-sm"
+                        className="h-11 min-w-[200px] text-base"
                         placeholder="اسم المادة"
                       />
                     </TableCell>
@@ -832,7 +832,7 @@ function InventoryTab({
                         min={0}
                         value={item.actualBalance}
                         onChange={(e) => updateItem(item.id, "actualBalance", Number(e.target.value))}
-                        className="h-9 text-center min-w-[70px] text-sm"
+                        className="h-11 text-center min-w-[90px] text-base"
                       />
                     </TableCell>
                     <TableCell>
@@ -841,11 +841,11 @@ function InventoryTab({
                         min={0}
                         value={item.existing}
                         onChange={(e) => updateItem(item.id, "existing", Number(e.target.value))}
-                        className="h-9 text-center min-w-[70px] text-sm"
+                        className="h-11 text-center min-w-[90px] text-base"
                       />
                     </TableCell>
-                    <TableCell className="text-center text-destructive font-semibold text-sm">{item.shortage || ""}</TableCell>
-                    <TableCell className="text-center font-semibold text-primary text-sm">{item.surplus || ""}</TableCell>
+                    <TableCell className="text-center text-destructive font-bold text-base py-3">{item.shortage || ""}</TableCell>
+                    <TableCell className="text-center font-bold text-primary text-base py-3">{item.surplus || ""}</TableCell>
                     <TableCell>
                       <Input
                         type="number"
@@ -853,17 +853,17 @@ function InventoryTab({
                         step={0.001}
                         value={item.unitPrice}
                         onChange={(e) => updateItem(item.id, "unitPrice", Number(e.target.value))}
-                        className="h-9 text-center min-w-[120px] text-sm"
+                        className="h-11 text-center min-w-[160px] text-base"
                         placeholder="مثال: 12.500"
                       />
-                      <p className="text-xs text-muted-foreground text-center mt-1 whitespace-nowrap">
-                        {item.unitPrice ? `${item.unitPrice.toFixed(3)} دينار = ${unitSplit.dinarText} د ${unitSplit.filsText} ف` : "بالدينار.فلس"}
+                      <p className="text-sm text-muted-foreground text-center mt-1 whitespace-nowrap">
+                        {item.unitPrice ? `${unitSplit.dinarText} دينار ${unitSplit.filsText} فلس` : "بالدينار.فلس"}
                       </p>
                     </TableCell>
                     <TableCell className="text-center">
-                      <div className="font-semibold text-sm">{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</div>
-                      <p className="text-xs text-muted-foreground whitespace-nowrap">
-                        {item.totalPrice ? `${totalSplit.dinarText} د ${totalSplit.filsText} ف` : "تلقائي"}
+                      <div className="font-bold text-base py-1">{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</div>
+                      <p className="text-sm text-muted-foreground whitespace-nowrap">
+                        {item.totalPrice ? `${totalSplit.dinarText} دينار ${totalSplit.filsText} فلس` : "تلقائي"}
                       </p>
                     </TableCell>
                     <TableCell>
@@ -873,9 +873,9 @@ function InventoryTab({
                         max={Math.max(0, item.existing)}
                         value={allowedDisposalQuantity}
                         onChange={(e) => updateItem(item.id, "disposalQuantity", Number(e.target.value))}
-                        className="h-9 text-center min-w-[70px] text-sm"
+                        className="h-11 text-center min-w-[90px] text-base"
                       />
-                      <p className="text-xs text-muted-foreground text-center mt-1">متاح: {item.existing}</p>
+                      <p className="text-sm text-muted-foreground text-center mt-1">متاح: {item.existing}</p>
                     </TableCell>
                     <TableCell>
                       <Button size="sm" variant="outline" onClick={() => moveItemToDisposal(item)}>
