@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CalendarDays, UserX, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, UserX, Plus, Trash2, FileSpreadsheet, FileText } from "lucide-react";
+import { exportDailyScheduleExcel, exportDailyScheduleDocx } from "@/lib/exportDailySchedule";
+import { useAuth } from "@/hooks/useAuth";
 
 interface DutyTeacher {
   id: string;
@@ -18,6 +20,7 @@ interface DutyTeacher {
 
 export default function DailyScheduleManager() {
   const { teachers, timetable, periodsPerDay, generateDailySchedule } = useTimetable();
+  const { schoolName } = useAuth();
   const [selectedDay, setSelectedDay] = useState(0);
   const [absentTeacherIds, setAbsentTeacherIds] = useState<string[]>([]);
   const [dailyResult, setDailyResult] = useState<ClassTimetable | null>(null);
@@ -192,8 +195,25 @@ export default function DailyScheduleManager() {
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+            {/* Export buttons */}
+            <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+              <Button size="sm" onClick={() => {
+                const school = schoolName || "المدرسة";
+                const absentNames = teachers.filter(t => absentTeacherIds.includes(t.id)).map(t => t.name);
+                exportDailyScheduleExcel(dailyResult, selectedDay, periodsPerDay, school, absentNames, dutyTeachers);
+              }}>
+                <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => {
+                const school = schoolName || "المدرسة";
+                const absentNames = teachers.filter(t => absentTeacherIds.includes(t.id)).map(t => t.name);
+                exportDailyScheduleDocx(dailyResult, selectedDay, periodsPerDay, school, absentNames, dutyTeachers);
+              }}>
+                <FileText className="w-4 h-4 ml-1" /> تصدير Word
+              </Button>
+            </div>
+          </div>
+        )}
           </div>
         )}
       </CardContent>
