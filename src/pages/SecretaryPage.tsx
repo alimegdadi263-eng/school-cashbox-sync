@@ -1455,22 +1455,22 @@ function DisposalSection({
           </div>
 
           {items.length > 0 && (
-            <div className="border rounded-lg overflow-auto">
+            <div className="border rounded-lg overflow-auto max-h-[600px]">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-10 text-center">م</TableHead>
-                    <TableHead className="w-16 text-center">رقم صفحة السجل</TableHead>
-                    <TableHead>اسم الكتاب/المادة</TableHead>
-                    <TableHead className="w-24">الصف</TableHead>
-                    <TableHead className="w-20 text-center">تاريخ الطبعة</TableHead>
-                    <TableHead className="w-16 text-center">الكمية</TableHead>
-                    <TableHead className="w-24">الكمية بالحروف</TableHead>
-                    <TableHead className="w-20 text-center">السعر الافرادي</TableHead>
-                    <TableHead className="w-20 text-center">السعر الاجمالي</TableHead>
-                    <TableHead className="w-20 text-center">تاريخ الادخال</TableHead>
-                    <TableHead className="w-24">سبب الاتلاف</TableHead>
-                    <TableHead className="w-10"></TableHead>
+                    <TableHead className="min-w-[40px] text-center">م</TableHead>
+                    <TableHead className="min-w-[80px] text-center">رقم الصفحة</TableHead>
+                    <TableHead className="min-w-[180px]">اسم الكتاب/المادة</TableHead>
+                    <TableHead className="min-w-[100px]">الصف</TableHead>
+                    <TableHead className="min-w-[110px] text-center">تاريخ الطبعة</TableHead>
+                    <TableHead className="min-w-[80px] text-center">الكمية</TableHead>
+                    <TableHead className="min-w-[120px]">الكمية بالحروف</TableHead>
+                    <TableHead className="min-w-[150px] text-center">السعر الافرادي</TableHead>
+                    <TableHead className="min-w-[150px] text-center">السعر الاجمالي</TableHead>
+                    <TableHead className="min-w-[110px] text-center">تاريخ الادخال</TableHead>
+                    <TableHead className="min-w-[120px]">سبب الاتلاف</TableHead>
+                    <TableHead className="min-w-[40px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1479,40 +1479,40 @@ function DisposalSection({
                     const totalSplit = splitToDinarFils(item.totalPrice);
                     return (
                     <TableRow key={item.id}>
-                      <TableCell className="text-center">{item.serialNumber}</TableCell>
+                      <TableCell className="text-center text-sm">{item.serialNumber}</TableCell>
                       <TableCell>
-                        <Input value={item.pageNumber} onChange={e => updateItem(item.id, "pageNumber", e.target.value)} className="h-8 text-center" />
+                        <Input value={item.pageNumber} onChange={e => updateItem(item.id, "pageNumber", e.target.value)} className="h-9 text-center min-w-[60px] text-sm" />
                       </TableCell>
                       <TableCell>
-                        <Input value={item.itemName} onChange={e => updateItem(item.id, "itemName", e.target.value)} className="h-8" />
+                        <Input value={item.itemName} onChange={e => updateItem(item.id, "itemName", e.target.value)} className="h-9 min-w-[160px] text-sm" />
                       </TableCell>
                       <TableCell>
-                        <Input value={item.grade} onChange={e => updateItem(item.id, "grade", e.target.value)} className="h-8" />
+                        <Input value={item.grade} onChange={e => updateItem(item.id, "grade", e.target.value)} className="h-9 min-w-[80px] text-sm" />
                       </TableCell>
                       <TableCell>
-                        <Input type="date" value={item.editionDate} onChange={e => updateItem(item.id, "editionDate", e.target.value)} className="h-8 text-center" />
+                        <Input type="date" value={item.editionDate} onChange={e => updateItem(item.id, "editionDate", e.target.value)} className="h-9 text-center min-w-[100px] text-sm" />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" min={0} value={item.quantityNum} onChange={e => updateItem(item.id, "quantityNum", Number(e.target.value))} className="h-8 text-center" />
+                        <Input type="number" min={0} value={item.quantityNum} onChange={e => updateItem(item.id, "quantityNum", Number(e.target.value))} className="h-9 text-center min-w-[60px] text-sm" />
                       </TableCell>
                       <TableCell>
-                        <Input value={item.quantityWords} onChange={e => updateItem(item.id, "quantityWords", e.target.value)} className="h-8" />
+                        <Input value={item.quantityWords} onChange={e => updateItem(item.id, "quantityWords", e.target.value)} className="h-9 min-w-[100px] text-sm" />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" min={0} step={0.001} value={item.unitPrice} onChange={e => updateItem(item.id, "unitPrice", Number(e.target.value))} className="h-8 text-center" placeholder="مثال 12.500" />
-                        <p className="text-[11px] text-muted-foreground text-center mt-1">
-                          {item.unitPrice ? `${item.unitPrice.toFixed(3)} = دينار ${unitSplit.dinarText} • فلس ${unitSplit.filsText}` : "أدخل القيمة بالدينار مع الفلس"}
+                        <Input type="number" min={0} step={0.001} value={item.unitPrice} onChange={e => updateItem(item.id, "unitPrice", Number(e.target.value))} className="h-9 text-center min-w-[120px] text-sm" placeholder="مثال: 12.500" />
+                        <p className="text-xs text-muted-foreground text-center mt-1 whitespace-nowrap">
+                          {item.unitPrice ? `${item.unitPrice.toFixed(3)} = ${unitSplit.dinarText} د ${unitSplit.filsText} ف` : "بالدينار.فلس"}
                         </p>
                       </TableCell>
-                      <TableCell className="text-center font-medium">
-                        <div>{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</div>
-                        <p className="text-[11px] text-muted-foreground">{item.totalPrice ? `دينار ${totalSplit.dinarText} • فلس ${totalSplit.filsText}` : "يُحسب تلقائياً"}</p>
+                      <TableCell className="text-center">
+                        <div className="font-semibold text-sm">{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</div>
+                        <p className="text-xs text-muted-foreground whitespace-nowrap">{item.totalPrice ? `${totalSplit.dinarText} د ${totalSplit.filsText} ف` : "تلقائي"}</p>
                       </TableCell>
                       <TableCell>
-                        <Input type="date" value={item.entryDate} onChange={e => updateItem(item.id, "entryDate", e.target.value)} className="h-8 text-center" />
+                        <Input type="date" value={item.entryDate} onChange={e => updateItem(item.id, "entryDate", e.target.value)} className="h-9 text-center min-w-[100px] text-sm" />
                       </TableCell>
                       <TableCell>
-                        <Input value={item.reason} onChange={e => updateItem(item.id, "reason", e.target.value)} className="h-8" />
+                        <Input value={item.reason} onChange={e => updateItem(item.id, "reason", e.target.value)} className="h-9 min-w-[100px] text-sm" />
                       </TableCell>
                       <TableCell>
                         <Button size="icon" variant="ghost" onClick={() => removeItem(item.id)} className="h-7 w-7 text-destructive">
@@ -1533,6 +1533,17 @@ function DisposalSection({
           </div>
         </CardContent>
       </Card>
+
+      {/* Import Mapping Dialog */}
+      <ImportMappingDialog
+        open={dmOpen}
+        onClose={() => setDmOpen(false)}
+        onConfirm={handleDisposalMappingConfirm}
+        fileColumns={dmColumns}
+        previewRows={dmPreview}
+        systemFields={DISPOSAL_SYSTEM_FIELDS}
+        templateKey="disposal"
+      />
 
       {/* History */}
       <Card>
