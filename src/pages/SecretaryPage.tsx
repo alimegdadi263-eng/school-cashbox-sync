@@ -266,6 +266,22 @@ function InventoryTab({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const wordInputRef = useRef<HTMLInputElement>(null);
 
+  // Import mapping dialog state
+  const [mappingOpen, setMappingOpen] = useState(false);
+  const [mappingColumns, setMappingColumns] = useState<string[]>([]);
+  const [mappingPreview, setMappingPreview] = useState<string[][]>([]);
+  const [mappingAllRows, setMappingAllRows] = useState<string[][]>([]);
+
+  const INVENTORY_SYSTEM_FIELDS: SystemField[] = [
+    { key: "itemName", label: "اللوازم", required: true },
+    { key: "actualBalance", label: "الرصيد الفعلي" },
+    { key: "existing", label: "الموجود" },
+    { key: "shortage", label: "النقص" },
+    { key: "surplus", label: "الزيادة" },
+    { key: "unitPrice", label: "السعر الإفرادي" },
+    { key: "totalPrice", label: "السعر الإجمالي" },
+  ];
+
   useEffect(() => {
     setItems(loadInventory(userId, category.id));
     setRecords(loadInventoryRecords(userId, category.id));
