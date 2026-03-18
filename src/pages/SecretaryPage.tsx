@@ -1090,6 +1090,7 @@ function DisposalSection({
     setItems((prev) => prev.filter((i) => i.id !== id).map((item, idx) => ({ ...item, serialNumber: idx + 1 })));
   };
 
+  /** Extract rows from Excel and show mapping dialog */
   const importDisposalExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1108,39 +1109,33 @@ function DisposalSection({
         return String(raw);
       };
 
-      let startRow = 1;
-      sheet.eachRow((row, rowNumber) => {
-        const rowText = Array.from({ length: 13 }, (_, index) => getCellText(row, index + 1)).join(" ");
-        if (rowText.includes("اسم الكتاب") || rowText.includes("رقم صفحة السجل")) {
-          startRow = rowNumber + 1;
-        }
+      const allRows: string[][] = [];
+      const colCount = sheet.columnCount || 15;
+      sheet.eachRow((row) => {
+        const cells = Array.from({ length: colCount }, (_, index) => getCellText(row, index + 1));
+        if (cells.some(c => c)) allRows.push(cells);
       });
 
-      const importedItems: DisposalItem[] = [];
-      sheet.eachRow((row, rowNumber) => {
-        if (rowNumber < startRow) return;
+      if (allRows.length === 0) throw new Error("لم يتم العثور على بيانات");
 
-        const cells = Array.from({ length: 13 }, (_, index) => getCellText(row, index + 1));
-        const parsed = parseDisposalCells(cells);
-        if (!parsed) return;
+      const headerRow = allRows[0];
+      const dataRows = allRows.slice(1).filter(row => !row.every(c => !c));
+      const maxCols = Math.max(headerRow.length, ...dataRows.map(r => r.length));
+      const normalizedHeader = Array.from({ length: maxCols }, (_, i) => headerRow[i] || `عمود ${i + 1}`);
+      const normalizedData = dataRows.map(row => Array.from({ length: maxCols }, (_, i) => row[i] || ""));
 
-        importedItems.push({
-          id: generateId(),
-          serialNumber: importedItems.length + 1,
-          ...parsed,
-        });
-      });
-
-      if (importedItems.length === 0) throw new Error("لم يتم العثور على بيانات قابلة للاستيراد");
-      setItems(importedItems);
-      toast({ title: "تم الاستيراد", description: `تم استيراد ${importedItems.length} مادة من Excel` });
+      setDmColumns(normalizedHeader);
+      setDmPreview(normalizedData.slice(0, 3));
+      setDmAllRows(normalizedData);
+      setDmOpen(true);
     } catch (error) {
-      toast({ title: "خطأ في الاستيراد", description: String(error), variant: "destructive" });
+      toast({ title: "خطأ في قراءة الملف", description: String(error), variant: "destructive" });
     }
 
     if (disposalExcelInputRef.current) disposalExcelInputRef.current.value = "";
   };
 
+  /** Extract rows from Word and show mapping dialog */
   const importDisposalWord = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1150,9 +1145,8 @@ function DisposalSection({
       const xml = zip.file("word/document.xml")?.asText();
       if (!xml) throw new Error("ملف Word غير صالح");
 
+      const allRows: string[][] = [];
       const rowMatches = xml.match(/<w:tr\b[^>]*>[\s\S]*?<\/w:tr>/g) || [];
-      const importedItems: DisposalItem[] = [];
-      let headerFound = false;
 
       for (const rowXml of rowMatches) {
         const cellMatches = rowXml.match(/<w:tc\b[^>]*>[\s\S]*?<\/w:tc>/g) || [];
@@ -1160,33 +1154,69 @@ function DisposalSection({
           const textParts = cellXml.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [];
           return textParts.map((part) => part.replace(/<[^>]*>/g, "")).join("").trim();
         });
-
-        if (!headerFound) {
-          const joined = cells.join(" ");
-          if (joined.includes("اسم الكتاب") || joined.includes("رقم صفحة السجل")) {
-            headerFound = true;
-          }
-          continue;
-        }
-
-        const parsed = parseDisposalCells(cells);
-        if (!parsed) continue;
-
-        importedItems.push({
-          id: generateId(),
-          serialNumber: importedItems.length + 1,
-          ...parsed,
-        });
+        if (cells.some(c => c)) allRows.push(cells);
       }
 
-      if (importedItems.length === 0) throw new Error("لم يتم العثور على بيانات قابلة للاستيراد");
-      setItems(importedItems);
-      toast({ title: "تم الاستيراد", description: `تم استيراد ${importedItems.length} مادة من Word` });
+      if (allRows.length === 0) throw new Error("لم يتم العثور على بيانات");
+
+      const headerRow = allRows[0];
+      const dataRows = allRows.slice(1).filter(row => !row.every(c => !c));
+      const maxCols = Math.max(headerRow.length, ...dataRows.map(r => r.length));
+      const normalizedHeader = Array.from({ length: maxCols }, (_, i) => headerRow[i] || `عمود ${i + 1}`);
+      const normalizedData = dataRows.map(row => Array.from({ length: maxCols }, (_, i) => row[i] || ""));
+
+      setDmColumns(normalizedHeader);
+      setDmPreview(normalizedData.slice(0, 3));
+      setDmAllRows(normalizedData);
+      setDmOpen(true);
     } catch (error) {
-      toast({ title: "خطأ في الاستيراد", description: String(error), variant: "destructive" });
+      toast({ title: "خطأ في قراءة الملف", description: String(error), variant: "destructive" });
     }
 
     if (disposalWordInputRef.current) disposalWordInputRef.current.value = "";
+  };
+
+  /** Handle confirmed mapping from the dialog */
+  const handleDisposalMappingConfirm = (result: ImportMappingResult) => {
+    const { mapping } = result;
+    const importedItems: DisposalItem[] = [];
+
+    for (const row of dmAllRows) {
+      const itemName = mapping.itemName !== undefined ? row[mapping.itemName]?.trim() : "";
+      if (!itemName) continue;
+
+      // Filter out header-like rows
+      if (itemName.includes("لجنة") || itemName.includes("التوقيع") || itemName.includes("اسم الكتاب")) continue;
+
+      importedItems.push({
+        id: generateId(),
+        serialNumber: importedItems.length + 1,
+        pageNumber: mapping.pageNumber !== undefined ? row[mapping.pageNumber] || "" : "",
+        itemName,
+        grade: mapping.grade !== undefined ? row[mapping.grade] || "" : "",
+        editionDate: mapping.editionDate !== undefined ? row[mapping.editionDate] || "" : "",
+        quantityNum: mapping.quantityNum !== undefined ? toNumber(row[mapping.quantityNum]) : 1,
+        quantityWords: mapping.quantityWords !== undefined ? row[mapping.quantityWords] || "" : "",
+        unitPrice: mapping.unitPrice !== undefined ? toNumber(row[mapping.unitPrice]) : 0,
+        totalPrice: mapping.totalPrice !== undefined ? toNumber(row[mapping.totalPrice]) : 0,
+        entryDate: mapping.entryDate !== undefined ? row[mapping.entryDate] || "" : "",
+        reason: mapping.reason !== undefined ? row[mapping.reason] || "الغاء مادة" : "الغاء مادة",
+      });
+    }
+
+    if (importedItems.length === 0) {
+      toast({ title: "لم يتم العثور على بيانات قابلة للاستيراد", variant: "destructive" });
+      return;
+    }
+
+    // Recalculate totalPrice where needed
+    const final = importedItems.map(item => ({
+      ...item,
+      totalPrice: item.totalPrice || (item.quantityNum * item.unitPrice),
+    }));
+
+    setItems(final);
+    toast({ title: "تم الاستيراد", description: `تم استيراد ${final.length} مادة بنجاح` });
   };
 
   const deleteRecord = (recordId: string) => {
