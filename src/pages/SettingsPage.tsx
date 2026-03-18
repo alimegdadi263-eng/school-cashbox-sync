@@ -123,7 +123,14 @@ export default function SettingsPage() {
                   variant="outline"
                   size="sm"
                   disabled={updateStatus === 'checking' || updateStatus === 'downloading'}
-                  onClick={() => (window as any).electronAPI.checkForUpdates()}
+                  onClick={() => {
+                    const api = (window as any).electronAPI;
+                    if (api?.runUpdateAction) {
+                      api.runUpdateAction();
+                      return;
+                    }
+                    api?.checkForUpdates?.();
+                  }}
                 >
                   {updateStatus === 'checking' || updateStatus === 'downloading' ? (
                     <Loader2 className="w-4 h-4 animate-spin ml-2" />
@@ -132,7 +139,7 @@ export default function SettingsPage() {
                   ) : (
                     <RefreshCw className="w-4 h-4 ml-2" />
                   )}
-                  تحقق من التحديثات
+                  {updateStatus === 'available' ? 'تحميل التحديث' : updateStatus === 'downloaded' ? 'تثبيت التحديث' : 'تحقق من التحديثات'}
                 </Button>
               </div>
               {updateStatus === 'downloading' && (

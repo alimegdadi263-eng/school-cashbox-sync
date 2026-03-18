@@ -25,6 +25,13 @@ let currentUpdateState = {
   version: '',
   progress: 0,
 };
+let currentMainWindow = null;
+
+function sendStatusToWindow(mainWindow, status, version, progress) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-status', { status, version, progress });
+  }
+}
 
 function updateState(mainWindow, status, version, progress) {
   currentUpdateState = {
@@ -32,7 +39,23 @@ function updateState(mainWindow, status, version, progress) {
     version: version ?? currentUpdateState.version,
     progress: progress ?? currentUpdateState.progress,
   };
-  sendStatusToWindow(mainWindow, currentUpdateState.status, currentUpdateState.version, currentUpdateState.progress);
+  sendStatusToWindow(mainWindow ?? currentMainWindow, currentUpdateState.status, currentUpdateState.version, currentUpdateState.progress);
+}
+
+function downloadAvailableUpdate() {
+  if (!autoUpdater) return;
+  updateCheckInProgress = true;
+  updateState(currentMainWindow, 'downloading', currentUpdateState.version, currentUpdateState.progress || 0);
+  autoUpdater.downloadUpdate().catch((err) => {
+    updateCheckInProgress = false;
+    updateState(currentMainWindow, 'error', currentUpdateState.version, 0);
+    dialog.showMessageBox(currentMainWindow, {
+      type: 'error',
+      title: 'خطأ في تنزيل التحديث',
+      message: `تعذر تنزيل التحديث:\n${err.message}`,
+      buttons: ['حسناً'],
+    });
+  });
 }
 
 function setupAutoUpdater(mainWindow) {
@@ -41,7 +64,8 @@ function setupAutoUpdater(mainWindow) {
     return;
   }
 
-  // Configure logging safely
+  currentMainWindow = mainWindow;
+
   try {
     const electronLog = require('electron-log');
     autoUpdater.logger = electronLog;
@@ -63,8 +87,6 @@ function setupAutoUpdater(mainWindow) {
     feed: UPDATE_FEED,
   });
 
-  // ── Events ──────────────────────────────────────────────────────────────
-
   autoUpdater.on('checking-for-update', () => {
     updateCheckInProgress = true;
     updateState(mainWindow, 'checking', '', 0);
@@ -85,17 +107,7 @@ function setupAutoUpdater(mainWindow) {
       })
       .then(({ response }) => {
         if (response === 0) {
-          updateCheckInProgress = true;
-          autoUpdater.downloadUpdate().catch((err) => {
-            updateCheckInProgress = false;
-            updateState(mainWindow, 'error', info.version, 0);
-            dialog.showMessageBox(mainWindow, {
-              type: 'error',
-              title: 'خطأ في تنزيل التحديث',
-              message: `تعذر تنزيل التحديث:\n${err.message}`,
-              buttons: ['حسناً'],
-            });
-          });
+          downloadAvailableUpdate();
         }
       });
   });
@@ -145,8 +157,15 @@ function setupAutoUpdater(mainWindow) {
 function checkForUpdates() {
   if (!autoUpdater || updateCheckInProgress) return;
   updateCheckInProgress = true;
-  autoUpdater.checkForUpdates().catch(() => {
+  autoUpdater.checkForUpdates().catch((err) => {
     updateCheckInProgress = false;
+    updateState(currentMainWindow, 'error', currentUpdateState.version, 0);
+    dialog.showMessageBox(currentMainWindow, {
+      type: 'error',
+      title: 'خطأ في التحديث',
+      message: `تعذر التحقق من التحديثات:\n${err.message}`,
+      buttons: ['حسناً'],
+    });
   });
 }
 
@@ -155,6 +174,7 @@ function checkForUpdatesSilent() {
   updateCheckInProgress = true;
   autoUpdater.checkForUpdates().catch(() => {
     updateCheckInProgress = false;
+    updateState(currentMainWindow, 'idle', currentUpdateState.version, 0);
   });
 }
 
@@ -168,24 +188,19 @@ function runUpdateAction() {
 
   if (currentUpdateState.status === 'available') {
     if (updateCheckInProgress) return;
-    updateCheckInProgress = true;
-    autoUpdater.downloadUpdate().catch(() => {
-      updateCheckInProgress = false;
-    });
+    downloadAvailableUpdate();
     return;
   }
 
-  if (currentUpdateState.status === 'checking' || currentUpdateState.status === 'downloading') {
+  if (currentUpdateState.status === 'downloading') {
     return;
+  }
+
+  if (currentUpdateState.status === 'checking') {
+    updateCheckInProgress = false;
   }
 
   checkForUpdates();
-}
-
-function sendStatusToWindow(mainWindow, status, version, progress) {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('update-status', { status, version, progress });
-  }
 }
 
 module.exports = { setupAutoUpdater, checkForUpdates, checkForUpdatesSilent, runUpdateAction };

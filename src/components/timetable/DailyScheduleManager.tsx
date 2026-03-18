@@ -195,6 +195,9 @@ export default function DailyScheduleManager() {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
             {/* Export buttons */}
             <div className="flex flex-wrap gap-2 border-t border-border pt-3">
               <Button size="sm" onClick={() => {
@@ -212,8 +215,6 @@ export default function DailyScheduleManager() {
                 <FileText className="w-4 h-4 ml-1" /> تصدير Word
               </Button>
             </div>
-          </div>
-        )}
           </div>
         )}
       </CardContent>
