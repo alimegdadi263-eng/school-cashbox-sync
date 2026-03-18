@@ -1567,7 +1567,10 @@ function DisposalSection({
                       {record.committeeMember3 ? ` ، ${record.committeeMember3}` : ""}
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="secondary" onClick={() => loadRecordForEditing(record)}>
+                      <RefreshCw className="w-4 h-4 ml-1" /> تعديل
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => handleExportDocx(record)}>
                       <FileText className="w-4 h-4 ml-1" /> Word
                     </Button>
