@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CalendarDays, UserX, Plus, Trash2, FileSpreadsheet, FileText } from "lucide-react";
-import { exportDailyScheduleExcel, exportDailyScheduleDocx } from "@/lib/exportDailySchedule";
+import { exportDailyScheduleExcel, exportDailyScheduleDocx, exportDailyScheduleExcelInverted, exportDailyScheduleDocxInverted } from "@/lib/exportDailySchedule";
 import { useAuth } from "@/hooks/useAuth";
 
 interface DutyTeacher {
@@ -200,19 +200,36 @@ export default function DailyScheduleManager() {
 
             {/* Export buttons */}
             <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+              <span className="text-xs text-muted-foreground self-center ml-1">عادي:</span>
               <Button size="sm" onClick={() => {
                 const school = schoolName || "المدرسة";
                 const absentNames = teachers.filter(t => absentTeacherIds.includes(t.id)).map(t => t.name);
                 exportDailyScheduleExcel(dailyResult, selectedDay, periodsPerDay, school, absentNames, dutyTeachers);
               }}>
-                <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel
+                <FileSpreadsheet className="w-4 h-4 ml-1" /> Excel
               </Button>
               <Button size="sm" variant="outline" onClick={() => {
                 const school = schoolName || "المدرسة";
                 const absentNames = teachers.filter(t => absentTeacherIds.includes(t.id)).map(t => t.name);
                 exportDailyScheduleDocx(dailyResult, selectedDay, periodsPerDay, school, absentNames, dutyTeachers);
               }}>
-                <FileText className="w-4 h-4 ml-1" /> تصدير Word
+                <FileText className="w-4 h-4 ml-1" /> Word
+              </Button>
+
+              <span className="text-xs text-muted-foreground self-center mr-3 ml-1">معكوس:</span>
+              <Button size="sm" variant="secondary" onClick={() => {
+                const school = schoolName || "المدرسة";
+                const absentNames = teachers.filter(t => absentTeacherIds.includes(t.id)).map(t => t.name);
+                exportDailyScheduleExcelInverted(dailyResult, selectedDay, periodsPerDay, school, absentNames, dutyTeachers);
+              }}>
+                <FileSpreadsheet className="w-4 h-4 ml-1" /> Excel معكوس
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => {
+                const school = schoolName || "المدرسة";
+                const absentNames = teachers.filter(t => absentTeacherIds.includes(t.id)).map(t => t.name);
+                exportDailyScheduleDocxInverted(dailyResult, selectedDay, periodsPerDay, school, absentNames, dutyTeachers);
+              }}>
+                <FileText className="w-4 h-4 ml-1" /> Word معكوس
               </Button>
             </div>
           </div>
