@@ -1478,40 +1478,40 @@ function DisposalSection({
                     const totalSplit = splitToDinarFils(item.totalPrice);
                     return (
                     <TableRow key={item.id}>
-                      <TableCell className="text-center text-sm">{item.serialNumber}</TableCell>
+                      <TableCell className="text-center text-base font-semibold py-3">{item.serialNumber}</TableCell>
                       <TableCell>
-                        <Input value={item.pageNumber} onChange={e => updateItem(item.id, "pageNumber", e.target.value)} className="h-9 text-center min-w-[60px] text-sm" />
+                        <Input value={item.pageNumber} onChange={e => updateItem(item.id, "pageNumber", e.target.value)} className="h-11 text-center min-w-[80px] text-base" />
                       </TableCell>
                       <TableCell>
-                        <Input value={item.itemName} onChange={e => updateItem(item.id, "itemName", e.target.value)} className="h-9 min-w-[160px] text-sm" />
+                        <Input value={item.itemName} onChange={e => updateItem(item.id, "itemName", e.target.value)} className="h-11 min-w-[200px] text-base" />
                       </TableCell>
                       <TableCell>
-                        <Input value={item.grade} onChange={e => updateItem(item.id, "grade", e.target.value)} className="h-9 min-w-[80px] text-sm" />
+                        <Input value={item.grade} onChange={e => updateItem(item.id, "grade", e.target.value)} className="h-11 min-w-[100px] text-base" />
                       </TableCell>
                       <TableCell>
-                        <Input type="date" value={item.editionDate} onChange={e => updateItem(item.id, "editionDate", e.target.value)} className="h-9 text-center min-w-[100px] text-sm" />
+                        <Input type="date" value={item.editionDate} onChange={e => updateItem(item.id, "editionDate", e.target.value)} className="h-11 text-center min-w-[120px] text-base" />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" min={0} value={item.quantityNum} onChange={e => updateItem(item.id, "quantityNum", Number(e.target.value))} className="h-9 text-center min-w-[60px] text-sm" />
+                        <Input type="number" min={0} value={item.quantityNum} onChange={e => updateItem(item.id, "quantityNum", Number(e.target.value))} className="h-11 text-center min-w-[80px] text-base" />
                       </TableCell>
                       <TableCell>
-                        <Input value={item.quantityWords} onChange={e => updateItem(item.id, "quantityWords", e.target.value)} className="h-9 min-w-[100px] text-sm" />
+                        <Input value={item.quantityWords} onChange={e => updateItem(item.id, "quantityWords", e.target.value)} className="h-11 min-w-[130px] text-base" />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" min={0} step={0.001} value={item.unitPrice} onChange={e => updateItem(item.id, "unitPrice", Number(e.target.value))} className="h-9 text-center min-w-[120px] text-sm" placeholder="مثال: 12.500" />
-                        <p className="text-xs text-muted-foreground text-center mt-1 whitespace-nowrap">
-                          {item.unitPrice ? `${item.unitPrice.toFixed(3)} = ${unitSplit.dinarText} د ${unitSplit.filsText} ف` : "بالدينار.فلس"}
+                        <Input type="number" min={0} step={0.001} value={item.unitPrice} onChange={e => updateItem(item.id, "unitPrice", Number(e.target.value))} className="h-11 text-center min-w-[160px] text-base" placeholder="مثال: 12.500" />
+                        <p className="text-sm text-muted-foreground text-center mt-1 whitespace-nowrap">
+                          {item.unitPrice ? `${unitSplit.dinarText} دينار ${unitSplit.filsText} فلس` : "بالدينار.فلس"}
                         </p>
                       </TableCell>
                       <TableCell className="text-center">
-                        <div className="font-semibold text-sm">{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</div>
-                        <p className="text-xs text-muted-foreground whitespace-nowrap">{item.totalPrice ? `${totalSplit.dinarText} د ${totalSplit.filsText} ف` : "تلقائي"}</p>
+                        <div className="font-bold text-base py-1">{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</div>
+                        <p className="text-sm text-muted-foreground whitespace-nowrap">{item.totalPrice ? `${totalSplit.dinarText} دينار ${totalSplit.filsText} فلس` : "تلقائي"}</p>
                       </TableCell>
                       <TableCell>
-                        <Input type="date" value={item.entryDate} onChange={e => updateItem(item.id, "entryDate", e.target.value)} className="h-9 text-center min-w-[100px] text-sm" />
+                        <Input type="date" value={item.entryDate} onChange={e => updateItem(item.id, "entryDate", e.target.value)} className="h-11 text-center min-w-[120px] text-base" />
                       </TableCell>
                       <TableCell>
-                        <Input value={item.reason} onChange={e => updateItem(item.id, "reason", e.target.value)} className="h-9 min-w-[100px] text-sm" />
+                        <Input value={item.reason} onChange={e => updateItem(item.id, "reason", e.target.value)} className="h-11 min-w-[130px] text-base" />
                       </TableCell>
                       <TableCell>
                         <Button size="icon" variant="ghost" onClick={() => removeItem(item.id)} className="h-7 w-7 text-destructive">
