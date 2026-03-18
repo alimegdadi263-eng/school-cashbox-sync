@@ -492,7 +492,6 @@ export async function exportDailyScheduleDocxInverted(
     sections: [{
       properties: {
         page: { size: { orientation: "landscape" as any } },
-        bidi: true,
       },
       children,
     }],
