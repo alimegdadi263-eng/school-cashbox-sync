@@ -528,7 +528,6 @@ function InventoryTab({
     save(updatedItems);
     toast({ title: `تم ترحيل ${candidates.length} مادة وخصمها من الجرد` });
   };
-  };
 
   const exportExcel = async () => {
     const wb = new ExcelJS.Workbook();
@@ -798,17 +797,17 @@ function InventoryTab({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[50px] text-center">رقم</TableHead>
-                <TableHead className="min-w-[180px]">اللوازم</TableHead>
-                <TableHead className="min-w-[90px] text-center">الرصيد الفعلي</TableHead>
-                <TableHead className="min-w-[80px] text-center">الموجود</TableHead>
-                <TableHead className="min-w-[70px] text-center">النقص</TableHead>
-                <TableHead className="min-w-[70px] text-center">الزيادة</TableHead>
-                <TableHead className="min-w-[160px] text-center">السعر الإفرادي</TableHead>
-                <TableHead className="min-w-[160px] text-center">السعر الإجمالي</TableHead>
-                <TableHead className="min-w-[100px] text-center">كمية الإتلاف</TableHead>
-                <TableHead className="min-w-[80px] text-center">إتلاف</TableHead>
-                <TableHead className="min-w-[40px]" />
+                <TableHead className="min-w-[60px] text-center text-sm">رقم</TableHead>
+                <TableHead className="min-w-[220px] text-sm">اللوازم</TableHead>
+                <TableHead className="min-w-[110px] text-center text-sm">الرصيد الفعلي</TableHead>
+                <TableHead className="min-w-[100px] text-center text-sm">الموجود</TableHead>
+                <TableHead className="min-w-[80px] text-center text-sm">النقص</TableHead>
+                <TableHead className="min-w-[80px] text-center text-sm">الزيادة</TableHead>
+                <TableHead className="min-w-[200px] text-center text-sm">السعر الإفرادي</TableHead>
+                <TableHead className="min-w-[200px] text-center text-sm">السعر الإجمالي</TableHead>
+                <TableHead className="min-w-[120px] text-center text-sm">كمية الإتلاف</TableHead>
+                <TableHead className="min-w-[90px] text-center text-sm">إتلاف</TableHead>
+                <TableHead className="min-w-[50px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -818,12 +817,12 @@ function InventoryTab({
                 const allowedDisposalQuantity = getInitialDisposalQuantity(item.existing, item.shortage, item.disposalQuantity);
                 return (
                   <TableRow key={item.id}>
-                    <TableCell className="text-center font-medium text-sm">{item.serialNumber}</TableCell>
+                    <TableCell className="text-center font-semibold text-base py-3">{item.serialNumber}</TableCell>
                     <TableCell>
                       <Input
                         value={item.itemName}
                         onChange={(e) => updateItem(item.id, "itemName", e.target.value)}
-                        className="h-9 min-w-[160px] text-sm"
+                        className="h-11 min-w-[200px] text-base"
                         placeholder="اسم المادة"
                       />
                     </TableCell>
@@ -833,7 +832,7 @@ function InventoryTab({
                         min={0}
                         value={item.actualBalance}
                         onChange={(e) => updateItem(item.id, "actualBalance", Number(e.target.value))}
-                        className="h-9 text-center min-w-[70px] text-sm"
+                        className="h-11 text-center min-w-[90px] text-base"
                       />
                     </TableCell>
                     <TableCell>
@@ -842,11 +841,11 @@ function InventoryTab({
                         min={0}
                         value={item.existing}
                         onChange={(e) => updateItem(item.id, "existing", Number(e.target.value))}
-                        className="h-9 text-center min-w-[70px] text-sm"
+                        className="h-11 text-center min-w-[90px] text-base"
                       />
                     </TableCell>
-                    <TableCell className="text-center text-destructive font-semibold text-sm">{item.shortage || ""}</TableCell>
-                    <TableCell className="text-center font-semibold text-primary text-sm">{item.surplus || ""}</TableCell>
+                    <TableCell className="text-center text-destructive font-bold text-base py-3">{item.shortage || ""}</TableCell>
+                    <TableCell className="text-center font-bold text-primary text-base py-3">{item.surplus || ""}</TableCell>
                     <TableCell>
                       <Input
                         type="number"
@@ -854,17 +853,17 @@ function InventoryTab({
                         step={0.001}
                         value={item.unitPrice}
                         onChange={(e) => updateItem(item.id, "unitPrice", Number(e.target.value))}
-                        className="h-9 text-center min-w-[120px] text-sm"
+                        className="h-11 text-center min-w-[160px] text-base"
                         placeholder="مثال: 12.500"
                       />
-                      <p className="text-xs text-muted-foreground text-center mt-1 whitespace-nowrap">
-                        {item.unitPrice ? `${item.unitPrice.toFixed(3)} دينار = ${unitSplit.dinarText} د ${unitSplit.filsText} ف` : "بالدينار.فلس"}
+                      <p className="text-sm text-muted-foreground text-center mt-1 whitespace-nowrap">
+                        {item.unitPrice ? `${unitSplit.dinarText} دينار ${unitSplit.filsText} فلس` : "بالدينار.فلس"}
                       </p>
                     </TableCell>
                     <TableCell className="text-center">
-                      <div className="font-semibold text-sm">{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</div>
-                      <p className="text-xs text-muted-foreground whitespace-nowrap">
-                        {item.totalPrice ? `${totalSplit.dinarText} د ${totalSplit.filsText} ف` : "تلقائي"}
+                      <div className="font-bold text-base py-1">{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</div>
+                      <p className="text-sm text-muted-foreground whitespace-nowrap">
+                        {item.totalPrice ? `${totalSplit.dinarText} دينار ${totalSplit.filsText} فلس` : "تلقائي"}
                       </p>
                     </TableCell>
                     <TableCell>
@@ -874,9 +873,9 @@ function InventoryTab({
                         max={Math.max(0, item.existing)}
                         value={allowedDisposalQuantity}
                         onChange={(e) => updateItem(item.id, "disposalQuantity", Number(e.target.value))}
-                        className="h-9 text-center min-w-[70px] text-sm"
+                        className="h-11 text-center min-w-[90px] text-base"
                       />
-                      <p className="text-xs text-muted-foreground text-center mt-1">متاح: {item.existing}</p>
+                      <p className="text-sm text-muted-foreground text-center mt-1">متاح: {item.existing}</p>
                     </TableCell>
                     <TableCell>
                       <Button size="sm" variant="outline" onClick={() => moveItemToDisposal(item)}>
@@ -971,6 +970,7 @@ function DisposalSection({
   const [category, setCategory] = useState(INVENTORY_CATEGORIES[0].id);
   const [committeeMember3, setCommitteeMember3] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [queuedInventoryCount, setQueuedInventoryCount] = useState(0);
 
   const disposalExcelInputRef = useRef<HTMLInputElement>(null);
@@ -1227,50 +1227,75 @@ function DisposalSection({
     toast({ title: "تم شطب قائمة الإتلاف" });
   };
 
+  const loadRecordForEditing = (record: DisposalRecord) => {
+    setItems(record.items.map((item, idx) => ({ ...item, id: generateId(), serialNumber: idx + 1 })));
+    setEditingRecordId(record.id);
+    setCommitteeMember3(record.committeeMember3 || "");
+    const cat = INVENTORY_CATEGORIES.find(c => c.label === record.category);
+    if (cat) setCategory(cat.id);
+    toast({ title: "تم تحميل القائمة للتعديل" });
+  };
+
   const saveDisposal = () => {
     if (items.length === 0) {
       toast({ title: "خطأ", description: "أضف مواد للإتلاف", variant: "destructive" });
       return;
     }
 
-    const syncedCategories = new Set<string>();
-    items.forEach((item) => {
-      if (!item.sourceCategoryId || !item.sourceItemId || !item.quantityNum) return;
-      const categoryItems = loadInventory(userId, item.sourceCategoryId);
-      const updatedItems = categoryItems.map((inventoryItem) => {
-        if (inventoryItem.id !== item.sourceItemId) return inventoryItem;
-        const disposalQty = Math.min(Math.max(Number(item.quantityNum) || 0, 0), Math.max(0, inventoryItem.existing));
-        const nextExisting = Math.max(0, inventoryItem.existing - disposalQty);
-        const nextActualBalance = Math.max(0, inventoryItem.actualBalance - disposalQty);
-        const diff = nextExisting - nextActualBalance;
-        return {
-          ...inventoryItem,
-          existing: nextExisting,
-          actualBalance: nextActualBalance,
-          shortage: diff < 0 ? Math.abs(diff) : 0,
-          surplus: diff > 0 ? diff : 0,
-          disposalQuantity: getInitialDisposalQuantity(nextExisting, diff < 0 ? Math.abs(diff) : 0, inventoryItem.disposalQuantity),
-        };
+    // Only sync inventory for NEW items (not when editing existing record)
+    if (!editingRecordId) {
+      const syncedCategories = new Set<string>();
+      items.forEach((item) => {
+        if (!item.sourceCategoryId || !item.sourceItemId || !item.quantityNum) return;
+        const categoryItems = loadInventory(userId, item.sourceCategoryId);
+        const updatedItems = categoryItems.map((inventoryItem) => {
+          if (inventoryItem.id !== item.sourceItemId) return inventoryItem;
+          const disposalQty = Math.min(Math.max(Number(item.quantityNum) || 0, 0), Math.max(0, inventoryItem.existing));
+          const nextExisting = Math.max(0, inventoryItem.existing - disposalQty);
+          const nextActualBalance = Math.max(0, inventoryItem.actualBalance - disposalQty);
+          const diff = nextExisting - nextActualBalance;
+          return {
+            ...inventoryItem,
+            existing: nextExisting,
+            actualBalance: nextActualBalance,
+            shortage: diff < 0 ? Math.abs(diff) : 0,
+            surplus: diff > 0 ? diff : 0,
+            disposalQuantity: getInitialDisposalQuantity(nextExisting, diff < 0 ? Math.abs(diff) : 0, inventoryItem.disposalQuantity),
+          };
+        });
+        saveInventory(userId, item.sourceCategoryId, updatedItems);
+        syncedCategories.add(item.sourceCategoryId);
       });
-      saveInventory(userId, item.sourceCategoryId, updatedItems);
-      syncedCategories.add(item.sourceCategoryId);
-    });
+    }
 
-    const record: DisposalRecord = {
-      id: generateId(),
-      date: format(new Date(), "yyyy/MM/dd"),
-      category: INVENTORY_CATEGORIES.find((c) => c.id === category)?.label || category,
-      items: [...items],
-      committeeMember1: member1,
-      committeeMember2: member2,
-      committeeMember3,
-      directorName,
-    };
-    const updated = [record, ...records];
-    setRecords(updated);
-    saveDisposals(userId, updated);
+    if (editingRecordId) {
+      // Update existing record
+      const updated = records.map(r => r.id === editingRecordId ? {
+        ...r,
+        items: [...items],
+        committeeMember3,
+        category: INVENTORY_CATEGORIES.find((c) => c.id === category)?.label || category,
+      } : r);
+      setRecords(updated);
+      saveDisposals(userId, updated);
+      setEditingRecordId(null);
+    } else {
+      const record: DisposalRecord = {
+        id: generateId(),
+        date: format(new Date(), "yyyy/MM/dd"),
+        category: INVENTORY_CATEGORIES.find((c) => c.id === category)?.label || category,
+        items: [...items],
+        committeeMember1: member1,
+        committeeMember2: member2,
+        committeeMember3,
+        directorName,
+      };
+      const updated = [record, ...records];
+      setRecords(updated);
+      saveDisposals(userId, updated);
+    }
     setItems([]);
-    toast({ title: syncedCategories.size > 0 ? "تم حفظ قائمة الإتلاف وتحديث الجرد" : "تم حفظ قائمة الإتلاف بنجاح" });
+    toast({ title: editingRecordId ? "تم تحديث قائمة الإتلاف" : "تم حفظ قائمة الإتلاف بنجاح" });
   };
 
   const importQueuedInventory = () => {
@@ -1459,18 +1484,18 @@ function DisposalSection({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="min-w-[40px] text-center">م</TableHead>
-                    <TableHead className="min-w-[80px] text-center">رقم الصفحة</TableHead>
-                    <TableHead className="min-w-[180px]">اسم الكتاب/المادة</TableHead>
-                    <TableHead className="min-w-[100px]">الصف</TableHead>
-                    <TableHead className="min-w-[110px] text-center">تاريخ الطبعة</TableHead>
-                    <TableHead className="min-w-[80px] text-center">الكمية</TableHead>
-                    <TableHead className="min-w-[120px]">الكمية بالحروف</TableHead>
-                    <TableHead className="min-w-[150px] text-center">السعر الافرادي</TableHead>
-                    <TableHead className="min-w-[150px] text-center">السعر الاجمالي</TableHead>
-                    <TableHead className="min-w-[110px] text-center">تاريخ الادخال</TableHead>
-                    <TableHead className="min-w-[120px]">سبب الاتلاف</TableHead>
-                    <TableHead className="min-w-[40px]"></TableHead>
+                    <TableHead className="min-w-[50px] text-center text-sm">م</TableHead>
+                    <TableHead className="min-w-[100px] text-center text-sm">رقم الصفحة</TableHead>
+                    <TableHead className="min-w-[220px] text-sm">اسم الكتاب/المادة</TableHead>
+                    <TableHead className="min-w-[120px] text-sm">الصف</TableHead>
+                    <TableHead className="min-w-[130px] text-center text-sm">تاريخ الطبعة</TableHead>
+                    <TableHead className="min-w-[100px] text-center text-sm">الكمية</TableHead>
+                    <TableHead className="min-w-[150px] text-sm">الكمية بالحروف</TableHead>
+                    <TableHead className="min-w-[200px] text-center text-sm">السعر الافرادي</TableHead>
+                    <TableHead className="min-w-[200px] text-center text-sm">السعر الاجمالي</TableHead>
+                    <TableHead className="min-w-[130px] text-center text-sm">تاريخ الادخال</TableHead>
+                    <TableHead className="min-w-[150px] text-sm">سبب الاتلاف</TableHead>
+                    <TableHead className="min-w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1479,40 +1504,40 @@ function DisposalSection({
                     const totalSplit = splitToDinarFils(item.totalPrice);
                     return (
                     <TableRow key={item.id}>
-                      <TableCell className="text-center text-sm">{item.serialNumber}</TableCell>
+                      <TableCell className="text-center text-base font-semibold py-3">{item.serialNumber}</TableCell>
                       <TableCell>
-                        <Input value={item.pageNumber} onChange={e => updateItem(item.id, "pageNumber", e.target.value)} className="h-9 text-center min-w-[60px] text-sm" />
+                        <Input value={item.pageNumber} onChange={e => updateItem(item.id, "pageNumber", e.target.value)} className="h-11 text-center min-w-[80px] text-base" />
                       </TableCell>
                       <TableCell>
-                        <Input value={item.itemName} onChange={e => updateItem(item.id, "itemName", e.target.value)} className="h-9 min-w-[160px] text-sm" />
+                        <Input value={item.itemName} onChange={e => updateItem(item.id, "itemName", e.target.value)} className="h-11 min-w-[200px] text-base" />
                       </TableCell>
                       <TableCell>
-                        <Input value={item.grade} onChange={e => updateItem(item.id, "grade", e.target.value)} className="h-9 min-w-[80px] text-sm" />
+                        <Input value={item.grade} onChange={e => updateItem(item.id, "grade", e.target.value)} className="h-11 min-w-[100px] text-base" />
                       </TableCell>
                       <TableCell>
-                        <Input type="date" value={item.editionDate} onChange={e => updateItem(item.id, "editionDate", e.target.value)} className="h-9 text-center min-w-[100px] text-sm" />
+                        <Input type="date" value={item.editionDate} onChange={e => updateItem(item.id, "editionDate", e.target.value)} className="h-11 text-center min-w-[120px] text-base" />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" min={0} value={item.quantityNum} onChange={e => updateItem(item.id, "quantityNum", Number(e.target.value))} className="h-9 text-center min-w-[60px] text-sm" />
+                        <Input type="number" min={0} value={item.quantityNum} onChange={e => updateItem(item.id, "quantityNum", Number(e.target.value))} className="h-11 text-center min-w-[80px] text-base" />
                       </TableCell>
                       <TableCell>
-                        <Input value={item.quantityWords} onChange={e => updateItem(item.id, "quantityWords", e.target.value)} className="h-9 min-w-[100px] text-sm" />
+                        <Input value={item.quantityWords} onChange={e => updateItem(item.id, "quantityWords", e.target.value)} className="h-11 min-w-[130px] text-base" />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" min={0} step={0.001} value={item.unitPrice} onChange={e => updateItem(item.id, "unitPrice", Number(e.target.value))} className="h-9 text-center min-w-[120px] text-sm" placeholder="مثال: 12.500" />
-                        <p className="text-xs text-muted-foreground text-center mt-1 whitespace-nowrap">
-                          {item.unitPrice ? `${item.unitPrice.toFixed(3)} = ${unitSplit.dinarText} د ${unitSplit.filsText} ف` : "بالدينار.فلس"}
+                        <Input type="number" min={0} step={0.001} value={item.unitPrice} onChange={e => updateItem(item.id, "unitPrice", Number(e.target.value))} className="h-11 text-center min-w-[160px] text-base" placeholder="مثال: 12.500" />
+                        <p className="text-sm text-muted-foreground text-center mt-1 whitespace-nowrap">
+                          {item.unitPrice ? `${unitSplit.dinarText} دينار ${unitSplit.filsText} فلس` : "بالدينار.فلس"}
                         </p>
                       </TableCell>
                       <TableCell className="text-center">
-                        <div className="font-semibold text-sm">{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</div>
-                        <p className="text-xs text-muted-foreground whitespace-nowrap">{item.totalPrice ? `${totalSplit.dinarText} د ${totalSplit.filsText} ف` : "تلقائي"}</p>
+                        <div className="font-bold text-base py-1">{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</div>
+                        <p className="text-sm text-muted-foreground whitespace-nowrap">{item.totalPrice ? `${totalSplit.dinarText} دينار ${totalSplit.filsText} فلس` : "تلقائي"}</p>
                       </TableCell>
                       <TableCell>
-                        <Input type="date" value={item.entryDate} onChange={e => updateItem(item.id, "entryDate", e.target.value)} className="h-9 text-center min-w-[100px] text-sm" />
+                        <Input type="date" value={item.entryDate} onChange={e => updateItem(item.id, "entryDate", e.target.value)} className="h-11 text-center min-w-[120px] text-base" />
                       </TableCell>
                       <TableCell>
-                        <Input value={item.reason} onChange={e => updateItem(item.id, "reason", e.target.value)} className="h-9 min-w-[100px] text-sm" />
+                        <Input value={item.reason} onChange={e => updateItem(item.id, "reason", e.target.value)} className="h-11 min-w-[130px] text-base" />
                       </TableCell>
                       <TableCell>
                         <Button size="icon" variant="ghost" onClick={() => removeItem(item.id)} className="h-7 w-7 text-destructive">
@@ -1528,8 +1553,13 @@ function DisposalSection({
 
           <div className="flex gap-2">
             <Button onClick={saveDisposal} disabled={items.length === 0}>
-              <Save className="w-4 h-4 ml-2" /> حفظ قائمة الإتلاف
+              <Save className="w-4 h-4 ml-2" /> {editingRecordId ? "تحديث قائمة الإتلاف" : "حفظ قائمة الإتلاف"}
             </Button>
+            {editingRecordId && (
+              <Button variant="outline" onClick={() => { setItems([]); setEditingRecordId(null); }}>
+                إلغاء التعديل
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -1568,7 +1598,10 @@ function DisposalSection({
                       {record.committeeMember3 ? ` ، ${record.committeeMember3}` : ""}
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="secondary" onClick={() => loadRecordForEditing(record)}>
+                      <RefreshCw className="w-4 h-4 ml-1" /> تعديل
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => handleExportDocx(record)}>
                       <FileText className="w-4 h-4 ml-1" /> Word
                     </Button>
