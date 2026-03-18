@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CalendarDays, UserX, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, UserX, Plus, Trash2, FileSpreadsheet, FileText } from "lucide-react";
+import { exportDailyScheduleExcel, exportDailyScheduleDocx } from "@/lib/exportDailySchedule";
+import { useAuth } from "@/hooks/useAuth";
 
 interface DutyTeacher {
   id: string;
