@@ -797,17 +797,17 @@ function InventoryTab({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[50px] text-center">رقم</TableHead>
-                <TableHead className="min-w-[180px]">اللوازم</TableHead>
-                <TableHead className="min-w-[90px] text-center">الرصيد الفعلي</TableHead>
-                <TableHead className="min-w-[80px] text-center">الموجود</TableHead>
-                <TableHead className="min-w-[70px] text-center">النقص</TableHead>
-                <TableHead className="min-w-[70px] text-center">الزيادة</TableHead>
-                <TableHead className="min-w-[160px] text-center">السعر الإفرادي</TableHead>
-                <TableHead className="min-w-[160px] text-center">السعر الإجمالي</TableHead>
-                <TableHead className="min-w-[100px] text-center">كمية الإتلاف</TableHead>
-                <TableHead className="min-w-[80px] text-center">إتلاف</TableHead>
-                <TableHead className="min-w-[40px]" />
+                <TableHead className="min-w-[60px] text-center text-sm">رقم</TableHead>
+                <TableHead className="min-w-[220px] text-sm">اللوازم</TableHead>
+                <TableHead className="min-w-[110px] text-center text-sm">الرصيد الفعلي</TableHead>
+                <TableHead className="min-w-[100px] text-center text-sm">الموجود</TableHead>
+                <TableHead className="min-w-[80px] text-center text-sm">النقص</TableHead>
+                <TableHead className="min-w-[80px] text-center text-sm">الزيادة</TableHead>
+                <TableHead className="min-w-[200px] text-center text-sm">السعر الإفرادي</TableHead>
+                <TableHead className="min-w-[200px] text-center text-sm">السعر الإجمالي</TableHead>
+                <TableHead className="min-w-[120px] text-center text-sm">كمية الإتلاف</TableHead>
+                <TableHead className="min-w-[90px] text-center text-sm">إتلاف</TableHead>
+                <TableHead className="min-w-[50px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
