@@ -995,6 +995,11 @@ function DisposalSection({
     { key: "reason", label: "سبب الاتلاف" },
   ];
 
+  useEffect(() => {
+    setRecords(loadDisposals(userId));
+    setQueuedInventoryCount(loadInventoryDisposalQueue(userId).length);
+  }, [userId]);
+
   const parseDisposalCells = (cells: string[]): Omit<DisposalItem, "id" | "serialNumber"> | null => {
     const values = cells.map((cell) => cell.trim());
     if (values.every((value) => !value)) return null;
