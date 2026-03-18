@@ -718,22 +718,33 @@ function InventoryTab({
 
   /** Handle confirmed mapping from the dialog */
   const handleMappingConfirm = (result: ImportMappingResult) => {
-    const { mapping } = result;
+    const { mapping, combinedFields } = result;
     const importedItems: InventoryItem[] = [];
 
-    for (const row of mappingAllRows) {
-      const itemName = mapping.itemName !== undefined ? row[mapping.itemName]?.trim() : "";
-      if (!itemName) continue;
+    const getValue = (row: string[], fieldKey: string): string => {
+      if (combinedFields?.[fieldKey]) {
+        const { dinarCol, filsCol } = combinedFields[fieldKey];
+        const d = toNumber(row[dinarCol]);
+        const f = toNumber(row[filsCol]);
+        return String(d + f / 1000);
+      }
+      if (mapping[fieldKey] !== undefined) return row[mapping[fieldKey]] || "";
+      return "";
+    };
 
-      // Filter out header-like rows
+    for (const row of mappingAllRows) {
+      if (shouldSkipRow(row)) continue;
+
+      const itemName = getValue(row, "itemName").trim();
+      if (!itemName) continue;
       if (itemName.includes("اللوازم") || itemName.includes("السعر") || itemName.includes("لجنة")) continue;
 
-      const actualBalance = mapping.actualBalance !== undefined ? toNumber(row[mapping.actualBalance]) : 0;
-      const existing = mapping.existing !== undefined ? toNumber(row[mapping.existing]) : 0;
-      let shortage = mapping.shortage !== undefined ? toNumber(row[mapping.shortage]) : 0;
-      let surplus = mapping.surplus !== undefined ? toNumber(row[mapping.surplus]) : 0;
-      const unitPrice = mapping.unitPrice !== undefined ? toNumber(row[mapping.unitPrice]) : 0;
-      let totalPrice = mapping.totalPrice !== undefined ? toNumber(row[mapping.totalPrice]) : 0;
+      const actualBalance = toNumber(getValue(row, "actualBalance"));
+      const existing = toNumber(getValue(row, "existing"));
+      let shortage = toNumber(getValue(row, "shortage"));
+      let surplus = toNumber(getValue(row, "surplus"));
+      const unitPrice = toNumber(getValue(row, "unitPrice"));
+      let totalPrice = toNumber(getValue(row, "totalPrice"));
 
       if (!shortage && !surplus && actualBalance && existing) {
         const diff = existing - actualBalance;
