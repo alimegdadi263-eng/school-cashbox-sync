@@ -195,8 +195,25 @@ export default function DailyScheduleManager() {
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+            {/* Export buttons */}
+            <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+              <Button size="sm" onClick={() => {
+                const school = schoolName || "المدرسة";
+                const absentNames = teachers.filter(t => absentTeacherIds.includes(t.id)).map(t => t.name);
+                exportDailyScheduleExcel(dailyResult, selectedDay, periodsPerDay, school, absentNames, dutyTeachers);
+              }}>
+                <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => {
+                const school = schoolName || "المدرسة";
+                const absentNames = teachers.filter(t => absentTeacherIds.includes(t.id)).map(t => t.name);
+                exportDailyScheduleDocx(dailyResult, selectedDay, periodsPerDay, school, absentNames, dutyTeachers);
+              }}>
+                <FileText className="w-4 h-4 ml-1" /> تصدير Word
+              </Button>
+            </div>
+          </div>
+        )}
           </div>
         )}
       </CardContent>
