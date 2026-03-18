@@ -688,15 +688,25 @@ function InventoryTab({
 
       if (allRows.length === 0) throw new Error("لم يتم العثور على بيانات");
 
-      const headerRow = allRows[0];
-      const dataRows = allRows.slice(1).filter(row => !row.every(c => !c));
+      // Find header row
+      let headerIdx = 0;
+      for (let i = 0; i < allRows.length; i++) {
+        const rowText = allRows[i].join(" ");
+        if (rowText.includes("اسم") || rowText.includes("اللوازم") || rowText.includes("الكمية") || rowText.includes("السعر") || rowText.includes("الرقم")) {
+          headerIdx = i;
+          break;
+        }
+      }
+
+      const headerRow = allRows[headerIdx];
+      const dataRows = allRows.slice(headerIdx + 1).filter(row => !row.every(c => !c) && !shouldSkipRow(row));
 
       const maxCols = Math.max(headerRow.length, ...dataRows.map(r => r.length));
       const normalizedHeader = Array.from({ length: maxCols }, (_, i) => headerRow[i] || `عمود ${i + 1}`);
       const normalizedData = dataRows.map(row => Array.from({ length: maxCols }, (_, i) => row[i] || ""));
 
       setMappingColumns(normalizedHeader);
-      setMappingPreview(normalizedData.slice(0, 3));
+      setMappingPreview(normalizedData.slice(0, 5));
       setMappingAllRows(normalizedData);
       setMappingOpen(true);
     } catch (error) {
