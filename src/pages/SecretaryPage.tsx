@@ -1189,14 +1189,24 @@ function DisposalSection({
 
       if (allRows.length === 0) throw new Error("لم يتم العثور على بيانات");
 
-      const headerRow = allRows[0];
-      const dataRows = allRows.slice(1).filter(row => !row.every(c => !c));
+      // Find header row
+      let headerIdx = 0;
+      for (let i = 0; i < allRows.length; i++) {
+        const rowText = allRows[i].join(" ");
+        if (rowText.includes("اسم") || rowText.includes("الكمية") || rowText.includes("السعر") || rowText.includes("الرقم")) {
+          headerIdx = i;
+          break;
+        }
+      }
+
+      const headerRow = allRows[headerIdx];
+      const dataRows = allRows.slice(headerIdx + 1).filter(row => !row.every(c => !c) && !shouldSkipRow(row));
       const maxCols = Math.max(headerRow.length, ...dataRows.map(r => r.length));
       const normalizedHeader = Array.from({ length: maxCols }, (_, i) => headerRow[i] || `عمود ${i + 1}`);
       const normalizedData = dataRows.map(row => Array.from({ length: maxCols }, (_, i) => row[i] || ""));
 
       setDmColumns(normalizedHeader);
-      setDmPreview(normalizedData.slice(0, 3));
+      setDmPreview(normalizedData.slice(0, 5));
       setDmAllRows(normalizedData);
       setDmOpen(true);
     } catch (error) {
@@ -1208,29 +1218,40 @@ function DisposalSection({
 
   /** Handle confirmed mapping from the dialog */
   const handleDisposalMappingConfirm = (result: ImportMappingResult) => {
-    const { mapping } = result;
+    const { mapping, combinedFields } = result;
     const importedItems: DisposalItem[] = [];
 
-    for (const row of dmAllRows) {
-      const itemName = mapping.itemName !== undefined ? row[mapping.itemName]?.trim() : "";
-      if (!itemName) continue;
+    const getValue = (row: string[], fieldKey: string): string => {
+      if (combinedFields?.[fieldKey]) {
+        const { dinarCol, filsCol } = combinedFields[fieldKey];
+        const d = toNumber(row[dinarCol]);
+        const f = toNumber(row[filsCol]);
+        return String(d + f / 1000);
+      }
+      if (mapping[fieldKey] !== undefined) return row[mapping[fieldKey]] || "";
+      return "";
+    };
 
-      // Filter out header-like rows
+    for (const row of dmAllRows) {
+      if (shouldSkipRow(row)) continue;
+
+      const itemName = getValue(row, "itemName").trim();
+      if (!itemName) continue;
       if (itemName.includes("لجنة") || itemName.includes("التوقيع") || itemName.includes("اسم الكتاب")) continue;
 
       importedItems.push({
         id: generateId(),
         serialNumber: importedItems.length + 1,
-        pageNumber: mapping.pageNumber !== undefined ? row[mapping.pageNumber] || "" : "",
+        pageNumber: getValue(row, "pageNumber"),
         itemName,
-        grade: mapping.grade !== undefined ? row[mapping.grade] || "" : "",
-        editionDate: mapping.editionDate !== undefined ? row[mapping.editionDate] || "" : "",
-        quantityNum: mapping.quantityNum !== undefined ? toNumber(row[mapping.quantityNum]) : 1,
-        quantityWords: mapping.quantityWords !== undefined ? row[mapping.quantityWords] || "" : "",
-        unitPrice: mapping.unitPrice !== undefined ? toNumber(row[mapping.unitPrice]) : 0,
-        totalPrice: mapping.totalPrice !== undefined ? toNumber(row[mapping.totalPrice]) : 0,
-        entryDate: mapping.entryDate !== undefined ? row[mapping.entryDate] || "" : "",
-        reason: mapping.reason !== undefined ? row[mapping.reason] || "الغاء مادة" : "الغاء مادة",
+        grade: getValue(row, "grade"),
+        editionDate: getValue(row, "editionDate"),
+        quantityNum: toNumber(getValue(row, "quantityNum")) || 1,
+        quantityWords: getValue(row, "quantityWords"),
+        unitPrice: toNumber(getValue(row, "unitPrice")),
+        totalPrice: toNumber(getValue(row, "totalPrice")),
+        entryDate: getValue(row, "entryDate"),
+        reason: getValue(row, "reason") || "الغاء مادة",
       });
     }
 
@@ -1239,7 +1260,6 @@ function DisposalSection({
       return;
     }
 
-    // Recalculate totalPrice where needed
     const final = importedItems.map(item => ({
       ...item,
       totalPrice: item.totalPrice || (item.quantityNum * item.unitPrice),
