@@ -1458,18 +1458,18 @@ function DisposalSection({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="min-w-[40px] text-center">م</TableHead>
-                    <TableHead className="min-w-[80px] text-center">رقم الصفحة</TableHead>
-                    <TableHead className="min-w-[180px]">اسم الكتاب/المادة</TableHead>
-                    <TableHead className="min-w-[100px]">الصف</TableHead>
-                    <TableHead className="min-w-[110px] text-center">تاريخ الطبعة</TableHead>
-                    <TableHead className="min-w-[80px] text-center">الكمية</TableHead>
-                    <TableHead className="min-w-[120px]">الكمية بالحروف</TableHead>
-                    <TableHead className="min-w-[150px] text-center">السعر الافرادي</TableHead>
-                    <TableHead className="min-w-[150px] text-center">السعر الاجمالي</TableHead>
-                    <TableHead className="min-w-[110px] text-center">تاريخ الادخال</TableHead>
-                    <TableHead className="min-w-[120px]">سبب الاتلاف</TableHead>
-                    <TableHead className="min-w-[40px]"></TableHead>
+                    <TableHead className="min-w-[50px] text-center text-sm">م</TableHead>
+                    <TableHead className="min-w-[100px] text-center text-sm">رقم الصفحة</TableHead>
+                    <TableHead className="min-w-[220px] text-sm">اسم الكتاب/المادة</TableHead>
+                    <TableHead className="min-w-[120px] text-sm">الصف</TableHead>
+                    <TableHead className="min-w-[130px] text-center text-sm">تاريخ الطبعة</TableHead>
+                    <TableHead className="min-w-[100px] text-center text-sm">الكمية</TableHead>
+                    <TableHead className="min-w-[150px] text-sm">الكمية بالحروف</TableHead>
+                    <TableHead className="min-w-[200px] text-center text-sm">السعر الافرادي</TableHead>
+                    <TableHead className="min-w-[200px] text-center text-sm">السعر الاجمالي</TableHead>
+                    <TableHead className="min-w-[130px] text-center text-sm">تاريخ الادخال</TableHead>
+                    <TableHead className="min-w-[150px] text-sm">سبب الاتلاف</TableHead>
+                    <TableHead className="min-w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
