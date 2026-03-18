@@ -599,28 +599,24 @@ export async function exportDisposalDocx(data: DisposalDocxData) {
       new Table({
         rows: [
           new TableRow({ children: [
-            c("الخاتم الرسمي", { bold: true, width: 20, shading: H }),
-            c("مدير المدرسة", { bold: true, width: 20, shading: H }),
-            c("عضو", { bold: true, width: 20, shading: H }),
-            c("عضو", { bold: true, width: 20, shading: H }),
-            c("عضو", { bold: true, width: 20, shading: H }),
+            c("مدير المدرسة", { bold: true, width: 25, shading: H }),
+            c("عضو", { bold: true, width: 25, shading: H }),
+            c("عضو", { bold: true, width: 25, shading: H }),
+            c("عضو", { bold: true, width: 25, shading: H }),
           ]}),
           new TableRow({ children: [
-            c(""),
             c(`الاسم: ${data.directorName}`, { align: AlignmentType.RIGHT, size: 14 }),
             c(`الاسم: ${data.committeeMember1 || ""}`, { align: AlignmentType.RIGHT, size: 14 }),
             c(`الاسم: ${data.committeeMember2 || ""}`, { align: AlignmentType.RIGHT, size: 14 }),
             c(`الاسم: ${data.committeeMember3 || ""}`, { align: AlignmentType.RIGHT, size: 14 }),
           ]}),
           new TableRow({ children: [
-            c(""),
             c("التوقيع:", { align: AlignmentType.RIGHT, size: 14 }),
             c("التوقيع:", { align: AlignmentType.RIGHT, size: 14 }),
             c("التوقيع:", { align: AlignmentType.RIGHT, size: 14 }),
             c("التوقيع:", { align: AlignmentType.RIGHT, size: 14 }),
           ]}),
           new TableRow({ children: [
-            c(""),
             c("التاريخ:", { align: AlignmentType.RIGHT, size: 14 }),
             c("التاريخ:", { align: AlignmentType.RIGHT, size: 14 }),
             c("التاريخ:", { align: AlignmentType.RIGHT, size: 14 }),
