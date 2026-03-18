@@ -1553,8 +1553,13 @@ function DisposalSection({
 
           <div className="flex gap-2">
             <Button onClick={saveDisposal} disabled={items.length === 0}>
-              <Save className="w-4 h-4 ml-2" /> حفظ قائمة الإتلاف
+              <Save className="w-4 h-4 ml-2" /> {editingRecordId ? "تحديث قائمة الإتلاف" : "حفظ قائمة الإتلاف"}
             </Button>
+            {editingRecordId && (
+              <Button variant="outline" onClick={() => { setItems([]); setEditingRecordId(null); }}>
+                إلغاء التعديل
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
