@@ -20,6 +20,7 @@ interface DutyTeacher {
 
 export default function DailyScheduleManager() {
   const { teachers, timetable, periodsPerDay, generateDailySchedule } = useTimetable();
+  const { schoolName } = useAuth();
   const [selectedDay, setSelectedDay] = useState(0);
   const [absentTeacherIds, setAbsentTeacherIds] = useState<string[]>([]);
   const [dailyResult, setDailyResult] = useState<ClassTimetable | null>(null);
