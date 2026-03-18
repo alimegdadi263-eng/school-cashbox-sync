@@ -278,8 +278,8 @@ function InventoryTab({
     { key: "existing", label: "الموجود" },
     { key: "shortage", label: "النقص" },
     { key: "surplus", label: "الزيادة" },
-    { key: "unitPrice", label: "السعر الإفرادي" },
-    { key: "totalPrice", label: "السعر الإجمالي" },
+    { key: "unitPrice", label: "السعر الإفرادي", allowDinarFilsCombine: true },
+    { key: "totalPrice", label: "السعر الإجمالي", allowDinarFilsCombine: true },
   ];
 
   useEffect(() => {
