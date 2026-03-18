@@ -1227,50 +1227,75 @@ function DisposalSection({
     toast({ title: "تم شطب قائمة الإتلاف" });
   };
 
+  const loadRecordForEditing = (record: DisposalRecord) => {
+    setItems(record.items.map((item, idx) => ({ ...item, id: generateId(), serialNumber: idx + 1 })));
+    setEditingRecordId(record.id);
+    setCommitteeMember3(record.committeeMember3 || "");
+    const cat = INVENTORY_CATEGORIES.find(c => c.label === record.category);
+    if (cat) setCategory(cat.id);
+    toast({ title: "تم تحميل القائمة للتعديل" });
+  };
+
   const saveDisposal = () => {
     if (items.length === 0) {
       toast({ title: "خطأ", description: "أضف مواد للإتلاف", variant: "destructive" });
       return;
     }
 
-    const syncedCategories = new Set<string>();
-    items.forEach((item) => {
-      if (!item.sourceCategoryId || !item.sourceItemId || !item.quantityNum) return;
-      const categoryItems = loadInventory(userId, item.sourceCategoryId);
-      const updatedItems = categoryItems.map((inventoryItem) => {
-        if (inventoryItem.id !== item.sourceItemId) return inventoryItem;
-        const disposalQty = Math.min(Math.max(Number(item.quantityNum) || 0, 0), Math.max(0, inventoryItem.existing));
-        const nextExisting = Math.max(0, inventoryItem.existing - disposalQty);
-        const nextActualBalance = Math.max(0, inventoryItem.actualBalance - disposalQty);
-        const diff = nextExisting - nextActualBalance;
-        return {
-          ...inventoryItem,
-          existing: nextExisting,
-          actualBalance: nextActualBalance,
-          shortage: diff < 0 ? Math.abs(diff) : 0,
-          surplus: diff > 0 ? diff : 0,
-          disposalQuantity: getInitialDisposalQuantity(nextExisting, diff < 0 ? Math.abs(diff) : 0, inventoryItem.disposalQuantity),
-        };
+    // Only sync inventory for NEW items (not when editing existing record)
+    if (!editingRecordId) {
+      const syncedCategories = new Set<string>();
+      items.forEach((item) => {
+        if (!item.sourceCategoryId || !item.sourceItemId || !item.quantityNum) return;
+        const categoryItems = loadInventory(userId, item.sourceCategoryId);
+        const updatedItems = categoryItems.map((inventoryItem) => {
+          if (inventoryItem.id !== item.sourceItemId) return inventoryItem;
+          const disposalQty = Math.min(Math.max(Number(item.quantityNum) || 0, 0), Math.max(0, inventoryItem.existing));
+          const nextExisting = Math.max(0, inventoryItem.existing - disposalQty);
+          const nextActualBalance = Math.max(0, inventoryItem.actualBalance - disposalQty);
+          const diff = nextExisting - nextActualBalance;
+          return {
+            ...inventoryItem,
+            existing: nextExisting,
+            actualBalance: nextActualBalance,
+            shortage: diff < 0 ? Math.abs(diff) : 0,
+            surplus: diff > 0 ? diff : 0,
+            disposalQuantity: getInitialDisposalQuantity(nextExisting, diff < 0 ? Math.abs(diff) : 0, inventoryItem.disposalQuantity),
+          };
+        });
+        saveInventory(userId, item.sourceCategoryId, updatedItems);
+        syncedCategories.add(item.sourceCategoryId);
       });
-      saveInventory(userId, item.sourceCategoryId, updatedItems);
-      syncedCategories.add(item.sourceCategoryId);
-    });
+    }
 
-    const record: DisposalRecord = {
-      id: generateId(),
-      date: format(new Date(), "yyyy/MM/dd"),
-      category: INVENTORY_CATEGORIES.find((c) => c.id === category)?.label || category,
-      items: [...items],
-      committeeMember1: member1,
-      committeeMember2: member2,
-      committeeMember3,
-      directorName,
-    };
-    const updated = [record, ...records];
-    setRecords(updated);
-    saveDisposals(userId, updated);
+    if (editingRecordId) {
+      // Update existing record
+      const updated = records.map(r => r.id === editingRecordId ? {
+        ...r,
+        items: [...items],
+        committeeMember3,
+        category: INVENTORY_CATEGORIES.find((c) => c.id === category)?.label || category,
+      } : r);
+      setRecords(updated);
+      saveDisposals(userId, updated);
+      setEditingRecordId(null);
+    } else {
+      const record: DisposalRecord = {
+        id: generateId(),
+        date: format(new Date(), "yyyy/MM/dd"),
+        category: INVENTORY_CATEGORIES.find((c) => c.id === category)?.label || category,
+        items: [...items],
+        committeeMember1: member1,
+        committeeMember2: member2,
+        committeeMember3,
+        directorName,
+      };
+      const updated = [record, ...records];
+      setRecords(updated);
+      saveDisposals(userId, updated);
+    }
     setItems([]);
-    toast({ title: syncedCategories.size > 0 ? "تم حفظ قائمة الإتلاف وتحديث الجرد" : "تم حفظ قائمة الإتلاف بنجاح" });
+    toast({ title: editingRecordId ? "تم تحديث قائمة الإتلاف" : "تم حفظ قائمة الإتلاف بنجاح" });
   };
 
   const importQueuedInventory = () => {

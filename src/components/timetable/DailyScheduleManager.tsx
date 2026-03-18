@@ -6,14 +6,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CalendarDays, UserX } from "lucide-react";
+import { CalendarDays, UserX, Plus, Trash2 } from "lucide-react";
+
+interface DutyTeacher {
+  id: string;
+  name: string;
+  location: string;
+}
 
 export default function DailyScheduleManager() {
   const { teachers, timetable, periodsPerDay, generateDailySchedule } = useTimetable();
   const [selectedDay, setSelectedDay] = useState(0);
   const [absentTeacherIds, setAbsentTeacherIds] = useState<string[]>([]);
   const [dailyResult, setDailyResult] = useState<ClassTimetable | null>(null);
+  const [dutyTeachers, setDutyTeachers] = useState<DutyTeacher[]>([]);
 
   const toggleAbsent = (id: string) => {
     setAbsentTeacherIds(prev =>
@@ -24,6 +32,18 @@ export default function DailyScheduleManager() {
   const handleGenerate = () => {
     const result = generateDailySchedule(selectedDay, absentTeacherIds);
     setDailyResult(result);
+  };
+
+  const addDutyTeacher = () => {
+    setDutyTeachers(prev => [...prev, { id: Date.now().toString(), name: "", location: "" }]);
+  };
+
+  const updateDutyTeacher = (id: string, field: "name" | "location", value: string) => {
+    setDutyTeachers(prev => prev.map(dt => dt.id === id ? { ...dt, [field]: value } : dt));
+  };
+
+  const removeDutyTeacher = (id: string) => {
+    setDutyTeachers(prev => prev.filter(dt => dt.id !== id));
   };
 
   if (Object.keys(timetable).length === 0) return null;
@@ -81,6 +101,42 @@ export default function DailyScheduleManager() {
           )}
         </div>
 
+        {/* Duty Teachers */}
+        <div className="border rounded-lg p-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-semibold">المناوبون</Label>
+            <Button size="sm" variant="outline" onClick={addDutyTeacher}>
+              <Plus className="w-4 h-4 ml-1" /> إضافة مناوب
+            </Button>
+          </div>
+          {dutyTeachers.length > 0 && (
+            <div className="space-y-2">
+              {dutyTeachers.map(dt => (
+                <div key={dt.id} className="flex items-center gap-2">
+                  <Input
+                    value={dt.name}
+                    onChange={e => updateDutyTeacher(dt.id, "name", e.target.value)}
+                    placeholder="اسم المناوب"
+                    className="h-9 flex-1"
+                  />
+                  <Input
+                    value={dt.location}
+                    onChange={e => updateDutyTeacher(dt.id, "location", e.target.value)}
+                    placeholder="المكان (مثال: الساحة، البوابة)"
+                    className="h-9 flex-1"
+                  />
+                  <Button size="icon" variant="ghost" onClick={() => removeDutyTeacher(dt.id)} className="h-8 w-8 text-destructive shrink-0">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          {dutyTeachers.length === 0 && (
+            <p className="text-xs text-muted-foreground">اضغط "إضافة مناوب" لإدخال أسماء المناوبين وأماكنهم</p>
+          )}
+        </div>
+
         {/* Result */}
         {dailyResult && (
           <div className="space-y-3">
@@ -123,6 +179,21 @@ export default function DailyScheduleManager() {
                 </tbody>
               </table>
             </div>
+
+            {/* Duty Teachers in print */}
+            {dutyTeachers.length > 0 && (
+              <div className="border rounded-lg p-3 bg-muted/30">
+                <h4 className="font-semibold text-sm mb-2">المناوبون:</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                  {dutyTeachers.map(dt => (
+                    <div key={dt.id} className="flex items-center gap-2 text-sm">
+                      <span className="font-medium">{dt.name || "—"}</span>
+                      {dt.location && <span className="text-muted-foreground">({dt.location})</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
