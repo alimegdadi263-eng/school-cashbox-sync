@@ -794,21 +794,21 @@ function InventoryTab({
       </div>
 
       {items.length > 0 ? (
-        <div className="border rounded-lg overflow-auto max-h-[500px]">
+        <div className="border rounded-lg overflow-auto max-h-[600px]">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12 text-center">رقم</TableHead>
-                <TableHead>اللوازم</TableHead>
-                <TableHead className="w-20 text-center">الرصيد الفعلي</TableHead>
-                <TableHead className="w-20 text-center">الموجود</TableHead>
-                <TableHead className="w-16 text-center">النقص</TableHead>
-                <TableHead className="w-16 text-center">الزيادة</TableHead>
-                <TableHead className="w-40 text-center">السعر الإفرادي</TableHead>
-                <TableHead className="w-40 text-center">السعر الإجمالي</TableHead>
-                <TableHead className="w-28 text-center">كمية الإتلاف</TableHead>
-                <TableHead className="w-24 text-center">إتلاف</TableHead>
-                <TableHead className="w-12" />
+                <TableHead className="min-w-[50px] text-center">رقم</TableHead>
+                <TableHead className="min-w-[180px]">اللوازم</TableHead>
+                <TableHead className="min-w-[90px] text-center">الرصيد الفعلي</TableHead>
+                <TableHead className="min-w-[80px] text-center">الموجود</TableHead>
+                <TableHead className="min-w-[70px] text-center">النقص</TableHead>
+                <TableHead className="min-w-[70px] text-center">الزيادة</TableHead>
+                <TableHead className="min-w-[160px] text-center">السعر الإفرادي</TableHead>
+                <TableHead className="min-w-[160px] text-center">السعر الإجمالي</TableHead>
+                <TableHead className="min-w-[100px] text-center">كمية الإتلاف</TableHead>
+                <TableHead className="min-w-[80px] text-center">إتلاف</TableHead>
+                <TableHead className="min-w-[40px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -818,12 +818,12 @@ function InventoryTab({
                 const allowedDisposalQuantity = getInitialDisposalQuantity(item.existing, item.shortage, item.disposalQuantity);
                 return (
                   <TableRow key={item.id}>
-                    <TableCell className="text-center font-medium">{item.serialNumber}</TableCell>
+                    <TableCell className="text-center font-medium text-sm">{item.serialNumber}</TableCell>
                     <TableCell>
                       <Input
                         value={item.itemName}
                         onChange={(e) => updateItem(item.id, "itemName", e.target.value)}
-                        className="h-8"
+                        className="h-9 min-w-[160px] text-sm"
                         placeholder="اسم المادة"
                       />
                     </TableCell>
@@ -833,7 +833,7 @@ function InventoryTab({
                         min={0}
                         value={item.actualBalance}
                         onChange={(e) => updateItem(item.id, "actualBalance", Number(e.target.value))}
-                        className="h-8 text-center"
+                        className="h-9 text-center min-w-[70px] text-sm"
                       />
                     </TableCell>
                     <TableCell>
@@ -842,11 +842,11 @@ function InventoryTab({
                         min={0}
                         value={item.existing}
                         onChange={(e) => updateItem(item.id, "existing", Number(e.target.value))}
-                        className="h-8 text-center"
+                        className="h-9 text-center min-w-[70px] text-sm"
                       />
                     </TableCell>
-                    <TableCell className="text-center text-destructive font-medium">{item.shortage || ""}</TableCell>
-                    <TableCell className="text-center font-medium text-primary">{item.surplus || ""}</TableCell>
+                    <TableCell className="text-center text-destructive font-semibold text-sm">{item.shortage || ""}</TableCell>
+                    <TableCell className="text-center font-semibold text-primary text-sm">{item.surplus || ""}</TableCell>
                     <TableCell>
                       <Input
                         type="number"
@@ -854,17 +854,17 @@ function InventoryTab({
                         step={0.001}
                         value={item.unitPrice}
                         onChange={(e) => updateItem(item.id, "unitPrice", Number(e.target.value))}
-                        className="h-8 text-center"
-                        placeholder="مثال 12.500"
+                        className="h-9 text-center min-w-[120px] text-sm"
+                        placeholder="مثال: 12.500"
                       />
-                      <p className="text-[11px] text-muted-foreground text-center mt-1">
-                        {item.unitPrice ? `${item.unitPrice.toFixed(3)} = دينار ${unitSplit.dinarText} • فلس ${unitSplit.filsText}` : "أدخل القيمة بالدينار مع الفلس"}
+                      <p className="text-xs text-muted-foreground text-center mt-1 whitespace-nowrap">
+                        {item.unitPrice ? `${item.unitPrice.toFixed(3)} دينار = ${unitSplit.dinarText} د ${unitSplit.filsText} ف` : "بالدينار.فلس"}
                       </p>
                     </TableCell>
-                    <TableCell className="text-center font-medium">
-                      <div>{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</div>
-                      <p className="text-[11px] text-muted-foreground">
-                        {item.totalPrice ? `دينار ${totalSplit.dinarText} • فلس ${totalSplit.filsText}` : "يُحسب تلقائياً"}
+                    <TableCell className="text-center">
+                      <div className="font-semibold text-sm">{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</div>
+                      <p className="text-xs text-muted-foreground whitespace-nowrap">
+                        {item.totalPrice ? `${totalSplit.dinarText} د ${totalSplit.filsText} ف` : "تلقائي"}
                       </p>
                     </TableCell>
                     <TableCell>
@@ -874,9 +874,9 @@ function InventoryTab({
                         max={Math.max(0, item.existing)}
                         value={allowedDisposalQuantity}
                         onChange={(e) => updateItem(item.id, "disposalQuantity", Number(e.target.value))}
-                        className="h-8 text-center"
+                        className="h-9 text-center min-w-[70px] text-sm"
                       />
-                      <p className="text-[11px] text-muted-foreground text-center mt-1">المتاح للإتلاف: {item.existing}</p>
+                      <p className="text-xs text-muted-foreground text-center mt-1">متاح: {item.existing}</p>
                     </TableCell>
                     <TableCell>
                       <Button size="sm" variant="outline" onClick={() => moveItemToDisposal(item)}>
@@ -901,6 +901,17 @@ function InventoryTab({
           <p>لا توجد عناصر - أضف عنصراً أو استورد من Excel/Word</p>
         </div>
       )}
+
+      {/* Import Mapping Dialog */}
+      <ImportMappingDialog
+        open={mappingOpen}
+        onClose={() => setMappingOpen(false)}
+        onConfirm={handleMappingConfirm}
+        fileColumns={mappingColumns}
+        previewRows={mappingPreview}
+        systemFields={INVENTORY_SYSTEM_FIELDS}
+        templateKey={`inventory_${category.id}`}
+      />
 
       <Card>
         <CardHeader>
