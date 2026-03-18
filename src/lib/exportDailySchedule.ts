@@ -427,7 +427,6 @@ export async function exportDailyScheduleDocx(
     sections: [{
       properties: {
         page: { size: { orientation: "landscape" as any } },
-        bidi: true,
       },
       children,
     }],
