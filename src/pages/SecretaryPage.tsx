@@ -616,6 +616,7 @@ function InventoryTab({
     toast({ title: "تم تصدير نموذج الجرد (Word)" });
   };
 
+  /** Extract rows from Word file and open mapping dialog */
   const importWord = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -626,9 +627,8 @@ function InventoryTab({
       const xml = zip.file("word/document.xml")?.asText();
       if (!xml) throw new Error("ملف Word غير صالح");
 
-      const importedItems: InventoryItem[] = [];
+      const allRows: string[][] = [];
       const rowMatches = xml.match(/<w:tr\b[^>]*>[\s\S]*?<\/w:tr>/g) || [];
-      let dataSectionStarted = false;
 
       for (const rowXml of rowMatches) {
         const cellMatches = rowXml.match(/<w:tc\b[^>]*>[\s\S]*?<\/w:tc>/g) || [];
@@ -636,34 +636,32 @@ function InventoryTab({
           const textParts = cellXml.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [];
           return textParts.map((part) => part.replace(/<[^>]*>/g, "")).join("").trim();
         });
-
-        if (!dataSectionStarted) {
-          if (cells.join(" ").includes("اللوازم") || cells.join(" ").includes("رقم صفحة السجل")) {
-            dataSectionStarted = true;
-          }
-          continue;
-        }
-
-        const parsed = parseInventoryCells(cells);
-        if (!parsed) continue;
-
-        importedItems.push({
-          id: generateId(),
-          serialNumber: importedItems.length + 1,
-          ...parsed,
-        });
+        if (cells.some(c => c)) allRows.push(cells);
       }
 
-      if (importedItems.length === 0) throw new Error("لم يتم العثور على بيانات قابلة للاستيراد");
-      save(importedItems);
-      toast({ title: "تم الاستيراد", description: `تم استيراد ${importedItems.length} عنصر من Word` });
+      if (allRows.length === 0) throw new Error("لم يتم العثور على بيانات");
+
+      // Find header row (first row with content) and use it as columns
+      const headerRow = allRows[0];
+      const dataRows = allRows.slice(1).filter(row => !row.every(c => !c));
+
+      // Normalize column count
+      const maxCols = Math.max(headerRow.length, ...dataRows.map(r => r.length));
+      const normalizedHeader = Array.from({ length: maxCols }, (_, i) => headerRow[i] || `عمود ${i + 1}`);
+      const normalizedData = dataRows.map(row => Array.from({ length: maxCols }, (_, i) => row[i] || ""));
+
+      setMappingColumns(normalizedHeader);
+      setMappingPreview(normalizedData.slice(0, 3));
+      setMappingAllRows(normalizedData);
+      setMappingOpen(true);
     } catch (error) {
-      toast({ title: "خطأ في الاستيراد", description: String(error), variant: "destructive" });
+      toast({ title: "خطأ في قراءة الملف", description: String(error), variant: "destructive" });
     }
 
     if (wordInputRef.current) wordInputRef.current.value = "";
   };
 
+  /** Extract rows from Excel file and open mapping dialog */
   const importExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -682,36 +680,80 @@ function InventoryTab({
         return String(raw);
       };
 
-      let startRow = 1;
-      sheet.eachRow((row, rowNumber) => {
-        const rowText = Array.from({ length: 13 }, (_, index) => getCellText(row, index + 1)).join(" ");
-        if (rowText.includes("اللوازم") || rowText.includes("رقم صفحة السجل")) {
-          startRow = rowNumber + 1;
-        }
+      const allRows: string[][] = [];
+      const colCount = sheet.columnCount || 15;
+      sheet.eachRow((row) => {
+        const cells = Array.from({ length: colCount }, (_, index) => getCellText(row, index + 1));
+        if (cells.some(c => c)) allRows.push(cells);
       });
 
-      const importedItems: InventoryItem[] = [];
-      sheet.eachRow((row, rowNumber) => {
-        if (rowNumber < startRow) return;
-        const cells = Array.from({ length: 13 }, (_, index) => getCellText(row, index + 1));
-        const parsed = parseInventoryCells(cells);
-        if (!parsed) return;
+      if (allRows.length === 0) throw new Error("لم يتم العثور على بيانات");
 
-        importedItems.push({
-          id: generateId(),
-          serialNumber: importedItems.length + 1,
-          ...parsed,
-        });
-      });
+      const headerRow = allRows[0];
+      const dataRows = allRows.slice(1).filter(row => !row.every(c => !c));
 
-      if (importedItems.length === 0) throw new Error("لم يتم العثور على بيانات قابلة للاستيراد");
-      save(importedItems);
-      toast({ title: "تم الاستيراد", description: `تم استيراد ${importedItems.length} عنصر من Excel` });
+      const maxCols = Math.max(headerRow.length, ...dataRows.map(r => r.length));
+      const normalizedHeader = Array.from({ length: maxCols }, (_, i) => headerRow[i] || `عمود ${i + 1}`);
+      const normalizedData = dataRows.map(row => Array.from({ length: maxCols }, (_, i) => row[i] || ""));
+
+      setMappingColumns(normalizedHeader);
+      setMappingPreview(normalizedData.slice(0, 3));
+      setMappingAllRows(normalizedData);
+      setMappingOpen(true);
     } catch (error) {
-      toast({ title: "خطأ في الاستيراد", description: String(error), variant: "destructive" });
+      toast({ title: "خطأ في قراءة الملف", description: String(error), variant: "destructive" });
     }
 
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  /** Handle confirmed mapping from the dialog */
+  const handleMappingConfirm = (result: ImportMappingResult) => {
+    const { mapping } = result;
+    const importedItems: InventoryItem[] = [];
+
+    for (const row of mappingAllRows) {
+      const itemName = mapping.itemName !== undefined ? row[mapping.itemName]?.trim() : "";
+      if (!itemName) continue;
+
+      // Filter out header-like rows
+      if (itemName.includes("اللوازم") || itemName.includes("السعر") || itemName.includes("لجنة")) continue;
+
+      const actualBalance = mapping.actualBalance !== undefined ? toNumber(row[mapping.actualBalance]) : 0;
+      const existing = mapping.existing !== undefined ? toNumber(row[mapping.existing]) : 0;
+      let shortage = mapping.shortage !== undefined ? toNumber(row[mapping.shortage]) : 0;
+      let surplus = mapping.surplus !== undefined ? toNumber(row[mapping.surplus]) : 0;
+      const unitPrice = mapping.unitPrice !== undefined ? toNumber(row[mapping.unitPrice]) : 0;
+      let totalPrice = mapping.totalPrice !== undefined ? toNumber(row[mapping.totalPrice]) : 0;
+
+      if (!shortage && !surplus && actualBalance && existing) {
+        const diff = existing - actualBalance;
+        shortage = diff < 0 ? Math.abs(diff) : 0;
+        surplus = diff > 0 ? diff : 0;
+      }
+      if (!totalPrice) totalPrice = unitPrice * shortage;
+
+      importedItems.push({
+        id: generateId(),
+        serialNumber: importedItems.length + 1,
+        itemName,
+        actualBalance,
+        existing,
+        shortage,
+        surplus,
+        unitPrice,
+        totalPrice,
+        disposalQuantity: getInitialDisposalQuantity(existing, shortage),
+      });
+    }
+
+    if (importedItems.length === 0) {
+      toast({ title: "لم يتم العثور على بيانات قابلة للاستيراد", variant: "destructive" });
+      return;
+    }
+
+    save(importedItems);
+    toast({ title: "تم الاستيراد", description: `تم استيراد ${importedItems.length} عنصر بنجاح` });
   };
 
   return (
