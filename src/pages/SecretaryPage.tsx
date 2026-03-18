@@ -465,7 +465,26 @@ function InventoryTab({
       quantityNum: quantityToDispose,
     });
     saveInventoryDisposalQueue(userId, queue);
-    toast({ title: `تم ترحيل ${quantityToDispose} من المادة إلى قائمة الإتلاف` });
+
+    // Immediately deduct from inventory
+    save(
+      items.map((inv) => {
+        if (inv.id !== item.id) return inv;
+        const nextExisting = Math.max(0, inv.existing - quantityToDispose);
+        const nextActualBalance = Math.max(0, inv.actualBalance - quantityToDispose);
+        const diff = nextExisting - nextActualBalance;
+        return {
+          ...inv,
+          existing: nextExisting,
+          actualBalance: nextActualBalance,
+          shortage: diff < 0 ? Math.abs(diff) : 0,
+          surplus: diff > 0 ? diff : 0,
+          disposalQuantity: 0,
+        };
+      })
+    );
+
+    toast({ title: `تم ترحيل ${quantityToDispose} من "${item.itemName}" وخصمها من الجرد` });
   };
 
   const moveAllShortagesToDisposal = () => {
