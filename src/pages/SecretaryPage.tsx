@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import PizZip from "pizzip";
+import ImportMappingDialog, { type SystemField, type ImportMappingResult } from "@/components/ImportMappingDialog";
 import {
   fillInterrogationForm, fillCasualLeaveForm, fillNoPaymentForm, exportInventoryCustodyDocx,
   exportDisposalDocx,
@@ -265,6 +266,22 @@ function InventoryTab({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const wordInputRef = useRef<HTMLInputElement>(null);
 
+  // Import mapping dialog state
+  const [mappingOpen, setMappingOpen] = useState(false);
+  const [mappingColumns, setMappingColumns] = useState<string[]>([]);
+  const [mappingPreview, setMappingPreview] = useState<string[][]>([]);
+  const [mappingAllRows, setMappingAllRows] = useState<string[][]>([]);
+
+  const INVENTORY_SYSTEM_FIELDS: SystemField[] = [
+    { key: "itemName", label: "اللوازم", required: true },
+    { key: "actualBalance", label: "الرصيد الفعلي" },
+    { key: "existing", label: "الموجود" },
+    { key: "shortage", label: "النقص" },
+    { key: "surplus", label: "الزيادة" },
+    { key: "unitPrice", label: "السعر الإفرادي" },
+    { key: "totalPrice", label: "السعر الإجمالي" },
+  ];
+
   useEffect(() => {
     setItems(loadInventory(userId, category.id));
     setRecords(loadInventoryRecords(userId, category.id));
@@ -448,7 +465,26 @@ function InventoryTab({
       quantityNum: quantityToDispose,
     });
     saveInventoryDisposalQueue(userId, queue);
-    toast({ title: `تم ترحيل ${quantityToDispose} من المادة إلى قائمة الإتلاف` });
+
+    // Immediately deduct from inventory
+    save(
+      items.map((inv) => {
+        if (inv.id !== item.id) return inv;
+        const nextExisting = Math.max(0, inv.existing - quantityToDispose);
+        const nextActualBalance = Math.max(0, inv.actualBalance - quantityToDispose);
+        const diff = nextExisting - nextActualBalance;
+        return {
+          ...inv,
+          existing: nextExisting,
+          actualBalance: nextActualBalance,
+          shortage: diff < 0 ? Math.abs(diff) : 0,
+          surplus: diff > 0 ? diff : 0,
+          disposalQuantity: 0,
+        };
+      })
+    );
+
+    toast({ title: `تم ترحيل ${quantityToDispose} من "${item.itemName}" وخصمها من الجرد` });
   };
 
   const moveAllShortagesToDisposal = () => {
@@ -459,7 +495,9 @@ function InventoryTab({
     }
 
     const queue = loadInventoryDisposalQueue(userId);
+    const updatedItems = [...items];
     candidates.forEach((item) => {
+      const qty = getInitialDisposalQuantity(item.existing, item.shortage, item.disposalQuantity);
       queue.push({
         sourceCategoryId: category.id,
         sourceCategoryLabel: category.label,
@@ -467,11 +505,29 @@ function InventoryTab({
         itemName: item.itemName,
         grade: "",
         unitPrice: item.unitPrice || 0,
-        quantityNum: getInitialDisposalQuantity(item.existing, item.shortage, item.disposalQuantity),
+        quantityNum: qty,
       });
+      // Deduct from inventory
+      const idx = updatedItems.findIndex(i => i.id === item.id);
+      if (idx >= 0) {
+        const inv = updatedItems[idx];
+        const nextExisting = Math.max(0, inv.existing - qty);
+        const nextActualBalance = Math.max(0, inv.actualBalance - qty);
+        const diff = nextExisting - nextActualBalance;
+        updatedItems[idx] = {
+          ...inv,
+          existing: nextExisting,
+          actualBalance: nextActualBalance,
+          shortage: diff < 0 ? Math.abs(diff) : 0,
+          surplus: diff > 0 ? diff : 0,
+          disposalQuantity: 0,
+        };
+      }
     });
     saveInventoryDisposalQueue(userId, queue);
-    toast({ title: `تم ترحيل ${candidates.length} مادة إلى الإتلاف` });
+    save(updatedItems);
+    toast({ title: `تم ترحيل ${candidates.length} مادة وخصمها من الجرد` });
+  };
   };
 
   const exportExcel = async () => {
@@ -560,6 +616,7 @@ function InventoryTab({
     toast({ title: "تم تصدير نموذج الجرد (Word)" });
   };
 
+  /** Extract rows from Word file and open mapping dialog */
   const importWord = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -570,9 +627,8 @@ function InventoryTab({
       const xml = zip.file("word/document.xml")?.asText();
       if (!xml) throw new Error("ملف Word غير صالح");
 
-      const importedItems: InventoryItem[] = [];
+      const allRows: string[][] = [];
       const rowMatches = xml.match(/<w:tr\b[^>]*>[\s\S]*?<\/w:tr>/g) || [];
-      let dataSectionStarted = false;
 
       for (const rowXml of rowMatches) {
         const cellMatches = rowXml.match(/<w:tc\b[^>]*>[\s\S]*?<\/w:tc>/g) || [];
@@ -580,34 +636,32 @@ function InventoryTab({
           const textParts = cellXml.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [];
           return textParts.map((part) => part.replace(/<[^>]*>/g, "")).join("").trim();
         });
-
-        if (!dataSectionStarted) {
-          if (cells.join(" ").includes("اللوازم") || cells.join(" ").includes("رقم صفحة السجل")) {
-            dataSectionStarted = true;
-          }
-          continue;
-        }
-
-        const parsed = parseInventoryCells(cells);
-        if (!parsed) continue;
-
-        importedItems.push({
-          id: generateId(),
-          serialNumber: importedItems.length + 1,
-          ...parsed,
-        });
+        if (cells.some(c => c)) allRows.push(cells);
       }
 
-      if (importedItems.length === 0) throw new Error("لم يتم العثور على بيانات قابلة للاستيراد");
-      save(importedItems);
-      toast({ title: "تم الاستيراد", description: `تم استيراد ${importedItems.length} عنصر من Word` });
+      if (allRows.length === 0) throw new Error("لم يتم العثور على بيانات");
+
+      // Find header row (first row with content) and use it as columns
+      const headerRow = allRows[0];
+      const dataRows = allRows.slice(1).filter(row => !row.every(c => !c));
+
+      // Normalize column count
+      const maxCols = Math.max(headerRow.length, ...dataRows.map(r => r.length));
+      const normalizedHeader = Array.from({ length: maxCols }, (_, i) => headerRow[i] || `عمود ${i + 1}`);
+      const normalizedData = dataRows.map(row => Array.from({ length: maxCols }, (_, i) => row[i] || ""));
+
+      setMappingColumns(normalizedHeader);
+      setMappingPreview(normalizedData.slice(0, 3));
+      setMappingAllRows(normalizedData);
+      setMappingOpen(true);
     } catch (error) {
-      toast({ title: "خطأ في الاستيراد", description: String(error), variant: "destructive" });
+      toast({ title: "خطأ في قراءة الملف", description: String(error), variant: "destructive" });
     }
 
     if (wordInputRef.current) wordInputRef.current.value = "";
   };
 
+  /** Extract rows from Excel file and open mapping dialog */
   const importExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -626,36 +680,80 @@ function InventoryTab({
         return String(raw);
       };
 
-      let startRow = 1;
-      sheet.eachRow((row, rowNumber) => {
-        const rowText = Array.from({ length: 13 }, (_, index) => getCellText(row, index + 1)).join(" ");
-        if (rowText.includes("اللوازم") || rowText.includes("رقم صفحة السجل")) {
-          startRow = rowNumber + 1;
-        }
+      const allRows: string[][] = [];
+      const colCount = sheet.columnCount || 15;
+      sheet.eachRow((row) => {
+        const cells = Array.from({ length: colCount }, (_, index) => getCellText(row, index + 1));
+        if (cells.some(c => c)) allRows.push(cells);
       });
 
-      const importedItems: InventoryItem[] = [];
-      sheet.eachRow((row, rowNumber) => {
-        if (rowNumber < startRow) return;
-        const cells = Array.from({ length: 13 }, (_, index) => getCellText(row, index + 1));
-        const parsed = parseInventoryCells(cells);
-        if (!parsed) return;
+      if (allRows.length === 0) throw new Error("لم يتم العثور على بيانات");
 
-        importedItems.push({
-          id: generateId(),
-          serialNumber: importedItems.length + 1,
-          ...parsed,
-        });
-      });
+      const headerRow = allRows[0];
+      const dataRows = allRows.slice(1).filter(row => !row.every(c => !c));
 
-      if (importedItems.length === 0) throw new Error("لم يتم العثور على بيانات قابلة للاستيراد");
-      save(importedItems);
-      toast({ title: "تم الاستيراد", description: `تم استيراد ${importedItems.length} عنصر من Excel` });
+      const maxCols = Math.max(headerRow.length, ...dataRows.map(r => r.length));
+      const normalizedHeader = Array.from({ length: maxCols }, (_, i) => headerRow[i] || `عمود ${i + 1}`);
+      const normalizedData = dataRows.map(row => Array.from({ length: maxCols }, (_, i) => row[i] || ""));
+
+      setMappingColumns(normalizedHeader);
+      setMappingPreview(normalizedData.slice(0, 3));
+      setMappingAllRows(normalizedData);
+      setMappingOpen(true);
     } catch (error) {
-      toast({ title: "خطأ في الاستيراد", description: String(error), variant: "destructive" });
+      toast({ title: "خطأ في قراءة الملف", description: String(error), variant: "destructive" });
     }
 
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  /** Handle confirmed mapping from the dialog */
+  const handleMappingConfirm = (result: ImportMappingResult) => {
+    const { mapping } = result;
+    const importedItems: InventoryItem[] = [];
+
+    for (const row of mappingAllRows) {
+      const itemName = mapping.itemName !== undefined ? row[mapping.itemName]?.trim() : "";
+      if (!itemName) continue;
+
+      // Filter out header-like rows
+      if (itemName.includes("اللوازم") || itemName.includes("السعر") || itemName.includes("لجنة")) continue;
+
+      const actualBalance = mapping.actualBalance !== undefined ? toNumber(row[mapping.actualBalance]) : 0;
+      const existing = mapping.existing !== undefined ? toNumber(row[mapping.existing]) : 0;
+      let shortage = mapping.shortage !== undefined ? toNumber(row[mapping.shortage]) : 0;
+      let surplus = mapping.surplus !== undefined ? toNumber(row[mapping.surplus]) : 0;
+      const unitPrice = mapping.unitPrice !== undefined ? toNumber(row[mapping.unitPrice]) : 0;
+      let totalPrice = mapping.totalPrice !== undefined ? toNumber(row[mapping.totalPrice]) : 0;
+
+      if (!shortage && !surplus && actualBalance && existing) {
+        const diff = existing - actualBalance;
+        shortage = diff < 0 ? Math.abs(diff) : 0;
+        surplus = diff > 0 ? diff : 0;
+      }
+      if (!totalPrice) totalPrice = unitPrice * shortage;
+
+      importedItems.push({
+        id: generateId(),
+        serialNumber: importedItems.length + 1,
+        itemName,
+        actualBalance,
+        existing,
+        shortage,
+        surplus,
+        unitPrice,
+        totalPrice,
+        disposalQuantity: getInitialDisposalQuantity(existing, shortage),
+      });
+    }
+
+    if (importedItems.length === 0) {
+      toast({ title: "لم يتم العثور على بيانات قابلة للاستيراد", variant: "destructive" });
+      return;
+    }
+
+    save(importedItems);
+    toast({ title: "تم الاستيراد", description: `تم استيراد ${importedItems.length} عنصر بنجاح` });
   };
 
   return (
@@ -696,21 +794,21 @@ function InventoryTab({
       </div>
 
       {items.length > 0 ? (
-        <div className="border rounded-lg overflow-auto max-h-[500px]">
+        <div className="border rounded-lg overflow-auto max-h-[600px]">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12 text-center">رقم</TableHead>
-                <TableHead>اللوازم</TableHead>
-                <TableHead className="w-20 text-center">الرصيد الفعلي</TableHead>
-                <TableHead className="w-20 text-center">الموجود</TableHead>
-                <TableHead className="w-16 text-center">النقص</TableHead>
-                <TableHead className="w-16 text-center">الزيادة</TableHead>
-                <TableHead className="w-40 text-center">السعر الإفرادي</TableHead>
-                <TableHead className="w-40 text-center">السعر الإجمالي</TableHead>
-                <TableHead className="w-28 text-center">كمية الإتلاف</TableHead>
-                <TableHead className="w-24 text-center">إتلاف</TableHead>
-                <TableHead className="w-12" />
+                <TableHead className="min-w-[50px] text-center">رقم</TableHead>
+                <TableHead className="min-w-[180px]">اللوازم</TableHead>
+                <TableHead className="min-w-[90px] text-center">الرصيد الفعلي</TableHead>
+                <TableHead className="min-w-[80px] text-center">الموجود</TableHead>
+                <TableHead className="min-w-[70px] text-center">النقص</TableHead>
+                <TableHead className="min-w-[70px] text-center">الزيادة</TableHead>
+                <TableHead className="min-w-[160px] text-center">السعر الإفرادي</TableHead>
+                <TableHead className="min-w-[160px] text-center">السعر الإجمالي</TableHead>
+                <TableHead className="min-w-[100px] text-center">كمية الإتلاف</TableHead>
+                <TableHead className="min-w-[80px] text-center">إتلاف</TableHead>
+                <TableHead className="min-w-[40px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -720,12 +818,12 @@ function InventoryTab({
                 const allowedDisposalQuantity = getInitialDisposalQuantity(item.existing, item.shortage, item.disposalQuantity);
                 return (
                   <TableRow key={item.id}>
-                    <TableCell className="text-center font-medium">{item.serialNumber}</TableCell>
+                    <TableCell className="text-center font-medium text-sm">{item.serialNumber}</TableCell>
                     <TableCell>
                       <Input
                         value={item.itemName}
                         onChange={(e) => updateItem(item.id, "itemName", e.target.value)}
-                        className="h-8"
+                        className="h-9 min-w-[160px] text-sm"
                         placeholder="اسم المادة"
                       />
                     </TableCell>
@@ -735,7 +833,7 @@ function InventoryTab({
                         min={0}
                         value={item.actualBalance}
                         onChange={(e) => updateItem(item.id, "actualBalance", Number(e.target.value))}
-                        className="h-8 text-center"
+                        className="h-9 text-center min-w-[70px] text-sm"
                       />
                     </TableCell>
                     <TableCell>
@@ -744,11 +842,11 @@ function InventoryTab({
                         min={0}
                         value={item.existing}
                         onChange={(e) => updateItem(item.id, "existing", Number(e.target.value))}
-                        className="h-8 text-center"
+                        className="h-9 text-center min-w-[70px] text-sm"
                       />
                     </TableCell>
-                    <TableCell className="text-center text-destructive font-medium">{item.shortage || ""}</TableCell>
-                    <TableCell className="text-center font-medium text-primary">{item.surplus || ""}</TableCell>
+                    <TableCell className="text-center text-destructive font-semibold text-sm">{item.shortage || ""}</TableCell>
+                    <TableCell className="text-center font-semibold text-primary text-sm">{item.surplus || ""}</TableCell>
                     <TableCell>
                       <Input
                         type="number"
@@ -756,17 +854,17 @@ function InventoryTab({
                         step={0.001}
                         value={item.unitPrice}
                         onChange={(e) => updateItem(item.id, "unitPrice", Number(e.target.value))}
-                        className="h-8 text-center"
-                        placeholder="مثال 12.500"
+                        className="h-9 text-center min-w-[120px] text-sm"
+                        placeholder="مثال: 12.500"
                       />
-                      <p className="text-[11px] text-muted-foreground text-center mt-1">
-                        {item.unitPrice ? `${item.unitPrice.toFixed(3)} = دينار ${unitSplit.dinarText} • فلس ${unitSplit.filsText}` : "أدخل القيمة بالدينار مع الفلس"}
+                      <p className="text-xs text-muted-foreground text-center mt-1 whitespace-nowrap">
+                        {item.unitPrice ? `${item.unitPrice.toFixed(3)} دينار = ${unitSplit.dinarText} د ${unitSplit.filsText} ف` : "بالدينار.فلس"}
                       </p>
                     </TableCell>
-                    <TableCell className="text-center font-medium">
-                      <div>{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</div>
-                      <p className="text-[11px] text-muted-foreground">
-                        {item.totalPrice ? `دينار ${totalSplit.dinarText} • فلس ${totalSplit.filsText}` : "يُحسب تلقائياً"}
+                    <TableCell className="text-center">
+                      <div className="font-semibold text-sm">{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</div>
+                      <p className="text-xs text-muted-foreground whitespace-nowrap">
+                        {item.totalPrice ? `${totalSplit.dinarText} د ${totalSplit.filsText} ف` : "تلقائي"}
                       </p>
                     </TableCell>
                     <TableCell>
@@ -776,9 +874,9 @@ function InventoryTab({
                         max={Math.max(0, item.existing)}
                         value={allowedDisposalQuantity}
                         onChange={(e) => updateItem(item.id, "disposalQuantity", Number(e.target.value))}
-                        className="h-8 text-center"
+                        className="h-9 text-center min-w-[70px] text-sm"
                       />
-                      <p className="text-[11px] text-muted-foreground text-center mt-1">المتاح للإتلاف: {item.existing}</p>
+                      <p className="text-xs text-muted-foreground text-center mt-1">متاح: {item.existing}</p>
                     </TableCell>
                     <TableCell>
                       <Button size="sm" variant="outline" onClick={() => moveItemToDisposal(item)}>
@@ -803,6 +901,17 @@ function InventoryTab({
           <p>لا توجد عناصر - أضف عنصراً أو استورد من Excel/Word</p>
         </div>
       )}
+
+      {/* Import Mapping Dialog */}
+      <ImportMappingDialog
+        open={mappingOpen}
+        onClose={() => setMappingOpen(false)}
+        onConfirm={handleMappingConfirm}
+        fileColumns={mappingColumns}
+        previewRows={mappingPreview}
+        systemFields={INVENTORY_SYSTEM_FIELDS}
+        templateKey={`inventory_${category.id}`}
+      />
 
       <Card>
         <CardHeader>
@@ -866,6 +975,25 @@ function DisposalSection({
 
   const disposalExcelInputRef = useRef<HTMLInputElement>(null);
   const disposalWordInputRef = useRef<HTMLInputElement>(null);
+
+  // Import mapping dialog state
+  const [dmOpen, setDmOpen] = useState(false);
+  const [dmColumns, setDmColumns] = useState<string[]>([]);
+  const [dmPreview, setDmPreview] = useState<string[][]>([]);
+  const [dmAllRows, setDmAllRows] = useState<string[][]>([]);
+
+  const DISPOSAL_SYSTEM_FIELDS: SystemField[] = [
+    { key: "itemName", label: "اسم الكتاب/المادة", required: true },
+    { key: "pageNumber", label: "رقم صفحة السجل" },
+    { key: "grade", label: "الصف" },
+    { key: "editionDate", label: "تاريخ الطبعة" },
+    { key: "quantityNum", label: "الكمية بالأرقام" },
+    { key: "quantityWords", label: "الكمية بالحروف" },
+    { key: "unitPrice", label: "السعر الافرادي" },
+    { key: "totalPrice", label: "السعر الاجمالي" },
+    { key: "entryDate", label: "تاريخ الادخال" },
+    { key: "reason", label: "سبب الاتلاف" },
+  ];
 
   useEffect(() => {
     setRecords(loadDisposals(userId));
@@ -962,6 +1090,7 @@ function DisposalSection({
     setItems((prev) => prev.filter((i) => i.id !== id).map((item, idx) => ({ ...item, serialNumber: idx + 1 })));
   };
 
+  /** Extract rows from Excel and show mapping dialog */
   const importDisposalExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -980,39 +1109,33 @@ function DisposalSection({
         return String(raw);
       };
 
-      let startRow = 1;
-      sheet.eachRow((row, rowNumber) => {
-        const rowText = Array.from({ length: 13 }, (_, index) => getCellText(row, index + 1)).join(" ");
-        if (rowText.includes("اسم الكتاب") || rowText.includes("رقم صفحة السجل")) {
-          startRow = rowNumber + 1;
-        }
+      const allRows: string[][] = [];
+      const colCount = sheet.columnCount || 15;
+      sheet.eachRow((row) => {
+        const cells = Array.from({ length: colCount }, (_, index) => getCellText(row, index + 1));
+        if (cells.some(c => c)) allRows.push(cells);
       });
 
-      const importedItems: DisposalItem[] = [];
-      sheet.eachRow((row, rowNumber) => {
-        if (rowNumber < startRow) return;
+      if (allRows.length === 0) throw new Error("لم يتم العثور على بيانات");
 
-        const cells = Array.from({ length: 13 }, (_, index) => getCellText(row, index + 1));
-        const parsed = parseDisposalCells(cells);
-        if (!parsed) return;
+      const headerRow = allRows[0];
+      const dataRows = allRows.slice(1).filter(row => !row.every(c => !c));
+      const maxCols = Math.max(headerRow.length, ...dataRows.map(r => r.length));
+      const normalizedHeader = Array.from({ length: maxCols }, (_, i) => headerRow[i] || `عمود ${i + 1}`);
+      const normalizedData = dataRows.map(row => Array.from({ length: maxCols }, (_, i) => row[i] || ""));
 
-        importedItems.push({
-          id: generateId(),
-          serialNumber: importedItems.length + 1,
-          ...parsed,
-        });
-      });
-
-      if (importedItems.length === 0) throw new Error("لم يتم العثور على بيانات قابلة للاستيراد");
-      setItems(importedItems);
-      toast({ title: "تم الاستيراد", description: `تم استيراد ${importedItems.length} مادة من Excel` });
+      setDmColumns(normalizedHeader);
+      setDmPreview(normalizedData.slice(0, 3));
+      setDmAllRows(normalizedData);
+      setDmOpen(true);
     } catch (error) {
-      toast({ title: "خطأ في الاستيراد", description: String(error), variant: "destructive" });
+      toast({ title: "خطأ في قراءة الملف", description: String(error), variant: "destructive" });
     }
 
     if (disposalExcelInputRef.current) disposalExcelInputRef.current.value = "";
   };
 
+  /** Extract rows from Word and show mapping dialog */
   const importDisposalWord = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1022,9 +1145,8 @@ function DisposalSection({
       const xml = zip.file("word/document.xml")?.asText();
       if (!xml) throw new Error("ملف Word غير صالح");
 
+      const allRows: string[][] = [];
       const rowMatches = xml.match(/<w:tr\b[^>]*>[\s\S]*?<\/w:tr>/g) || [];
-      const importedItems: DisposalItem[] = [];
-      let headerFound = false;
 
       for (const rowXml of rowMatches) {
         const cellMatches = rowXml.match(/<w:tc\b[^>]*>[\s\S]*?<\/w:tc>/g) || [];
@@ -1032,33 +1154,69 @@ function DisposalSection({
           const textParts = cellXml.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [];
           return textParts.map((part) => part.replace(/<[^>]*>/g, "")).join("").trim();
         });
-
-        if (!headerFound) {
-          const joined = cells.join(" ");
-          if (joined.includes("اسم الكتاب") || joined.includes("رقم صفحة السجل")) {
-            headerFound = true;
-          }
-          continue;
-        }
-
-        const parsed = parseDisposalCells(cells);
-        if (!parsed) continue;
-
-        importedItems.push({
-          id: generateId(),
-          serialNumber: importedItems.length + 1,
-          ...parsed,
-        });
+        if (cells.some(c => c)) allRows.push(cells);
       }
 
-      if (importedItems.length === 0) throw new Error("لم يتم العثور على بيانات قابلة للاستيراد");
-      setItems(importedItems);
-      toast({ title: "تم الاستيراد", description: `تم استيراد ${importedItems.length} مادة من Word` });
+      if (allRows.length === 0) throw new Error("لم يتم العثور على بيانات");
+
+      const headerRow = allRows[0];
+      const dataRows = allRows.slice(1).filter(row => !row.every(c => !c));
+      const maxCols = Math.max(headerRow.length, ...dataRows.map(r => r.length));
+      const normalizedHeader = Array.from({ length: maxCols }, (_, i) => headerRow[i] || `عمود ${i + 1}`);
+      const normalizedData = dataRows.map(row => Array.from({ length: maxCols }, (_, i) => row[i] || ""));
+
+      setDmColumns(normalizedHeader);
+      setDmPreview(normalizedData.slice(0, 3));
+      setDmAllRows(normalizedData);
+      setDmOpen(true);
     } catch (error) {
-      toast({ title: "خطأ في الاستيراد", description: String(error), variant: "destructive" });
+      toast({ title: "خطأ في قراءة الملف", description: String(error), variant: "destructive" });
     }
 
     if (disposalWordInputRef.current) disposalWordInputRef.current.value = "";
+  };
+
+  /** Handle confirmed mapping from the dialog */
+  const handleDisposalMappingConfirm = (result: ImportMappingResult) => {
+    const { mapping } = result;
+    const importedItems: DisposalItem[] = [];
+
+    for (const row of dmAllRows) {
+      const itemName = mapping.itemName !== undefined ? row[mapping.itemName]?.trim() : "";
+      if (!itemName) continue;
+
+      // Filter out header-like rows
+      if (itemName.includes("لجنة") || itemName.includes("التوقيع") || itemName.includes("اسم الكتاب")) continue;
+
+      importedItems.push({
+        id: generateId(),
+        serialNumber: importedItems.length + 1,
+        pageNumber: mapping.pageNumber !== undefined ? row[mapping.pageNumber] || "" : "",
+        itemName,
+        grade: mapping.grade !== undefined ? row[mapping.grade] || "" : "",
+        editionDate: mapping.editionDate !== undefined ? row[mapping.editionDate] || "" : "",
+        quantityNum: mapping.quantityNum !== undefined ? toNumber(row[mapping.quantityNum]) : 1,
+        quantityWords: mapping.quantityWords !== undefined ? row[mapping.quantityWords] || "" : "",
+        unitPrice: mapping.unitPrice !== undefined ? toNumber(row[mapping.unitPrice]) : 0,
+        totalPrice: mapping.totalPrice !== undefined ? toNumber(row[mapping.totalPrice]) : 0,
+        entryDate: mapping.entryDate !== undefined ? row[mapping.entryDate] || "" : "",
+        reason: mapping.reason !== undefined ? row[mapping.reason] || "الغاء مادة" : "الغاء مادة",
+      });
+    }
+
+    if (importedItems.length === 0) {
+      toast({ title: "لم يتم العثور على بيانات قابلة للاستيراد", variant: "destructive" });
+      return;
+    }
+
+    // Recalculate totalPrice where needed
+    const final = importedItems.map(item => ({
+      ...item,
+      totalPrice: item.totalPrice || (item.quantityNum * item.unitPrice),
+    }));
+
+    setItems(final);
+    toast({ title: "تم الاستيراد", description: `تم استيراد ${final.length} مادة بنجاح` });
   };
 
   const deleteRecord = (recordId: string) => {
@@ -1297,22 +1455,22 @@ function DisposalSection({
           </div>
 
           {items.length > 0 && (
-            <div className="border rounded-lg overflow-auto">
+            <div className="border rounded-lg overflow-auto max-h-[600px]">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-10 text-center">م</TableHead>
-                    <TableHead className="w-16 text-center">رقم صفحة السجل</TableHead>
-                    <TableHead>اسم الكتاب/المادة</TableHead>
-                    <TableHead className="w-24">الصف</TableHead>
-                    <TableHead className="w-20 text-center">تاريخ الطبعة</TableHead>
-                    <TableHead className="w-16 text-center">الكمية</TableHead>
-                    <TableHead className="w-24">الكمية بالحروف</TableHead>
-                    <TableHead className="w-20 text-center">السعر الافرادي</TableHead>
-                    <TableHead className="w-20 text-center">السعر الاجمالي</TableHead>
-                    <TableHead className="w-20 text-center">تاريخ الادخال</TableHead>
-                    <TableHead className="w-24">سبب الاتلاف</TableHead>
-                    <TableHead className="w-10"></TableHead>
+                    <TableHead className="min-w-[40px] text-center">م</TableHead>
+                    <TableHead className="min-w-[80px] text-center">رقم الصفحة</TableHead>
+                    <TableHead className="min-w-[180px]">اسم الكتاب/المادة</TableHead>
+                    <TableHead className="min-w-[100px]">الصف</TableHead>
+                    <TableHead className="min-w-[110px] text-center">تاريخ الطبعة</TableHead>
+                    <TableHead className="min-w-[80px] text-center">الكمية</TableHead>
+                    <TableHead className="min-w-[120px]">الكمية بالحروف</TableHead>
+                    <TableHead className="min-w-[150px] text-center">السعر الافرادي</TableHead>
+                    <TableHead className="min-w-[150px] text-center">السعر الاجمالي</TableHead>
+                    <TableHead className="min-w-[110px] text-center">تاريخ الادخال</TableHead>
+                    <TableHead className="min-w-[120px]">سبب الاتلاف</TableHead>
+                    <TableHead className="min-w-[40px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1321,40 +1479,40 @@ function DisposalSection({
                     const totalSplit = splitToDinarFils(item.totalPrice);
                     return (
                     <TableRow key={item.id}>
-                      <TableCell className="text-center">{item.serialNumber}</TableCell>
+                      <TableCell className="text-center text-sm">{item.serialNumber}</TableCell>
                       <TableCell>
-                        <Input value={item.pageNumber} onChange={e => updateItem(item.id, "pageNumber", e.target.value)} className="h-8 text-center" />
+                        <Input value={item.pageNumber} onChange={e => updateItem(item.id, "pageNumber", e.target.value)} className="h-9 text-center min-w-[60px] text-sm" />
                       </TableCell>
                       <TableCell>
-                        <Input value={item.itemName} onChange={e => updateItem(item.id, "itemName", e.target.value)} className="h-8" />
+                        <Input value={item.itemName} onChange={e => updateItem(item.id, "itemName", e.target.value)} className="h-9 min-w-[160px] text-sm" />
                       </TableCell>
                       <TableCell>
-                        <Input value={item.grade} onChange={e => updateItem(item.id, "grade", e.target.value)} className="h-8" />
+                        <Input value={item.grade} onChange={e => updateItem(item.id, "grade", e.target.value)} className="h-9 min-w-[80px] text-sm" />
                       </TableCell>
                       <TableCell>
-                        <Input type="date" value={item.editionDate} onChange={e => updateItem(item.id, "editionDate", e.target.value)} className="h-8 text-center" />
+                        <Input type="date" value={item.editionDate} onChange={e => updateItem(item.id, "editionDate", e.target.value)} className="h-9 text-center min-w-[100px] text-sm" />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" min={0} value={item.quantityNum} onChange={e => updateItem(item.id, "quantityNum", Number(e.target.value))} className="h-8 text-center" />
+                        <Input type="number" min={0} value={item.quantityNum} onChange={e => updateItem(item.id, "quantityNum", Number(e.target.value))} className="h-9 text-center min-w-[60px] text-sm" />
                       </TableCell>
                       <TableCell>
-                        <Input value={item.quantityWords} onChange={e => updateItem(item.id, "quantityWords", e.target.value)} className="h-8" />
+                        <Input value={item.quantityWords} onChange={e => updateItem(item.id, "quantityWords", e.target.value)} className="h-9 min-w-[100px] text-sm" />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" min={0} step={0.001} value={item.unitPrice} onChange={e => updateItem(item.id, "unitPrice", Number(e.target.value))} className="h-8 text-center" placeholder="مثال 12.500" />
-                        <p className="text-[11px] text-muted-foreground text-center mt-1">
-                          {item.unitPrice ? `${item.unitPrice.toFixed(3)} = دينار ${unitSplit.dinarText} • فلس ${unitSplit.filsText}` : "أدخل القيمة بالدينار مع الفلس"}
+                        <Input type="number" min={0} step={0.001} value={item.unitPrice} onChange={e => updateItem(item.id, "unitPrice", Number(e.target.value))} className="h-9 text-center min-w-[120px] text-sm" placeholder="مثال: 12.500" />
+                        <p className="text-xs text-muted-foreground text-center mt-1 whitespace-nowrap">
+                          {item.unitPrice ? `${item.unitPrice.toFixed(3)} = ${unitSplit.dinarText} د ${unitSplit.filsText} ف` : "بالدينار.فلس"}
                         </p>
                       </TableCell>
-                      <TableCell className="text-center font-medium">
-                        <div>{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</div>
-                        <p className="text-[11px] text-muted-foreground">{item.totalPrice ? `دينار ${totalSplit.dinarText} • فلس ${totalSplit.filsText}` : "يُحسب تلقائياً"}</p>
+                      <TableCell className="text-center">
+                        <div className="font-semibold text-sm">{item.totalPrice ? item.totalPrice.toFixed(3) : ""}</div>
+                        <p className="text-xs text-muted-foreground whitespace-nowrap">{item.totalPrice ? `${totalSplit.dinarText} د ${totalSplit.filsText} ف` : "تلقائي"}</p>
                       </TableCell>
                       <TableCell>
-                        <Input type="date" value={item.entryDate} onChange={e => updateItem(item.id, "entryDate", e.target.value)} className="h-8 text-center" />
+                        <Input type="date" value={item.entryDate} onChange={e => updateItem(item.id, "entryDate", e.target.value)} className="h-9 text-center min-w-[100px] text-sm" />
                       </TableCell>
                       <TableCell>
-                        <Input value={item.reason} onChange={e => updateItem(item.id, "reason", e.target.value)} className="h-8" />
+                        <Input value={item.reason} onChange={e => updateItem(item.id, "reason", e.target.value)} className="h-9 min-w-[100px] text-sm" />
                       </TableCell>
                       <TableCell>
                         <Button size="icon" variant="ghost" onClick={() => removeItem(item.id)} className="h-7 w-7 text-destructive">
@@ -1375,6 +1533,17 @@ function DisposalSection({
           </div>
         </CardContent>
       </Card>
+
+      {/* Import Mapping Dialog */}
+      <ImportMappingDialog
+        open={dmOpen}
+        onClose={() => setDmOpen(false)}
+        onConfirm={handleDisposalMappingConfirm}
+        fileColumns={dmColumns}
+        previewRows={dmPreview}
+        systemFields={DISPOSAL_SYSTEM_FIELDS}
+        templateKey="disposal"
+      />
 
       {/* History */}
       <Card>
