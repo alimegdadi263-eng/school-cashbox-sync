@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CalendarDays, UserX, Plus, Trash2, FileSpreadsheet, FileText } from "lucide-react";
-import { exportDailyScheduleExcel, exportDailyScheduleDocx } from "@/lib/exportDailySchedule";
+import { exportDailyScheduleExcel, exportDailyScheduleDocx, exportDailyScheduleExcelInverted, exportDailyScheduleDocxInverted } from "@/lib/exportDailySchedule";
 import { useAuth } from "@/hooks/useAuth";
 
 interface DutyTeacher {
