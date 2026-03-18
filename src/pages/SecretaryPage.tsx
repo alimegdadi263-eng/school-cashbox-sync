@@ -970,6 +970,7 @@ function DisposalSection({
   const [category, setCategory] = useState(INVENTORY_CATEGORIES[0].id);
   const [committeeMember3, setCommitteeMember3] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [queuedInventoryCount, setQueuedInventoryCount] = useState(0);
 
   const disposalExcelInputRef = useRef<HTMLInputElement>(null);
