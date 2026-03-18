@@ -528,7 +528,6 @@ function InventoryTab({
     save(updatedItems);
     toast({ title: `تم ترحيل ${candidates.length} مادة وخصمها من الجرد` });
   };
-  };
 
   const exportExcel = async () => {
     const wb = new ExcelJS.Workbook();
