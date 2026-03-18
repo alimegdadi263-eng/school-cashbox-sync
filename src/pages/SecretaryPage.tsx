@@ -495,7 +495,9 @@ function InventoryTab({
     }
 
     const queue = loadInventoryDisposalQueue(userId);
+    const updatedItems = [...items];
     candidates.forEach((item) => {
+      const qty = getInitialDisposalQuantity(item.existing, item.shortage, item.disposalQuantity);
       queue.push({
         sourceCategoryId: category.id,
         sourceCategoryLabel: category.label,
@@ -503,11 +505,29 @@ function InventoryTab({
         itemName: item.itemName,
         grade: "",
         unitPrice: item.unitPrice || 0,
-        quantityNum: getInitialDisposalQuantity(item.existing, item.shortage, item.disposalQuantity),
+        quantityNum: qty,
       });
+      // Deduct from inventory
+      const idx = updatedItems.findIndex(i => i.id === item.id);
+      if (idx >= 0) {
+        const inv = updatedItems[idx];
+        const nextExisting = Math.max(0, inv.existing - qty);
+        const nextActualBalance = Math.max(0, inv.actualBalance - qty);
+        const diff = nextExisting - nextActualBalance;
+        updatedItems[idx] = {
+          ...inv,
+          existing: nextExisting,
+          actualBalance: nextActualBalance,
+          shortage: diff < 0 ? Math.abs(diff) : 0,
+          surplus: diff > 0 ? diff : 0,
+          disposalQuantity: 0,
+        };
+      }
     });
     saveInventoryDisposalQueue(userId, queue);
-    toast({ title: `تم ترحيل ${candidates.length} مادة إلى الإتلاف` });
+    save(updatedItems);
+    toast({ title: `تم ترحيل ${candidates.length} مادة وخصمها من الجرد` });
+  };
   };
 
   const exportExcel = async () => {
