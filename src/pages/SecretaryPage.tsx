@@ -976,10 +976,24 @@ function DisposalSection({
   const disposalExcelInputRef = useRef<HTMLInputElement>(null);
   const disposalWordInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    setRecords(loadDisposals(userId));
-    setQueuedInventoryCount(loadInventoryDisposalQueue(userId).length);
-  }, [userId]);
+  // Import mapping dialog state
+  const [dmOpen, setDmOpen] = useState(false);
+  const [dmColumns, setDmColumns] = useState<string[]>([]);
+  const [dmPreview, setDmPreview] = useState<string[][]>([]);
+  const [dmAllRows, setDmAllRows] = useState<string[][]>([]);
+
+  const DISPOSAL_SYSTEM_FIELDS: SystemField[] = [
+    { key: "itemName", label: "اسم الكتاب/المادة", required: true },
+    { key: "pageNumber", label: "رقم صفحة السجل" },
+    { key: "grade", label: "الصف" },
+    { key: "editionDate", label: "تاريخ الطبعة" },
+    { key: "quantityNum", label: "الكمية بالأرقام" },
+    { key: "quantityWords", label: "الكمية بالحروف" },
+    { key: "unitPrice", label: "السعر الافرادي" },
+    { key: "totalPrice", label: "السعر الاجمالي" },
+    { key: "entryDate", label: "تاريخ الادخال" },
+    { key: "reason", label: "سبب الاتلاف" },
+  ];
 
   const parseDisposalCells = (cells: string[]): Omit<DisposalItem, "id" | "serialNumber"> | null => {
     const values = cells.map((cell) => cell.trim());
