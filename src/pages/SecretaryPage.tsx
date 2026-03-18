@@ -1010,8 +1010,8 @@ function DisposalSection({
     { key: "editionDate", label: "تاريخ الطبعة" },
     { key: "quantityNum", label: "الكمية بالأرقام" },
     { key: "quantityWords", label: "الكمية بالحروف" },
-    { key: "unitPrice", label: "السعر الافرادي" },
-    { key: "totalPrice", label: "السعر الاجمالي" },
+    { key: "unitPrice", label: "السعر الافرادي", allowDinarFilsCombine: true },
+    { key: "totalPrice", label: "السعر الاجمالي", allowDinarFilsCombine: true },
     { key: "entryDate", label: "تاريخ الادخال" },
     { key: "reason", label: "سبب الاتلاف" },
   ];
