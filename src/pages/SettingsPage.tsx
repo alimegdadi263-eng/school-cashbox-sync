@@ -70,6 +70,9 @@ export default function SettingsPage() {
       <div className="space-y-6 max-w-3xl">
         <h1 className="text-2xl font-bold text-foreground">الإعدادات</h1>
 
+        {/* LAN Network Mode */}
+        <NetworkModeSelector />
+
         {/* Password & Subscription */}
         <Card className="shadow-card">
           <CardHeader>
