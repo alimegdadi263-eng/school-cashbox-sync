@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
+import NetworkModeSelector from "@/components/NetworkModeSelector";
 import { Clock, RefreshCw, Download, CheckCircle, Loader2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
