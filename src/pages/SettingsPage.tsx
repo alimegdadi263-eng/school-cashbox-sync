@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
+import NetworkModeSelector from "@/components/NetworkModeSelector";
 import { Clock, RefreshCw, Download, CheckCircle, Loader2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
@@ -68,6 +69,9 @@ export default function SettingsPage() {
     <AppLayout>
       <div className="space-y-6 max-w-3xl">
         <h1 className="text-2xl font-bold text-foreground">الإعدادات</h1>
+
+        {/* LAN Network Mode */}
+        <NetworkModeSelector />
 
         {/* Password & Subscription */}
         <Card className="shadow-card">
