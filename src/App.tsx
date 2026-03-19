@@ -85,6 +85,7 @@ const App = () => (
           </Router>
           </TimetableProvider>
         </FinanceProvider>
+        </NetworkProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
