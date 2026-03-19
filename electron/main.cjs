@@ -3,56 +3,36 @@ const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
 const { setupAutoUpdater, checkForUpdates, checkForUpdatesSilent, runUpdateAction } = require('./updater.cjs');
+const { LanServer } = require('./lan-server.cjs');
+const { LanClient } = require('./lan-client.cjs');
 
 const isDev = !app.isPackaged;
 
 // Security: Disable hardware acceleration for security
 app.disableHardwareAcceleration();
 
+// ── LAN instances ────────────────────────────────────────────────────────────
+const lanServer = new LanServer();
+const lanClient = new LanClient();
+let networkMode = 'standalone'; // 'standalone' | 'server' | 'client'
+
 // ── Integrity Check ──────────────────────────────────────────────────────────
 function verifyIntegrity() {
-  if (isDev) return true; // Skip in development
-
+  if (isDev) return true;
   try {
     const distDir = path.join(__dirname, '../dist');
     const manifestPath = path.join(distDir, '.integrity.json');
-
-    if (!fs.existsSync(manifestPath)) {
-      console.error('Integrity manifest not found');
-      return false;
-    }
-
+    if (!fs.existsSync(manifestPath)) { console.error('Integrity manifest not found'); return false; }
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-
-    // Verify manifest signature
-    const expectedSig = crypto
-      .createHash('sha256')
-      .update(JSON.stringify(manifest.files) + manifest.generatedAt)
-      .digest('hex');
-
-    if (expectedSig !== manifest.signature) {
-      console.error('Integrity manifest signature mismatch');
-      return false;
-    }
-
-    // Verify each file hash
+    const expectedSig = crypto.createHash('sha256').update(JSON.stringify(manifest.files) + manifest.generatedAt).digest('hex');
+    if (expectedSig !== manifest.signature) { console.error('Integrity manifest signature mismatch'); return false; }
     for (const [relativePath, expectedHash] of Object.entries(manifest.files)) {
       const filePath = path.join(distDir, relativePath);
-
-      if (!fs.existsSync(filePath)) {
-        console.error(`Missing file: ${relativePath}`);
-        return false;
-      }
-
+      if (!fs.existsSync(filePath)) { console.error(`Missing file: ${relativePath}`); return false; }
       const content = fs.readFileSync(filePath);
       const actualHash = crypto.createHash('sha256').update(content).digest('hex');
-
-      if (actualHash !== expectedHash) {
-        console.error(`Tampered file detected: ${relativePath}`);
-        return false;
-      }
+      if (actualHash !== expectedHash) { console.error(`Tampered file detected: ${relativePath}`); return false; }
     }
-
     console.log('Integrity check passed ✓');
     return true;
   } catch (error) {
@@ -64,87 +44,54 @@ function verifyIntegrity() {
 // ── Main Window ──────────────────────────────────────────────────────────────
 function createWindow() {
   const mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    minWidth: 1100,
-    minHeight: 700,
+    width: 1400, height: 900, minWidth: 1100, minHeight: 700,
     title: 'الادارة المدرسية - Ali Megdadi',
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-      webSecurity: true,
-      allowRunningInsecureContent: false,
-      devTools: isDev,
-      javascript: true,
-      webgl: false,
-      enableWebSQL: false,
+      contextIsolation: true, nodeIntegration: false, sandbox: true,
+      webSecurity: true, allowRunningInsecureContent: false,
+      devTools: isDev, javascript: true, webgl: false, enableWebSQL: false,
     },
   });
 
-  // Runtime diagnostics: show clear errors instead of silent white screen
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
     console.error('Renderer failed to load:', { errorCode, errorDescription, validatedURL });
-    dialog.showErrorBox(
-      'خطأ في تحميل الواجهة',
-      `تعذر تحميل واجهة البرنامج.\n${errorDescription} (${errorCode})\n${validatedURL || ''}`
-    );
+    dialog.showErrorBox('خطأ في تحميل الواجهة', `تعذر تحميل واجهة البرنامج.\n${errorDescription} (${errorCode})\n${validatedURL || ''}`);
   });
-
   mainWindow.webContents.on('render-process-gone', (_event, details) => {
     console.error('Renderer process crashed:', details);
     dialog.showErrorBox('تعطل الواجهة', 'حدث تعطل في واجهة البرنامج. أعد تشغيل التطبيق.');
   });
 
-  // Security: Remove menu entirely in production
+  if (!isDev) { mainWindow.setMenu(null); mainWindow.removeMenu(); }
   if (!isDev) {
-    mainWindow.setMenu(null);
-    mainWindow.removeMenu();
+    mainWindow.webContents.on('devtools-opened', () => { mainWindow.webContents.closeDevTools(); });
   }
 
-  // Security: Prevent DevTools from opening in production
-  if (!isDev) {
-    mainWindow.webContents.on('devtools-opened', () => {
-      mainWindow.webContents.closeDevTools();
-    });
-  }
-
-  // Security: Set Content Security Policy for HTTP content only
-  // (file:// packaged assets can break with overly strict CSP headers)
+  // CSP
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    if (details.url.startsWith('file://')) {
-      callback({ responseHeaders: { ...details.responseHeaders } });
-      return;
-    }
-
+    if (details.url.startsWith('file://')) { callback({ responseHeaders: { ...details.responseHeaders } }); return; }
     callback({
       responseHeaders: {
         ...details.responseHeaders,
         'Content-Security-Policy': [
           "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-            "font-src 'self' https://fonts.gstatic.com; " +
-            "img-src 'self' data: blob: https:; " +
-            "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co; " +
-            "frame-src 'none';",
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+          "font-src 'self' https://fonts.gstatic.com; " +
+          "img-src 'self' data: blob: https:; " +
+          "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co http://localhost:* http://192.168.*:* http://10.*:* http://172.*:*; " +
+          "frame-src 'none';",
         ],
       },
     });
   });
 
-  // Security: Control new window creation (allow print windows)
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    // Allow blank windows for PDF print export
-    if (url === '' || url === 'about:blank') {
-      return { action: 'allow' };
-    }
+    if (url === '' || url === 'about:blank') return { action: 'allow' };
     return { action: 'deny' };
   });
-
-  // Security: Prevent navigation to external URLs
   mainWindow.webContents.on('will-navigate', (event, url) => {
     const parsedUrl = new URL(url);
     if (isDev && parsedUrl.hostname === 'localhost') return;
@@ -152,46 +99,123 @@ function createWindow() {
     event.preventDefault();
   });
 
-  // Security: Block keyboard shortcuts for DevTools in production
   if (!isDev) {
     mainWindow.webContents.on('before-input-event', (event, input) => {
-      if (input.key === 'F12') {
-        event.preventDefault();
-        return;
-      }
-      if (input.control && input.shift && ['I', 'J', 'C'].includes(input.key.toUpperCase())) {
-        event.preventDefault();
-        return;
-      }
-      if (input.control && input.key.toUpperCase() === 'U') {
-        event.preventDefault();
-        return;
-      }
+      if (input.key === 'F12') { event.preventDefault(); return; }
+      if (input.control && input.shift && ['I', 'J', 'C'].includes(input.key.toUpperCase())) { event.preventDefault(); return; }
+      if (input.control && input.key.toUpperCase() === 'U') { event.preventDefault(); return; }
     });
   }
 
-  if (isDev) {
-    mainWindow.loadURL('http://localhost:8080');
-  } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
-  }
+  if (isDev) { mainWindow.loadURL('http://localhost:8080'); }
+  else { mainWindow.loadFile(path.join(__dirname, '../dist/index.html')); }
 
   return mainWindow;
 }
 
+// ── LAN IPC Handlers ─────────────────────────────────────────────────────────
+function setupLanHandlers() {
+  // Server controls
+  ipcMain.handle('lan-start-server', async () => {
+    try {
+      const result = await lanServer.start();
+      networkMode = 'server';
+      return { success: true, ...result };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('lan-stop-server', async () => {
+    await lanServer.stop();
+    networkMode = 'standalone';
+    return { success: true };
+  });
+
+  ipcMain.handle('lan-get-server-info', () => {
+    return lanServer.getInfo();
+  });
+
+  // Client controls
+  ipcMain.handle('lan-connect', async (_event, ip, port) => {
+    try {
+      const result = await lanClient.connect(ip, port || 9753);
+      networkMode = 'client';
+      return { success: true, ...result };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('lan-disconnect', () => {
+    lanClient.disconnect();
+    networkMode = 'standalone';
+    return { success: true };
+  });
+
+  ipcMain.handle('lan-get-mode', () => {
+    return { mode: networkMode };
+  });
+
+  // Data operations (route to server DB or remote server)
+  ipcMain.handle('lan-get-data', async (_event, key) => {
+    try {
+      if (networkMode === 'server') {
+        return { success: true, data: lanServer.db.getData(key) };
+      } else if (networkMode === 'client') {
+        const data = await lanClient.getData(key);
+        return { success: true, data };
+      }
+      return { success: false, error: 'Not in network mode' };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('lan-set-data', async (_event, key, data) => {
+    try {
+      if (networkMode === 'server') {
+        lanServer.db.setData(key, data);
+        return { success: true };
+      } else if (networkMode === 'client') {
+        await lanClient.setData(key, data);
+        return { success: true };
+      }
+      return { success: false, error: 'Not in network mode' };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('lan-ping', async () => {
+    try {
+      if (networkMode === 'server') {
+        return { success: true, status: 'ok' };
+      } else if (networkMode === 'client') {
+        await lanClient.ping();
+        return { success: true, status: 'ok' };
+      }
+      return { success: false, error: 'Not in network mode' };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('lan-is-connected', () => {
+    if (networkMode === 'server') return { connected: true, mode: 'server' };
+    if (networkMode === 'client') return { connected: lanClient.isConnected(), mode: 'client' };
+    return { connected: false, mode: 'standalone' };
+  });
+}
+
 // ── App Ready ────────────────────────────────────────────────────────────────
 app.whenReady().then(() => {
-  // Security: Integrity check before launching
   if (!isDev && !verifyIntegrity()) {
-    dialog.showErrorBox(
-      'خطأ أمني',
-      'تم اكتشاف تعديل غير مصرح به على ملفات البرنامج.\nيرجى إعادة تثبيت البرنامج من المصدر الرسمي.'
-    );
+    dialog.showErrorBox('خطأ أمني', 'تم اكتشاف تعديل غير مصرح به على ملفات البرنامج.\nيرجى إعادة تثبيت البرنامج من المصدر الرسمي.');
     app.quit();
     return;
   }
 
-  // Security: Block all DevTools shortcuts globally in production
   if (!isDev) {
     globalShortcut.register('F12', () => {});
     globalShortcut.register('CommandOrControl+Shift+I', () => {});
@@ -201,54 +225,33 @@ app.whenReady().then(() => {
   }
 
   const mainWindow = createWindow();
+  setupLanHandlers();
 
-  // Setup auto-updater (production only)
   if (!isDev) {
     setupAutoUpdater(mainWindow);
-    // Check for updates silently after launch (5 seconds delay)
     setTimeout(() => checkForUpdatesSilent(), 5000);
   }
 
   ipcMain.handle('get-app-version', () => app.getVersion());
-
-  // IPC: Manual update check from renderer
   ipcMain.on('check-for-updates', () => {
-    if (isDev) {
-      dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'التحديث',
-        message: 'التحديث التلقائي غير متوفر في وضع التطوير.',
-        buttons: ['حسناً'],
-      });
-      return;
-    }
+    if (isDev) { dialog.showMessageBox(mainWindow, { type: 'info', title: 'التحديث', message: 'التحديث التلقائي غير متوفر في وضع التطوير.', buttons: ['حسناً'] }); return; }
     checkForUpdates();
   });
-
-  // IPC: One-click update action (check → download → install)
   ipcMain.on('run-update-action', () => {
-    if (isDev) {
-      dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'التحديث',
-        message: 'التحديث التلقائي غير متوفر في وضع التطوير.',
-        buttons: ['حسناً'],
-      });
-      return;
-    }
+    if (isDev) { dialog.showMessageBox(mainWindow, { type: 'info', title: 'التحديث', message: 'التحديث التلقائي غير متوفر في وضع التطوير.', buttons: ['حسناً'] }); return; }
     runUpdateAction();
   });
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
+  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 
 app.on('window-all-closed', () => {
+  // Cleanup LAN server on exit
+  lanServer.stop().catch(() => {});
   if (process.platform !== 'darwin') app.quit();
 });
 
-// Security: Unregister shortcuts on quit
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
+  lanServer.stop().catch(() => {});
 });
