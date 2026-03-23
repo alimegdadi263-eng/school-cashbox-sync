@@ -10,14 +10,44 @@ class LanClient {
     this.connected = false;
   }
 
+  _normalizeTarget(ip, port = 9753) {
+    const raw = String(ip || '').trim();
+    if (!raw) {
+      throw new Error('عنوان السيرفر غير صالح');
+    }
+
+    try {
+      if (raw.startsWith('http://') || raw.startsWith('https://')) {
+        const parsed = new URL(raw);
+        return {
+          host: parsed.hostname,
+          port: Number(parsed.port) || port,
+        };
+      }
+    } catch {
+      throw new Error('عنوان السيرفر غير صالح');
+    }
+
+    const match = raw.match(/^([^/:\s]+)(?::(\d+))?$/);
+    if (!match) {
+      throw new Error('عنوان السيرفر غير صالح');
+    }
+
+    return {
+      host: match[1],
+      port: Number(match[2]) || port,
+    };
+  }
+
   /** Connect to a server */
   async connect(ip, port = 9753) {
-    this.serverUrl = `http://${ip}:${port}`;
+    const target = this._normalizeTarget(ip, port);
+    this.serverUrl = `http://${target.host}:${target.port}`;
     try {
       const result = await this._request('GET', '/api/ping');
       if (result.status === 'ok') {
         this.connected = true;
-        return { success: true, serverUrl: this.serverUrl };
+        return { success: true, serverUrl: this.serverUrl, host: target.host, port: target.port };
       }
       throw new Error('Server responded but status is not ok');
     } catch (err) {
