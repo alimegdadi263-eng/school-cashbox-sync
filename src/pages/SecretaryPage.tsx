@@ -1066,8 +1066,37 @@ function DisposalSection({
   ];
 
   useEffect(() => {
-    setRecords(loadDisposals(userId));
-    setQueuedInventoryCount(loadInventoryDisposalQueue(userId).length);
+    const loadData = async () => {
+      const lan = getElectronLanHelper();
+      let lanClient = false;
+      if (lan) {
+        try {
+          const conn = await lan.isConnected();
+          lanClient = conn?.connected && conn?.mode === 'client';
+        } catch {}
+      }
+
+      if (lanClient && lan) {
+        try {
+          const dispKey = `${DISPOSAL_STORAGE_KEY}_${userId}`;
+          const queueKey = `${INVENTORY_DISPOSAL_QUEUE_KEY}_${userId}`;
+          const dispResult = await lan.getData(dispKey);
+          const queueResult = await lan.getData(queueKey);
+          if (dispResult?.success && dispResult.data) {
+            setRecords(dispResult.data);
+            localStorage.setItem(dispKey, JSON.stringify(dispResult.data));
+          } else {
+            setRecords(loadDisposals(userId));
+          }
+          const queueData = queueResult?.success && queueResult.data ? queueResult.data : loadInventoryDisposalQueue(userId);
+          setQueuedInventoryCount(Array.isArray(queueData) ? queueData.length : 0);
+          return;
+        } catch {}
+      }
+      setRecords(loadDisposals(userId));
+      setQueuedInventoryCount(loadInventoryDisposalQueue(userId).length);
+    };
+    loadData();
   }, [userId]);
 
   const parseDisposalCells = (cells: string[]): Omit<DisposalItem, "id" | "serialNumber"> | null => {
