@@ -299,8 +299,41 @@ function InventoryTab({
   ];
 
   useEffect(() => {
-    setItems(loadInventory(userId, category.id));
-    setRecords(loadInventoryRecords(userId, category.id));
+    const loadData = async () => {
+      const lan = getElectronLanHelper();
+      let lanConnected = false;
+      if (lan) {
+        try {
+          const conn = await lan.isConnected();
+          lanConnected = conn?.connected && conn?.mode === 'client';
+        } catch {}
+      }
+
+      if (lanConnected && lan) {
+        try {
+          const invKey = `${STORAGE_KEY_PREFIX}${userId}_${category.id}`;
+          const recKey = `${INVENTORY_RECORDS_KEY_PREFIX}${userId}_${category.id}`;
+          const invResult = await lan.getData(invKey);
+          const recResult = await lan.getData(recKey);
+          if (invResult?.success && invResult.data) {
+            setItems(invResult.data);
+            localStorage.setItem(invKey, JSON.stringify(invResult.data));
+          } else {
+            setItems(loadInventory(userId, category.id));
+          }
+          if (recResult?.success && recResult.data) {
+            setRecords(recResult.data);
+            localStorage.setItem(recKey, JSON.stringify(recResult.data));
+          } else {
+            setRecords(loadInventoryRecords(userId, category.id));
+          }
+          return;
+        } catch {}
+      }
+      setItems(loadInventory(userId, category.id));
+      setRecords(loadInventoryRecords(userId, category.id));
+    };
+    loadData();
   }, [userId, category.id]);
 
   const save = (newItems: InventoryItem[]) => {
