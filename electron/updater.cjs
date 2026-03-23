@@ -202,13 +202,33 @@ function checkForUpdates() {
   if (!autoUpdater || updateCheckInProgress) return;
 
   updateCheckInProgress = true;
-  logInfo('Manual update check requested', { currentVersion: app.getVersion() });
+  const currentVersion = app.getVersion();
+  logInfo('Manual update check requested', {
+    currentVersion,
+    isPackaged: app.isPackaged,
+    feedURL: JSON.stringify(UPDATE_FEED),
+    appPath: app.getPath('exe'),
+  });
 
-  autoUpdater.checkForUpdates().catch((err) => {
+  // Show checking status immediately
+  updateState(currentMainWindow, 'checking', '', 0);
+
+  autoUpdater.checkForUpdates().then((result) => {
+    logInfo('checkForUpdates result', {
+      updateInfo: result?.updateInfo ? {
+        version: result.updateInfo.version,
+        releaseDate: result.updateInfo.releaseDate,
+        files: result.updateInfo.files?.map(f => f.url),
+      } : 'no info',
+    });
+  }).catch((err) => {
     updateCheckInProgress = false;
     updateState(currentMainWindow, 'error', currentUpdateState.version, 0);
     logError('Manual update check failed', err);
-    showErrorDialog('خطأ في التحديث', `تعذر التحقق من التحديثات:\n${err.message}`);
+
+    // Show detailed error to user
+    const msg = `تعذر التحقق من التحديثات:\n${err.message}\n\nالإصدار الحالي: ${currentVersion}\nApp Packaged: ${app.isPackaged}`;
+    showErrorDialog('خطأ في التحديث', msg);
   });
 }
 

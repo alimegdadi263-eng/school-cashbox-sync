@@ -167,7 +167,23 @@ const getInitialDisposalQuantity = (existing: number, shortage: number, savedVal
   return Math.min(Math.max(preferred, 1), available);
 };
 
-// ─── LocalStorage helpers ───
+// ─── LocalStorage helpers (with LAN sync) ───
+function getElectronLanHelper() {
+  return (window as any)?.electronAPI?.lan;
+}
+
+async function lanSyncSave(key: string, data: any) {
+  localStorage.setItem(key, JSON.stringify(data));
+  const lan = getElectronLanHelper();
+  if (!lan) return;
+  try {
+    const conn = await lan.isConnected();
+    if (conn?.connected) {
+      await lan.setData(key, data);
+    }
+  } catch {}
+}
+
 function loadInventory(userId: string, category: string): InventoryItem[] {
   try {
     const data = localStorage.getItem(`${STORAGE_KEY_PREFIX}${userId}_${category}`);
@@ -201,7 +217,7 @@ function loadInventory(userId: string, category: string): InventoryItem[] {
 }
 
 function saveInventory(userId: string, category: string, items: InventoryItem[]) {
-  localStorage.setItem(`${STORAGE_KEY_PREFIX}${userId}_${category}`, JSON.stringify(items));
+  lanSyncSave(`${STORAGE_KEY_PREFIX}${userId}_${category}`, items);
 }
 
 function loadInventoryRecords(userId: string, category: string): InventoryRecord[] {
@@ -214,7 +230,7 @@ function loadInventoryRecords(userId: string, category: string): InventoryRecord
 }
 
 function saveInventoryRecords(userId: string, category: string, records: InventoryRecord[]) {
-  localStorage.setItem(`${INVENTORY_RECORDS_KEY_PREFIX}${userId}_${category}`, JSON.stringify(records));
+  lanSyncSave(`${INVENTORY_RECORDS_KEY_PREFIX}${userId}_${category}`, records);
 }
 
 function loadInventoryDisposalQueue(userId: string): InventoryToDisposalItem[] {
@@ -227,7 +243,7 @@ function loadInventoryDisposalQueue(userId: string): InventoryToDisposalItem[] {
 }
 
 function saveInventoryDisposalQueue(userId: string, items: InventoryToDisposalItem[]) {
-  localStorage.setItem(`${INVENTORY_DISPOSAL_QUEUE_KEY}_${userId}`, JSON.stringify(items));
+  lanSyncSave(`${INVENTORY_DISPOSAL_QUEUE_KEY}_${userId}`, items);
 }
 
 function loadDisposals(userId: string): DisposalRecord[] {
@@ -238,7 +254,7 @@ function loadDisposals(userId: string): DisposalRecord[] {
 }
 
 function saveDisposals(userId: string, records: DisposalRecord[]) {
-  localStorage.setItem(`${DISPOSAL_STORAGE_KEY}_${userId}`, JSON.stringify(records));
+  lanSyncSave(`${DISPOSAL_STORAGE_KEY}_${userId}`, records);
 }
 
 // ─── Inventory Tab Component ───
@@ -283,8 +299,41 @@ function InventoryTab({
   ];
 
   useEffect(() => {
-    setItems(loadInventory(userId, category.id));
-    setRecords(loadInventoryRecords(userId, category.id));
+    const loadData = async () => {
+      const lan = getElectronLanHelper();
+      let lanConnected = false;
+      if (lan) {
+        try {
+          const conn = await lan.isConnected();
+          lanConnected = conn?.connected && conn?.mode === 'client';
+        } catch {}
+      }
+
+      if (lanConnected && lan) {
+        try {
+          const invKey = `${STORAGE_KEY_PREFIX}${userId}_${category.id}`;
+          const recKey = `${INVENTORY_RECORDS_KEY_PREFIX}${userId}_${category.id}`;
+          const invResult = await lan.getData(invKey);
+          const recResult = await lan.getData(recKey);
+          if (invResult?.success && invResult.data) {
+            setItems(invResult.data);
+            localStorage.setItem(invKey, JSON.stringify(invResult.data));
+          } else {
+            setItems(loadInventory(userId, category.id));
+          }
+          if (recResult?.success && recResult.data) {
+            setRecords(recResult.data);
+            localStorage.setItem(recKey, JSON.stringify(recResult.data));
+          } else {
+            setRecords(loadInventoryRecords(userId, category.id));
+          }
+          return;
+        } catch {}
+      }
+      setItems(loadInventory(userId, category.id));
+      setRecords(loadInventoryRecords(userId, category.id));
+    };
+    loadData();
   }, [userId, category.id]);
 
   const save = (newItems: InventoryItem[]) => {
@@ -1017,8 +1066,37 @@ function DisposalSection({
   ];
 
   useEffect(() => {
-    setRecords(loadDisposals(userId));
-    setQueuedInventoryCount(loadInventoryDisposalQueue(userId).length);
+    const loadData = async () => {
+      const lan = getElectronLanHelper();
+      let lanClient = false;
+      if (lan) {
+        try {
+          const conn = await lan.isConnected();
+          lanClient = conn?.connected && conn?.mode === 'client';
+        } catch {}
+      }
+
+      if (lanClient && lan) {
+        try {
+          const dispKey = `${DISPOSAL_STORAGE_KEY}_${userId}`;
+          const queueKey = `${INVENTORY_DISPOSAL_QUEUE_KEY}_${userId}`;
+          const dispResult = await lan.getData(dispKey);
+          const queueResult = await lan.getData(queueKey);
+          if (dispResult?.success && dispResult.data) {
+            setRecords(dispResult.data);
+            localStorage.setItem(dispKey, JSON.stringify(dispResult.data));
+          } else {
+            setRecords(loadDisposals(userId));
+          }
+          const queueData = queueResult?.success && queueResult.data ? queueResult.data : loadInventoryDisposalQueue(userId);
+          setQueuedInventoryCount(Array.isArray(queueData) ? queueData.length : 0);
+          return;
+        } catch {}
+      }
+      setRecords(loadDisposals(userId));
+      setQueuedInventoryCount(loadInventoryDisposalQueue(userId).length);
+    };
+    loadData();
   }, [userId]);
 
   const parseDisposalCells = (cells: string[]): Omit<DisposalItem, "id" | "serialNumber"> | null => {
