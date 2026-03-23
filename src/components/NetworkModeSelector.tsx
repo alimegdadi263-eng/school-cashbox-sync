@@ -196,10 +196,13 @@ export default function NetworkModeSelector() {
                 <Input
                   value={clientIp}
                   onChange={(e) => setClientIp(e.target.value)}
-                  placeholder="192.168.1.100"
+                  placeholder="192.168.1.100 أو 192.168.1.100:9753"
                   className="h-8 text-sm font-mono"
                   dir="ltr"
                 />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  يمكنك لصق العنوان المنسوخ كاملًا سواء كان IP فقط أو IP:PORT
+                </p>
               </div>
               <div>
                 <Label className="text-xs">المنفذ (Port)</Label>
