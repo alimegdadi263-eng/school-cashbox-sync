@@ -29,6 +29,13 @@ const cellBorders = {
   right: { style: BorderStyle.SINGLE, size: 1 },
 };
 
+const PAGE_BORDER = {
+  pageBorderTop: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
+  pageBorderBottom: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
+  pageBorderLeft: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
+  pageBorderRight: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
+};
+
 const makeCell = (text: string, opts?: { bold?: boolean; width?: number; colSpan?: number; alignment?: typeof AlignmentType[keyof typeof AlignmentType]; shading?: string }) =>
   new TableCell({
     children: [new Paragraph({
@@ -75,7 +82,7 @@ export async function generatePaymentVoucherDocx(tx: Transaction, schoolName: st
 
   const doc = new Document({
     sections: [{
-      properties: { page: { margin: { top: 720, bottom: 720, left: 720, right: 720 } } },
+      properties: { page: { margin: { top: 720, bottom: 720, left: 720, right: 720 }, borders: PAGE_BORDER } },
       children: [
         // Header
         new Paragraph({ alignment: AlignmentType.CENTER, bidirectional: true, spacing: { after: 100 }, children: [

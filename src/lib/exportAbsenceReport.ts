@@ -23,6 +23,13 @@ function cellBorders() {
 }
 
 export async function exportAbsenceReportDocx(records: TeacherAbsenceRecord[], teacherName: string, schoolName: string) {
+  const PAGE_BORDER = {
+    pageBorderTop: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
+    pageBorderBottom: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
+    pageBorderLeft: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
+    pageBorderRight: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
+  };
+
   const filtered = teacherName ? records.filter(r => r.teacherName === teacherName) : records;
   const logo = await getLogoBuffer();
 
@@ -80,7 +87,7 @@ export async function exportAbsenceReportDocx(records: TeacherAbsenceRecord[], t
 
   const doc = new Document({
     sections: [{
-      properties: { page: { margin: { top: 720, bottom: 720, left: 720, right: 720 } } },
+      properties: { page: { margin: { top: 720, bottom: 720, left: 720, right: 720 }, borders: PAGE_BORDER } },
       children: [
         new Paragraph({ children: [new ImageRun({ data: logo, transformation: { width: 70, height: 70 }, type: "png" })], alignment: AlignmentType.CENTER, spacing: { after: 40 }, bidirectional: true }),
         new Paragraph({ children: [t(schoolName, { bold: true, size: 32 })], alignment: AlignmentType.CENTER, bidirectional: true, spacing: { after: 100 } }),

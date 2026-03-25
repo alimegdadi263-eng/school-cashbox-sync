@@ -10,6 +10,12 @@ import { DAYS, parseClassKey } from "@/types/timetable";
 const FONT = "Traditional Arabic";
 const HEADER_BG = "2B3A55";
 const ACCENT_BG = "D4A84B";
+const PAGE_BORDER = {
+  pageBorderTop: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
+  pageBorderBottom: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
+  pageBorderLeft: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
+  pageBorderRight: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
+};
 
 function headerCell(text: string, width?: number): DocxTC {
   return new DocxTC({
@@ -18,7 +24,8 @@ function headerCell(text: string, width?: number): DocxTC {
     verticalAlign: VerticalAlign.CENTER,
     children: [new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text, font: FONT, bold: true, size: 22, color: "FFFFFF" })],
+      bidirectional: true,
+      children: [new TextRun({ text, font: FONT, bold: true, size: 22, color: "FFFFFF", rightToLeft: true })],
     })],
   });
 }
@@ -29,9 +36,10 @@ function dataCell(lines: string[], empty = false): DocxTC {
     verticalAlign: VerticalAlign.CENTER,
     children: lines.length > 0 ? lines.map(l => new Paragraph({
       alignment: AlignmentType.CENTER,
+      bidirectional: true,
       spacing: { before: 20, after: 20 },
-      children: [new TextRun({ text: l, font: FONT, size: 20 })],
-    })) : [new Paragraph({ alignment: AlignmentType.CENTER, children: [] })],
+      children: [new TextRun({ text: l, font: FONT, size: 20, rightToLeft: true })],
+    })) : [new Paragraph({ alignment: AlignmentType.CENTER, bidirectional: true, children: [] })],
   });
 }
 
@@ -59,6 +67,7 @@ function buildClassTable(
 
   return new DocxTable({
     width: { size: 100, type: WidthType.PERCENTAGE },
+    visuallyRightToLeft: true,
     rows: [headerRow, ...dataRows],
   });
 }
@@ -72,19 +81,21 @@ export async function exportClassTimetableDocx(
   const { className, section } = parseClassKey(classKey);
   const doc = new Document({
     sections: [{
-      properties: { page: { size: { orientation: "landscape" as any } } },
+      properties: { page: { size: { orientation: "landscape" as any }, borders: PAGE_BORDER } },
       children: [
         new Paragraph({
           alignment: AlignmentType.CENTER,
           heading: HeadingLevel.HEADING_1,
-          children: [new TextRun({ text: schoolName, font: FONT, bold: true, size: 32, color: HEADER_BG })],
+          bidirectional: true,
+          children: [new TextRun({ text: schoolName, font: FONT, bold: true, size: 32, color: HEADER_BG, rightToLeft: true })],
         }),
         new Paragraph({
           alignment: AlignmentType.CENTER,
           spacing: { after: 300 },
+          bidirectional: true,
           children: [new TextRun({
             text: `الجدول الأسبوعي - الصف ${className} / شعبة ${section}`,
-            font: FONT, bold: true, size: 28, color: ACCENT_BG,
+            font: FONT, bold: true, size: 28, color: ACCENT_BG, rightToLeft: true,
           })],
         }),
         buildClassTable(days, periodsPerDay),
@@ -134,24 +145,27 @@ export async function exportTeacherTimetableDocx(
 
   const table = new DocxTable({
     width: { size: 100, type: WidthType.PERCENTAGE },
+    visuallyRightToLeft: true,
     rows: [headerRow, ...dataRows],
   });
 
   const doc = new Document({
     sections: [{
-      properties: { page: { size: { orientation: "landscape" as any } } },
+      properties: { page: { size: { orientation: "landscape" as any }, borders: PAGE_BORDER } },
       children: [
         new Paragraph({
           alignment: AlignmentType.CENTER,
           heading: HeadingLevel.HEADING_1,
-          children: [new TextRun({ text: schoolName, font: FONT, bold: true, size: 32, color: HEADER_BG })],
+          bidirectional: true,
+          children: [new TextRun({ text: schoolName, font: FONT, bold: true, size: 32, color: HEADER_BG, rightToLeft: true })],
         }),
         new Paragraph({
           alignment: AlignmentType.CENTER,
           spacing: { after: 300 },
+          bidirectional: true,
           children: [new TextRun({
             text: `الجدول الأسبوعي للمعلم/ة: ${teacher.name}`,
-            font: FONT, bold: true, size: 28, color: ACCENT_BG,
+            font: FONT, bold: true, size: 28, color: ACCENT_BG, rightToLeft: true,
           })],
         }),
         table,
@@ -172,19 +186,21 @@ export async function exportFullSchoolTimetableDocx(
   const sections = sortedKeys.map(key => {
     const { className, section } = parseClassKey(key);
     return {
-      properties: { page: { size: { orientation: "landscape" as any } } },
+      properties: { page: { size: { orientation: "landscape" as any }, borders: PAGE_BORDER } },
       children: [
         new Paragraph({
           alignment: AlignmentType.CENTER,
           heading: HeadingLevel.HEADING_1,
-          children: [new TextRun({ text: schoolName, font: FONT, bold: true, size: 32, color: HEADER_BG })],
+          bidirectional: true,
+          children: [new TextRun({ text: schoolName, font: FONT, bold: true, size: 32, color: HEADER_BG, rightToLeft: true })],
         }),
         new Paragraph({
           alignment: AlignmentType.CENTER,
           spacing: { after: 300 },
+          bidirectional: true,
           children: [new TextRun({
             text: `الصف ${className} / شعبة ${section}`,
-            font: FONT, bold: true, size: 28, color: ACCENT_BG,
+            font: FONT, bold: true, size: 28, color: ACCENT_BG, rightToLeft: true,
           })],
         }),
         buildClassTable(timetable[key], periodsPerDay),
@@ -216,7 +232,8 @@ export async function exportMalhafaDocx(
       verticalAlign: VerticalAlign.CENTER,
       children: [new Paragraph({
         alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text, font: FONT, bold: true, size: fontSize, color: "FFFFFF" })],
+        bidirectional: true,
+        children: [new TextRun({ text, font: FONT, bold: true, size: fontSize, color: "FFFFFF", rightToLeft: true })],
       })],
     });
   }
@@ -227,9 +244,10 @@ export async function exportMalhafaDocx(
       verticalAlign: VerticalAlign.CENTER,
       children: lines.length > 0 ? lines.map(l => new Paragraph({
         alignment: AlignmentType.CENTER,
+        bidirectional: true,
         spacing: { before: 10, after: 10 },
-        children: [new TextRun({ text: l, font: FONT, size: cellFontSize })],
-      })) : [new Paragraph({ alignment: AlignmentType.CENTER, children: [] })],
+        children: [new TextRun({ text: l, font: FONT, size: cellFontSize, rightToLeft: true })],
+      })) : [new Paragraph({ alignment: AlignmentType.CENTER, bidirectional: true, children: [] })],
     });
   }
 
@@ -241,7 +259,8 @@ export async function exportMalhafaDocx(
       verticalAlign: VerticalAlign.CENTER,
       children: [new Paragraph({
         alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: day, font: FONT, bold: true, size: fontSize, color: "FFFFFF" })],
+          bidirectional: true,
+          children: [new TextRun({ text: day, font: FONT, bold: true, size: fontSize, color: "FFFFFF", rightToLeft: true })],
       })],
     }));
   }
@@ -255,7 +274,8 @@ export async function exportMalhafaDocx(
         verticalAlign: VerticalAlign.CENTER,
         children: [new Paragraph({
           alignment: AlignmentType.CENTER,
-          children: [new TextRun({ text: `${p + 1}`, font: FONT, bold: true, size: cellFontSize, color: HEADER_BG })],
+            bidirectional: true,
+            children: [new TextRun({ text: `${p + 1}`, font: FONT, bold: true, size: cellFontSize, color: HEADER_BG, rightToLeft: true })],
         })],
       }));
     }
@@ -278,6 +298,7 @@ export async function exportMalhafaDocx(
 
   const table = new DocxTable({
     width: { size: 100, type: WidthType.PERCENTAGE },
+    visuallyRightToLeft: true,
     rows: [dayHeaderRow, periodHeaderRow, ...dataRows],
   });
 
@@ -294,7 +315,8 @@ export async function exportMalhafaDocx(
         new Paragraph({
           alignment: AlignmentType.CENTER,
           spacing: { after: 150 },
-          children: [new TextRun({ text: `${schoolName} - الملحفة الدراسية`, font: FONT, bold: true, size: titleFontSize, color: HEADER_BG })],
+          bidirectional: true,
+          children: [new TextRun({ text: `${schoolName} - الملحفة الدراسية`, font: FONT, bold: true, size: titleFontSize, color: HEADER_BG, rightToLeft: true })],
         }),
         table,
       ],
@@ -367,18 +389,20 @@ export async function exportMalhafaTransposedDocx(
 
   const table = new DocxTable({
     width: { size: 100, type: WidthType.PERCENTAGE },
+    visuallyRightToLeft: true,
     rows: [headerRow, ...dataRows],
   });
 
   const doc = new Document({
     sections: [{
-      properties: { page: { size: { orientation: "landscape" as any } } },
+      properties: { page: { size: { orientation: "landscape" as any }, borders: PAGE_BORDER } },
       children: [
         new Paragraph({
           alignment: AlignmentType.CENTER,
           heading: HeadingLevel.HEADING_1,
           spacing: { after: 200 },
-          children: [new TextRun({ text: `${schoolName} - الملحفة الدراسية (عرض بديل)`, font: FONT, bold: true, size: 28, color: HEADER_BG })],
+          bidirectional: true,
+          children: [new TextRun({ text: `${schoolName} - الملحفة الدراسية (عرض بديل)`, font: FONT, bold: true, size: 28, color: HEADER_BG, rightToLeft: true })],
         }),
         table,
       ],
