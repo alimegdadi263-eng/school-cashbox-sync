@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
-import { Plus, Trash2, FileDown, FileText, CalendarIcon, UserX } from "lucide-react";
+import { Plus, Trash2, FileDown, FileText, CalendarIcon, UserX, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTimetable } from "@/context/TimetableContext";
 import type { TeacherAbsenceRecord, AbsenceType } from "@/types/teacherAbsence";
@@ -54,28 +54,51 @@ export default function TeacherAbsenceTracker({ userId, schoolName }: Props) {
   const [notes, setNotes] = useState("");
   const [filterTeacher, setFilterTeacher] = useState("");
 
-  useEffect(() => {
-    const loadData = async () => {
-      const lan = getElectronLanHelper();
-      if (lan) {
-        try {
-          const conn = await lan.isConnected();
-          if (conn?.connected && conn?.mode === "client") {
-            const result = await lan.getData(storageKey);
-            if (result?.success && result.data) {
-              setRecords(result.data);
-              localStorage.setItem(storageKey, JSON.stringify(result.data));
-              return;
-            }
+  // Reload records (also called when tab is focused to pick up interrogation-synced records)
+  const loadData = async () => {
+    const lan = getElectronLanHelper();
+    if (lan) {
+      try {
+        const conn = await lan.isConnected();
+        if (conn?.connected && conn?.mode === "client") {
+          const result = await lan.getData(storageKey);
+          if (result?.success && result.data) {
+            setRecords(result.data);
+            localStorage.setItem(storageKey, JSON.stringify(result.data));
+            return;
           }
-        } catch {}
+        }
+      } catch {}
+    }
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) setRecords(JSON.parse(saved));
+    } catch {}
+  };
+
+  useEffect(() => {
+    loadData();
+    // Listen for storage changes from other tabs/components (interrogation form sync)
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === storageKey && e.newValue) {
+        try { setRecords(JSON.parse(e.newValue)); } catch {}
       }
+    };
+    window.addEventListener("storage", handleStorage);
+    // Also poll localStorage every 2s to catch same-tab writes
+    const poll = setInterval(() => {
       try {
         const saved = localStorage.getItem(storageKey);
-        if (saved) setRecords(JSON.parse(saved));
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.length !== records.length) setRecords(parsed);
+        }
       } catch {}
+    }, 2000);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      clearInterval(poll);
     };
-    loadData();
   }, [storageKey]);
 
   const saveRecords = (newRecords: TeacherAbsenceRecord[]) => {
@@ -118,6 +141,15 @@ export default function TeacherAbsenceTracker({ userId, schoolName }: Props) {
     toast({ title: "تم حذف السجل" });
   };
 
+  const resetYear = () => {
+    if (!confirm("هل أنت متأكد من مسح جميع سجلات الغياب لبدء سنة جديدة؟")) return;
+    saveRecords([]);
+    toast({ title: "تم مسح سجلات الغياب - سنة جديدة" });
+  };
+    saveRecords(records.filter(r => r.id !== id));
+    toast({ title: "تم حذف السجل" });
+  };
+
   const filtered = filterTeacher
     ? records.filter(r => r.teacherName === filterTeacher)
     : records;
@@ -125,10 +157,12 @@ export default function TeacherAbsenceTracker({ userId, schoolName }: Props) {
   const uniqueTeachers = [...new Set(records.map(r => r.teacherName))];
 
   // Summary
-  const summary: Record<string, { عرضية: number; مرضية: number; "غير ذلك": number; total: number }> = {};
+  const summary: Record<string, { عرضية: number; مرضية: number; "عدم صرف": number; "غير ذلك": number; total: number }> = {};
   for (const rec of filtered) {
-    if (!summary[rec.teacherName]) summary[rec.teacherName] = { عرضية: 0, مرضية: 0, "غير ذلك": 0, total: 0 };
-    summary[rec.teacherName][rec.absenceType]++;
+    if (!summary[rec.teacherName]) summary[rec.teacherName] = { عرضية: 0, مرضية: 0, "عدم صرف": 0, "غير ذلك": 0, total: 0 };
+    if (summary[rec.teacherName][rec.absenceType as keyof typeof summary[string]] !== undefined) {
+      (summary[rec.teacherName] as any)[rec.absenceType]++;
+    }
     summary[rec.teacherName].total++;
   }
 
