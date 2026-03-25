@@ -104,6 +104,7 @@ export async function generatePaymentVoucherDocx(tx: Transaction, schoolName: st
         // Table
         new Table({
           width: { size: 100, type: WidthType.PERCENTAGE },
+          visuallyRightToLeft: true,
           rows: [
             new TableRow({ children: [
               makeCell("تفاصـــــــــــــيل الدفعـــــــــــة", { bold: true, width: 60, shading: "f0f0f0", alignment: AlignmentType.RIGHT }),
@@ -130,6 +131,7 @@ export async function generatePaymentVoucherDocx(tx: Transaction, schoolName: st
         // Signatures - 3 columns
         new Table({
           width: { size: 100, type: WidthType.PERCENTAGE },
+          visuallyRightToLeft: true,
           rows: [
             new TableRow({ children: [
               new TableCell({ children: [
