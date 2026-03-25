@@ -250,6 +250,9 @@ export default function TeacherAbsenceTracker({ userId, schoolName }: Props) {
               <Button size="sm" variant="outline" onClick={() => exportAbsenceReportDocx(records, filterTeacher, schoolName)}>
                 <FileText className="w-4 h-4 ml-1" /> Word
               </Button>
+              <Button size="sm" variant="destructive" onClick={resetYear}>
+                <RotateCcw className="w-4 h-4 ml-1" /> سنة جديدة
+              </Button>
             </div>
 
             {/* Summary */}
@@ -259,7 +262,7 @@ export default function TeacherAbsenceTracker({ userId, schoolName }: Props) {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                   {Object.entries(summary).map(([name, counts]) => (
                     <div key={name} className="text-xs border rounded p-2 bg-background">
-                      <span className="font-bold">{name}</span>: عرضية ({counts.عرضية}) • مرضية ({counts.مرضية}) • غير ذلك ({counts["غير ذلك"]}) = <span className="font-bold">{counts.total}</span>
+                      <span className="font-bold">{name}</span>: عرضية ({counts.عرضية}) • مرضية ({counts.مرضية}) • عدم صرف ({counts["عدم صرف"]}) • غير ذلك ({counts["غير ذلك"]}) = <span className="font-bold">{counts.total}</span>
                     </div>
                   ))}
                 </div>
@@ -290,9 +293,10 @@ export default function TeacherAbsenceTracker({ userId, schoolName }: Props) {
                       <TableCell className="text-center">
                         <span className={cn(
                           "px-2 py-0.5 rounded text-xs font-medium",
-                          rec.absenceType === "عرضية" && "bg-yellow-100 text-yellow-800",
-                          rec.absenceType === "مرضية" && "bg-red-100 text-red-800",
-                          rec.absenceType === "غير ذلك" && "bg-gray-100 text-gray-800",
+                          rec.absenceType === "عرضية" && "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+                          rec.absenceType === "مرضية" && "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+                          rec.absenceType === "عدم صرف" && "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
+                          rec.absenceType === "غير ذلك" && "bg-muted text-muted-foreground",
                         )}>
                           {rec.absenceType}
                         </span>
