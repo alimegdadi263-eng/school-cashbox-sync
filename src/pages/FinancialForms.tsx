@@ -660,6 +660,183 @@ export default function FinancialForms() {
             </CardContent>
           </Card>
         )}
+
+        {/* Advance Invoices Form */}
+        {formType === "invoices" && (
+          <Card className="shadow-card">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Receipt className="w-5 h-5 text-purple-500" />
+                كشف فواتير السلفة المدرسية
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>رقم الكشف</Label>
+                  <Input
+                    value={invoiceListNumber}
+                    onChange={(e) => setInvoiceListNumber(e.target.value)}
+                    placeholder="رقم الكشف"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>تاريخ الكشف</Label>
+                  <Input
+                    type="date"
+                    value={invoiceListDate}
+                    onChange={(e) => setInvoiceListDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>المدرسة</Label>
+                  <Input value={state.schoolName} disabled className="bg-muted" />
+                </div>
+              </div>
+
+              {/* Running total indicator */}
+              <div className="flex items-center gap-4 p-3 rounded-lg border bg-muted/30">
+                <span className="font-semibold text-sm">المجموع الحالي:</span>
+                <span className={`text-lg font-bold ${invoicesTotal >= 150 ? "text-red-600" : invoicesTotal >= 75 ? "text-amber-600" : "text-emerald-600"}`}>
+                  {invoicesTotal.toFixed(3)} دينار
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  (ثانوي: 150 د / أساسي: 75 د)
+                </span>
+              </div>
+
+              {/* Invoices Table */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-bold">الفواتير</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addInvoice} className="gap-1">
+                    <Plus className="w-4 h-4" />
+                    إضافة فاتورة
+                  </Button>
+                </div>
+                <div className="overflow-x-auto border rounded-lg">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-muted/50 text-muted-foreground">
+                        <th className="p-2 text-center w-12">م</th>
+                        <th className="p-2 text-center w-20">دينار</th>
+                        <th className="p-2 text-center w-20">فلس</th>
+                        <th className="p-2 text-center w-24">رقم الفاتورة</th>
+                        <th className="p-2 text-center w-28">تاريخ الفاتورة</th>
+                        <th className="p-2 text-right min-w-[160px]">البيان</th>
+                        <th className="p-2 text-right min-w-[100px]">ملاحظات</th>
+                        <th className="p-2 w-10"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {invoices.map((inv, idx) => (
+                        <tr key={idx} className="border-t">
+                          <td className="p-1 text-center text-muted-foreground">{idx + 1}</td>
+                          <td className="p-1">
+                            <Input
+                              value={inv.amountDinars}
+                              onChange={(e) => updateInvoice(idx, "amountDinars", e.target.value)}
+                              placeholder="0"
+                              className="h-8 text-xs text-center"
+                            />
+                          </td>
+                          <td className="p-1">
+                            <Input
+                              value={inv.amountFils}
+                              onChange={(e) => updateInvoice(idx, "amountFils", e.target.value)}
+                              placeholder="0"
+                              className="h-8 text-xs text-center"
+                            />
+                          </td>
+                          <td className="p-1">
+                            <Input
+                              value={inv.invoiceNumber}
+                              onChange={(e) => updateInvoice(idx, "invoiceNumber", e.target.value)}
+                              placeholder="رقم"
+                              className="h-8 text-xs text-center"
+                            />
+                          </td>
+                          <td className="p-1">
+                            <Input
+                              type="date"
+                              value={inv.invoiceDate}
+                              onChange={(e) => updateInvoice(idx, "invoiceDate", e.target.value)}
+                              className="h-8 text-xs"
+                            />
+                          </td>
+                          <td className="p-1">
+                            <Input
+                              value={inv.description}
+                              onChange={(e) => updateInvoice(idx, "description", e.target.value)}
+                              placeholder="البيان"
+                              className="h-8 text-xs"
+                            />
+                          </td>
+                          <td className="p-1">
+                            <Input
+                              value={inv.notes}
+                              onChange={(e) => updateInvoice(idx, "notes", e.target.value)}
+                              placeholder="ملاحظات"
+                              className="h-8 text-xs"
+                            />
+                          </td>
+                          <td className="p-1">
+                            {invoices.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                onClick={() => removeInvoice(idx)}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button onClick={handleInvoicesExport} className="gradient-accent text-accent-foreground gap-2">
+                  <FileDown className="w-4 h-4" />
+                  تنزيل كشف الفواتير
+                </Button>
+                <Button onClick={saveInvoiceList} variant="outline" className="gap-2">
+                  <Save className="w-4 h-4" />
+                  حفظ الكشف
+                </Button>
+                <Button onClick={() => setShowSavedInvoices(!showSavedInvoices)} variant="outline" className="gap-2">
+                  <History className="w-4 h-4" />
+                  الكشوفات المحفوظة ({savedInvoiceLists.length})
+                </Button>
+              </div>
+
+              {showSavedInvoices && savedInvoiceLists.length > 0 && (
+                <div className="space-y-2 mt-4 border-t pt-4">
+                  <Label className="text-base font-bold">الكشوفات المحفوظة</Label>
+                  {savedInvoiceLists.map((list) => (
+                    <div key={list.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                      <div>
+                        <p className="font-medium text-sm">كشف رقم {list.listNumber || "—"}</p>
+                        <p className="text-xs text-muted-foreground">{list.date} • {list.invoices.length} فاتورة</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => loadInvoiceList(list)}>تحميل</Button>
+                        <Button size="sm" variant="ghost" className="text-destructive" onClick={() => deleteInvoiceList(list.id)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </AppLayout>
   );
