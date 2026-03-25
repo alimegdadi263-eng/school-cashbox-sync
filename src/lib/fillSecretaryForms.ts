@@ -213,7 +213,7 @@ export async function fillCasualLeaveForm(data: CasualLeaveData) {
     ]})],
     width: { size: 100, type: WidthType.PERCENTAGE },
     visuallyRightToLeft: true,
-
+  });
   const doc = new Document({
     sections: [{
       properties: { page: PAGE_A4 },
