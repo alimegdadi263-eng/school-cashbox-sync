@@ -143,6 +143,7 @@ function setupAutoUpdater(mainWindow) {
     autoUpdater.autoInstallOnAppQuit = true;
     autoUpdater.allowPrerelease = false;
     autoUpdater.allowDowngrade = false;
+    autoUpdater.disableDifferentialDownload = true;
 
     autoUpdater.removeAllListeners();
 
