@@ -80,6 +80,91 @@ export default function FinancialForms() {
   const [assignPerson, setAssignPerson] = useState("");
   const [assignDescription, setAssignDescription] = useState("");
 
+  // Advance Invoices state
+  const INVOICES_STORAGE_KEY = "school-advance-invoices";
+  const [invoiceListNumber, setInvoiceListNumber] = useState("");
+  const [invoiceListDate, setInvoiceListDate] = useState(new Date().toISOString().split("T")[0]);
+  const emptyInvoice = (): AdvanceInvoice => ({
+    invoiceNumber: "",
+    invoiceDate: "",
+    description: "",
+    amountDinars: "",
+    amountFils: "",
+    notes: "",
+  });
+  const [invoices, setInvoices] = useState<AdvanceInvoice[]>([emptyInvoice()]);
+  const [savedInvoiceLists, setSavedInvoiceLists] = useState<{ id: string; date: string; listNumber: string; invoices: AdvanceInvoice[] }[]>([]);
+  const [showSavedInvoices, setShowSavedInvoices] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`${INVOICES_STORAGE_KEY}-${userId}`);
+      if (saved) setSavedInvoiceLists(JSON.parse(saved));
+    } catch {}
+  }, [userId]);
+
+  const invoicesTotal = invoices.reduce((sum, inv) => {
+    const d = parseInt(inv.amountDinars) || 0;
+    const f = parseInt(inv.amountFils) || 0;
+    return sum + d + f / 1000;
+  }, 0);
+
+  const updateInvoice = (idx: number, field: keyof AdvanceInvoice, value: string) => {
+    setInvoices(prev => {
+      const updated = [...prev];
+      updated[idx] = { ...updated[idx], [field]: value };
+      return updated;
+    });
+  };
+
+  const addInvoice = () => setInvoices(prev => [...prev, emptyInvoice()]);
+
+  const removeInvoice = (idx: number) => {
+    if (invoices.length <= 1) return;
+    setInvoices(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const saveInvoiceList = () => {
+    const list = { id: Date.now().toString(), date: invoiceListDate, listNumber: invoiceListNumber, invoices };
+    const updated = [list, ...savedInvoiceLists];
+    setSavedInvoiceLists(updated);
+    localStorage.setItem(`${INVOICES_STORAGE_KEY}-${userId}`, JSON.stringify(updated));
+    toast({ title: "تم الحفظ", description: "تم حفظ كشف الفواتير بنجاح" });
+  };
+
+  const deleteInvoiceList = (id: string) => {
+    const updated = savedInvoiceLists.filter(l => l.id !== id);
+    setSavedInvoiceLists(updated);
+    localStorage.setItem(`${INVOICES_STORAGE_KEY}-${userId}`, JSON.stringify(updated));
+  };
+
+  const loadInvoiceList = (list: typeof savedInvoiceLists[0]) => {
+    setInvoiceListNumber(list.listNumber);
+    setInvoiceListDate(list.date);
+    setInvoices(list.invoices);
+    setShowSavedInvoices(false);
+  };
+
+  const handleInvoicesExport = async () => {
+    const validInvoices = invoices.filter(inv => inv.description.trim() || inv.amountDinars || inv.amountFils);
+    if (validInvoices.length === 0) {
+      toast({ title: "خطأ", description: "يرجى إدخال فاتورة واحدة على الأقل", variant: "destructive" });
+      return;
+    }
+    try {
+      await generateAdvanceInvoicesDocx({
+        school: state.schoolName,
+        listNumber: invoiceListNumber,
+        listDate: invoiceListDate,
+        invoices: validInvoices,
+      });
+      saveInvoiceList();
+      toast({ title: "تم التنزيل", description: "تم تنزيل كشف فواتير السلفة بنجاح" });
+    } catch (error) {
+      toast({ title: "فشل التصدير", description: error instanceof Error ? error.message : "حدث خطأ", variant: "destructive" });
+    }
+  };
+
   // Local Purchase state
   const [purchaseSupplier, setPurchaseSupplier] = useState("");
   const [purchaseAddress, setPurchaseAddress] = useState("");
