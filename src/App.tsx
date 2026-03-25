@@ -27,8 +27,10 @@ import { TimetableProvider } from "@/context/TimetableContext";
 import UpdateNotification from "@/components/UpdateNotification";
 
 const queryClient = new QueryClient();
-const isElectron = typeof navigator !== "undefined" && navigator.userAgent.toLowerCase().includes("electron");
-const Router = isElectron ? HashRouter : BrowserRouter;
+const isDesktopApp =
+  typeof window !== "undefined" &&
+  (((window as Window & { electronAPI?: unknown }).electronAPI !== undefined) || window.location.protocol === "file:");
+const Router = isDesktopApp ? HashRouter : BrowserRouter;
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, isActive, isAdmin } = useAuth();
