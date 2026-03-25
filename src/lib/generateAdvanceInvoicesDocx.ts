@@ -181,7 +181,7 @@ export async function generateAdvanceInvoicesDocx(data: AdvanceInvoicesDocxData)
           size: { width: 11906, height: 16838 },
           margin: { top: 720, right: 720, bottom: 720, left: 720 },
         },
-        bidi: true,
+        
       },
       children: [
         p([t(`كشف فواتير السلفة المدرسية رقم ( ${data.listNumber} ) تاريخ ${data.listDate}`, { bold: true, size: L })]),
