@@ -1,13 +1,17 @@
 /**
  * Auto-updater module using electron-updater with GitHub Releases.
- * Shows native dialogs to the user when an update is available.
+ * Falls back to direct GitHub API check if electron-updater fails.
  */
-const { dialog, app } = require('electron');
+const { dialog, app, shell } = require('electron');
+const https = require('https');
+
+const GITHUB_OWNER = 'alimegdadi263-eng';
+const GITHUB_REPO = 'school-cashbox-sync';
 
 const UPDATE_FEED = {
   provider: 'github',
-  owner: 'alimegdadi263-eng',
-  repo: 'school-cashbox-sync',
+  owner: GITHUB_OWNER,
+  repo: GITHUB_REPO,
   private: false,
 };
 
@@ -20,11 +24,7 @@ try {
 }
 
 let updateCheckInProgress = false;
-let currentUpdateState = {
-  status: 'idle',
-  version: '',
-  progress: 0,
-};
+let currentUpdateState = { status: 'idle', version: '', progress: 0 };
 let currentMainWindow = null;
 
 function sendStatusToWindow(mainWindow, status, version, progress) {
@@ -39,56 +39,93 @@ function updateState(mainWindow, status, version, progress) {
     version: version ?? currentUpdateState.version,
     progress: progress ?? currentUpdateState.progress,
   };
-
-  sendStatusToWindow(
-    mainWindow ?? currentMainWindow,
-    currentUpdateState.status,
-    currentUpdateState.version,
-    currentUpdateState.progress,
-  );
+  sendStatusToWindow(mainWindow ?? currentMainWindow, currentUpdateState.status, currentUpdateState.version, currentUpdateState.progress);
 }
 
 function logInfo(message, meta) {
-  autoUpdater?.logger?.info?.(`[updater] ${message}`, meta || '');
+  const logger = autoUpdater?.logger || console;
+  logger.info?.(`[updater] ${message}`, meta || '');
 }
 
 function logError(message, error) {
-  autoUpdater?.logger?.error?.(`[updater] ${message}`, error);
+  const logger = autoUpdater?.logger || console;
+  logger.error?.(`[updater] ${message}`, error);
 }
 
-function showErrorDialog(title, message) {
-  if (currentMainWindow && !currentMainWindow.isDestroyed()) {
-    dialog.showMessageBox(currentMainWindow, {
-      type: 'error',
-      title,
-      message,
-      buttons: ['حسناً'],
-    });
+// ── Direct GitHub API check (fallback) ──────────────────────────
+function checkGitHubReleaseDirect() {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: 'api.github.com',
+      path: `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`,
+      headers: { 'User-Agent': 'school-cashbox-updater' },
+    };
+
+    https.get(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          if (res.statusCode !== 200) {
+            reject(new Error(`GitHub API returned ${res.statusCode}: ${data.slice(0, 200)}`));
+            return;
+          }
+          const release = JSON.parse(data);
+          resolve({
+            version: (release.tag_name || '').replace(/^v/, ''),
+            tagName: release.tag_name,
+            htmlUrl: release.html_url,
+            publishedAt: release.published_at,
+            assets: (release.assets || []).map(a => ({ name: a.name, url: a.browser_download_url, size: a.size })),
+          });
+        } catch (e) {
+          reject(e);
+        }
+      });
+    }).on('error', reject);
+  });
+}
+
+function compareVersions(current, latest) {
+  const c = current.split('.').map(Number);
+  const l = latest.split('.').map(Number);
+  for (let i = 0; i < Math.max(c.length, l.length); i++) {
+    const cv = c[i] || 0;
+    const lv = l[i] || 0;
+    if (lv > cv) return 1;  // latest is newer
+    if (lv < cv) return -1; // current is newer
   }
+  return 0; // equal
 }
 
+// ── Download update via electron-updater ────────────────────────
 function downloadAvailableUpdate() {
   if (!autoUpdater || updateCheckInProgress) return;
-
   updateCheckInProgress = true;
-  updateState(currentMainWindow, 'downloading', currentUpdateState.version, currentUpdateState.progress || 0);
+  updateState(currentMainWindow, 'downloading', currentUpdateState.version, 0);
   logInfo('Starting update download', { version: currentUpdateState.version });
 
   autoUpdater.downloadUpdate().catch((err) => {
     updateCheckInProgress = false;
     updateState(currentMainWindow, 'error', currentUpdateState.version, 0);
     logError('Failed to download update', err);
-    showErrorDialog('خطأ في تنزيل التحديث', `تعذر تنزيل التحديث:\n${err.message}`);
+    dialog.showMessageBox(currentMainWindow, {
+      type: 'error',
+      title: 'خطأ في تنزيل التحديث',
+      message: `تعذر تنزيل التحديث:\n${err.message}`,
+      buttons: ['حسناً'],
+    });
   });
 }
 
+// ── Setup auto-updater listeners ────────────────────────────────
 function setupAutoUpdater(mainWindow) {
+  currentMainWindow = mainWindow;
+
   if (!autoUpdater) {
-    console.warn('Auto-updater is not available, skipping setup.');
+    console.warn('Auto-updater is not available, will use GitHub API fallback.');
     return;
   }
-
-  currentMainWindow = mainWindow;
 
   try {
     const electronLog = require('electron-log');
@@ -107,47 +144,28 @@ function setupAutoUpdater(mainWindow) {
     autoUpdater.allowPrerelease = false;
     autoUpdater.allowDowngrade = false;
 
-    autoUpdater.removeAllListeners('checking-for-update');
-    autoUpdater.removeAllListeners('update-available');
-    autoUpdater.removeAllListeners('update-not-available');
-    autoUpdater.removeAllListeners('download-progress');
-    autoUpdater.removeAllListeners('update-downloaded');
-    autoUpdater.removeAllListeners('error');
-
-    logInfo('Auto updater configured', {
-      currentVersion: app.getVersion(),
-      feed: UPDATE_FEED,
-      isPackaged: app.isPackaged,
-    });
+    autoUpdater.removeAllListeners();
 
     autoUpdater.on('checking-for-update', () => {
       updateCheckInProgress = true;
       updateState(mainWindow, 'checking', '', 0);
-      logInfo('Checking for updates', { currentVersion: app.getVersion() });
+      logInfo('Checking for updates...', { currentVersion: app.getVersion() });
     });
 
     autoUpdater.on('update-available', (info) => {
       updateCheckInProgress = false;
       updateState(mainWindow, 'available', info.version, 0);
       logInfo('Update available', info);
-
-      dialog
-        .showMessageBox(mainWindow, {
-          type: 'info',
-          title: 'تحديث متوفر',
-          message: `يتوفر إصدار جديد (${info.version}).\nهل تريد تحميله وتثبيته الآن؟`,
-          buttons: ['نعم، حدّث الآن', 'لاحقاً'],
-          defaultId: 0,
-          cancelId: 1,
-        })
-        .then(({ response }) => {
-          if (response === 0) {
-            downloadAvailableUpdate();
-          }
-        })
-        .catch((err) => {
-          logError('Failed to show update-available dialog', err);
-        });
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'تحديث متوفر',
+        message: `يتوفر إصدار جديد (${info.version}).\nالإصدار الحالي: ${app.getVersion()}\n\nهل تريد تحميله وتثبيته الآن؟`,
+        buttons: ['نعم، حدّث الآن', 'لاحقاً'],
+        defaultId: 0,
+        cancelId: 1,
+      }).then(({ response }) => {
+        if (response === 0) downloadAvailableUpdate();
+      }).catch(err => logError('Dialog error', err));
     });
 
     autoUpdater.on('update-not-available', (info) => {
@@ -164,105 +182,162 @@ function setupAutoUpdater(mainWindow) {
       updateCheckInProgress = false;
       updateState(mainWindow, 'downloaded', info.version, 100);
       logInfo('Update downloaded', info);
-
-      dialog
-        .showMessageBox(mainWindow, {
-          type: 'info',
-          title: 'التحديث جاهز',
-          message: `تم تحميل الإصدار ${info.version} بنجاح.\nسيتم إعادة تشغيل البرنامج لتثبيت التحديث.`,
-          buttons: ['أعد التشغيل الآن', 'لاحقاً'],
-          defaultId: 0,
-          cancelId: 1,
-        })
-        .then(({ response }) => {
-          if (response === 0) {
-            autoUpdater.quitAndInstall(false, true);
-          }
-        })
-        .catch((err) => {
-          logError('Failed to show update-downloaded dialog', err);
-        });
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'التحديث جاهز',
+        message: `تم تحميل الإصدار ${info.version} بنجاح.\nسيتم إعادة تشغيل البرنامج لتثبيت التحديث.`,
+        buttons: ['أعد التشغيل الآن', 'لاحقاً'],
+        defaultId: 0,
+        cancelId: 1,
+      }).then(({ response }) => {
+        if (response === 0) autoUpdater.quitAndInstall(false, true);
+      }).catch(err => logError('Dialog error', err));
     });
 
     autoUpdater.on('error', (err) => {
       updateCheckInProgress = false;
-      updateState(mainWindow, 'error', currentUpdateState.version, 0);
-      logError('Updater error', err);
-      showErrorDialog('خطأ في التحديث', `حدث خطأ أثناء التحقق من التحديثات:\n${err.message}`);
+      logError('electron-updater error, trying GitHub API fallback', err);
+      // Fallback to direct GitHub API
+      checkViaGitHubAPI(true);
     });
   } catch (err) {
-    updateCheckInProgress = false;
-    updateState(mainWindow, 'error', currentUpdateState.version, 0);
     logError('Failed to initialize auto updater', err);
-    showErrorDialog('خطأ في التحديث', `تعذر تهيئة نظام التحديث:\n${err.message}`);
   }
 }
 
-function checkForUpdates() {
-  if (!autoUpdater || updateCheckInProgress) return;
-
-  updateCheckInProgress = true;
+// ── GitHub API fallback check ───────────────────────────────────
+async function checkViaGitHubAPI(showDialog = true) {
   const currentVersion = app.getVersion();
-  logInfo('Manual update check requested', {
-    currentVersion,
-    isPackaged: app.isPackaged,
-    feedURL: JSON.stringify(UPDATE_FEED),
-    appPath: app.getPath('exe'),
-  });
-
-  // Show checking status immediately
+  logInfo('Checking updates via GitHub API', { currentVersion });
   updateState(currentMainWindow, 'checking', '', 0);
 
-  autoUpdater.checkForUpdates().then((result) => {
-    logInfo('checkForUpdates result', {
-      updateInfo: result?.updateInfo ? {
-        version: result.updateInfo.version,
-        releaseDate: result.updateInfo.releaseDate,
-        files: result.updateInfo.files?.map(f => f.url),
-      } : 'no info',
-    });
-  }).catch((err) => {
-    updateCheckInProgress = false;
-    updateState(currentMainWindow, 'error', currentUpdateState.version, 0);
-    logError('Manual update check failed', err);
+  try {
+    const release = await checkGitHubReleaseDirect();
+    logInfo('GitHub API response', release);
 
-    // Show detailed error to user
-    const msg = `تعذر التحقق من التحديثات:\n${err.message}\n\nالإصدار الحالي: ${currentVersion}\nApp Packaged: ${app.isPackaged}`;
-    showErrorDialog('خطأ في التحديث', msg);
-  });
+    if (!release.version) {
+      updateState(currentMainWindow, 'error', '', 0);
+      if (showDialog) {
+        dialog.showMessageBox(currentMainWindow, {
+          type: 'warning',
+          title: 'تحقق التحديث',
+          message: 'لم يتم العثور على إصدارات منشورة على GitHub.',
+          buttons: ['حسناً'],
+        });
+      }
+      return;
+    }
+
+    const cmp = compareVersions(currentVersion, release.version);
+
+    if (cmp > 0) {
+      updateState(currentMainWindow, 'available', release.version, 0);
+      const setupAsset = release.assets.find(a => a.name.endsWith('.exe') && a.name.includes('Setup'));
+      
+      const message = [
+        `يتوفر إصدار جديد: ${release.version}`,
+        `الإصدار الحالي: ${currentVersion}`,
+        `تاريخ النشر: ${release.publishedAt ? new Date(release.publishedAt).toLocaleDateString('ar') : 'غير معروف'}`,
+        '',
+        setupAsset
+          ? `حجم الملف: ${(setupAsset.size / (1024 * 1024)).toFixed(1)} MB`
+          : 'لم يتم العثور على ملف التثبيت.',
+        '',
+        'هل تريد فتح صفحة التحميل؟',
+      ].join('\n');
+
+      const { response } = await dialog.showMessageBox(currentMainWindow, {
+        type: 'info',
+        title: 'تحديث متوفر',
+        message,
+        buttons: ['فتح صفحة التحميل', 'لاحقاً'],
+        defaultId: 0,
+        cancelId: 1,
+      });
+
+      if (response === 0) {
+        const url = setupAsset ? setupAsset.url : release.htmlUrl;
+        shell.openExternal(url);
+      }
+    } else {
+      updateState(currentMainWindow, 'not-available', '', 0);
+      if (showDialog) {
+        dialog.showMessageBox(currentMainWindow, {
+          type: 'info',
+          title: 'لا يوجد تحديث',
+          message: `أنت تستخدم أحدث إصدار (${currentVersion}).\n\nآخر إصدار على GitHub: ${release.version}`,
+          buttons: ['حسناً'],
+        });
+      }
+    }
+  } catch (err) {
+    updateCheckInProgress = false;
+    updateState(currentMainWindow, 'error', '', 0);
+    logError('GitHub API check failed', err);
+    if (showDialog) {
+      dialog.showMessageBox(currentMainWindow, {
+        type: 'error',
+        title: 'خطأ في التحقق',
+        message: `تعذر الاتصال بـ GitHub:\n${err.message}\n\nالإصدار الحالي: ${currentVersion}`,
+        buttons: ['حسناً'],
+      });
+    }
+  } finally {
+    updateCheckInProgress = false;
+  }
+}
+
+// ── Public API ──────────────────────────────────────────────────
+function checkForUpdates() {
+  if (updateCheckInProgress) return;
+  updateCheckInProgress = true;
+  updateState(currentMainWindow, 'checking', '', 0);
+  logInfo('Manual update check requested', { currentVersion: app.getVersion() });
+
+  if (autoUpdater) {
+    autoUpdater.checkForUpdates().catch((err) => {
+      logError('electron-updater check failed, trying GitHub API', err);
+      updateCheckInProgress = false;
+      checkViaGitHubAPI(true);
+    });
+  } else {
+    updateCheckInProgress = false;
+    checkViaGitHubAPI(true);
+  }
 }
 
 function checkForUpdatesSilent() {
-  if (!autoUpdater || updateCheckInProgress) return;
+  if (updateCheckInProgress) return;
 
-  updateCheckInProgress = true;
-  logInfo('Silent update check requested', { currentVersion: app.getVersion() });
-
-  autoUpdater.checkForUpdates().catch((err) => {
-    updateCheckInProgress = false;
-    updateState(currentMainWindow, 'idle', currentUpdateState.version, 0);
-    logError('Silent update check failed', err);
-  });
+  if (autoUpdater) {
+    updateCheckInProgress = true;
+    autoUpdater.checkForUpdates().catch((err) => {
+      updateCheckInProgress = false;
+      logError('Silent check failed, trying GitHub API silently', err);
+      checkViaGitHubAPI(false);
+    });
+  } else {
+    checkViaGitHubAPI(false);
+  }
 }
 
 function runUpdateAction() {
-  if (!autoUpdater) return;
-
-  if (currentUpdateState.status === 'downloaded') {
-    logInfo('Installing downloaded update', { version: currentUpdateState.version });
-    autoUpdater.quitAndInstall(false, true);
+  if (!autoUpdater) {
+    checkViaGitHubAPI(true);
     return;
   }
 
+  if (currentUpdateState.status === 'downloaded') {
+    autoUpdater.quitAndInstall(false, true);
+    return;
+  }
   if (currentUpdateState.status === 'available') {
     downloadAvailableUpdate();
     return;
   }
-
   if (currentUpdateState.status === 'downloading' || currentUpdateState.status === 'checking') {
     return;
   }
-
   checkForUpdates();
 }
 

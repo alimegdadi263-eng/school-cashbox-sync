@@ -145,6 +145,7 @@ export default function TeacherAbsenceTracker({ userId, schoolName }: Props) {
     if (!confirm("هل أنت متأكد من مسح جميع سجلات الغياب لبدء سنة جديدة؟")) return;
     saveRecords([]);
     toast({ title: "تم مسح سجلات الغياب - سنة جديدة" });
+  };
 
   const filtered = filterTeacher
     ? records.filter(r => r.teacherName === filterTeacher)

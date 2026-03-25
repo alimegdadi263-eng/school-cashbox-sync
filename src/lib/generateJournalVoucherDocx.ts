@@ -92,6 +92,7 @@ export async function generateJournalVoucherDocx(tx: Transaction, schoolName: st
         // Table header row 1
         new Table({
           width: { size: 100, type: WidthType.PERCENTAGE },
+          visuallyRightToLeft: true,
           rows: [
             new TableRow({ children: [
               makeCell("البيـــــــــــــــــــــان", { bold: true, width: 50, shading: "f0f0f0", alignment: AlignmentType.RIGHT }),
