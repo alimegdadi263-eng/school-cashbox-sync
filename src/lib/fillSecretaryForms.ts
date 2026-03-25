@@ -73,13 +73,7 @@ function c(text: string, opts?: { bold?: boolean; width?: number; shading?: stri
 }
 
 // page properties for single-page A4 portrait, tight margins
-const PAGE_BORDER = {
-  pageBorderTop: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
-  pageBorderBottom: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
-  pageBorderLeft: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
-  pageBorderRight: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
-};
-const PAGE_A4 = { size: { width: 12240, height: 15840 }, margin: { top: 500, bottom: 400, left: 700, right: 700 }, borders: PAGE_BORDER };
+const PAGE_A4 = { size: { width: 12240, height: 15840 }, margin: { top: 500, bottom: 400, left: 700, right: 700 } };
 
 // ═══════════════════════════════════════════════════════════════
 // 1. نموذج استجواب

@@ -42,13 +42,6 @@ const makeCell = (text: string, opts?: {
   });
 
 export async function generateMonthlySummaryDocx(state: FinanceState, selectedMonthIndex: number) {
-  const PAGE_BORDER = {
-    pageBorderTop: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
-    pageBorderBottom: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
-    pageBorderLeft: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
-    pageBorderRight: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
-  };
-
   const selectedMonth = ARABIC_MONTHS[selectedMonthIndex] || state.currentMonth;
 
   const allData = SUMMARY_ROWS.map(row => ({
@@ -158,7 +151,6 @@ export async function generateMonthlySummaryDocx(state: FinanceState, selectedMo
         page: {
           margin: { top: 500, bottom: 500, left: 500, right: 500 },
           size: { orientation: "landscape" as any },
-          borders: PAGE_BORDER,
         },
       },
       children: [

@@ -12,12 +12,6 @@ const FONT_NAME = "Traditional Arabic";
 const HEADER_BG = "2B3A55";
 const ACCENT_BG = "D4A84B";
 const ABSENT_BG = "C0392B";
-const PAGE_BORDER = {
-  pageBorderTop: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
-  pageBorderBottom: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
-  pageBorderLeft: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
-  pageBorderRight: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
-};
 
 interface DutyTeacher {
   name: string;
@@ -432,7 +426,7 @@ export async function exportDailyScheduleDocx(
   const doc = new Document({
     sections: [{
       properties: {
-        page: { size: { orientation: "landscape" as any }, borders: PAGE_BORDER },
+        page: { size: { orientation: "landscape" as any } },
       },
       children,
     }],
@@ -497,7 +491,7 @@ export async function exportDailyScheduleDocxInverted(
   const doc = new Document({
     sections: [{
       properties: {
-        page: { size: { orientation: "landscape" as any }, borders: PAGE_BORDER },
+        page: { size: { orientation: "landscape" as any } },
       },
       children,
     }],

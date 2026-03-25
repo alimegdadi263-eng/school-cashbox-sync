@@ -48,13 +48,6 @@ const makeCell = (text: string, opts?: { bold?: boolean; width?: number; colSpan
   });
 
 export async function generateJournalVoucherDocx(tx: Transaction, schoolName: string) {
-  const PAGE_BORDER = {
-    pageBorderTop: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
-    pageBorderBottom: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
-    pageBorderLeft: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
-    pageBorderRight: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
-  };
-
   const accounts = getAccountDetails(tx);
   const totals = getTotals(tx);
   const debitSplit = splitAmount(totals.debit);
@@ -76,7 +69,7 @@ export async function generateJournalVoucherDocx(tx: Transaction, schoolName: st
 
   const doc = new Document({
     sections: [{
-      properties: { page: { margin: { top: 720, bottom: 720, left: 720, right: 720 }, borders: PAGE_BORDER } },
+      properties: { page: { margin: { top: 720, bottom: 720, left: 720, right: 720 } } },
       children: [
         // Title
         new Paragraph({ alignment: AlignmentType.CENTER, bidirectional: true, spacing: { after: 200 }, children: [
@@ -87,12 +80,12 @@ export async function generateJournalVoucherDocx(tx: Transaction, schoolName: st
           new TextRun({ text: "المادة (          )", font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
         // الرقم والمركز
-        new Paragraph({ bidirectional: true, spacing: { after: 100 }, children: [
+        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, spacing: { after: 100 }, children: [
           new TextRun({ text: `الرقم: (${tx.referenceNumber || "      "})`, bold: true, font: "Traditional Arabic", size: 24, rightToLeft: true }),
           new TextRun({ text: `                    المركز: ${schoolName}`, font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
         // التاريخ والمدرسة
-        new Paragraph({ bidirectional: true, spacing: { after: 200 }, children: [
+        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, spacing: { after: 200 }, children: [
           new TextRun({ text: `التاريخ: ${tx.date}`, bold: true, font: "Traditional Arabic", size: 24, rightToLeft: true }),
           new TextRun({ text: `                    المدرسة: ${schoolName}`, font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
@@ -130,13 +123,13 @@ export async function generateJournalVoucherDocx(tx: Transaction, schoolName: st
           ],
         }),
         // Signature
-        new Paragraph({ spacing: { before: 600 }, bidirectional: true, children: [
+        new Paragraph({ spacing: { before: 600 }, alignment: AlignmentType.RIGHT, bidirectional: true, children: [
           new TextRun({ text: "مدير المدرسة:", bold: true, font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
-        new Paragraph({ bidirectional: true, children: [
+        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, children: [
           new TextRun({ text: `الاسم: ......................................`, font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
-        new Paragraph({ bidirectional: true, children: [
+        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, children: [
           new TextRun({ text: "التوقيع: ......................................", font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
       ],
