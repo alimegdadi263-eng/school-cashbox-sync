@@ -7,6 +7,7 @@ const { LanServer } = require('./lan-server.cjs');
 const { LanClient } = require('./lan-client.cjs');
 
 const isDev = !app.isPackaged;
+const versionStatePath = path.join(app.getPath('userData'), 'app-version.json');
 
 // Security: Disable hardware acceleration for security
 app.disableHardwareAcceleration();
@@ -42,6 +43,40 @@ function verifyIntegrity() {
 }
 
 // ── Main Window ──────────────────────────────────────────────────────────────
+async function clearDesktopCacheOnVersionChange() {
+  if (isDev) return;
+
+  const currentVersion = app.getVersion();
+  let previousVersion = null;
+
+  try {
+    if (fs.existsSync(versionStatePath)) {
+      const saved = JSON.parse(fs.readFileSync(versionStatePath, 'utf8'));
+      previousVersion = saved?.version || null;
+    }
+  } catch (error) {
+    console.warn('Failed to read saved app version:', error.message);
+  }
+
+  if (previousVersion && previousVersion !== currentVersion) {
+    try {
+      await session.defaultSession.clearCache();
+      await session.defaultSession.clearStorageData({
+        storages: ['serviceworkers', 'cachestorage'],
+      });
+      console.log(`Cleared desktop cache after update (${previousVersion} -> ${currentVersion})`);
+    } catch (error) {
+      console.warn('Failed to clear desktop cache after update:', error.message);
+    }
+  }
+
+  try {
+    fs.writeFileSync(versionStatePath, JSON.stringify({ version: currentVersion }), 'utf8');
+  } catch (error) {
+    console.warn('Failed to persist current app version:', error.message);
+  }
+}
+
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1400, height: 900, minWidth: 1100, minHeight: 700,
@@ -224,25 +259,27 @@ app.whenReady().then(() => {
     globalShortcut.register('CommandOrControl+U', () => {});
   }
 
-  const mainWindow = createWindow();
-  setupLanHandlers();
+  clearDesktopCacheOnVersionChange().finally(() => {
+    const mainWindow = createWindow();
+    setupLanHandlers();
 
-  if (!isDev) {
-    setupAutoUpdater(mainWindow);
-    setTimeout(() => checkForUpdatesSilent(), 5000);
-  }
+    if (!isDev) {
+      setupAutoUpdater(mainWindow);
+      setTimeout(() => checkForUpdatesSilent(), 5000);
+    }
 
-  ipcMain.handle('get-app-version', () => app.getVersion());
-  ipcMain.on('check-for-updates', () => {
-    if (isDev) { dialog.showMessageBox(mainWindow, { type: 'info', title: 'التحديث', message: 'التحديث التلقائي غير متوفر في وضع التطوير.', buttons: ['حسناً'] }); return; }
-    checkForUpdates();
+    ipcMain.handle('get-app-version', () => app.getVersion());
+    ipcMain.on('check-for-updates', () => {
+      if (isDev) { dialog.showMessageBox(mainWindow, { type: 'info', title: 'التحديث', message: 'التحديث التلقائي غير متوفر في وضع التطوير.', buttons: ['حسناً'] }); return; }
+      checkForUpdates();
+    });
+    ipcMain.on('run-update-action', () => {
+      if (isDev) { dialog.showMessageBox(mainWindow, { type: 'info', title: 'التحديث', message: 'التحديث التلقائي غير متوفر في وضع التطوير.', buttons: ['حسناً'] }); return; }
+      runUpdateAction();
+    });
+
+    app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
   });
-  ipcMain.on('run-update-action', () => {
-    if (isDev) { dialog.showMessageBox(mainWindow, { type: 'info', title: 'التحديث', message: 'التحديث التلقائي غير متوفر في وضع التطوير.', buttons: ['حسناً'] }); return; }
-    runUpdateAction();
-  });
-
-  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 
 app.on('window-all-closed', () => {

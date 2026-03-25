@@ -169,6 +169,7 @@ export async function generateMonthlySummaryDocx(state: FinanceState, selectedMo
         ]}),
         new Table({
           width: { size: 100, type: WidthType.PERCENTAGE },
+          visuallyRightToLeft: true,
           rows: [headerRow1, headerRow2, headerRow3, ...dataRows, totalRow],
         }),
         new Paragraph({ spacing: { before: 300 }, bidirectional: true, children: [
@@ -180,10 +181,10 @@ export async function generateMonthlySummaryDocx(state: FinanceState, selectedMo
         new Paragraph({ bidirectional: true, spacing: { after: 300 }, children: [
           new TextRun({ text: "2. يجب تحقيق المعادلة التالية: الرصيد في نهاية الشهر = الرصيد في بداية الشهر + المقبوض - المدفوع.", font: "Traditional Arabic", size: 20, rightToLeft: true }),
         ]}),
-        new Paragraph({ alignment: AlignmentType.LEFT, bidirectional: true, children: [
+        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, children: [
           new TextRun({ text: "مدير المدرسة", bold: true, font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
-        new Paragraph({ alignment: AlignmentType.LEFT, bidirectional: true, children: [
+        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, children: [
           new TextRun({ text: "ختم المدرسة", font: "Traditional Arabic", size: 22, rightToLeft: true }),
         ]}),
         new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, spacing: { before: 100 }, children: [

@@ -85,11 +85,12 @@ export async function exportAbsenceReportDocx(records: TeacherAbsenceRecord[], t
         new Paragraph({ children: [new ImageRun({ data: logo, transformation: { width: 70, height: 70 }, type: "png" })], alignment: AlignmentType.CENTER, spacing: { after: 40 }, bidirectional: true }),
         new Paragraph({ children: [t(schoolName, { bold: true, size: 32 })], alignment: AlignmentType.CENTER, bidirectional: true, spacing: { after: 100 } }),
         new Paragraph({ children: [t(teacherName ? `كشف غياب المعلم: ${teacherName}` : "كشف غياب المعلمين", { bold: true, size: 28 })], alignment: AlignmentType.CENTER, bidirectional: true, spacing: { after: 200 } }),
-        new Table({ width: { size: 9000, type: WidthType.DXA }, columnWidths: [600, 2200, 1600, 1200, 1200, 2200], rows: [...headerRows, ...dataRows] }),
+        new Table({ width: { size: 9000, type: WidthType.DXA }, columnWidths: [600, 2200, 1600, 1200, 1200, 2200], visuallyRightToLeft: true, rows: [...headerRows, ...dataRows] }),
         new Paragraph({ children: [], spacing: { before: 300 } }),
         new Paragraph({ children: [t("ملخص الغيابات", { bold: true, size: 26 })], alignment: AlignmentType.CENTER, bidirectional: true, spacing: { after: 100 } }),
         new Table({
           width: { size: 7700, type: WidthType.DXA }, columnWidths: [500, 2200, 1000, 1000, 1000, 1000, 1000],
+          visuallyRightToLeft: true,
           rows: [
             new TableRow({
               children: ["م", "اسم المعلم", "عرضية", "مرضية", "عدم صرف", "غير ذلك", "المجموع"].map((h, i) =>
