@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import AppLayout from "@/components/AppLayout";
+import TeacherAbsenceTracker from "@/components/TeacherAbsenceTracker";
 import { useAuth } from "@/hooks/useAuth";
 import { useFinance } from "@/context/FinanceContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -2019,9 +2020,10 @@ export default function SecretaryPage() {
         </div>
 
         <Tabs value={mainTab} onValueChange={setMainTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="inventory">📦 الجرد</TabsTrigger>
             <TabsTrigger value="disposal">🗑️ الإتلاف</TabsTrigger>
+            <TabsTrigger value="absence">📋 الغياب</TabsTrigger>
             <TabsTrigger value="forms">📄 النماذج</TabsTrigger>
           </TabsList>
 
@@ -2059,6 +2061,10 @@ export default function SecretaryPage() {
               member1={member1}
               member2={member2}
             />
+          </TabsContent>
+
+          <TabsContent value="absence" className="mt-4">
+            <TeacherAbsenceTracker userId={userId} schoolName={school} />
           </TabsContent>
 
           <TabsContent value="forms" className="mt-4">
