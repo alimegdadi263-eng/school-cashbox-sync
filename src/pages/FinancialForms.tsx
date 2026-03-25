@@ -315,7 +315,7 @@ export default function FinancialForms() {
         <h1 className="text-2xl font-bold text-foreground">المعاملات المالية</h1>
 
         {/* Form Type Selector */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {FORM_TYPES.map((ft) => (
             <button
               key={ft.id}
