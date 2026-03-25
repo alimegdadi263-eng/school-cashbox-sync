@@ -13,5 +13,3 @@ export interface TeacherAbsenceRecord {
 export const ABSENCE_TYPES: AbsenceType[] = ["عرضية", "مرضية", "عدم صرف", "غير ذلك"];
 
 export const ABSENCE_STORAGE_KEY = "teacher_absence_records";
-
-export const ABSENCE_STORAGE_KEY = "teacher_absence_records";
