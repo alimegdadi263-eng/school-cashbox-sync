@@ -65,6 +65,13 @@ function dataCell(text: string, center = true): TableCell {
 }
 
 export async function generateLocalPurchaseDocx(data: LocalPurchaseDocxData) {
+  const PAGE_BORDER = {
+    pageBorderTop: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
+    pageBorderBottom: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
+    pageBorderLeft: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
+    pageBorderRight: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
+  };
+
   let grandDinars = 0;
   let grandFils = 0;
   data.items.forEach((item) => {
@@ -166,6 +173,7 @@ export async function generateLocalPurchaseDocx(data: LocalPurchaseDocxData) {
         properties: {
           page: {
             margin: { top: 720, bottom: 720, left: 720, right: 720 },
+            borders: PAGE_BORDER,
           },
         },
         children: [

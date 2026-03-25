@@ -48,6 +48,13 @@ const makeCell = (text: string, opts?: { bold?: boolean; width?: number; colSpan
   });
 
 export async function generateJournalVoucherDocx(tx: Transaction, schoolName: string) {
+  const PAGE_BORDER = {
+    pageBorderTop: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
+    pageBorderBottom: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
+    pageBorderLeft: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
+    pageBorderRight: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
+  };
+
   const accounts = getAccountDetails(tx);
   const totals = getTotals(tx);
   const debitSplit = splitAmount(totals.debit);
@@ -69,7 +76,7 @@ export async function generateJournalVoucherDocx(tx: Transaction, schoolName: st
 
   const doc = new Document({
     sections: [{
-      properties: { page: { margin: { top: 720, bottom: 720, left: 720, right: 720 } } },
+      properties: { page: { margin: { top: 720, bottom: 720, left: 720, right: 720 }, borders: PAGE_BORDER } },
       children: [
         // Title
         new Paragraph({ alignment: AlignmentType.CENTER, bidirectional: true, spacing: { after: 200 }, children: [
