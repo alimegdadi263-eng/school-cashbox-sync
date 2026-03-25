@@ -23,27 +23,66 @@ const TimetableContext = createContext<TimetableContextType | null>(null);
 
 const STORAGE_KEY = "school_timetable_data";
 
+function getElectronLanHelper() {
+  return (window as any)?.electronAPI?.lan;
+}
+
+async function lanSyncSaveTimetable(data: any) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  const lan = getElectronLanHelper();
+  if (!lan) return;
+  try {
+    const conn = await lan.isConnected();
+    if (conn?.connected) {
+      await lan.setData(STORAGE_KEY, data);
+    }
+  } catch {}
+}
+
 export function TimetableProvider({ children }: { children: React.ReactNode }) {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [timetable, setTimetableState] = useState<ClassTimetable>({});
   const [periodsPerDay, setPeriodsPerDayState] = useState(7);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const data = JSON.parse(saved);
-        setTeachers(data.teachers || []);
-        setTimetableState(data.timetable || {});
-        setPeriodsPerDayState(data.periodsPerDay || 7);
+    const loadData = async () => {
+      const lan = getElectronLanHelper();
+      let loaded = false;
+      if (lan) {
+        try {
+          const conn = await lan.isConnected();
+          if (conn?.connected && conn?.mode === 'client') {
+            const result = await lan.getData(STORAGE_KEY);
+            if (result?.success && result.data) {
+              setTeachers(result.data.teachers || []);
+              setTimetableState(result.data.timetable || {});
+              setPeriodsPerDayState(result.data.periodsPerDay || 7);
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(result.data));
+              loaded = true;
+            }
+          }
+        } catch {}
       }
-    } catch (e) {
-      console.error("Failed to load timetable data", e);
-    }
+      if (!loaded) {
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          if (saved) {
+            const data = JSON.parse(saved);
+            setTeachers(data.teachers || []);
+            setTimetableState(data.timetable || {});
+            setPeriodsPerDayState(data.periodsPerDay || 7);
+          }
+        } catch (e) {
+          console.error("Failed to load timetable data", e);
+        }
+      }
+    };
+    loadData();
   }, []);
 
   const save = useCallback((t: Teacher[], tt: ClassTimetable, ppd: number) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ teachers: t, timetable: tt, periodsPerDay: ppd }));
+    const data = { teachers: t, timetable: tt, periodsPerDay: ppd };
+    lanSyncSaveTimetable(data);
   }, []);
 
   const addTeacher = (teacher: Teacher) => {
