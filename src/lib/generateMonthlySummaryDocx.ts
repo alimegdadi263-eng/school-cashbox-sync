@@ -109,7 +109,7 @@ export async function generateMonthlySummaryDocx(state: FinanceState, selectedMo
 
     return new TableRow({
       children: [
-        makeCell(row.label, { bold: true, alignment: AlignmentType.RIGHT, fontSize: 22 }),
+        makeCell(row.label, { bold: true, alignment: AlignmentType.LEFT, fontSize: 22 }),
         makeCell(openD.dinars), makeCell(openD.fils),
         makeCell(openC.dinars), makeCell(openC.fils),
         makeCell(durD.dinars), makeCell(durD.fils),
@@ -129,7 +129,7 @@ export async function generateMonthlySummaryDocx(state: FinanceState, selectedMo
 
   const totalRow = new TableRow({
     children: [
-      makeCell("المجموع", { bold: true, shading: "d9e2f3", alignment: AlignmentType.RIGHT, fontSize: 24 }),
+      makeCell("المجموع", { bold: true, shading: "d9e2f3", alignment: AlignmentType.LEFT, fontSize: 24 }),
       makeCell(tOpenD.dinars, { bold: true, shading: "d9e2f3" }),
       makeCell(tOpenD.fils, { bold: true, shading: "d9e2f3" }),
       makeCell(tOpenC.dinars, { bold: true, shading: "d9e2f3" }),
@@ -181,13 +181,13 @@ export async function generateMonthlySummaryDocx(state: FinanceState, selectedMo
         new Paragraph({ bidirectional: true, spacing: { after: 300 }, children: [
           new TextRun({ text: "2. يجب تحقيق المعادلة التالية: الرصيد في نهاية الشهر = الرصيد في بداية الشهر + المقبوض - المدفوع.", font: "Traditional Arabic", size: 20, rightToLeft: true }),
         ]}),
-        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, children: [
+        new Paragraph({ alignment: AlignmentType.LEFT, bidirectional: true, children: [
           new TextRun({ text: "مدير المدرسة", bold: true, font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
-        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, children: [
+        new Paragraph({ alignment: AlignmentType.LEFT, bidirectional: true, children: [
           new TextRun({ text: "ختم المدرسة", font: "Traditional Arabic", size: 22, rightToLeft: true }),
         ]}),
-        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, spacing: { before: 100 }, children: [
+        new Paragraph({ alignment: AlignmentType.LEFT, bidirectional: true, spacing: { before: 100 }, children: [
           new TextRun({ text: "Form# QF72-3-11 rev.a", font: "Traditional Arabic", size: 16, rightToLeft: false }),
         ]}),
       ],
