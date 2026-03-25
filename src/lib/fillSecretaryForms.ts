@@ -206,7 +206,7 @@ export async function fillCasualLeaveForm(data: CasualLeaveData) {
     ],
     width: { size: 100, type: WidthType.PERCENTAGE },
     visuallyRightToLeft: true,
-
+  });
   const leaveHeader = new Table({
     rows: [new TableRow({ children: [
       c("بيانات الإجازة (تعبأ من قبل الموظف المعني في الوحدة التنظيمية المعنية بالموارد البشرية والتطوير المؤسسي)", { bold: true, shading: H, size: S }),
