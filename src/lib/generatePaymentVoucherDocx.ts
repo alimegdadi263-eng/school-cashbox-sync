@@ -85,20 +85,20 @@ export async function generatePaymentVoucherDocx(tx: Transaction, schoolName: st
           new TextRun({ text: "مستند صرف", bold: true, font: "Traditional Arabic", size: 36, rightToLeft: true }),
         ]}),
         // المادة ورقم الصرف
-        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, spacing: { after: 100 }, children: [
+        new Paragraph({ alignment: AlignmentType.LEFT, bidirectional: true, spacing: { after: 100 }, children: [
           new TextRun({ text: "المادة: (          )", font: "Traditional Arabic", size: 24, rightToLeft: true }),
           new TextRun({ text: `              رقم الصرف: (${tx.referenceNumber || "      "})`, font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
         // التاريخ
-        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, spacing: { after: 100 }, children: [
+        new Paragraph({ alignment: AlignmentType.LEFT, bidirectional: true, spacing: { after: 100 }, children: [
           new TextRun({ text: `التاريخ: ${tx.date}`, font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
         // المدرسة
-        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, spacing: { after: 100 }, children: [
+        new Paragraph({ alignment: AlignmentType.LEFT, bidirectional: true, spacing: { after: 100 }, children: [
           new TextRun({ text: `مدرسة: ${schoolName}`, bold: true, font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
         // مطلوب إلى
-        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, spacing: { after: 200 }, children: [
+        new Paragraph({ alignment: AlignmentType.LEFT, bidirectional: true, spacing: { after: 200 }, children: [
           new TextRun({ text: `مطلوب إلى: ${requestedTo}`, font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
         // Table
