@@ -80,12 +80,12 @@ export async function generateJournalVoucherDocx(tx: Transaction, schoolName: st
           new TextRun({ text: "المادة (          )", font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
         // الرقم والمركز
-        new Paragraph({ bidirectional: true, spacing: { after: 100 }, children: [
+        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, spacing: { after: 100 }, children: [
           new TextRun({ text: `الرقم: (${tx.referenceNumber || "      "})`, bold: true, font: "Traditional Arabic", size: 24, rightToLeft: true }),
           new TextRun({ text: `                    المركز: ${schoolName}`, font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
         // التاريخ والمدرسة
-        new Paragraph({ bidirectional: true, spacing: { after: 200 }, children: [
+        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, spacing: { after: 200 }, children: [
           new TextRun({ text: `التاريخ: ${tx.date}`, bold: true, font: "Traditional Arabic", size: 24, rightToLeft: true }),
           new TextRun({ text: `                    المدرسة: ${schoolName}`, font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
@@ -123,13 +123,13 @@ export async function generateJournalVoucherDocx(tx: Transaction, schoolName: st
           ],
         }),
         // Signature
-        new Paragraph({ spacing: { before: 600 }, bidirectional: true, children: [
+        new Paragraph({ spacing: { before: 600 }, alignment: AlignmentType.RIGHT, bidirectional: true, children: [
           new TextRun({ text: "مدير المدرسة:", bold: true, font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
-        new Paragraph({ bidirectional: true, children: [
+        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, children: [
           new TextRun({ text: `الاسم: ......................................`, font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
-        new Paragraph({ bidirectional: true, children: [
+        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, children: [
           new TextRun({ text: "التوقيع: ......................................", font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
       ],

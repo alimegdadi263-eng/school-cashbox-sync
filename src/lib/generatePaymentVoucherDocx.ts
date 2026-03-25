@@ -85,20 +85,20 @@ export async function generatePaymentVoucherDocx(tx: Transaction, schoolName: st
           new TextRun({ text: "مستند صرف", bold: true, font: "Traditional Arabic", size: 36, rightToLeft: true }),
         ]}),
         // المادة ورقم الصرف
-        new Paragraph({ bidirectional: true, spacing: { after: 100 }, children: [
+        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, spacing: { after: 100 }, children: [
           new TextRun({ text: "المادة: (          )", font: "Traditional Arabic", size: 24, rightToLeft: true }),
           new TextRun({ text: `              رقم الصرف: (${tx.referenceNumber || "      "})`, font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
         // التاريخ
-        new Paragraph({ bidirectional: true, spacing: { after: 100 }, children: [
+        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, spacing: { after: 100 }, children: [
           new TextRun({ text: `التاريخ: ${tx.date}`, font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
         // المدرسة
-        new Paragraph({ bidirectional: true, spacing: { after: 100 }, children: [
+        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, spacing: { after: 100 }, children: [
           new TextRun({ text: `مدرسة: ${schoolName}`, bold: true, font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
         // مطلوب إلى
-        new Paragraph({ bidirectional: true, spacing: { after: 200 }, children: [
+        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, spacing: { after: 200 }, children: [
           new TextRun({ text: `مطلوب إلى: ${requestedTo}`, font: "Traditional Arabic", size: 24, rightToLeft: true }),
         ]}),
         // Table
@@ -125,7 +125,7 @@ export async function generatePaymentVoucherDocx(tx: Transaction, schoolName: st
           ],
         }),
         // Certification
-        new Paragraph({ spacing: { before: 300 }, bidirectional: true, children: [
+        new Paragraph({ spacing: { before: 300 }, alignment: AlignmentType.RIGHT, bidirectional: true, children: [
           new TextRun({ text: "أصادق على صحة البيان المذكور أعلاه وأشهد أن الاتفاق قد تم وفقاً للنظام وتعليماته.", bold: true, font: "Traditional Arabic", size: 22, rightToLeft: true }),
         ]}),
         // Signatures - 3 columns
@@ -155,10 +155,10 @@ export async function generatePaymentVoucherDocx(tx: Transaction, schoolName: st
           ],
         }),
         // Check/Cash
-        new Paragraph({ spacing: { before: 300 }, bidirectional: true, children: [
+        new Paragraph({ spacing: { before: 300 }, alignment: AlignmentType.RIGHT, bidirectional: true, children: [
           new TextRun({ text: `رقم التحويل (الشيك): (${tx.checkNumber || "          "})     تاريخه:     /     /`, font: "Traditional Arabic", size: 22, rightToLeft: true }),
         ]}),
-        new Paragraph({ bidirectional: true, children: [
+        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, children: [
           new TextRun({ text: "الدفع نقداً", font: "Traditional Arabic", size: 22, rightToLeft: true }),
         ]}),
       ],
