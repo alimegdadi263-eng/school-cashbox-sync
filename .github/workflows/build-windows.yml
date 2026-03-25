@@ -35,17 +35,8 @@ jobs:
           echo "VITE_SUPABASE_PUBLISHABLE_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}" >> .env
           echo "VITE_SUPABASE_PROJECT_ID=${{ secrets.VITE_SUPABASE_PROJECT_ID }}" >> .env
 
-      - name: Build Vite (React)
-        run: npm run build:electron
-
-      - name: Obfuscate JS bundles
-        run: node electron/scripts/obfuscate.cjs
-
-      - name: Generate integrity manifest
-        run: node electron/scripts/generate-integrity.cjs
-
       - name: Build Electron Windows EXE
-        run: npx electron-builder --win --config electron-builder.yml --publish never
+        run: npm run electron:build
 
       - name: Upload Windows release files
         uses: actions/upload-artifact@v4
