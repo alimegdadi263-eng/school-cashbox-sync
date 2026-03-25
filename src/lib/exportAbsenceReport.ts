@@ -59,19 +59,19 @@ export async function exportAbsenceReportDocx(records: TeacherAbsenceRecord[], t
   );
 
   // Summary
-  const summary: Record<string, { عرضية: number; مرضية: number; "غير ذلك": number; total: number }> = {};
+  const summary: Record<string, { عرضية: number; مرضية: number; "عدم صرف": number; "غير ذلك": number; total: number }> = {};
   for (const rec of filtered) {
-    if (!summary[rec.teacherName]) summary[rec.teacherName] = { عرضية: 0, مرضية: 0, "غير ذلك": 0, total: 0 };
-    summary[rec.teacherName][rec.absenceType]++;
+    if (!summary[rec.teacherName]) summary[rec.teacherName] = { عرضية: 0, مرضية: 0, "عدم صرف": 0, "غير ذلك": 0, total: 0 };
+    if ((summary[rec.teacherName] as any)[rec.absenceType] !== undefined) (summary[rec.teacherName] as any)[rec.absenceType]++;
     summary[rec.teacherName].total++;
   }
 
   const summaryRows = Object.entries(summary).map(([name, counts], idx) =>
     new TableRow({
-      children: [String(idx + 1), name, String(counts.عرضية), String(counts.مرضية), String(counts["غير ذلك"]), String(counts.total)].map((val, i) =>
+      children: [String(idx + 1), name, String(counts.عرضية), String(counts.مرضية), String(counts["عدم صرف"]), String(counts["غير ذلك"]), String(counts.total)].map((val, i) =>
         new TableCell({
           borders: cellBorders(),
-          width: { size: [600, 2400, 1200, 1200, 1200, 1200][i], type: WidthType.DXA },
+          width: { size: [500, 2200, 1000, 1000, 1000, 1000, 1000][i], type: WidthType.DXA },
           children: [new Paragraph({ children: [t(val, { size: 22 })], alignment: AlignmentType.CENTER, bidirectional: true })],
         })
       ),
@@ -89,13 +89,13 @@ export async function exportAbsenceReportDocx(records: TeacherAbsenceRecord[], t
         new Paragraph({ children: [], spacing: { before: 300 } }),
         new Paragraph({ children: [t("ملخص الغيابات", { bold: true, size: 26 })], alignment: AlignmentType.CENTER, bidirectional: true, spacing: { after: 100 } }),
         new Table({
-          width: { size: 7800, type: WidthType.DXA }, columnWidths: [600, 2400, 1200, 1200, 1200, 1200],
+          width: { size: 7700, type: WidthType.DXA }, columnWidths: [500, 2200, 1000, 1000, 1000, 1000, 1000],
           rows: [
             new TableRow({
-              children: ["م", "اسم المعلم", "عرضية", "مرضية", "غير ذلك", "المجموع"].map((h, i) =>
+              children: ["م", "اسم المعلم", "عرضية", "مرضية", "عدم صرف", "غير ذلك", "المجموع"].map((h, i) =>
                 new TableCell({
                   borders: cellBorders(),
-                  width: { size: [600, 2400, 1200, 1200, 1200, 1200][i], type: WidthType.DXA },
+                  width: { size: [500, 2200, 1000, 1000, 1000, 1000, 1000][i], type: WidthType.DXA },
                   shading: { fill: "E8D5F0", type: "clear" as any },
                   children: [new Paragraph({ children: [t(h, { bold: true, size: 22 })], alignment: AlignmentType.CENTER, bidirectional: true })],
                 })
@@ -156,14 +156,14 @@ export async function exportAbsenceReportExcel(records: TeacherAbsenceRecord[], 
   const ws2 = wb.addWorksheet("ملخص");
   ws2.views = [{ rightToLeft: true }];
 
-  const summary: Record<string, { عرضية: number; مرضية: number; "غير ذلك": number; total: number }> = {};
+  const summary: Record<string, { عرضية: number; مرضية: number; "عدم صرف": number; "غير ذلك": number; total: number }> = {};
   for (const rec of filtered) {
-    if (!summary[rec.teacherName]) summary[rec.teacherName] = { عرضية: 0, مرضية: 0, "غير ذلك": 0, total: 0 };
-    summary[rec.teacherName][rec.absenceType]++;
+    if (!summary[rec.teacherName]) summary[rec.teacherName] = { عرضية: 0, مرضية: 0, "عدم صرف": 0, "غير ذلك": 0, total: 0 };
+    if ((summary[rec.teacherName] as any)[rec.absenceType] !== undefined) (summary[rec.teacherName] as any)[rec.absenceType]++;
     summary[rec.teacherName].total++;
   }
 
-  const sHeaders = ["م", "اسم المعلم", "عرضية", "مرضية", "غير ذلك", "المجموع"];
+  const sHeaders = ["م", "اسم المعلم", "عرضية", "مرضية", "عدم صرف", "غير ذلك", "المجموع"];
   const sHeaderRow = ws2.addRow(sHeaders);
   sHeaderRow.eachCell(c => {
     c.font = { name: FONT, size: 12, bold: true };
@@ -173,7 +173,7 @@ export async function exportAbsenceReportExcel(records: TeacherAbsenceRecord[], 
   });
 
   Object.entries(summary).forEach(([name, counts], idx) => {
-    const row = ws2.addRow([idx + 1, name, counts.عرضية, counts.مرضية, counts["غير ذلك"], counts.total]);
+    const row = ws2.addRow([idx + 1, name, counts.عرضية, counts.مرضية, counts["عدم صرف"], counts["غير ذلك"], counts.total]);
     row.eachCell(c => {
       c.font = { name: FONT, size: 11 };
       c.alignment = { horizontal: "center", vertical: "middle" };
@@ -181,7 +181,7 @@ export async function exportAbsenceReportExcel(records: TeacherAbsenceRecord[], 
     });
   });
 
-  ws2.columns = [{ width: 6 }, { width: 25 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 10 }];
+  ws2.columns = [{ width: 6 }, { width: 25 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 10 }];
 
   const buffer = await wb.xlsx.writeBuffer();
   saveAs(new Blob([buffer]), `كشف_غياب_${teacherName || "الكل"}.xlsx`);
