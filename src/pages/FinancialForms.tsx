@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { FileDown, FileText, ClipboardList, ShoppingCart, CalendarIcon, Plus, Trash2, Save, History } from "lucide-react";
+import { FileDown, FileText, ClipboardList, ShoppingCart, CalendarIcon, Plus, Trash2, Save, History, Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   fillFinancialClaim,
@@ -20,14 +20,16 @@ import {
   type PurchaseItem,
 } from "@/lib/fillFinancialForms";
 import { generateLocalPurchaseDocx } from "@/lib/generateLocalPurchaseDocx";
+import { generateAdvanceInvoicesDocx, type AdvanceInvoice } from "@/lib/generateAdvanceInvoicesDocx";
 
 
-type FormType = "claim" | "assignment" | "purchase";
+type FormType = "claim" | "assignment" | "purchase" | "invoices";
 
 const FORM_TYPES: { id: FormType; label: string; icon: typeof FileText; color: string }[] = [
   { id: "claim", label: "مطالبة مالية", icon: FileText, color: "border-emerald-500 bg-emerald-500/10 text-emerald-600" },
   { id: "assignment", label: "قرار تكليف", icon: ClipboardList, color: "border-blue-500 bg-blue-500/10 text-blue-600" },
   { id: "purchase", label: "طلب مشترى محلي", icon: ShoppingCart, color: "border-orange-500 bg-orange-500/10 text-orange-600" },
+  { id: "invoices", label: "كشف فواتير السلفة", icon: Receipt, color: "border-purple-500 bg-purple-500/10 text-purple-600" },
 ];
 
 interface SavedPurchaseOrder {
