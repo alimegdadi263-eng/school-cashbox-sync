@@ -113,7 +113,7 @@ export async function fillInterrogationForm(data: InterrogationData) {
       ]}),
     ],
     width: { size: 100, type: WidthType.PERCENTAGE },
-  });
+    visuallyRightToLeft: true,
 
   const doc = new Document({
     sections: [{
@@ -204,14 +204,14 @@ export async function fillCasualLeaveForm(data: CasualLeaveData) {
       ]}),
     ],
     width: { size: 100, type: WidthType.PERCENTAGE },
-  });
+    visuallyRightToLeft: true,
 
   const leaveHeader = new Table({
     rows: [new TableRow({ children: [
       c("بيانات الإجازة (تعبأ من قبل الموظف المعني في الوحدة التنظيمية المعنية بالموارد البشرية والتطوير المؤسسي)", { bold: true, shading: H, size: S }),
     ]})],
     width: { size: 100, type: WidthType.PERCENTAGE },
-  });
+    visuallyRightToLeft: true,
 
   const doc = new Document({
     sections: [{
@@ -240,7 +240,7 @@ export async function fillCasualLeaveForm(data: CasualLeaveData) {
         new Table({
           rows: [new TableRow({ children: [c("قرار الأمين العام", { bold: true, shading: H, size: M })] })],
           width: { size: 100, type: WidthType.PERCENTAGE },
-        }),
+          visuallyRightToLeft: true,
         p([t(dots(80), { size: S })], AlignmentType.RIGHT),
         p([t(dots(80), { size: S })], AlignmentType.RIGHT),
         p([t(dots(80), { size: S })], AlignmentType.RIGHT),
@@ -408,9 +408,10 @@ export async function exportInventoryCustodyDocx(data: InventoryCustodyData) {
       dataRows.push(new TableRow({ children: Array(11).fill(null).map(() => c("")) }));
     }
 
-    const table = new Table({
+     const table = new Table({
       rows: [headerRow, subHeaderRow, ...dataRows],
       width: { size: 100, type: WidthType.PERCENTAGE },
+      visuallyRightToLeft: true,
     });
 
     const pageLabel = totalPages > 1 ? ` - صفحة ${pageNum} من ${totalPages}` : "";
@@ -455,7 +456,7 @@ export async function exportInventoryCustodyDocx(data: InventoryCustodyData) {
           ]}),
         ],
         width: { size: 100, type: WidthType.PERCENTAGE },
-      }),
+        visuallyRightToLeft: true,
       p([t("Form#QF72-4-24 rev.a", { size: 14 })], AlignmentType.LEFT),
     ];
   }
@@ -578,6 +579,7 @@ export async function exportDisposalDocx(data: DisposalDocxData) {
     const table = new Table({
       rows: [headerRow, subHeaderRow, ...dataRows],
       width: { size: 100, type: WidthType.PERCENTAGE },
+      visuallyRightToLeft: true,
     });
 
     const pageLabel = totalPages > 1 ? ` - صفحة ${pageNum} من ${totalPages}` : "";
@@ -624,7 +626,7 @@ export async function exportDisposalDocx(data: DisposalDocxData) {
           ]}),
         ],
         width: { size: 100, type: WidthType.PERCENTAGE },
-      }),
+        visuallyRightToLeft: true,
       gap(5),
       p([t("ملاحظة: تنظم قائمة لكل سجل على حدة على غرار هذا النموذج وعلى أربع نسخ", { size: 14 })], AlignmentType.RIGHT),
       p([t("Form # QF72-4-43 rev.a", { size: 14 })], AlignmentType.LEFT),
