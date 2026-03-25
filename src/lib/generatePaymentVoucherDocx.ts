@@ -58,7 +58,7 @@ export async function generatePaymentVoucherDocx(tx: Transaction, schoolName: st
   const detailRows = credits.map(c => {
     const s = splitAmount(c.amount);
     return new TableRow({ children: [
-      makeCell(`${c.label} - ${tx.description}`, { alignment: AlignmentType.RIGHT }),
+      makeCell(`${c.label} - ${tx.description}`, { alignment: AlignmentType.LEFT }),
       makeCell(s.dinars),
       makeCell(s.fils),
     ]});
@@ -67,7 +67,7 @@ export async function generatePaymentVoucherDocx(tx: Transaction, schoolName: st
   // Add empty rows to match template
   while (detailRows.length < 3) {
     detailRows.push(new TableRow({ children: [
-      makeCell("", { alignment: AlignmentType.RIGHT }),
+      makeCell("", { alignment: AlignmentType.LEFT }),
       makeCell(""),
       makeCell(""),
     ]}));
@@ -107,7 +107,7 @@ export async function generatePaymentVoucherDocx(tx: Transaction, schoolName: st
           visuallyRightToLeft: true,
           rows: [
             new TableRow({ children: [
-              makeCell("تفاصـــــــــــــيل الدفعـــــــــــة", { bold: true, width: 60, shading: "f0f0f0", alignment: AlignmentType.RIGHT }),
+              makeCell("تفاصـــــــــــــيل الدفعـــــــــــة", { bold: true, width: 60, shading: "f0f0f0", alignment: AlignmentType.LEFT }),
               makeCell("المبلغ", { bold: true, colSpan: 2, shading: "f0f0f0" }),
             ]}),
             new TableRow({ children: [
@@ -118,14 +118,14 @@ export async function generatePaymentVoucherDocx(tx: Transaction, schoolName: st
             ...detailRows,
             // Total row
             new TableRow({ children: [
-              makeCell("المجموع", { bold: true, alignment: AlignmentType.RIGHT, shading: "e8e8e8" }),
+              makeCell("المجموع", { bold: true, alignment: AlignmentType.LEFT, shading: "e8e8e8" }),
               makeCell(totalSplit.dinars, { bold: true, shading: "e8e8e8" }),
               makeCell(totalSplit.fils, { bold: true, shading: "e8e8e8" }),
             ]}),
           ],
         }),
         // Certification
-        new Paragraph({ spacing: { before: 300 }, alignment: AlignmentType.RIGHT, bidirectional: true, children: [
+        new Paragraph({ spacing: { before: 300 }, alignment: AlignmentType.LEFT, bidirectional: true, children: [
           new TextRun({ text: "أصادق على صحة البيان المذكور أعلاه وأشهد أن الاتفاق قد تم وفقاً للنظام وتعليماته.", bold: true, font: "Traditional Arabic", size: 22, rightToLeft: true }),
         ]}),
         // Signatures - 3 columns
@@ -155,10 +155,10 @@ export async function generatePaymentVoucherDocx(tx: Transaction, schoolName: st
           ],
         }),
         // Check/Cash
-        new Paragraph({ spacing: { before: 300 }, alignment: AlignmentType.RIGHT, bidirectional: true, children: [
+        new Paragraph({ spacing: { before: 300 }, alignment: AlignmentType.LEFT, bidirectional: true, children: [
           new TextRun({ text: `رقم التحويل (الشيك): (${tx.checkNumber || "          "})     تاريخه:     /     /`, font: "Traditional Arabic", size: 22, rightToLeft: true }),
         ]}),
-        new Paragraph({ alignment: AlignmentType.RIGHT, bidirectional: true, children: [
+        new Paragraph({ alignment: AlignmentType.LEFT, bidirectional: true, children: [
           new TextRun({ text: "الدفع نقداً", font: "Traditional Arabic", size: 22, rightToLeft: true }),
         ]}),
       ],
