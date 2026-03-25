@@ -29,8 +29,6 @@ const cellBorders = {
   right: { style: BorderStyle.SINGLE, size: 1 },
 };
 
-const makeCell = (text: string, opts?: { bold?: boolean; width?: number; colSpan?: number; alignment?: typeof AlignmentType[keyof typeof AlignmentType]; shading?: string }) =>
-
 const PAGE_BORDER = {
   pageBorderTop: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
   pageBorderBottom: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
@@ -38,7 +36,7 @@ const PAGE_BORDER = {
   pageBorderRight: { style: BorderStyle.SINGLE, size: 6, color: "2B3A55", space: 24 },
 };
 
-const makeCell2 = (text: string, opts?: { bold?: boolean; width?: number; colSpan?: number; alignment?: typeof AlignmentType[keyof typeof AlignmentType]; shading?: string }) =>
+const makeCell = (text: string, opts?: { bold?: boolean; width?: number; colSpan?: number; alignment?: typeof AlignmentType[keyof typeof AlignmentType]; shading?: string }) =>
   new TableCell({
     children: [new Paragraph({
       alignment: opts?.alignment || AlignmentType.CENTER,
