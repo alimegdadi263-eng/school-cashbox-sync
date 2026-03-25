@@ -38,13 +38,27 @@ function t(text: string, opts?: { bold?: boolean; size?: number; underline?: boo
   });
 }
 
-function p(runs: TextRun[], align: typeof AlignmentType[keyof typeof AlignmentType] = AlignmentType.RIGHT, sp?: { before?: number; after?: number }): Paragraph {
+function p(runs: TextRun[], align: typeof AlignmentType[keyof typeof AlignmentType] = AlignmentType.LEFT, sp?: { before?: number; after?: number }): Paragraph {
   return new Paragraph({
     children: runs,
     alignment: align,
     bidirectional: true,
     spacing: { before: sp?.before ?? 30, after: sp?.after ?? 30 },
   });
+}
+
+function toHijri(dateStr?: string): string {
+  try {
+    const date = dateStr ? new Date(dateStr) : new Date();
+    if (isNaN(date.getTime())) return "";
+    return new Intl.DateTimeFormat("ar-SA-u-ca-islamic", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(date);
+  } catch {
+    return "";
+  }
 }
 
 function gap(size = 30): Paragraph {
@@ -284,9 +298,9 @@ export async function fillNoPaymentForm(data: NoPaymentData) {
         gap(20),
         p([t("━".repeat(70), { size: 14 })], AlignmentType.CENTER),
         gap(20),
-        p([t(`الرقم:`, { size: M })], AlignmentType.RIGHT),
-        p([t(`التاريخ: ${data.date || ""}`, { size: M })], AlignmentType.RIGHT),
-        p([t(`الموافق:`, { size: M })], AlignmentType.RIGHT),
+        p([t(`الرقم:`, { size: M })]),
+        p([t(`التاريخ: ${data.date || ""}`, { size: M })]),
+        p([t(`الموافق: ${toHijri(data.date)}`, { size: M })]),
         gap(40),
         p([t(`السيد / ${data.employeeName}`, { bold: true, size: L })], AlignmentType.CENTER),
         p([t(`المعلم في ${data.school}`, { bold: true, size: M })], AlignmentType.CENTER),
@@ -294,17 +308,17 @@ export async function fillNoPaymentForm(data: NoPaymentData) {
         gap(30),
         p([t("السلام عليكم ورحمة الله وبركاته   ،،،", { size: M })], AlignmentType.CENTER),
         gap(30),
-        p([t(`إشارة إلى جوابك المؤرخ    /    / رقم              ، واستناداً إلى أحكام المادة (22) من نظام الخدمة المدنية لسنة 2020 وتعديلاته ودلالة المادة (143).`, { size: S })], AlignmentType.RIGHT),
-        p([t(`وبموجب الصلاحيات المفوضة الى بكتاب وزير التربية والتعليم رقم 1/70/7886 تاريخ 10/2/2020.`, { size: S })], AlignmentType.RIGHT),
-        p([t(`قررت عدم صرف راتبك عن يوم / الأيام  ${data.reason || dots(40)} بسبب تغيبك عن العمل دون إجازة قانونية أو عذر مشروع بعد انتهاء اجازتك مباشرة.`, { bold: true, size: M })], AlignmentType.RIGHT),
+        p([t(`إشارة إلى جوابك المؤرخ    /    / رقم              ، واستناداً إلى أحكام المادة (22) من نظام الخدمة المدنية لسنة 2020 وتعديلاته ودلالة المادة (143).`, { size: S })]),
+        p([t(`وبموجب الصلاحيات المفوضة الى بكتاب وزير التربية والتعليم رقم 1/70/7886 تاريخ 10/2/2020.`, { size: S })]),
+        p([t(`قررت عدم صرف راتبك عن يوم / الأيام  ${data.reason || dots(40)} بسبب تغيبك عن العمل دون إجازة قانونية أو عذر مشروع بعد انتهاء اجازتك مباشرة.`, { bold: true, size: M })]),
         gap(60),
         p([t("وتفضلوا بقبول فائق الاحترام", { bold: true, size: M })], AlignmentType.CENTER),
         gap(60),
-        p([t("مدير المدرسة", { bold: true, size: M })], AlignmentType.RIGHT),
-        p([t(data.directorName, { bold: true, size: M })], AlignmentType.RIGHT),
+        p([t("مدير المدرسة", { bold: true, size: M })]),
+        p([t(data.directorName, { bold: true, size: M })]),
         gap(150),
-        p([t(`نسخة / مدير التربية والتعليم ${data.directorate || "للواءي الطيبة والوسطية"}/محافظة اربد`, { bold: true, size: S })], AlignmentType.RIGHT),
-        p([t("نسخة/للملف", { bold: true, size: S })], AlignmentType.RIGHT),
+        p([t(`نسخة / مدير التربية والتعليم ${data.directorate || "للواءي الطيبة والوسطية"}/محافظة اربد`, { bold: true, size: S })]),
+        p([t("نسخة/للملف", { bold: true, size: S })]),
       ],
     }],
   });
