@@ -18,7 +18,7 @@ function t(text: string, opts?: { bold?: boolean; size?: number }): TextRun {
 }
 
 function cellBorders() {
-  const b = { style: BorderStyle.SINGLE as const, size: 1, color: "000000" };
+  const b = { style: BorderStyle.SINGLE, size: 1, color: "000000" };
   return { top: b, bottom: b, left: b, right: b };
 }
 
