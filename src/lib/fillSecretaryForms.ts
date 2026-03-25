@@ -47,10 +47,34 @@ function p(runs: TextRun[], align: typeof AlignmentType[keyof typeof AlignmentTy
   });
 }
 
+function parseGregorianDate(dateStr?: string): Date | null {
+  if (!dateStr) return new Date();
+
+  const normalized = dateStr.trim();
+  const direct = new Date(normalized);
+  if (!isNaN(direct.getTime())) return direct;
+
+  const slashOrDash = normalized.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (slashOrDash) {
+    const [, day, month, year] = slashOrDash;
+    const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+
+  const ymd = normalized.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  if (ymd) {
+    const [, year, month, day] = ymd;
+    const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+
+  return null;
+}
+
 function toHijri(dateStr?: string): string {
   try {
-    const date = dateStr ? new Date(dateStr) : new Date();
-    if (isNaN(date.getTime())) return "";
+    const date = parseGregorianDate(dateStr);
+    if (!date || isNaN(date.getTime())) return "";
     return new Intl.DateTimeFormat("ar-SA-u-ca-islamic", {
       day: "numeric",
       month: "long",
