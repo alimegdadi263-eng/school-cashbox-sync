@@ -1752,7 +1752,7 @@ function DisposalSection({
 }
 
 // ─── Admin Forms Section ───
-function AdminFormsSection({ schoolName, directorName }: { schoolName: string; directorName: string }) {
+function AdminFormsSection({ schoolName, directorName, userId }: { schoolName: string; directorName: string; userId: string }) {
   const { toast } = useToast();
 
   // Interrogation form
@@ -1761,6 +1761,8 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
   const [interDetails, setInterDetails] = useState("");
   const [interJobTitle, setInterJobTitle] = useState("");
   const [interCategory, setInterCategory] = useState("");
+  const [interDecision, setInterDecision] = useState<string>("عرضية");
+  const [interAbsenceDate, setInterAbsenceDate] = useState<Date | undefined>();
 
   // Casual leave
   const [leaveEmployeeName, setLeaveEmployeeName] = useState("");
@@ -1796,6 +1798,27 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
         directorName,
       });
       toast({ title: "تم تنزيل نموذج الاستجواب" });
+
+      // Auto-save to absence tracker
+      if (interAbsenceDate) {
+        const DAYS_AR = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+        const absenceStorageKey = `teacher_absence_records_${userId}`;
+        const absenceRecord = {
+          id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+          teacherName: interEmployeeName.trim(),
+          date: format(interAbsenceDate, "yyyy/MM/dd"),
+          dayName: DAYS_AR[interAbsenceDate.getDay()],
+          absenceType: interDecision,
+          notes: interSubject || "من نموذج الاستجواب",
+          source: "interrogation",
+        };
+        try {
+          const existing = JSON.parse(localStorage.getItem(absenceStorageKey) || "[]");
+          const updated = [absenceRecord, ...existing];
+          await lanSyncSave(absenceStorageKey, updated);
+          toast({ title: "✅ تم رصد الغياب تلقائياً في تبويب الغياب" });
+        } catch {}
+      }
     } catch (e) {
       toast({ title: "خطأ", description: String(e), variant: "destructive" });
     }
@@ -1883,7 +1906,35 @@ function AdminFormsSection({ schoolName, directorName }: { schoolName: string; d
             <Label>التفاصيل</Label>
             <Textarea value={interDetails} onChange={e => setInterDetails(e.target.value)} rows={3} placeholder="تفاصيل المخالفة" />
           </div>
-          <Button onClick={handleInterrogation}><FileDown className="w-4 h-4 ml-2" /> تنزيل نموذج الاستجواب</Button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>قرار المدير (نوع الغياب)</Label>
+              <Select value={interDecision} onValueChange={setInterDecision}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="عرضية">عرضية</SelectItem>
+                  <SelectItem value="مرضية">مرضية</SelectItem>
+                  <SelectItem value="عدم صرف">عدم صرف</SelectItem>
+                  <SelectItem value="غير ذلك">غير ذلك</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>تاريخ الغياب</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-right h-9", !interAbsenceDate && "text-muted-foreground")}>
+                    <CalendarIcon className="ml-2 h-4 w-4" />
+                    {interAbsenceDate ? format(interAbsenceDate, "yyyy/MM/dd") : "اختر تاريخ الغياب"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={interAbsenceDate} onSelect={setInterAbsenceDate} />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <Button onClick={handleInterrogation}><FileDown className="w-4 h-4 ml-2" /> تنزيل نموذج الاستجواب وتسجيل الغياب</Button>
         </CardContent>
       </Card>
 
@@ -2068,7 +2119,7 @@ export default function SecretaryPage() {
           </TabsContent>
 
           <TabsContent value="forms" className="mt-4">
-            <AdminFormsSection schoolName={school} directorName={directorName} />
+            <AdminFormsSection schoolName={school} directorName={directorName} userId={userId} />
           </TabsContent>
         </Tabs>
       </div>
