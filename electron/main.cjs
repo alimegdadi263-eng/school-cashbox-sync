@@ -94,6 +94,11 @@ function createWindow() {
     console.error('Renderer failed to load:', { errorCode, errorDescription, validatedURL });
     dialog.showErrorBox('خطأ في تحميل الواجهة', `تعذر تحميل واجهة البرنامج.\n${errorDescription} (${errorCode})\n${validatedURL || ''}`);
   });
+  mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    if (level >= 2) {
+      console.error('Renderer console:', { level, message, line, sourceId });
+    }
+  });
   mainWindow.webContents.on('render-process-gone', (_event, details) => {
     console.error('Renderer process crashed:', details);
     dialog.showErrorBox('تعطل الواجهة', 'حدث تعطل في واجهة البرنامج. أعد تشغيل التطبيق.');

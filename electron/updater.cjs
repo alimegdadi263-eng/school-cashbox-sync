@@ -140,7 +140,8 @@ function setupAutoUpdater(mainWindow) {
   try {
     autoUpdater.setFeedURL(UPDATE_FEED);
     autoUpdater.autoDownload = false;
-    autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.autoInstallOnAppQuit = false;
+    autoUpdater.autoRunAppAfterInstall = true;
     autoUpdater.allowPrerelease = false;
     autoUpdater.allowDowngrade = false;
     autoUpdater.disableDifferentialDownload = true;
@@ -191,7 +192,10 @@ function setupAutoUpdater(mainWindow) {
         defaultId: 0,
         cancelId: 1,
       }).then(({ response }) => {
-        if (response === 0) autoUpdater.quitAndInstall(false, true);
+        if (response === 0) {
+          logInfo('Installing downloaded update now', { version: info.version });
+          autoUpdater.quitAndInstall(true, true);
+        }
       }).catch(err => logError('Dialog error', err));
     });
 
