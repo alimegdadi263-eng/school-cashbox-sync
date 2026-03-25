@@ -114,6 +114,7 @@ export async function fillInterrogationForm(data: InterrogationData) {
     ],
     width: { size: 100, type: WidthType.PERCENTAGE },
     visuallyRightToLeft: true,
+  });
 
   const doc = new Document({
     sections: [{
@@ -241,6 +242,7 @@ export async function fillCasualLeaveForm(data: CasualLeaveData) {
           rows: [new TableRow({ children: [c("قرار الأمين العام", { bold: true, shading: H, size: M })] })],
           width: { size: 100, type: WidthType.PERCENTAGE },
           visuallyRightToLeft: true,
+        }),
         p([t(dots(80), { size: S })], AlignmentType.RIGHT),
         p([t(dots(80), { size: S })], AlignmentType.RIGHT),
         p([t(dots(80), { size: S })], AlignmentType.RIGHT),
@@ -457,6 +459,7 @@ export async function exportInventoryCustodyDocx(data: InventoryCustodyData) {
         ],
         width: { size: 100, type: WidthType.PERCENTAGE },
         visuallyRightToLeft: true,
+      }),
       p([t("Form#QF72-4-24 rev.a", { size: 14 })], AlignmentType.LEFT),
     ];
   }
@@ -627,6 +630,7 @@ export async function exportDisposalDocx(data: DisposalDocxData) {
         ],
         width: { size: 100, type: WidthType.PERCENTAGE },
         visuallyRightToLeft: true,
+      }),
       gap(5),
       p([t("ملاحظة: تنظم قائمة لكل سجل على حدة على غرار هذا النموذج وعلى أربع نسخ", { size: 14 })], AlignmentType.RIGHT),
       p([t("Form # QF72-4-43 rev.a", { size: 14 })], AlignmentType.LEFT),
