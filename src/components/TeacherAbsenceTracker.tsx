@@ -235,10 +235,10 @@ export default function TeacherAbsenceTracker({ userId, schoolName }: Props) {
             <div className="flex flex-wrap gap-3 items-end">
               <div className="space-y-1">
                 <Label className="text-xs">تصفية حسب المعلم</Label>
-                <Select value={filterTeacher} onValueChange={setFilterTeacher}>
+                <Select value={filterTeacher || "__all__"} onValueChange={v => setFilterTeacher(v === "__all__" ? "" : v)}>
                   <SelectTrigger className="w-52"><SelectValue placeholder="الكل" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">الكل</SelectItem>
+                    <SelectItem value="__all__">الكل</SelectItem>
                     {uniqueTeachers.map(name => (
                       <SelectItem key={name} value={name}>{name}</SelectItem>
                     ))}
