@@ -261,7 +261,7 @@ export default function TeacherManager() {
                 <div className="space-y-1 mt-2">
                   {subjects.map((s, i) => (
                     <div key={i} className="flex items-center justify-between bg-muted px-3 py-1.5 rounded text-sm">
-                      <span>{s.subjectName} - الصف {s.className} / شعبة {s.section} ({s.periodsPerWeek} حصص)</span>
+                      <span>{s.subjectName} - الصف {s.className}{s.branch ? ` ${s.branch}` : ''} / شعبة {s.section} ({s.periodsPerWeek} حصص)</span>
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeSubjectRow(i)}>
                         <X className="w-3 h-3" />
                       </Button>
