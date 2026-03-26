@@ -2,6 +2,7 @@ import { useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import TeacherManager from "@/components/timetable/TeacherManager";
 import TimetableGrid from "@/components/timetable/TimetableGrid";
+import MalhafaView from "@/components/timetable/MalhafaView";
 import DailyScheduleManager from "@/components/timetable/DailyScheduleManager";
 import TimetableStatistics from "@/components/timetable/TimetableStatistics";
 import { useTimetable } from "@/context/TimetableContext";
@@ -89,6 +90,8 @@ export default function TimetablePage() {
         <TeacherManager />
 
         <TimetableGrid />
+
+        <MalhafaView />
 
         <TimetableStatistics />
 
