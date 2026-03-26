@@ -12,6 +12,7 @@ interface TimetableContextType {
   removeTeacher: (id: string) => void;
   setTimetable: (tt: ClassTimetable) => void;
   updateCell: (classKey: string, day: number, period: number, cell: TimetableCell | null) => void;
+  swapCells: (classKey: string, day: number, periodA: number, periodB: number) => boolean;
   generateTimetable: () => void;
   getTeacherSchedule: (teacherId: string) => { classKey: string; day: number; period: number; subjectName: string }[];
   getAllClassKeys: () => string[];
