@@ -23,6 +23,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useNetwork } from "@/context/NetworkContext";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 
@@ -47,6 +48,10 @@ function isGroup(entry: SidebarEntry): entry is NavGroup {
 export default function AppSidebar() {
   const location = useLocation();
   const { isAdmin, schoolName, signOut } = useAuth();
+  const { state: networkState } = useNetwork();
+
+  const clientRole = networkState.clientRole;
+  const isClient = networkState.mode === "client";
 
   const financePaths = ["/cashbook", "/transaction", "/summary", "/forms", "/sdi-analysis"];
   const financeActive = financePaths.includes(location.pathname);
@@ -88,7 +93,12 @@ export default function AppSidebar() {
     }
     api?.checkForUpdates?.();
   };
-  const entries: SidebarEntry[] = [
+  // Assistant paths: timetable, exams, committees
+  const assistantPaths = ["/timetable", "/exams", "/committees"];
+  // Secretary paths: secretary, committees
+  const secretaryPaths = ["/secretary", "/committees"];
+
+  const allEntries: SidebarEntry[] = [
     { path: "/", label: "لوحة التحكم", icon: LayoutDashboard },
     {
       label: "مالية المدرسة",
@@ -113,6 +123,15 @@ export default function AppSidebar() {
       { path: "/presentation", label: "العرض التقديمي", icon: Presentation },
     ] : []),
   ];
+
+  // Filter entries based on client role
+  const entries: SidebarEntry[] = isClient && clientRole
+    ? allEntries.filter((entry) => {
+        if (isGroup(entry)) return false; // hide finance group for clients
+        const allowedPaths = clientRole === "assistant" ? assistantPaths : secretaryPaths;
+        return allowedPaths.includes((entry as NavItem).path);
+      })
+    : allEntries;
 
   const renderLink = (item: NavItem) => {
     const isActive = location.pathname === item.path;
