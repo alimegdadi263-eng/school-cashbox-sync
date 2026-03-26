@@ -92,10 +92,11 @@ export default function TimetableGrid() {
                 <td className="border border-border p-2 text-center font-bold bg-muted/50">{pi + 1}</td>
                 {DAYS.map((_, di) => {
                   const cell = days[di]?.[pi];
+                  const isSwapSelected = swapMode && swapSource?.classKey === classKey && swapSource?.day === di && swapSource?.period === pi;
                   return (
                     <td
                       key={di}
-                      className="border border-border p-1 text-center cursor-pointer hover:bg-accent/20 transition-colors min-w-[100px]"
+                      className={`border border-border p-1 text-center cursor-pointer hover:bg-accent/20 transition-colors min-w-[100px] ${isSwapSelected ? "ring-2 ring-primary bg-primary/10" : ""} ${swapMode ? "cursor-grab" : ""}`}
                       onClick={() => handleCellClick(classKey, di, pi)}
                     >
                       {cell ? (
