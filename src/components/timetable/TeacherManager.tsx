@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTimetable } from "@/context/TimetableContext";
 import type { Teacher, SubjectAssignment, BlockedPeriod } from "@/types/timetable";
-import { CLASS_NAMES, SECTIONS, DEFAULT_SUBJECTS, SECONDARY_CLASSES, BRANCHES } from "@/types/timetable";
+import { CLASS_NAMES, SECTIONS, DEFAULT_SUBJECTS, SECONDARY_CLASSES } from "@/types/timetable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,6 +29,12 @@ export default function TeacherManager() {
   const [newPeriods, setNewPeriods] = useState(3);
   const [newBranch, setNewBranch] = useState("");
   const [customSubjectInput, setCustomSubjectInput] = useState("");
+  const [savedBranches, setSavedBranches] = useState<string[]>(() => {
+    try {
+      const s = localStorage.getItem("school_saved_branches");
+      return s ? JSON.parse(s) : [];
+    } catch { return []; }
+  });
   const [customSubjects, setCustomSubjects] = useState<string[]>([]);
 
   // Load custom subjects from localStorage
@@ -273,13 +279,27 @@ export default function TeacherManager() {
                 </div>
                 {SECONDARY_CLASSES.includes(newClass) && (
                   <div>
-                    <Label className="text-xs">الفرع</Label>
-                    <Select value={newBranch} onValueChange={setNewBranch}>
-                      <SelectTrigger><SelectValue placeholder="اختر الفرع" /></SelectTrigger>
-                      <SelectContent>
-                        {BRANCHES.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <Label className="text-xs">الحقل</Label>
+                    <div className="relative">
+                      <Input
+                        value={newBranch}
+                        onChange={e => setNewBranch(e.target.value)}
+                        onBlur={() => {
+                          const trimmed = newBranch.trim();
+                          if (trimmed && !savedBranches.includes(trimmed)) {
+                            const updated = [...savedBranches, trimmed];
+                            setSavedBranches(updated);
+                            localStorage.setItem("school_saved_branches", JSON.stringify(updated));
+                          }
+                        }}
+                        placeholder="ادخل اسم الحقل"
+                        list="branch-suggestions"
+                        className="h-9"
+                      />
+                      <datalist id="branch-suggestions">
+                        {savedBranches.map(b => <option key={b} value={b} />)}
+                      </datalist>
+                    </div>
                   </div>
                 )}
                 <div>
