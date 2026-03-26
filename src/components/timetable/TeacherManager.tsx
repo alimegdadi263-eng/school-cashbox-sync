@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTimetable } from "@/context/TimetableContext";
 import type { Teacher, SubjectAssignment, BlockedPeriod } from "@/types/timetable";
-import { CLASS_NAMES, SECTIONS, DEFAULT_SUBJECTS } from "@/types/timetable";
+import { CLASS_NAMES, SECTIONS, DEFAULT_SUBJECTS, SECONDARY_CLASSES, BRANCHES } from "@/types/timetable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2, Edit, UserPlus, X } from "lucide-react";
+import { Plus, Trash2, Edit, UserPlus, X, Upload, FileSpreadsheet, FileText } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import BlockedPeriodsEditor from "./BlockedPeriodsEditor";
+import * as ExcelJS from "exceljs";
 
 const CUSTOM_SUBJECTS_KEY = "school_custom_subjects";
 
@@ -26,6 +27,7 @@ export default function TeacherManager() {
   const [newClass, setNewClass] = useState(CLASS_NAMES[0]);
   const [newSection, setNewSection] = useState(SECTIONS[0]);
   const [newPeriods, setNewPeriods] = useState(3);
+  const [newBranch, setNewBranch] = useState("");
   const [customSubjectInput, setCustomSubjectInput] = useState("");
   const [customSubjects, setCustomSubjects] = useState<string[]>([]);
 
@@ -87,6 +89,7 @@ export default function TeacherManager() {
       subjectName: newSubject.trim(),
       className: newClass,
       section: newSection,
+      branch: SECONDARY_CLASSES.includes(newClass) ? newBranch : undefined,
       periodsPerWeek: newPeriods,
     }]);
     setNewSubject("");
@@ -122,14 +125,72 @@ export default function TeacherManager() {
     toast({ title: "تم حذف المعلم" });
   };
 
+  // Import teachers from Excel
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const buffer = await file.arrayBuffer();
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(buffer);
+      const ws = wb.worksheets[0];
+      if (!ws) throw new Error("لا يوجد أوراق");
+
+      const imported: Teacher[] = [];
+      ws.eachRow((row, rowNum) => {
+        if (rowNum === 1) return; // skip header
+        const name = String(row.getCell(1).value || "").trim();
+        if (!name) return;
+        const subject = String(row.getCell(2).value || "").trim();
+        const className = String(row.getCell(3).value || "").trim();
+        const section = String(row.getCell(4).value || "أ").trim();
+        const periods = Number(row.getCell(5).value) || 3;
+        const branch = String(row.getCell(6).value || "").trim();
+
+        // Check if teacher already added in this batch
+        let teacher = imported.find(t => t.name === name);
+        if (!teacher) {
+          teacher = { id: crypto.randomUUID(), name, subjects: [], blockedPeriods: [] };
+          imported.push(teacher);
+        }
+        if (subject && className) {
+          teacher.subjects.push({
+            subjectName: subject,
+            className,
+            section,
+            branch: branch || undefined,
+            periodsPerWeek: periods,
+          });
+        }
+      });
+
+      imported.forEach(t => addTeacher(t));
+      toast({ title: `تم استيراد ${imported.length} معلم بنجاح` });
+    } catch (err) {
+      toast({ title: "خطأ في استيراد الملف", description: String(err), variant: "destructive" });
+    }
+    e.target.value = "";
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-lg">إدارة المعلمين</CardTitle>
-        <Button onClick={openAdd} size="sm">
-          <UserPlus className="w-4 h-4 ml-2" />
-          إضافة معلم
-        </Button>
+        <div className="flex gap-2">
+          <label className="cursor-pointer">
+            <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
+            <Button variant="outline" size="sm" asChild>
+              <span>
+                <Upload className="w-4 h-4 ml-1" />
+                استيراد Excel
+              </span>
+            </Button>
+          </label>
+          <Button onClick={openAdd} size="sm">
+            <UserPlus className="w-4 h-4 ml-2" />
+            إضافة معلم
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {teachers.length === 0 ? (
@@ -152,7 +213,7 @@ export default function TeacherManager() {
                     <div className="flex flex-wrap gap-1">
                       {t.subjects.map((s, i) => (
                         <span key={i} className="inline-block bg-secondary text-secondary-foreground text-xs px-2 py-0.5 rounded">
-                          {s.subjectName} - {s.className}/{s.section} ({s.periodsPerWeek})
+                          {s.subjectName} - {s.className}{s.branch ? ` ${s.branch}` : ''}/{s.section} ({s.periodsPerWeek})
                         </span>
                       ))}
                     </div>
@@ -191,7 +252,7 @@ export default function TeacherManager() {
             <div className="border rounded-lg p-4 space-y-3">
               <Label className="text-base font-semibold">المواد الدراسية</Label>
               
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end">
                 <div>
                   <Label className="text-xs">المادة</Label>
                   <Select value={newSubject} onValueChange={setNewSubject}>
@@ -203,13 +264,24 @@ export default function TeacherManager() {
                 </div>
                 <div>
                   <Label className="text-xs">الصف</Label>
-                  <Select value={newClass} onValueChange={setNewClass}>
+                  <Select value={newClass} onValueChange={v => { setNewClass(v); if (!SECONDARY_CLASSES.includes(v)) setNewBranch(""); }}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {CLASS_NAMES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
+                {SECONDARY_CLASSES.includes(newClass) && (
+                  <div>
+                    <Label className="text-xs">الفرع</Label>
+                    <Select value={newBranch} onValueChange={setNewBranch}>
+                      <SelectTrigger><SelectValue placeholder="اختر الفرع" /></SelectTrigger>
+                      <SelectContent>
+                        {BRANCHES.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div>
                   <Label className="text-xs">الشعبة</Label>
                   <Select value={newSection} onValueChange={setNewSection}>
@@ -248,7 +320,7 @@ export default function TeacherManager() {
                 <div className="space-y-1 mt-2">
                   {subjects.map((s, i) => (
                     <div key={i} className="flex items-center justify-between bg-muted px-3 py-1.5 rounded text-sm">
-                      <span>{s.subjectName} - الصف {s.className} / شعبة {s.section} ({s.periodsPerWeek} حصص)</span>
+                      <span>{s.subjectName} - الصف {s.className}{s.branch ? ` ${s.branch}` : ''} / شعبة {s.section} ({s.periodsPerWeek} حصص)</span>
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeSubjectRow(i)}>
                         <X className="w-3 h-3" />
                       </Button>

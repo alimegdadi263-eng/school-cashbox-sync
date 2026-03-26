@@ -14,8 +14,12 @@ export interface SubjectAssignment {
   subjectName: string;
   className: string;     // e.g. "الأول", "الثاني"
   section: string;       // e.g. "أ", "ب"
+  branch?: string;       // e.g. "علمي", "أدبي" for secondary classes
   periodsPerWeek: number;
 }
+
+export const SECONDARY_CLASSES = ["الحادي عشر", "الثاني عشر"];
+export const BRANCHES = ["علمي", "أدبي", "صناعي", "زراعي", "فندقي", "اقتصاد منزلي", "تمريض", "شرعي"];
 
 export interface TimetableCell {
   teacherId: string;
