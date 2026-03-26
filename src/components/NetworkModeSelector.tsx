@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useNetwork } from "@/context/NetworkContext";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useNetwork, type ClientRole } from "@/context/NetworkContext";
 import { useToast } from "@/hooks/use-toast";
 import {
   Server,
@@ -22,6 +23,7 @@ export default function NetworkModeSelector() {
   const { toast } = useToast();
   const [clientIp, setClientIp] = useState("");
   const [clientPort, setClientPort] = useState("9753");
+  const [clientRole, setClientRole] = useState<ClientRole>("assistant");
   const [loading, setLoading] = useState(false);
 
   const isElectron = typeof window !== "undefined" && !!(window as any).electronAPI?.lan;
@@ -43,7 +45,7 @@ export default function NetworkModeSelector() {
       return;
     }
     setLoading(true);
-    await connectToServer(clientIp.trim(), parseInt(clientPort) || 9753);
+    await connectToServer(clientIp.trim(), parseInt(clientPort) || 9753, clientRole);
     setLoading(false);
   };
 
@@ -90,7 +92,8 @@ export default function NetworkModeSelector() {
         <CardContent className="space-y-3">
           <div className="p-3 rounded-lg bg-muted/30 space-y-2">
             <p className="text-sm font-medium">
-              {state.mode === "server" ? "يعمل كجهاز رئيسي (Server)" : "متصل بالجهاز الرئيسي (Client)"}
+              {state.mode === "server" ? "يعمل كجهاز رئيسي (Server)" : 
+                `متصل كـ ${state.clientRole === "secretary" ? "سكرتير" : "مساعد مدير"}`}
             </p>
             {state.mode === "server" && state.localIPs.length > 0 && (
               <div className="space-y-1">
@@ -214,7 +217,24 @@ export default function NetworkModeSelector() {
                   dir="ltr"
                 />
               </div>
-            </div>
+              <div>
+                <Label className="text-xs font-semibold">دور الجهاز</Label>
+                <RadioGroup
+                  value={clientRole}
+                  onValueChange={(v) => setClientRole(v as ClientRole)}
+                  className="flex gap-4 mt-1"
+                  dir="rtl"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <RadioGroupItem value="assistant" id="role-assistant" />
+                    <Label htmlFor="role-assistant" className="text-xs cursor-pointer">مساعد مدير</Label>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <RadioGroupItem value="secretary" id="role-secretary" />
+                    <Label htmlFor="role-secretary" className="text-xs cursor-pointer">سكرتير</Label>
+                  </div>
+                </RadioGroup>
+              </div>
             <Button
               onClick={handleConnect}
               disabled={loading}
