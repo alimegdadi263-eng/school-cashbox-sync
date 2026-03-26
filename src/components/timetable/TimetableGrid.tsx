@@ -20,6 +20,8 @@ export default function TimetableGrid() {
   const [selectedTeacher, setSelectedTeacher] = useState(teachers[0]?.id || "");
   const [swapMode, setSwapMode] = useState(false);
   const [swapSource, setSwapSource] = useState<{ classKey: string; day: number; period: number } | null>(null);
+  const [dragSource, setDragSource] = useState<{ classKey: string; day: number; period: number } | null>(null);
+  const [dragOver, setDragOver] = useState<{ day: number; period: number } | null>(null);
 
   if (classKeys.length === 0) {
     return (
