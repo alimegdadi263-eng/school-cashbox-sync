@@ -182,7 +182,7 @@ export default function TimetableGrid() {
             </TabsList>
 
             <TabsContent value="classes" className="mt-4">
-              <div className="mb-4">
+              <div className="mb-4 flex items-center gap-3">
                 <Select value={selectedClass} onValueChange={setSelectedClass}>
                   <SelectTrigger className="w-60">
                     <SelectValue placeholder="اختر الصف" />
@@ -194,6 +194,19 @@ export default function TimetableGrid() {
                     })}
                   </SelectContent>
                 </Select>
+                <Button
+                  variant={swapMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => { setSwapMode(!swapMode); setSwapSource(null); }}
+                >
+                  <ArrowLeftRight className="w-4 h-4 ml-1" />
+                  {swapMode ? "إلغاء التبديل" : "تبديل حصص"}
+                </Button>
+                {swapMode && swapSource && (
+                  <span className="text-xs text-primary font-medium">
+                    تم اختيار الحصة {swapSource.period + 1} في {DAYS[swapSource.day]} - اختر الحصة الثانية
+                  </span>
+                )}
               </div>
               {selectedClass && renderClassTable(selectedClass)}
             </TabsContent>
