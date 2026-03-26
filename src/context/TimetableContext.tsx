@@ -351,6 +351,62 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    // Compact: remove gaps in each class/day while avoiding teacher conflicts
+    const compactTimetable = (tt: ClassTimetable) => {
+      const allClassKeys = Object.keys(tt);
+      // Build teacher occupation map: teacherId -> day -> Set<period>
+      const buildOccupation = () => {
+        const occ: Record<string, Set<number>[]> = {};
+        teachers.forEach(t => { occ[t.id] = Array.from({ length: daysCount }, () => new Set<number>()); });
+        for (const [ck, days] of Object.entries(tt)) {
+          days.forEach((periods, di) => {
+            periods.forEach((cell, pi) => {
+              if (cell && occ[cell.teacherId]) occ[cell.teacherId][di].add(pi);
+            });
+          });
+        }
+        return occ;
+      };
+
+      // Iterate multiple passes until stable
+      let changed = true;
+      let passes = 0;
+      while (changed && passes < 20) {
+        changed = false;
+        passes++;
+        for (const ck of allClassKeys) {
+          for (let day = 0; day < daysCount; day++) {
+            const periods = tt[ck][day];
+            for (let p = 0; p < periodsPerDay - 1; p++) {
+              if (periods[p] !== null) continue;
+              // Find next non-null period to move up
+              for (let np = p + 1; np < periodsPerDay; np++) {
+                if (periods[np] === null) continue;
+                const cell = periods[np]!;
+                // Check if moving this teacher to period p causes a conflict
+                let conflict = false;
+                for (const [otherKey, otherDays] of Object.entries(tt)) {
+                  if (otherKey === ck) continue;
+                  if (otherDays[day]?.[p]?.teacherId === cell.teacherId) {
+                    conflict = true;
+                    break;
+                  }
+                }
+                if (!conflict) {
+                  periods[p] = cell;
+                  periods[np] = null;
+                  changed = true;
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    compactTimetable(newTT);
+
     setTimetableState(newTT);
     save(teachers, newTT, periodsPerDay);
   };
