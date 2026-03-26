@@ -26,6 +26,34 @@ export default function TeacherManager() {
   const [newClass, setNewClass] = useState(CLASS_NAMES[0]);
   const [newSection, setNewSection] = useState(SECTIONS[0]);
   const [newPeriods, setNewPeriods] = useState(3);
+  const [customSubjectInput, setCustomSubjectInput] = useState("");
+  const [customSubjects, setCustomSubjects] = useState<string[]>([]);
+
+  // Load custom subjects from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(CUSTOM_SUBJECTS_KEY);
+      if (saved) setCustomSubjects(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  const allSubjects = [...DEFAULT_SUBJECTS, ...customSubjects];
+
+  const addCustomSubject = () => {
+    const trimmed = customSubjectInput.trim();
+    if (!trimmed) return;
+    if (allSubjects.includes(trimmed)) {
+      toast({ title: "المادة موجودة بالفعل", variant: "destructive" });
+      return;
+    }
+    const updated = [...customSubjects, trimmed];
+    setCustomSubjects(updated);
+    localStorage.setItem(CUSTOM_SUBJECTS_KEY, JSON.stringify(updated));
+    setNewSubject(trimmed);
+    setCustomSubjectInput("");
+    toast({ title: `تمت إضافة المادة: ${trimmed}` });
+  };
+  const [newPeriods, setNewPeriods] = useState(3);
 
   const resetForm = () => {
     setName("");
