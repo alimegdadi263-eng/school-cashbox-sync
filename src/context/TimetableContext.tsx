@@ -12,6 +12,7 @@ interface TimetableContextType {
   removeTeacher: (id: string) => void;
   setTimetable: (tt: ClassTimetable) => void;
   updateCell: (classKey: string, day: number, period: number, cell: TimetableCell | null) => void;
+  swapCells: (classKey: string, day: number, periodA: number, periodB: number) => boolean;
   generateTimetable: () => void;
   getTeacherSchedule: (teacherId: string) => { classKey: string; day: number; period: number; subjectName: string }[];
   getAllClassKeys: () => string[];
@@ -157,6 +158,40 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     );
     setTimetableState(newTT);
     save(teachers, newTT, periodsPerDay);
+  };
+
+  // Swap two cells in the same class & day, checking for teacher conflicts
+  const swapCells = (classKey: string, day: number, periodA: number, periodB: number): boolean => {
+    const newTT = { ...timetable };
+    if (!newTT[classKey]) return false;
+    const cellA = newTT[classKey][day][periodA];
+    const cellB = newTT[classKey][day][periodB];
+
+    // Check conflicts: if cellA's teacher is already in periodB elsewhere, or cellB's teacher in periodA
+    const wouldConflict = (teacherId: string | undefined, period: number) => {
+      if (!teacherId) return false;
+      for (const [key, days] of Object.entries(newTT)) {
+        if (key === classKey) continue;
+        if (days[day]?.[period]?.teacherId === teacherId) return true;
+      }
+      return false;
+    };
+
+    if (wouldConflict(cellA?.teacherId, periodB) || wouldConflict(cellB?.teacherId, periodA)) {
+      return false; // conflict
+    }
+
+    newTT[classKey] = newTT[classKey].map((d, di) => {
+      if (di !== day) return d;
+      return d.map((p, pi) => {
+        if (pi === periodA) return cellB;
+        if (pi === periodB) return cellA;
+        return p;
+      });
+    });
+    setTimetableState(newTT);
+    save(teachers, newTT, periodsPerDay);
+    return true;
   };
 
   const getAllClassKeys = (): string[] => {
@@ -316,6 +351,62 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    // Compact: remove gaps in each class/day while avoiding teacher conflicts
+    const compactTimetable = (tt: ClassTimetable) => {
+      const allClassKeys = Object.keys(tt);
+      // Build teacher occupation map: teacherId -> day -> Set<period>
+      const buildOccupation = () => {
+        const occ: Record<string, Set<number>[]> = {};
+        teachers.forEach(t => { occ[t.id] = Array.from({ length: daysCount }, () => new Set<number>()); });
+        for (const [ck, days] of Object.entries(tt)) {
+          days.forEach((periods, di) => {
+            periods.forEach((cell, pi) => {
+              if (cell && occ[cell.teacherId]) occ[cell.teacherId][di].add(pi);
+            });
+          });
+        }
+        return occ;
+      };
+
+      // Iterate multiple passes until stable
+      let changed = true;
+      let passes = 0;
+      while (changed && passes < 20) {
+        changed = false;
+        passes++;
+        for (const ck of allClassKeys) {
+          for (let day = 0; day < daysCount; day++) {
+            const periods = tt[ck][day];
+            for (let p = 0; p < periodsPerDay - 1; p++) {
+              if (periods[p] !== null) continue;
+              // Find next non-null period to move up
+              for (let np = p + 1; np < periodsPerDay; np++) {
+                if (periods[np] === null) continue;
+                const cell = periods[np]!;
+                // Check if moving this teacher to period p causes a conflict
+                let conflict = false;
+                for (const [otherKey, otherDays] of Object.entries(tt)) {
+                  if (otherKey === ck) continue;
+                  if (otherDays[day]?.[p]?.teacherId === cell.teacherId) {
+                    conflict = true;
+                    break;
+                  }
+                }
+                if (!conflict) {
+                  periods[p] = cell;
+                  periods[np] = null;
+                  changed = true;
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    compactTimetable(newTT);
+
     setTimetableState(newTT);
     save(teachers, newTT, periodsPerDay);
   };
@@ -358,7 +449,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     <TimetableContext.Provider value={{
       teachers, timetable, periodsPerDay, setPeriodsPerDay,
       addTeacher, updateTeacher, removeTeacher,
-      setTimetable, updateCell, generateTimetable,
+      setTimetable, updateCell, swapCells, generateTimetable,
       getTeacherSchedule, getAllClassKeys, clearTimetable,
       generateDailySchedule,
     }}>

@@ -7,15 +7,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "@/hooks/use-toast";
+import { ArrowLeftRight } from "lucide-react";
 
 export default function TimetableGrid() {
-  const { teachers, timetable, periodsPerDay, getAllClassKeys, updateCell, getTeacherSchedule } = useTimetable();
+  const { teachers, timetable, periodsPerDay, getAllClassKeys, updateCell, swapCells, getTeacherSchedule } = useTimetable();
   const classKeys = getAllClassKeys();
 
   const [editDialog, setEditDialog] = useState<{ classKey: string; day: number; period: number } | null>(null);
   const [viewMode, setViewMode] = useState<"classes" | "teachers">("classes");
   const [selectedClass, setSelectedClass] = useState(classKeys[0] || "");
   const [selectedTeacher, setSelectedTeacher] = useState(teachers[0]?.id || "");
+  const [swapMode, setSwapMode] = useState(false);
+  const [swapSource, setSwapSource] = useState<{ classKey: string; day: number; period: number } | null>(null);
 
   if (classKeys.length === 0) {
     return (
@@ -28,6 +32,25 @@ export default function TimetableGrid() {
   }
 
   const handleCellClick = (classKey: string, day: number, period: number) => {
+    if (swapMode) {
+      if (!swapSource) {
+        setSwapSource({ classKey, day, period });
+        toast({ title: "اختر الحصة الثانية للتبديل" });
+      } else {
+        if (swapSource.classKey === classKey && swapSource.day === day) {
+          const ok = swapCells(classKey, day, swapSource.period, period);
+          if (ok) {
+            toast({ title: "تم التبديل بنجاح!" });
+          } else {
+            toast({ title: "لا يمكن التبديل - يوجد تعارض!", variant: "destructive" });
+          }
+        } else {
+          toast({ title: "يجب اختيار حصتين في نفس الصف ونفس اليوم", variant: "destructive" });
+        }
+        setSwapSource(null);
+      }
+      return;
+    }
     setEditDialog({ classKey, day, period });
   };
 
@@ -69,10 +92,11 @@ export default function TimetableGrid() {
                 <td className="border border-border p-2 text-center font-bold bg-muted/50">{pi + 1}</td>
                 {DAYS.map((_, di) => {
                   const cell = days[di]?.[pi];
+                  const isSwapSelected = swapMode && swapSource?.classKey === classKey && swapSource?.day === di && swapSource?.period === pi;
                   return (
                     <td
                       key={di}
-                      className="border border-border p-1 text-center cursor-pointer hover:bg-accent/20 transition-colors min-w-[100px]"
+                      className={`border border-border p-1 text-center cursor-pointer hover:bg-accent/20 transition-colors min-w-[100px] ${isSwapSelected ? "ring-2 ring-primary bg-primary/10" : ""} ${swapMode ? "cursor-grab" : ""}`}
                       onClick={() => handleCellClick(classKey, di, pi)}
                     >
                       {cell ? (
@@ -159,7 +183,7 @@ export default function TimetableGrid() {
             </TabsList>
 
             <TabsContent value="classes" className="mt-4">
-              <div className="mb-4">
+              <div className="mb-4 flex items-center gap-3">
                 <Select value={selectedClass} onValueChange={setSelectedClass}>
                   <SelectTrigger className="w-60">
                     <SelectValue placeholder="اختر الصف" />
@@ -171,6 +195,19 @@ export default function TimetableGrid() {
                     })}
                   </SelectContent>
                 </Select>
+                <Button
+                  variant={swapMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => { setSwapMode(!swapMode); setSwapSource(null); }}
+                >
+                  <ArrowLeftRight className="w-4 h-4 ml-1" />
+                  {swapMode ? "إلغاء التبديل" : "تبديل حصص"}
+                </Button>
+                {swapMode && swapSource && (
+                  <span className="text-xs text-primary font-medium">
+                    تم اختيار الحصة {swapSource.period + 1} في {DAYS[swapSource.day]} - اختر الحصة الثانية
+                  </span>
+                )}
               </div>
               {selectedClass && renderClassTable(selectedClass)}
             </TabsContent>
