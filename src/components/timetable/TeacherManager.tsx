@@ -125,14 +125,72 @@ export default function TeacherManager() {
     toast({ title: "تم حذف المعلم" });
   };
 
+  // Import teachers from Excel
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const buffer = await file.arrayBuffer();
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(buffer);
+      const ws = wb.worksheets[0];
+      if (!ws) throw new Error("لا يوجد أوراق");
+
+      const imported: Teacher[] = [];
+      ws.eachRow((row, rowNum) => {
+        if (rowNum === 1) return; // skip header
+        const name = String(row.getCell(1).value || "").trim();
+        if (!name) return;
+        const subject = String(row.getCell(2).value || "").trim();
+        const className = String(row.getCell(3).value || "").trim();
+        const section = String(row.getCell(4).value || "أ").trim();
+        const periods = Number(row.getCell(5).value) || 3;
+        const branch = String(row.getCell(6).value || "").trim();
+
+        // Check if teacher already added in this batch
+        let teacher = imported.find(t => t.name === name);
+        if (!teacher) {
+          teacher = { id: crypto.randomUUID(), name, subjects: [], blockedPeriods: [] };
+          imported.push(teacher);
+        }
+        if (subject && className) {
+          teacher.subjects.push({
+            subjectName: subject,
+            className,
+            section,
+            branch: branch || undefined,
+            periodsPerWeek: periods,
+          });
+        }
+      });
+
+      imported.forEach(t => addTeacher(t));
+      toast({ title: `تم استيراد ${imported.length} معلم بنجاح` });
+    } catch (err) {
+      toast({ title: "خطأ في استيراد الملف", description: String(err), variant: "destructive" });
+    }
+    e.target.value = "";
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-lg">إدارة المعلمين</CardTitle>
-        <Button onClick={openAdd} size="sm">
-          <UserPlus className="w-4 h-4 ml-2" />
-          إضافة معلم
-        </Button>
+        <div className="flex gap-2">
+          <label className="cursor-pointer">
+            <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
+            <Button variant="outline" size="sm" asChild>
+              <span>
+                <Upload className="w-4 h-4 ml-1" />
+                استيراد Excel
+              </span>
+            </Button>
+          </label>
+          <Button onClick={openAdd} size="sm">
+            <UserPlus className="w-4 h-4 ml-2" />
+            إضافة معلم
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {teachers.length === 0 ? (
