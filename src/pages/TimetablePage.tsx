@@ -91,6 +91,8 @@ export default function TimetablePage() {
 
         <TimetableGrid />
 
+        <MalhafaView />
+
         <TimetableStatistics />
 
         <DailyScheduleManager />
