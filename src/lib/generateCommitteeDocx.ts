@@ -137,40 +137,6 @@ export async function generateCommitteeDocx(data: CommitteeData) {
     })
   );
 
-  // Members table (borderless)
-  const memberRows = data.members.map((m, i) =>
-    new TableRow({
-      children: [
-        new TableCell({
-          borders: noBorders,
-          width: { size: 10, type: WidthType.PERCENTAGE },
-          children: [new Paragraph({
-            alignment: AlignmentType.RIGHT,
-            bidirectional: true,
-            children: [new TextRun({ text: `${i + 1}-`, font: "Traditional Arabic", size: 26, rightToLeft: true })],
-          })],
-        }),
-        new TableCell({
-          borders: noBorders,
-          width: { size: 60, type: WidthType.PERCENTAGE },
-          children: [new Paragraph({
-            alignment: AlignmentType.RIGHT,
-            bidirectional: true,
-            children: [new TextRun({ text: m.name, font: "Traditional Arabic", size: 26, rightToLeft: true })],
-          })],
-        }),
-        new TableCell({
-          borders: noBorders,
-          width: { size: 30, type: WidthType.PERCENTAGE },
-          children: [new Paragraph({
-            alignment: AlignmentType.CENTER,
-            bidirectional: true,
-            children: [new TextRun({ text: m.role, font: "Traditional Arabic", size: 26, rightToLeft: true })],
-          })],
-        }),
-      ],
-    })
-  );
 
   // Members as paragraphs (since section children don't mix Table/Paragraph easily)
   data.members.forEach((m, i) => {
