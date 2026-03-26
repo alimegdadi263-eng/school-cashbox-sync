@@ -18,8 +18,7 @@ export interface SubjectAssignment {
   periodsPerWeek: number;
 }
 
-export const SECONDARY_CLASSES = ["الحادي عشر", "الثاني عشر"];
-export const BRANCHES = ["علمي", "أدبي", "صناعي", "زراعي", "فندقي", "اقتصاد منزلي", "تمريض", "شرعي"];
+export const SECONDARY_CLASSES = ["الثاني عشر"];
 
 export interface TimetableCell {
   teacherId: string;
