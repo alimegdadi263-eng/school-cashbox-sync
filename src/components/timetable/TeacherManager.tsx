@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTimetable } from "@/context/TimetableContext";
 import type { Teacher, SubjectAssignment, BlockedPeriod } from "@/types/timetable";
-import { CLASS_NAMES, SECTIONS } from "@/types/timetable";
+import { CLASS_NAMES, SECTIONS, DEFAULT_SUBJECTS } from "@/types/timetable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Trash2, Edit, UserPlus, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import BlockedPeriodsEditor from "./BlockedPeriodsEditor";
+
+const CUSTOM_SUBJECTS_KEY = "school_custom_subjects";
 
 export default function TeacherManager() {
   const { teachers, addTeacher, updateTeacher, removeTeacher, periodsPerDay } = useTimetable();
@@ -24,6 +26,33 @@ export default function TeacherManager() {
   const [newClass, setNewClass] = useState(CLASS_NAMES[0]);
   const [newSection, setNewSection] = useState(SECTIONS[0]);
   const [newPeriods, setNewPeriods] = useState(3);
+  const [customSubjectInput, setCustomSubjectInput] = useState("");
+  const [customSubjects, setCustomSubjects] = useState<string[]>([]);
+
+  // Load custom subjects from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(CUSTOM_SUBJECTS_KEY);
+      if (saved) setCustomSubjects(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  const allSubjects = [...DEFAULT_SUBJECTS, ...customSubjects];
+
+  const addCustomSubject = () => {
+    const trimmed = customSubjectInput.trim();
+    if (!trimmed) return;
+    if (allSubjects.includes(trimmed)) {
+      toast({ title: "المادة موجودة بالفعل", variant: "destructive" });
+      return;
+    }
+    const updated = [...customSubjects, trimmed];
+    setCustomSubjects(updated);
+    localStorage.setItem(CUSTOM_SUBJECTS_KEY, JSON.stringify(updated));
+    setNewSubject(trimmed);
+    setCustomSubjectInput("");
+    toast({ title: `تمت إضافة المادة: ${trimmed}` });
+  };
 
   const resetForm = () => {
     setName("");
@@ -165,7 +194,12 @@ export default function TeacherManager() {
               <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
                 <div>
                   <Label className="text-xs">المادة</Label>
-                  <Input value={newSubject} onChange={e => setNewSubject(e.target.value)} placeholder="اسم المادة" />
+                  <Select value={newSubject} onValueChange={setNewSubject}>
+                    <SelectTrigger><SelectValue placeholder="اختر المادة" /></SelectTrigger>
+                    <SelectContent>
+                      {allSubjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label className="text-xs">الصف</Label>
@@ -191,6 +225,22 @@ export default function TeacherManager() {
                 </div>
                 <Button onClick={addSubjectRow} size="sm" className="self-end">
                   <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+
+              {/* إضافة مادة جديدة */}
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <Label className="text-xs text-muted-foreground">إضافة مادة غير موجودة بالقائمة</Label>
+                  <Input
+                    value={customSubjectInput}
+                    onChange={e => setCustomSubjectInput(e.target.value)}
+                    placeholder="اسم المادة الجديدة..."
+                    onKeyDown={e => e.key === "Enter" && addCustomSubject()}
+                  />
+                </div>
+                <Button onClick={addCustomSubject} size="sm" variant="outline" className="self-end">
+                  <Plus className="w-4 h-4 ml-1" /> إضافة للقائمة
                 </Button>
               </div>
 

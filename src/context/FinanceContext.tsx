@@ -126,31 +126,28 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     })();
   }, [state, userId, isLanMode, saveToLan]);
 
-  // Periodic sync from LAN server (every 5 seconds for clients)
+  // Periodic sync: clients pull from server, server pulls from LAN DB (for client changes)
   useEffect(() => {
-    const startSync = async () => {
-      const lan = getElectronLan();
-      if (!lan) return;
+    const lan = getElectronLan();
+    if (!lan) return;
 
-      syncTimerRef.current = setInterval(async () => {
-        try {
-          const connResult = await lan.isConnected();
-          if (connResult?.connected && connResult?.mode === 'client') {
-            const lanData = await loadFromLan(userId);
-            if (lanData) {
-              // Only update if data actually changed
-              const currentStr = JSON.stringify(state);
-              const lanStr = JSON.stringify(lanData);
-              if (currentStr !== lanStr) {
-                setState(lanData);
-              }
-            }
+    syncTimerRef.current = setInterval(async () => {
+      try {
+        const connResult = await lan.isConnected();
+        if (!connResult?.connected) return;
+
+        // Both server and client modes should sync from LAN storage
+        const lanData = await loadFromLan(userId);
+        if (lanData) {
+          const currentStr = JSON.stringify(state);
+          const lanStr = JSON.stringify(lanData);
+          if (currentStr !== lanStr) {
+            setState(lanData);
           }
-        } catch {}
-      }, 5000);
-    };
+        }
+      } catch {}
+    }, 5000);
 
-    startSync();
     return () => {
       if (syncTimerRef.current) {
         clearInterval(syncTimerRef.current);
