@@ -175,9 +175,9 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       teacherUsage[t.id] = Array.from({ length: daysCount }, () => new Set<number>());
     });
 
-    // Track how many last-period (7th) assignments each teacher gets
-    const lastPeriodCount: Record<string, number> = {};
-    teachers.forEach(t => { lastPeriodCount[t.id] = 0; });
+    // Track 6th and 7th period counts per teacher for equal distribution
+    const latePeriodCount: Record<string, { sixth: number; seventh: number }> = {};
+    teachers.forEach(t => { latePeriodCount[t.id] = { sixth: 0, seventh: 0 }; });
 
     interface Assignment {
       teacherId: string;
@@ -201,9 +201,11 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       });
     });
 
+    // Sort by most periods first for better distribution
     assignments.sort((a, b) => b.remaining - a.remaining);
 
-    const lastPeriodIdx = periodsPerDay - 1;
+    const sixthPeriodIdx = periodsPerDay - 2;
+    const seventhPeriodIdx = periodsPerDay - 1;
 
     for (const assignment of assignments) {
       let placed = 0;
@@ -222,25 +224,32 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
           );
           if (alreadyThisClassThisDay && placed < assignment.remaining - 1) continue;
 
-          // Try non-last periods first, then last period with equal distribution
+          // Build period priority: early periods first, then late periods with fairness check
           const periodOrder: number[] = [];
           for (let p = 0; p < periodsPerDay; p++) {
-            if (p !== lastPeriodIdx) periodOrder.push(p);
+            if (p !== sixthPeriodIdx && p !== seventhPeriodIdx) periodOrder.push(p);
           }
-          // Add last period at end - but check equal distribution
-          periodOrder.push(lastPeriodIdx);
+          // Shuffle early periods for variety
+          periodOrder.sort(() => Math.random() - 0.5);
+
+          // Add 6th and 7th with fairness - teacher with fewer late periods gets priority
+          const allSixthCounts = Object.values(latePeriodCount).map(c => c.sixth);
+          const allSeventhCounts = Object.values(latePeriodCount).map(c => c.seventh);
+          const minSixth = Math.min(...allSixthCounts);
+          const minSeventh = Math.min(...allSeventhCounts);
+
+          // Only allow 6th if teacher isn't too far ahead
+          if (latePeriodCount[assignment.teacherId].sixth <= minSixth + 1) {
+            periodOrder.push(sixthPeriodIdx);
+          }
+          if (latePeriodCount[assignment.teacherId].seventh <= minSeventh + 1) {
+            periodOrder.push(seventhPeriodIdx);
+          }
 
           for (const period of periodOrder) {
             if (newTT[assignment.classKey][day][period] !== null) continue;
             if (teacherUsage[assignment.teacherId][day].has(period)) continue;
             if (isBlocked(teacher, day, period)) continue;
-
-            // For last period, check if this teacher already has more than average
-            if (period === lastPeriodIdx) {
-              const counts = Object.values(lastPeriodCount);
-              const minCount = Math.min(...counts);
-              if (lastPeriodCount[assignment.teacherId] > minCount + 1) continue;
-            }
 
             newTT[assignment.classKey][day][period] = {
               teacherId: assignment.teacherId,
@@ -248,7 +257,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
               subjectName: assignment.subjectName,
             };
             teacherUsage[assignment.teacherId][day].add(period);
-            if (period === lastPeriodIdx) lastPeriodCount[assignment.teacherId]++;
+            if (period === sixthPeriodIdx) latePeriodCount[assignment.teacherId].sixth++;
+            if (period === seventhPeriodIdx) latePeriodCount[assignment.teacherId].seventh++;
             placed++;
             didPlace = true;
             break;
@@ -256,6 +266,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (!didPlace) {
+          // Fallback: place anywhere possible including late periods
           for (let day = 0; day < daysCount && placed < assignment.remaining; day++) {
             for (let period = 0; period < periodsPerDay; period++) {
               if (newTT[assignment.classKey][day][period] !== null) continue;
@@ -267,7 +278,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                 subjectName: assignment.subjectName,
               };
               teacherUsage[assignment.teacherId][day].add(period);
-              if (period === lastPeriodIdx) lastPeriodCount[assignment.teacherId]++;
+              if (period === sixthPeriodIdx) latePeriodCount[assignment.teacherId].sixth++;
+              if (period === seventhPeriodIdx) latePeriodCount[assignment.teacherId].seventh++;
               placed++;
               break;
             }
