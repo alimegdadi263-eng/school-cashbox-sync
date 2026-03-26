@@ -7,15 +7,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "@/hooks/use-toast";
+import { ArrowLeftRight } from "lucide-react";
 
 export default function TimetableGrid() {
-  const { teachers, timetable, periodsPerDay, getAllClassKeys, updateCell, getTeacherSchedule } = useTimetable();
+  const { teachers, timetable, periodsPerDay, getAllClassKeys, updateCell, swapCells, getTeacherSchedule } = useTimetable();
   const classKeys = getAllClassKeys();
 
   const [editDialog, setEditDialog] = useState<{ classKey: string; day: number; period: number } | null>(null);
   const [viewMode, setViewMode] = useState<"classes" | "teachers">("classes");
   const [selectedClass, setSelectedClass] = useState(classKeys[0] || "");
   const [selectedTeacher, setSelectedTeacher] = useState(teachers[0]?.id || "");
+  const [swapMode, setSwapMode] = useState(false);
+  const [swapSource, setSwapSource] = useState<{ classKey: string; day: number; period: number } | null>(null);
 
   if (classKeys.length === 0) {
     return (
@@ -28,6 +32,25 @@ export default function TimetableGrid() {
   }
 
   const handleCellClick = (classKey: string, day: number, period: number) => {
+    if (swapMode) {
+      if (!swapSource) {
+        setSwapSource({ classKey, day, period });
+        toast({ title: "اختر الحصة الثانية للتبديل" });
+      } else {
+        if (swapSource.classKey === classKey && swapSource.day === day) {
+          const ok = swapCells(classKey, day, swapSource.period, period);
+          if (ok) {
+            toast({ title: "تم التبديل بنجاح!" });
+          } else {
+            toast({ title: "لا يمكن التبديل - يوجد تعارض!", variant: "destructive" });
+          }
+        } else {
+          toast({ title: "يجب اختيار حصتين في نفس الصف ونفس اليوم", variant: "destructive" });
+        }
+        setSwapSource(null);
+      }
+      return;
+    }
     setEditDialog({ classKey, day, period });
   };
 
