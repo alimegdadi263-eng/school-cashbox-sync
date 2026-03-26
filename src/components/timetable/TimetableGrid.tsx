@@ -95,10 +95,28 @@ export default function TimetableGrid() {
                 {DAYS.map((_, di) => {
                   const cell = days[di]?.[pi];
                   const isSwapSelected = swapMode && swapSource?.classKey === classKey && swapSource?.day === di && swapSource?.period === pi;
+                  const isDragOverCell = dragOver?.day === di && dragOver?.period === pi;
                   return (
                     <td
                       key={di}
-                      className={`border border-border p-1 text-center cursor-pointer hover:bg-accent/20 transition-colors min-w-[100px] ${isSwapSelected ? "ring-2 ring-primary bg-primary/10" : ""} ${swapMode ? "cursor-grab" : ""}`}
+                      draggable
+                      onDragStart={() => setDragSource({ classKey, day: di, period: pi })}
+                      onDragOver={(e) => { e.preventDefault(); setDragOver({ day: di, period: pi }); }}
+                      onDragLeave={() => setDragOver(null)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setDragOver(null);
+                        if (dragSource && dragSource.classKey === classKey && dragSource.day === di) {
+                          const ok = swapCells(classKey, di, dragSource.period, pi);
+                          if (ok) toast({ title: "تم التبديل بنجاح!" });
+                          else toast({ title: "لا يمكن التبديل - يوجد تعارض!", variant: "destructive" });
+                        } else if (dragSource) {
+                          toast({ title: "يجب التبديل في نفس الصف ونفس اليوم", variant: "destructive" });
+                        }
+                        setDragSource(null);
+                      }}
+                      onDragEnd={() => { setDragSource(null); setDragOver(null); }}
+                      className={`border border-border p-1 text-center cursor-pointer hover:bg-accent/20 transition-colors min-w-[100px] ${isSwapSelected ? "ring-2 ring-primary bg-primary/10" : ""} ${isDragOverCell ? "bg-accent/30 ring-2 ring-accent" : ""} ${swapMode ? "cursor-grab" : "cursor-grab"}`}
                       onClick={() => handleCellClick(classKey, di, pi)}
                     >
                       {cell ? (
