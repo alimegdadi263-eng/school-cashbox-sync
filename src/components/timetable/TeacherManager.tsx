@@ -53,7 +53,6 @@ export default function TeacherManager() {
     setCustomSubjectInput("");
     toast({ title: `تمت إضافة المادة: ${trimmed}` });
   };
-  const [newPeriods, setNewPeriods] = useState(3);
 
   const resetForm = () => {
     setName("");
