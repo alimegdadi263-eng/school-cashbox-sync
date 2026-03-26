@@ -160,6 +160,40 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     save(teachers, newTT, periodsPerDay);
   };
 
+  // Swap two cells in the same class & day, checking for teacher conflicts
+  const swapCells = (classKey: string, day: number, periodA: number, periodB: number): boolean => {
+    const newTT = { ...timetable };
+    if (!newTT[classKey]) return false;
+    const cellA = newTT[classKey][day][periodA];
+    const cellB = newTT[classKey][day][periodB];
+
+    // Check conflicts: if cellA's teacher is already in periodB elsewhere, or cellB's teacher in periodA
+    const wouldConflict = (teacherId: string | undefined, period: number) => {
+      if (!teacherId) return false;
+      for (const [key, days] of Object.entries(newTT)) {
+        if (key === classKey) continue;
+        if (days[day]?.[period]?.teacherId === teacherId) return true;
+      }
+      return false;
+    };
+
+    if (wouldConflict(cellA?.teacherId, periodB) || wouldConflict(cellB?.teacherId, periodA)) {
+      return false; // conflict
+    }
+
+    newTT[classKey] = newTT[classKey].map((d, di) => {
+      if (di !== day) return d;
+      return d.map((p, pi) => {
+        if (pi === periodA) return cellB;
+        if (pi === periodB) return cellA;
+        return p;
+      });
+    });
+    setTimetableState(newTT);
+    save(teachers, newTT, periodsPerDay);
+    return true;
+  };
+
   const getAllClassKeys = (): string[] => {
     const keys = new Set<string>();
     teachers.forEach(t => t.subjects.forEach(s => keys.add(getClassKey(s.className, s.section))));
