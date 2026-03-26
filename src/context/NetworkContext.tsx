@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
 
 type NetworkMode = "standalone" | "server" | "client";
+export type ClientRole = "assistant" | "secretary";
 
 interface NetworkState {
   mode: NetworkMode;
@@ -9,13 +10,14 @@ interface NetworkState {
   localIPs: { name: string; address: string }[];
   connected: boolean;
   error: string | null;
+  clientRole: ClientRole | null;
 }
 
 interface NetworkContextType {
   state: NetworkState;
   startServer: () => Promise<void>;
   stopServer: () => Promise<void>;
-  connectToServer: (ip: string, port?: number) => Promise<void>;
+  connectToServer: (ip: string, port?: number, role?: ClientRole) => Promise<void>;
   disconnect: () => Promise<void>;
   isNetworkMode: boolean;
   getData: (key: string) => Promise<any>;
@@ -32,6 +34,7 @@ const initialState: NetworkState = {
   localIPs: [],
   connected: false,
   error: null,
+  clientRole: null,
 };
 
 function getElectronLan() {
@@ -70,7 +73,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
     setState(initialState);
   }, []);
 
-  const connectToServer = useCallback(async (ip: string, port = 9753) => {
+  const connectToServer = useCallback(async (ip: string, port = 9753, role: ClientRole = "assistant") => {
     const lan = getElectronLan();
     if (!lan) {
       setState(s => ({ ...s, error: "ميزة الشبكة متاحة فقط في تطبيق سطح المكتب" }));
@@ -86,6 +89,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
         serverPort: port,
         connected: true,
         error: null,
+        clientRole: role,
       }));
     } else {
       setState(s => ({ ...s, error: result.error }));
