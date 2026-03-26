@@ -412,12 +412,12 @@ export async function exportInventoryCustodyDocx(data: InventoryCustodyData) {
       tableHeader: true,
     });
 
-    // Sub-header row for dinar/fils
+    // Sub-header row for dinar/fils - swap order so in RTL: دينار appears right, فلس left
     const subHeaderRow = new TableRow({
       children: [
         c("", { size: S }),
-        c("د", { bold: true, shading: H }), c("ف", { bold: true, shading: H }),
-        c("د", { bold: true, shading: H }), c("ف", { bold: true, shading: H }),
+        c("ف", { bold: true, shading: H }), c("د", { bold: true, shading: H }),
+        c("ف", { bold: true, shading: H }), c("د", { bold: true, shading: H }),
         c("", { size: S }),
         c("", { size: S }),
         c("", { size: S }),
@@ -432,8 +432,8 @@ export async function exportInventoryCustodyDocx(data: InventoryCustodyData) {
       const tp = splitPrice(item.totalPrice);
       return new TableRow({ children: [
         c(item.notes || ""),
-        c(tp.d), c(tp.f),
-        c(up.d), c(up.f),
+        c(tp.f), c(tp.d),
+        c(up.f), c(up.d),
         c(item.surplus ? String(item.surplus) : ""),
         c(item.shortage ? String(item.shortage) : ""),
         c(String(item.existing)),
@@ -577,13 +577,13 @@ export async function exportDisposalDocx(data: DisposalDocxData) {
       tableHeader: true,
     });
 
-    // Sub-header row for price split
+    // Sub-header row for price split - swap order so in RTL: دينار appears right, فلس left
     const subHeaderRow = new TableRow({
       children: [
         c("", { size: 12 }),
         c("", { size: 12 }),
-        c("د", { bold: true, size: 14, shading: H }), c("ف", { bold: true, size: 14, shading: H }),
-        c("د", { bold: true, size: 14, shading: H }), c("ف", { bold: true, size: 14, shading: H }),
+        c("ف", { bold: true, size: 14, shading: H }), c("د", { bold: true, size: 14, shading: H }),
+        c("ف", { bold: true, size: 14, shading: H }), c("د", { bold: true, size: 14, shading: H }),
         c("", { size: 12 }),
         c("", { size: 12 }),
         c("", { size: 12 }),
@@ -600,8 +600,8 @@ export async function exportDisposalDocx(data: DisposalDocxData) {
       return new TableRow({ children: [
         c(item.reason || "", { size: 14 }),
         c(item.entryDate || "", { size: 14 }),
-        c(tp.d, { size: 14 }), c(tp.f, { size: 14 }),
-        c(up.d, { size: 14 }), c(up.f, { size: 14 }),
+        c(tp.f, { size: 14 }), c(tp.d, { size: 14 }),
+        c(up.f, { size: 14 }), c(up.d, { size: 14 }),
         c(item.quantityWords || "", { size: 14 }),
         c(String(item.quantityNum || ""), { size: 14 }),
         c(item.editionDate || "", { size: 14 }),
