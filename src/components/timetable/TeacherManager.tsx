@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTimetable } from "@/context/TimetableContext";
 import type { Teacher, SubjectAssignment, BlockedPeriod } from "@/types/timetable";
-import { CLASS_NAMES, SECTIONS, DEFAULT_SUBJECTS } from "@/types/timetable";
+import { CLASS_NAMES, SECTIONS, DEFAULT_SUBJECTS, SECONDARY_CLASSES, BRANCHES } from "@/types/timetable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +26,7 @@ export default function TeacherManager() {
   const [newClass, setNewClass] = useState(CLASS_NAMES[0]);
   const [newSection, setNewSection] = useState(SECTIONS[0]);
   const [newPeriods, setNewPeriods] = useState(3);
+  const [newBranch, setNewBranch] = useState("");
   const [customSubjectInput, setCustomSubjectInput] = useState("");
   const [customSubjects, setCustomSubjects] = useState<string[]>([]);
 
@@ -87,6 +88,7 @@ export default function TeacherManager() {
       subjectName: newSubject.trim(),
       className: newClass,
       section: newSection,
+      branch: SECONDARY_CLASSES.includes(newClass) ? newBranch : undefined,
       periodsPerWeek: newPeriods,
     }]);
     setNewSubject("");
@@ -152,7 +154,7 @@ export default function TeacherManager() {
                     <div className="flex flex-wrap gap-1">
                       {t.subjects.map((s, i) => (
                         <span key={i} className="inline-block bg-secondary text-secondary-foreground text-xs px-2 py-0.5 rounded">
-                          {s.subjectName} - {s.className}/{s.section} ({s.periodsPerWeek})
+                          {s.subjectName} - {s.className}{s.branch ? ` ${s.branch}` : ''}/{s.section} ({s.periodsPerWeek})
                         </span>
                       ))}
                     </div>
