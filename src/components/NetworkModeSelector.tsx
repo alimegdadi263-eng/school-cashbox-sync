@@ -235,6 +235,7 @@ export default function NetworkModeSelector() {
                   </div>
                 </RadioGroup>
               </div>
+            </div>
             <Button
               onClick={handleConnect}
               disabled={loading}
