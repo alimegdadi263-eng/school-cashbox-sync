@@ -172,12 +172,20 @@ export async function generateCommitteeDocx(data: CommitteeData) {
     })
   );
 
-  headerChildren.push(
-    new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: memberRows,
-    })
-  );
+  // Members as paragraphs (since section children don't mix Table/Paragraph easily)
+  data.members.forEach((m, i) => {
+    headerChildren.push(
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        bidirectional: true,
+        spacing: { after: 80 },
+        children: [
+          new TextRun({ text: `${i + 1}-     ${m.name}`, font: "Traditional Arabic", size: 26, rightToLeft: true }),
+          new TextRun({ text: `          ${m.role}`, font: "Traditional Arabic", size: 26, rightToLeft: true }),
+        ],
+      })
+    );
+  });
 
   // Closing
   headerChildren.push(
