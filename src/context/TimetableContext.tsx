@@ -51,7 +51,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       if (lan) {
         try {
           const conn = await lan.isConnected();
-          if (conn?.connected && conn?.mode === 'client') {
+          if (conn?.connected) {
             const result = await lan.getData(STORAGE_KEY);
             if (result?.success && result.data) {
               setTeachers(result.data.teachers || []);
@@ -78,6 +78,33 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       }
     };
     loadData();
+  }, []);
+
+  // Bidirectional LAN sync - both server and client pull changes
+  useEffect(() => {
+    const lan = getElectronLanHelper();
+    if (!lan) return;
+
+    const timer = setInterval(async () => {
+      try {
+        const conn = await lan.isConnected();
+        if (!conn?.connected) return;
+
+        const result = await lan.getData(STORAGE_KEY);
+        if (result?.success && result.data) {
+          const currentStr = localStorage.getItem(STORAGE_KEY);
+          const newStr = JSON.stringify(result.data);
+          if (currentStr !== newStr) {
+            setTeachers(result.data.teachers || []);
+            setTimetableState(result.data.timetable || {});
+            setPeriodsPerDayState(result.data.periodsPerDay || 7);
+            localStorage.setItem(STORAGE_KEY, newStr);
+          }
+        }
+      } catch {}
+    }, 5000);
+
+    return () => clearInterval(timer);
   }, []);
 
   const save = useCallback((t: Teacher[], tt: ClassTimetable, ppd: number) => {
