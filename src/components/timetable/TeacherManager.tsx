@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2, Edit, UserPlus, X } from "lucide-react";
+import { Plus, Trash2, Edit, UserPlus, X, Upload, FileSpreadsheet, FileText } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import BlockedPeriodsEditor from "./BlockedPeriodsEditor";
+import * as ExcelJS from "exceljs";
 
 const CUSTOM_SUBJECTS_KEY = "school_custom_subjects";
 
