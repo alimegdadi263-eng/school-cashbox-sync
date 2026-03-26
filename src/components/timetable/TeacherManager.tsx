@@ -193,7 +193,7 @@ export default function TeacherManager() {
             <div className="border rounded-lg p-4 space-y-3">
               <Label className="text-base font-semibold">المواد الدراسية</Label>
               
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end">
                 <div>
                   <Label className="text-xs">المادة</Label>
                   <Select value={newSubject} onValueChange={setNewSubject}>
@@ -205,13 +205,24 @@ export default function TeacherManager() {
                 </div>
                 <div>
                   <Label className="text-xs">الصف</Label>
-                  <Select value={newClass} onValueChange={setNewClass}>
+                  <Select value={newClass} onValueChange={v => { setNewClass(v); if (!SECONDARY_CLASSES.includes(v)) setNewBranch(""); }}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {CLASS_NAMES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
+                {SECONDARY_CLASSES.includes(newClass) && (
+                  <div>
+                    <Label className="text-xs">الفرع</Label>
+                    <Select value={newBranch} onValueChange={setNewBranch}>
+                      <SelectTrigger><SelectValue placeholder="اختر الفرع" /></SelectTrigger>
+                      <SelectContent>
+                        {BRANCHES.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div>
                   <Label className="text-xs">الشعبة</Label>
                   <Select value={newSection} onValueChange={setNewSection}>
