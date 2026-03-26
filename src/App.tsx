@@ -23,6 +23,7 @@ import TimetablePage from "./pages/TimetablePage";
 import SecretaryPage from "./pages/SecretaryPage";
 import SdiAnalysis from "./pages/SdiAnalysis";
 import ExamSchedulePage from "./pages/ExamSchedulePage";
+import CommitteesPage from "./pages/CommitteesPage";
 import { TimetableProvider } from "@/context/TimetableContext";
 import UpdateNotification from "@/components/UpdateNotification";
 
@@ -78,6 +79,7 @@ const App = () => (
               <Route path="/exams" element={<ProtectedRoute><ExamSchedulePage /></ProtectedRoute>} />
               <Route path="/secretary" element={<ProtectedRoute><SecretaryPage /></ProtectedRoute>} />
               <Route path="/sdi-analysis" element={<ProtectedRoute><SdiAnalysis /></ProtectedRoute>} />
+              <Route path="/committees" element={<ProtectedRoute><CommitteesPage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
               <Route path="/code-docs" element={<AdminRoute><CodeDocumentation /></AdminRoute>} />

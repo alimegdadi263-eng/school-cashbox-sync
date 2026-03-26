@@ -1,6 +1,6 @@
 import {
-  Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-  WidthType, AlignmentType, BorderStyle, ImageRun,
+  Document, Packer, Paragraph, TextRun,
+  AlignmentType, BorderStyle, ImageRun,
 } from "docx";
 import { saveAs } from "file-saver";
 
