@@ -194,7 +194,12 @@ export default function TeacherManager() {
               <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
                 <div>
                   <Label className="text-xs">المادة</Label>
-                  <Input value={newSubject} onChange={e => setNewSubject(e.target.value)} placeholder="اسم المادة" />
+                  <Select value={newSubject} onValueChange={setNewSubject}>
+                    <SelectTrigger><SelectValue placeholder="اختر المادة" /></SelectTrigger>
+                    <SelectContent>
+                      {allSubjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label className="text-xs">الصف</Label>
@@ -220,6 +225,22 @@ export default function TeacherManager() {
                 </div>
                 <Button onClick={addSubjectRow} size="sm" className="self-end">
                   <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+
+              {/* إضافة مادة جديدة */}
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <Label className="text-xs text-muted-foreground">إضافة مادة غير موجودة بالقائمة</Label>
+                  <Input
+                    value={customSubjectInput}
+                    onChange={e => setCustomSubjectInput(e.target.value)}
+                    placeholder="اسم المادة الجديدة..."
+                    onKeyDown={e => e.key === "Enter" && addCustomSubject()}
+                  />
+                </div>
+                <Button onClick={addCustomSubject} size="sm" variant="outline" className="self-end">
+                  <Plus className="w-4 h-4 ml-1" /> إضافة للقائمة
                 </Button>
               </div>
 
