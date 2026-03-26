@@ -3,11 +3,20 @@ import { parseClassKey, DAYS } from "@/types/timetable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { Download, FileSpreadsheet } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  exportClassStatisticsExcel,
+  exportTeacherStatsExcel,
+  exportDailyWorkloadExcel,
+  exportAllStatisticsExcel,
+} from "@/lib/exportTimetableStatistics";
 
 const COLORS = [
   "hsl(var(--primary))",
-  "hsl(var(--accent))",
+  "hsl(var(--chart-2))",
   "#f59e0b",
   "#10b981",
   "#6366f1",
@@ -18,6 +27,8 @@ const COLORS = [
 
 export default function TimetableStatistics() {
   const { teachers, timetable, periodsPerDay, getTeacherSchedule } = useTimetable();
+  const { schoolName } = useAuth();
+  const school = schoolName || "المدرسة";
 
   if (Object.keys(timetable).length === 0) return null;
 
@@ -43,15 +54,9 @@ export default function TimetableStatistics() {
   const teacherStats = teachers.map(t => {
     const schedule = getTeacherSchedule(t.id);
     const totalPeriods = schedule.length;
-
-    // Count 6th and 7th periods
     const sixthCount = schedule.filter(s => s.period === periodsPerDay - 2).length;
     const seventhCount = schedule.filter(s => s.period === periodsPerDay - 1).length;
-
-    // Count periods per day
     const dailyCounts = DAYS.map((_, di) => schedule.filter(s => s.day === di).length);
-
-    // Get subjects breakdown
     const subjectCounts: Record<string, number> = {};
     schedule.forEach(s => {
       subjectCounts[s.subjectName] = (subjectCounts[s.subjectName] || 0) + 1;
@@ -70,7 +75,7 @@ export default function TimetableStatistics() {
     };
   });
 
-  // --- جدول أشغال يومي (المعلم الأقل حصصاً كل يوم) ---
+  // --- جدول أشغال يومي ---
   const dailyLeastBusy = DAYS.map((dayName, dayIdx) => {
     const teacherDayCounts = teachers.map(t => {
       const count = getTeacherSchedule(t.id).filter(s => s.day === dayIdx).length;
@@ -80,23 +85,28 @@ export default function TimetableStatistics() {
     return {
       day: dayName,
       dayIdx,
-      teachers: teacherDayCounts.slice(0, 3), // top 3 least busy
+      teachers: teacherDayCounts.slice(0, 3),
     };
   });
 
-  // Chart data for class periods
   const chartData = classStats.map(cs => ({
     name: `${cs.className}/${cs.section}`,
     total: cs.total,
   }));
 
-  // Unique subjects across all classes
   const allSubjects = Array.from(new Set(classStats.flatMap(cs => Object.keys(cs.subjects)))).sort();
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-lg">الإحصائيات والتقارير</CardTitle>
+        <Button
+          size="sm"
+          onClick={() => exportAllStatisticsExcel(teachers, timetable, periodsPerDay, school)}
+        >
+          <Download className="w-4 h-4 ml-2" />
+          تصدير الكل (Excel)
+        </Button>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="classes" dir="rtl">
@@ -108,6 +118,16 @@ export default function TimetableStatistics() {
 
           {/* إحصائيات الصفوف */}
           <TabsContent value="classes" className="space-y-4">
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => exportClassStatisticsExcel(timetable, periodsPerDay, school)}
+              >
+                <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel
+              </Button>
+            </div>
+
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
@@ -154,6 +174,15 @@ export default function TimetableStatistics() {
 
           {/* أنصبة المعلمين */}
           <TabsContent value="teachers">
+            <div className="flex justify-end mb-3">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => exportTeacherStatsExcel(teachers, timetable, periodsPerDay, school)}
+              >
+                <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel
+              </Button>
+            </div>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -191,6 +220,15 @@ export default function TimetableStatistics() {
 
           {/* أشغال يومية */}
           <TabsContent value="daily">
+            <div className="flex justify-end mb-3">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => exportDailyWorkloadExcel(teachers, timetable, periodsPerDay, school)}
+              >
+                <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel
+              </Button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
               {dailyLeastBusy.map(dl => (
                 <Card key={dl.dayIdx} className="border">
