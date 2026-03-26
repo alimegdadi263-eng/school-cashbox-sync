@@ -19,12 +19,6 @@ export interface CommitteeData {
   directorateName: string;
 }
 
-const noBorders = {
-  top: { style: BorderStyle.NONE, size: 0 },
-  bottom: { style: BorderStyle.NONE, size: 0 },
-  left: { style: BorderStyle.NONE, size: 0 },
-  right: { style: BorderStyle.NONE, size: 0 },
-};
 
 async function loadLogo(): Promise<ArrayBuffer | null> {
   try {
