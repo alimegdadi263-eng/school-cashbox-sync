@@ -371,8 +371,10 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
                         <TableCell className="text-center" dir="ltr">{rec.parentPhone}</TableCell>
                         <TableCell className="text-center">
                           <div className="flex justify-center gap-1">
-                            <Button size="icon" variant="outline" title="SMS" onClick={() => sendSMS(rec.parentPhone, buildMessage(rec))}>
-                              <Phone className="h-4 w-4" />
+                            <Button size="icon" variant="outline" title="SMS عبر بوابة الهاتف" 
+                              disabled={sendingIndividual === rec.id}
+                              onClick={() => sendIndividualSmsGateway(rec)}>
+                              {sendingIndividual === rec.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Smartphone className="h-4 w-4" />}
                             </Button>
                             <Button size="icon" variant="outline" title="واتساب" onClick={() => sendWhatsApp(rec.parentPhone, buildMessage(rec))}>
                               <MessageSquare className="h-4 w-4 text-primary" />
