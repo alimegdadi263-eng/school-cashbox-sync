@@ -189,7 +189,7 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
 
   const sendViaGateway = async () => {
     const config = loadGatewayConfig();
-    if (!config || !config.serverUrl) {
+    if (!config || !config.login || !config.password) {
       toast({ title: "يرجى إعداد بوابة SMS أولاً من تبويب 'إعدادات SMS'", variant: "destructive" });
       return;
     }
