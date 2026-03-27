@@ -37,6 +37,8 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
   const [filterClass, setFilterClass] = useState("");
   const [absentIds, setAbsentIds] = useState<Set<string>>(new Set());
   const [whatsAppQueueIndex, setWhatsAppQueueIndex] = useState<number | null>(null);
+  const [sendingGateway, setSendingGateway] = useState(false);
+  const [gatewayProgress, setGatewayProgress] = useState({ sent: 0, total: 0 });
 
   useEffect(() => {
     try {
