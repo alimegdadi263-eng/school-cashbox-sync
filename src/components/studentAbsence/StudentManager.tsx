@@ -56,7 +56,15 @@ export default function StudentManager({ userId }: Props) {
   const addStudent = () => {
     if (!name.trim()) { toast({ title: "أدخل اسم الطالب", variant: "destructive" }); return; }
     if (!className) { toast({ title: "اختر الصف والشعبة", variant: "destructive" }); return; }
+    if (isSecondary && !selectedBranch.trim()) { toast({ title: "أدخل اسم الحقل / الفرع", variant: "destructive" }); return; }
     if (!parentPhone.trim()) { toast({ title: "أدخل رقم ولي الأمر", variant: "destructive" }); return; }
+
+    // Save new branch for future autocomplete
+    if (isSecondary && selectedBranch.trim() && !savedBranches.includes(selectedBranch.trim())) {
+      const updated = [...savedBranches, selectedBranch.trim()];
+      setSavedBranches(updated);
+      localStorage.setItem(BRANCHES_STORAGE_KEY, JSON.stringify(updated));
+    }
 
     const student: StudentInfo = {
       id: generateId(),
