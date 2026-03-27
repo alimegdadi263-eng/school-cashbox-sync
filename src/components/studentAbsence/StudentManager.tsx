@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, Upload, Download } from "lucide-react";
 import type { StudentInfo } from "@/types/studentAbsence";
+import { CLASS_NAMES, SECONDARY_CLASSES } from "@/types/timetable";
 import { STUDENTS_LIST_KEY } from "@/types/studentAbsence";
 
 interface Props {
@@ -16,8 +17,9 @@ interface Props {
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
-const GRADES = ["الأول", "الثاني", "الثالث", "الرابع", "الخامس", "السادس", "السابع", "الثامن", "التاسع", "العاشر"];
+const GRADES = CLASS_NAMES; // الأول إلى الثاني عشر
 const SECTIONS = ["أ", "ب", "ج", "د", "هـ", "و"];
+const BRANCHES_STORAGE_KEY = "custom_branches";
 
 export default function StudentManager({ userId }: Props) {
   const { toast } = useToast();
