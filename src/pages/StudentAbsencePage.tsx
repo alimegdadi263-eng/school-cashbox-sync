@@ -23,7 +23,7 @@ export default function StudentAbsencePage() {
         </h1>
 
         <Tabs defaultValue="daily" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="daily" className="flex items-center gap-1">
               <ClipboardCheck className="w-4 h-4" />
               الرصد اليومي
@@ -31,6 +31,10 @@ export default function StudentAbsencePage() {
             <TabsTrigger value="students" className="flex items-center gap-1">
               <Users className="w-4 h-4" />
               إدارة الطلبة
+            </TabsTrigger>
+            <TabsTrigger value="statistics" className="flex items-center gap-1">
+              <BarChart3 className="w-4 h-4" />
+              الإحصائيات
             </TabsTrigger>
             <TabsTrigger value="reports" className="flex items-center gap-1">
               <FileBarChart className="w-4 h-4" />
@@ -43,6 +47,14 @@ export default function StudentAbsencePage() {
           </TabsContent>
           <TabsContent value="students">
             <StudentManager userId={userId} schoolName={schoolName || ""} directorateName={state.directorateName || ""} />
+          </TabsContent>
+          <TabsContent value="statistics">
+            <AbsenceStatistics
+              userId={userId}
+              schoolName={schoolName || ""}
+              directorateName={state.directorateName || ""}
+              principalName={state.directorName || ""}
+            />
           </TabsContent>
           <TabsContent value="reports">
             <AbsenceReports
