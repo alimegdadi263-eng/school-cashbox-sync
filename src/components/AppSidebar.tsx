@@ -115,6 +115,7 @@ export default function AppSidebar() {
     { path: "/exams", label: "جداول الامتحانات", icon: ClipboardList },
     { path: "/secretary", label: "السكرتير", icon: Archive },
     { path: "/committees", label: "اللجان", icon: Users },
+    { path: "/student-absence", label: "غياب الطلبة", icon: ClipboardList },
     { path: "/instructions", label: "التعليمات", icon: CircleHelp },
     { path: "/settings", label: "الإعدادات", icon: Settings },
     ...(isAdmin ? [

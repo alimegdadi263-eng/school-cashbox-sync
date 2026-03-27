@@ -24,6 +24,7 @@ import SecretaryPage from "./pages/SecretaryPage";
 import SdiAnalysis from "./pages/SdiAnalysis";
 import ExamSchedulePage from "./pages/ExamSchedulePage";
 import CommitteesPage from "./pages/CommitteesPage";
+import StudentAbsencePage from "./pages/StudentAbsencePage";
 import { TimetableProvider } from "@/context/TimetableContext";
 import UpdateNotification from "@/components/UpdateNotification";
 
@@ -85,6 +86,7 @@ const App = () => (
               <Route path="/secretary" element={<ProtectedRoute allowedRoles={["secretary"]}><SecretaryPage /></ProtectedRoute>} />
               <Route path="/sdi-analysis" element={<ProtectedRoute><SdiAnalysis /></ProtectedRoute>} />
               <Route path="/committees" element={<ProtectedRoute allowedRoles={["assistant", "secretary"]}><CommitteesPage /></ProtectedRoute>} />
+              <Route path="/student-absence" element={<ProtectedRoute><StudentAbsencePage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
               <Route path="/code-docs" element={<AdminRoute><CodeDocumentation /></AdminRoute>} />
