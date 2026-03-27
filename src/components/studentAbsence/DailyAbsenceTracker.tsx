@@ -187,7 +187,42 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
     });
   };
 
-  if (students.length === 0) {
+  const sendViaGateway = async () => {
+    const config = loadGatewayConfig();
+    if (!config || !config.serverUrl) {
+      toast({ title: "يرجى إعداد بوابة SMS أولاً من تبويب 'إعدادات SMS'", variant: "destructive" });
+      return;
+    }
+    if (todayAbsentRecords.length === 0) {
+      toast({ title: "لا يوجد طلبة غائبين", variant: "destructive" });
+      return;
+    }
+
+    setSendingGateway(true);
+    setGatewayProgress({ sent: 0, total: todayAbsentRecords.length });
+
+    const messages = todayAbsentRecords.map(rec => ({
+      phone: rec.parentPhone,
+      text: buildMessage(rec),
+    }));
+
+    const result = await sendBulkSmsViaGateway(config, messages, (sent, total) => {
+      setGatewayProgress({ sent, total });
+    });
+
+    setSendingGateway(false);
+
+    if (result.failed.length === 0) {
+      toast({ title: `✅ تم إرسال ${result.sent} رسالة بنجاح من هاتفك` });
+    } else {
+      toast({
+        title: `تم إرسال ${result.sent} رسالة، فشل ${result.failed.length}`,
+        description: result.failed.map(f => f.phone).join(", "),
+        variant: "destructive",
+      });
+    }
+  };
+
     return (
       <Card>
         <CardContent className="py-8 text-center text-muted-foreground">
