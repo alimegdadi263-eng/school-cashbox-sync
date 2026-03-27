@@ -151,6 +151,20 @@ export default function StudentManager({ userId }: Props) {
                 </SelectContent>
               </Select>
             </div>
+            {isSecondary && (
+              <div className="space-y-1">
+                <Label>الحقل / الفرع</Label>
+                <Input
+                  value={selectedBranch}
+                  onChange={e => setSelectedBranch(e.target.value)}
+                  placeholder="مثال: علمي، أدبي"
+                  list="branches-list"
+                />
+                <datalist id="branches-list">
+                  {savedBranches.map(b => <option key={b} value={b} />)}
+                </datalist>
+              </div>
+            )}
             <div className="space-y-1">
               <Label>رقم ولي الأمر</Label>
               <Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} placeholder="07XXXXXXXX" dir="ltr" />
