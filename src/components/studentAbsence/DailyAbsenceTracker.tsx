@@ -122,11 +122,12 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
   };
 
   const sendIndividualSmsGateway = async (rec: StudentAbsenceRecord) => {
-    const config = loadGatewayConfig();
-    if (!config || !config.login || !config.password) {
+    const profiles = loadGatewayProfiles();
+    if (profiles.length === 0) {
       toast({ title: "يرجى إعداد بوابة SMS أولاً من تبويب 'إعدادات SMS'", variant: "destructive" });
       return;
     }
+    const config = profiles[0];
     setSendingIndividual(rec.id);
     const result = await sendSmsViaGateway(config, rec.parentPhone, buildMessage(rec));
     setSendingIndividual(null);
