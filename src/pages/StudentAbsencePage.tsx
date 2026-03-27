@@ -69,6 +69,9 @@ export default function StudentAbsencePage() {
               principalName={state.directorName || ""}
             />
           </TabsContent>
+          <TabsContent value="sms">
+            <SmsGatewaySettings />
+          </TabsContent>
         </Tabs>
       </div>
     </AppLayout>
