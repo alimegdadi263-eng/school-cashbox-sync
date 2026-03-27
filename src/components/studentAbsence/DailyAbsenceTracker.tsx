@@ -206,8 +206,8 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
   };
 
   const sendViaGateway = async () => {
-    const config = loadGatewayConfig();
-    if (!config || !config.login || !config.password) {
+    const profiles = loadGatewayProfiles();
+    if (profiles.length === 0) {
       toast({ title: "يرجى إعداد بوابة SMS أولاً من تبويب 'إعدادات SMS'", variant: "destructive" });
       return;
     }
@@ -224,7 +224,7 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
       text: buildMessage(rec),
     }));
 
-    const result = await sendBulkSmsViaGateway(config, messages, (sent, total) => {
+    const result = await sendBulkSmsMultiGateway(profiles, messages, (sent, total) => {
       setGatewayProgress({ sent, total });
     });
 
