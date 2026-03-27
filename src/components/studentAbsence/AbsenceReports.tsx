@@ -5,16 +5,19 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { FileDown, RotateCcw, Trash2 } from "lucide-react";
+import { FileDown, FileText, RotateCcw, Trash2 } from "lucide-react";
 import type { StudentAbsenceRecord } from "@/types/studentAbsence";
 import { STUDENT_STORAGE_KEY } from "@/types/studentAbsence";
+import { exportStudentAbsenceDocx, exportStudentAbsenceExcel } from "@/lib/exportStudentAbsence";
 
 interface Props {
   userId: string;
   schoolName: string;
+  directorateName?: string;
+  principalName?: string;
 }
 
-export default function AbsenceReports({ userId, schoolName }: Props) {
+export default function AbsenceReports({ userId, schoolName, directorateName, principalName }: Props) {
   const { toast } = useToast();
   const absenceKey = `${STUDENT_STORAGE_KEY}_${userId}`;
   const [records, setRecords] = useState<StudentAbsenceRecord[]>([]);
@@ -82,13 +85,12 @@ export default function AbsenceReports({ userId, schoolName }: Props) {
     toast({ title: "تم مسح جميع السجلات" });
   };
 
-  const exportCSV = () => {
-    const header = "اسم الطالب,الصف,التاريخ,اليوم,رقم ولي الأمر\n";
-    const rows = filtered.map(r => `${r.studentName},${r.className},${r.date},${r.dayName},${r.parentPhone}`).join("\n");
-    const blob = new Blob(["\uFEFF" + header + rows], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = `absence_report_${schoolName}.csv`; a.click();
-    URL.revokeObjectURL(url);
+  const handleExportDocx = () => {
+    exportStudentAbsenceDocx(records, schoolName, directorateName || "", principalName || "", filterClass || undefined, filterStudent || undefined);
+  };
+
+  const handleExportExcel = () => {
+    exportStudentAbsenceExcel(records, schoolName, directorateName || "", filterClass || undefined, filterStudent || undefined);
   };
 
   return (
@@ -98,8 +100,9 @@ export default function AbsenceReports({ userId, schoolName }: Props) {
         <CardHeader>
           <CardTitle className="text-lg flex items-center justify-between">
             <span>📊 ملخص الغيابات</span>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={exportCSV}><FileDown className="w-4 h-4 ml-1" /> تصدير CSV</Button>
+            <div className="flex gap-2 flex-wrap">
+              <Button size="sm" variant="outline" onClick={handleExportDocx}><FileText className="w-4 h-4 ml-1" /> تصدير Word</Button>
+              <Button size="sm" variant="outline" onClick={handleExportExcel}><FileDown className="w-4 h-4 ml-1" /> تصدير Excel</Button>
               <Button size="sm" variant="destructive" onClick={resetYear}><RotateCcw className="w-4 h-4 ml-1" /> سنة جديدة</Button>
             </div>
           </CardTitle>
