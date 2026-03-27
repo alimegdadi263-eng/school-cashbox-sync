@@ -248,7 +248,181 @@ function setupLanHandlers() {
   });
 }
 
-// ── App Ready ────────────────────────────────────────────────────────────────
+// ── Ajyal Integration IPC Handlers ───────────────────────────────────────────
+let ajyalWindow = null;
+
+function setupAjyalHandlers() {
+  ipcMain.handle('ajyal-open-window', async (_event, username, password) => {
+    try {
+      if (ajyalWindow && !ajyalWindow.isDestroyed()) {
+        ajyalWindow.focus();
+        return { success: true, message: 'Window already open' };
+      }
+
+      ajyalWindow = new BrowserWindow({
+        width: 1200,
+        height: 800,
+        title: 'منصة أجيال - تعبئة الغياب',
+        autoHideMenuBar: true,
+        webPreferences: {
+          contextIsolation: true,
+          nodeIntegration: false,
+          sandbox: false, // needed for executeJavaScript
+          devTools: isDev,
+        },
+      });
+
+      ajyalWindow.on('closed', () => { ajyalWindow = null; });
+
+      await ajyalWindow.loadURL('https://ajyal.edu.jo/login');
+
+      // Wait for page to load then auto-fill credentials
+      ajyalWindow.webContents.on('did-finish-load', async () => {
+        const currentURL = ajyalWindow?.webContents?.getURL() || '';
+        if (currentURL.includes('/login')) {
+          try {
+            await ajyalWindow.webContents.executeJavaScript(`
+              (function() {
+                // Try common selectors for login forms
+                const selectors = [
+                  'input[name="username"]', 'input[name="email"]', 'input[name="user"]',
+                  'input[id="username"]', 'input[id="email"]', 'input[type="text"]',
+                  'input[placeholder*="مستخدم"]', 'input[placeholder*="رقم"]'
+                ];
+                const passSelectors = [
+                  'input[name="password"]', 'input[id="password"]', 'input[type="password"]'
+                ];
+
+                let userInput = null;
+                for (const sel of selectors) {
+                  userInput = document.querySelector(sel);
+                  if (userInput) break;
+                }
+
+                let passInput = null;
+                for (const sel of passSelectors) {
+                  passInput = document.querySelector(sel);
+                  if (passInput) break;
+                }
+
+                if (userInput) {
+                  userInput.focus();
+                  userInput.value = ${JSON.stringify(username)};
+                  userInput.dispatchEvent(new Event('input', { bubbles: true }));
+                  userInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                if (passInput) {
+                  passInput.focus();
+                  passInput.value = ${JSON.stringify(password)};
+                  passInput.dispatchEvent(new Event('input', { bubbles: true }));
+                  passInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+
+                return { userFound: !!userInput, passFound: !!passInput };
+              })();
+            `);
+          } catch (e) {
+            console.error('Auto-fill failed:', e.message);
+          }
+        }
+      });
+
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('ajyal-check-login', async () => {
+    if (!ajyalWindow || ajyalWindow.isDestroyed()) {
+      return { loggedIn: false, error: 'Window not open' };
+    }
+    try {
+      const url = ajyalWindow.webContents.getURL();
+      // If URL is no longer /login, user is logged in
+      const loggedIn = !url.includes('/login');
+      return { loggedIn, url };
+    } catch (err) {
+      return { loggedIn: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('ajyal-submit-absence', async (_event, data) => {
+    if (!ajyalWindow || ajyalWindow.isDestroyed()) {
+      return { success: false, error: 'Window not open' };
+    }
+    try {
+      // Inject JS to fill absence form
+      // NOTE: These selectors need to be updated based on the actual Ajyal page structure
+      const result = await ajyalWindow.webContents.executeJavaScript(`
+        (function() {
+          try {
+            const studentName = ${JSON.stringify(data.studentName)};
+            const className = ${JSON.stringify(data.className)};
+            const date = ${JSON.stringify(data.date)};
+
+            // Try to find and fill student search/select fields
+            // These selectors MUST be updated to match ajyal.edu.jo actual DOM
+            const searchInputs = document.querySelectorAll('input[type="search"], input[type="text"], input.search-input');
+            let filled = false;
+
+            for (const input of searchInputs) {
+              if (input.placeholder && (input.placeholder.includes('بحث') || input.placeholder.includes('طالب'))) {
+                input.focus();
+                input.value = studentName;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+                filled = true;
+                break;
+              }
+            }
+
+            // If no search found, try selecting from a list
+            if (!filled) {
+              const allText = document.body.innerText;
+              if (allText.includes(studentName)) {
+                // Try clicking on the student name
+                const elements = document.querySelectorAll('td, span, div, label');
+                for (const el of elements) {
+                  if (el.textContent.trim() === studentName) {
+                    el.click();
+                    filled = true;
+                    break;
+                  }
+                }
+              }
+            }
+
+            // Look for absence checkbox/button
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+            for (const cb of checkboxes) {
+              const parent = cb.closest('tr, div, label');
+              if (parent && parent.textContent.includes(studentName) && !cb.checked) {
+                cb.click();
+                break;
+              }
+            }
+
+            return { success: true, filled };
+          } catch (e) {
+            return { success: false, error: e.message };
+          }
+        })();
+      `);
+      return result;
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('ajyal-close-window', async () => {
+    if (ajyalWindow && !ajyalWindow.isDestroyed()) {
+      ajyalWindow.close();
+      ajyalWindow = null;
+    }
+    return { success: true };
+  });
+}
 app.whenReady().then(() => {
   if (!isDev && !verifyIntegrity()) {
     dialog.showErrorBox('خطأ أمني', 'تم اكتشاف تعديل غير مصرح به على ملفات البرنامج.\nيرجى إعادة تثبيت البرنامج من المصدر الرسمي.');
