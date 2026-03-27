@@ -270,8 +270,8 @@ export default function SmsGatewaySettings() {
               <a href="https://play.google.com/store/apps/details?id=me.capcom.smsgateway" target="_blank" rel="noopener noreferrer">
                 <Button className="gap-2"><Download className="h-4 w-4" /> Google Play</Button>
               </a>
-              <a href="https://github.com/capcom6/sms-gateway/releases/latest" target="_blank" rel="noopener noreferrer">
-                <Button variant="outline" className="gap-2"><Download className="h-4 w-4" /> APK مباشر</Button>
+              <a href="/downloads/SMSGate.apk" download="SMSGate.apk">
+                <Button variant="outline" className="gap-2"><Download className="h-4 w-4" /> تحميل APK مباشر</Button>
               </a>
             </div>
           </div>
