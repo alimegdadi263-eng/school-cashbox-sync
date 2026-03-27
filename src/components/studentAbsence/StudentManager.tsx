@@ -35,7 +35,7 @@ export default function StudentManager({ userId }: Props) {
   const [filterClass, setFilterClass] = useState("");
 
   const isSecondary = SECONDARY_CLASSES.includes(selectedGrade);
-  const savedBranches: string[] = JSON.parse(localStorage.getItem(BRANCHES_STORAGE_KEY) || '["علمي","أدبي","صناعي","فندقي","زراعي","اقتصاد منزلي"]');
+  const [savedBranches, setSavedBranches] = useState<string[]>(() => JSON.parse(localStorage.getItem(BRANCHES_STORAGE_KEY) || '[]'));
 
   const className = selectedGrade && selectedSection
     ? (isSecondary && selectedBranch ? `${selectedGrade} ${selectedBranch} ${selectedSection}` : `${selectedGrade} ${selectedSection}`)
@@ -56,7 +56,15 @@ export default function StudentManager({ userId }: Props) {
   const addStudent = () => {
     if (!name.trim()) { toast({ title: "أدخل اسم الطالب", variant: "destructive" }); return; }
     if (!className) { toast({ title: "اختر الصف والشعبة", variant: "destructive" }); return; }
+    if (isSecondary && !selectedBranch.trim()) { toast({ title: "أدخل اسم الحقل / الفرع", variant: "destructive" }); return; }
     if (!parentPhone.trim()) { toast({ title: "أدخل رقم ولي الأمر", variant: "destructive" }); return; }
+
+    // Save new branch for future autocomplete
+    if (isSecondary && selectedBranch.trim() && !savedBranches.includes(selectedBranch.trim())) {
+      const updated = [...savedBranches, selectedBranch.trim()];
+      setSavedBranches(updated);
+      localStorage.setItem(BRANCHES_STORAGE_KEY, JSON.stringify(updated));
+    }
 
     const student: StudentInfo = {
       id: generateId(),
@@ -157,12 +165,14 @@ export default function StudentManager({ userId }: Props) {
                 <Input
                   value={selectedBranch}
                   onChange={e => setSelectedBranch(e.target.value)}
-                  placeholder="مثال: علمي، أدبي"
+                  placeholder="اكتب اسم الحقل"
                   list="branches-list"
                 />
-                <datalist id="branches-list">
-                  {savedBranches.map(b => <option key={b} value={b} />)}
-                </datalist>
+                {savedBranches.length > 0 && (
+                  <datalist id="branches-list">
+                    {savedBranches.map(b => <option key={b} value={b} />)}
+                  </datalist>
+                )}
               </div>
             )}
             <div className="space-y-1">
