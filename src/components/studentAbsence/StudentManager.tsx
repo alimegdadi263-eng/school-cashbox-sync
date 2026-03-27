@@ -189,14 +189,16 @@ export default function StudentManager({ userId, schoolName, directorateName }: 
           </div>
           <div className="flex gap-2 flex-wrap">
             <Button onClick={addStudent}><Plus className="w-4 h-4 ml-1" /> إضافة</Button>
-            <Button variant="outline" size="sm" onClick={exportCSV}><Download className="w-4 h-4 ml-1" /> تصدير CSV</Button>
+            <Button variant="outline" size="sm" onClick={() => exportStudentListDocx(students, schoolName || "", directorateName || "", filterClass || undefined)}>
+              <FileText className="w-4 h-4 ml-1" /> تصدير Word
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => exportStudentListExcel(students, schoolName || "", filterClass || undefined)}>
+              <FileDown className="w-4 h-4 ml-1" /> تصدير Excel
+            </Button>
             <label>
               <Button variant="outline" size="sm" asChild><span><Upload className="w-4 h-4 ml-1" /> استيراد CSV</span></Button>
               <input type="file" accept=".csv" className="hidden" onChange={importCSV} />
             </label>
-            <p className="text-xs text-muted-foreground self-center">
-              CSV = ملف إكسل بسيط. صدّر أولاً لترى الشكل المطلوب ثم عبّئ البيانات واستورد.
-            </p>
           </div>
         </CardContent>
       </Card>
