@@ -2,7 +2,7 @@ import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Code, Database, Shield, FileText, Layout, Server, Monitor, FolderTree, Lock, KeyRound, MessageSquare, Users, Smartphone } from "lucide-react";
+import { Code, Database, Shield, FileText, Layout, Server, Monitor, FolderTree, Lock, KeyRound, MessageSquare, Users, Smartphone, Globe } from "lucide-react";
 
 interface DocSection {
   title: string;
@@ -91,6 +91,18 @@ const sections: DocSection[] = [
       { file: "src/components/studentAbsence/SmsGatewaySettings.tsx", description: "واجهة إعدادات SMS: تدعم إضافة/تعديل/حذف عدة هواتف (GatewayProfileCard). كل بوابة لها اسم ووضع اتصال وبيانات مصادقة وخيار SIM. تتضمن دليل إعداد كامل (SmsInstructions) وأزرار تحميل التطبيق." },
       { file: "وضع واتساب الآمن", description: "في DailyAbsenceTracker: يفتح محادثات واتساب واحدة تلو الأخرى عبر wa.me links مع تحويل تلقائي للأرقام الأردنية (07xx → 962xx). يمنع الحظر من واتساب مقارنة بالفتح الجماعي." },
       { file: "supabase/functions/sms-proxy", description: "Edge Function وسيطة: تتجاوز CORS عن طريق استقبال الطلبات من المتصفح وتمريرها إلى SMSGate API. في الوضع السحابي ترسل إلى https://api.sms-gate.app/3rdparty/v1، وفي المحلي ترسل إلى عنوان IP المحلي." },
+    ],
+  },
+  {
+    title: "ربط منصة أجيال (Ajyal Integration)",
+    icon: Globe,
+    color: "text-lime-500",
+    items: [
+      { file: "src/components/studentAbsence/AjyalIntegration.tsx", description: "واجهة ربط أجيال: تبويب داخل صفحة غياب الطلبة يتيح إدخال بيانات حساب أجيال (username + password) وفتح نافذة مضمّنة لتسجيل الدخول. بعد إدخال OTP يدوياً والتأكيد، يمكن تعبئة غياب اليوم تلقائياً بضغطة زر." },
+      { file: "electron/main.cjs (Ajyal handlers)", description: "IPC Handlers في Electron: ajyal-open-window يفتح BrowserWindow لصفحة login أجيال ويحقن credentials تلقائياً. ajyal-check-login يفحص إذا اكتمل الدخول. ajyal-submit-absence يحقن JavaScript في النافذة للبحث عن الطالب وتسجيل غيابه." },
+      { file: "electron/preload.cjs (ajyal API)", description: "واجهة IPC آمنة: يوفر electronAPI.ajyal مع 4 دوال (openWindow, checkLogin, submitAbsence, closeWindow) عبر contextBridge. يمنع الوصول المباشر لـ Node.js." },
+      { file: "آلية التعبئة التلقائية", description: "عند الضغط على 'تعبئة الغياب تلقائياً' في البرمجية، يتم حقن executeJavaScript في نافذة أجيال المفتوحة للبحث عن اسم الطالب في الصفحة وتعبئة checkbox الغياب. يتم إرسال الطلاب واحداً تلو الآخر مع تأخير 1.5 ثانية بينهم." },
+      { file: "أمان بيانات أجيال", description: "بيانات الدخول تُحفظ في localStorage على جهاز المستخدم فقط (بمفتاح ajyal_credentials_{userId}). لا تُرسل لأي سيرفر خارجي. CSP في Electron محدّث للسماح بتحميل ajyal.edu.jo فقط." },
     ],
   },
   {
@@ -281,6 +293,7 @@ export default function CodeDocumentation() {
               <p>📱 <strong>المتصفح/Electron</strong> → React Components → Context/Hooks → localStorage (بيانات مالية + طلاب + جدول)</p>
               <p>☁️ <strong>المصادقة</strong> → Supabase Auth → Edge Functions → Database (profiles + roles + credentials)</p>
               <p>📨 <strong>SMS</strong> → smsGateway.ts → sms-proxy Edge Function → SMSGate Cloud API → هاتف المستخدم → رسالة SMS</p>
+              <p>🔗 <strong>أجيال</strong> → AjyalIntegration.tsx → IPC → Electron BrowserWindow → executeJavaScript → صفحة أجيال (تعبئة تلقائية)</p>
               <p>💬 <strong>واتساب</strong> → wa.me links مباشرة (بدون وسيط) مع تحويل تلقائي للأرقام</p>
               <p>📄 <strong>التصدير</strong> → مكتبات (docx + exceljs + pptxgenjs) → Blob → تحميل ملف</p>
             </div>
