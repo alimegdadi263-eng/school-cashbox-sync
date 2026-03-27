@@ -2,7 +2,7 @@
 // Supports both Local (LAN) and Cloud modes
 
 const SMS_GATEWAY_KEY = "sms_gateway_config";
-const CLOUD_API_URL = "https://sms.capcom6.ru/api/3rdparty/v1";
+const CLOUD_API_URL = "https://api.sms-gate.app/api/3rdparty/v1";
 
 export type GatewayMode = "local" | "cloud";
 
