@@ -291,6 +291,28 @@ export default function SmsGatewaySettings() {
                 />
               </div>
             )}
+            <div className="space-y-1 md:col-span-2">
+              <Label>رقم الشريحة (SIM) للإرسال</Label>
+              <RadioGroup
+                value={String(config.simNumber || 0)}
+                onValueChange={(v) => setConfig((p) => ({ ...p, simNumber: Number(v) || undefined }))}
+                className="flex gap-4"
+              >
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <RadioGroupItem value="0" id="sim-auto" />
+                  <span className="text-sm">تلقائي (الافتراضي)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <RadioGroupItem value="1" id="sim-1" />
+                  <span className="text-sm">SIM 1</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <RadioGroupItem value="2" id="sim-2" />
+                  <span className="text-sm">SIM 2</span>
+                </label>
+              </RadioGroup>
+              <p className="text-xs text-muted-foreground">اختر الشريحة التي تريد إرسال الرسائل منها (للهواتف ذات الشريحتين)</p>
+            </div>
           </div>
 
           <div className="flex gap-2">
