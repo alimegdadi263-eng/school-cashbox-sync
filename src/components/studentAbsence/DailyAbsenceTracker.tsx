@@ -314,8 +314,12 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
               <CardTitle className="flex items-center justify-between gap-3 text-lg">
                 <span>📨 الطلبة الغائبون اليوم ({todayAbsentRecords.length})</span>
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" onClick={sendAllSMS} className="gap-1">
-                    <Send className="h-4 w-4" /> إرسال SMS للجميع
+                  <Button size="sm" onClick={sendViaGateway} disabled={sendingGateway} className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white">
+                    {sendingGateway ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> إرسال {gatewayProgress.sent}/{gatewayProgress.total}</>
+                    ) : (
+                      <><Smartphone className="h-4 w-4" /> إرسال SMS من هاتفك</>
+                    )}
                   </Button>
                   <Button size="sm" variant="secondary" onClick={startWhatsAppQueue} className="gap-1">
                     <MessageSquare className="h-4 w-4" /> واتساب آمن للجميع
