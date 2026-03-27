@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, Upload, Download } from "lucide-react";
 import type { StudentInfo } from "@/types/studentAbsence";
+import { CLASS_NAMES, SECONDARY_CLASSES } from "@/types/timetable";
 import { STUDENTS_LIST_KEY } from "@/types/studentAbsence";
 
 interface Props {
@@ -16,8 +17,9 @@ interface Props {
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
-const GRADES = ["الأول", "الثاني", "الثالث", "الرابع", "الخامس", "السادس", "السابع", "الثامن", "التاسع", "العاشر"];
+const GRADES = CLASS_NAMES; // الأول إلى الثاني عشر
 const SECTIONS = ["أ", "ب", "ج", "د", "هـ", "و"];
+const BRANCHES_STORAGE_KEY = "custom_branches";
 
 export default function StudentManager({ userId }: Props) {
   const { toast } = useToast();
@@ -27,11 +29,17 @@ export default function StudentManager({ userId }: Props) {
   const [name, setName] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
   const [selectedSection, setSelectedSection] = useState("");
+  const [selectedBranch, setSelectedBranch] = useState("");
   const [parentPhone, setParentPhone] = useState("");
   const [parentName, setParentName] = useState("");
   const [filterClass, setFilterClass] = useState("");
 
-  const className = selectedGrade && selectedSection ? `${selectedGrade} ${selectedSection}` : "";
+  const isSecondary = SECONDARY_CLASSES.includes(selectedGrade);
+  const savedBranches: string[] = JSON.parse(localStorage.getItem(BRANCHES_STORAGE_KEY) || '["علمي","أدبي","صناعي","فندقي","زراعي","اقتصاد منزلي"]');
+
+  const className = selectedGrade && selectedSection
+    ? (isSecondary && selectedBranch ? `${selectedGrade} ${selectedBranch} ${selectedSection}` : `${selectedGrade} ${selectedSection}`)
+    : "";
 
   useEffect(() => {
     try {
@@ -58,7 +66,7 @@ export default function StudentManager({ userId }: Props) {
       parentName: parentName.trim() || undefined,
     };
     saveStudents([...students, student]);
-    setName(""); setParentPhone(""); setParentName("");
+    setName(""); setParentPhone(""); setParentName(""); setSelectedBranch("");
     toast({ title: "تم إضافة الطالب" });
   };
 
@@ -143,6 +151,20 @@ export default function StudentManager({ userId }: Props) {
                 </SelectContent>
               </Select>
             </div>
+            {isSecondary && (
+              <div className="space-y-1">
+                <Label>الحقل / الفرع</Label>
+                <Input
+                  value={selectedBranch}
+                  onChange={e => setSelectedBranch(e.target.value)}
+                  placeholder="مثال: علمي، أدبي"
+                  list="branches-list"
+                />
+                <datalist id="branches-list">
+                  {savedBranches.map(b => <option key={b} value={b} />)}
+                </datalist>
+              </div>
+            )}
             <div className="space-y-1">
               <Label>رقم ولي الأمر</Label>
               <Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} placeholder="07XXXXXXXX" dir="ltr" />
