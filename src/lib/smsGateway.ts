@@ -14,6 +14,7 @@ export interface SmsGatewayConfig {
   login: string;
   password: string;
   deviceId: string;
+  simNumber?: number; // 1 or 2 for dual-SIM phones
 }
 
 export function loadGatewayConfig(): SmsGatewayConfig | null {
@@ -58,9 +59,8 @@ export async function sendSmsViaGateway(
       body: JSON.stringify({
         deviceId: config.deviceId,
         phoneNumbers: [phone],
-        textMessage: {
-          text: message,
-        },
+        message: message,
+        ...(config.simNumber ? { simNumber: config.simNumber } : {}),
       }),
     });
 
