@@ -14,6 +14,7 @@ export interface SmsGatewayConfig {
   login: string;
   password: string;
   deviceId: string;
+  simNumber?: number; // 1 or 2 for dual-SIM phones
 }
 
 export function loadGatewayConfig(): SmsGatewayConfig | null {
