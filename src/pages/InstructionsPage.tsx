@@ -10,6 +10,7 @@ const quickStart = [
   "يمكنك إنشاء جداول الامتحانات من تبويب (جداول الامتحانات) مع تحديد الصف ونوع الامتحان وتاريخ البداية.",
   "لتصدير كشف أنصبة المعلمين استخدم زر (كشف أنصبة المعلمين) في تبويب الجدول المدرسي بعد توليد الجدول.",
   "استخدم تبويب (اللجان) لإنشاء كتب تشكيل اللجان المدرسية وتصديرها بالنموذج الرسمي.",
+  "لرصد غياب الطلبة وإشعار أولياء الأمور، استخدم تبويب (غياب الطلبة).",
 ];
 
 const movementInstructions = [
@@ -48,22 +49,11 @@ const movementInstructions = [
 const requiredDocuments = [
   {
     transaction: "الصرف",
-    docs: [
-      "مستند صرف",
-      "فاتورة (أو مطالبة مالية + قرار تكليف عند الحاجة)",
-      "مستند إدخال",
-      "طلب مشترى محلي",
-      "إثبات (هوية أو رخصة)",
-    ],
+    docs: ["مستند صرف", "فاتورة (أو مطالبة مالية + قرار تكليف عند الحاجة)", "مستند إدخال", "طلب مشترى محلي", "إثبات (هوية أو رخصة)"],
   },
   {
     transaction: "القيد",
-    docs: [
-      "مستند قيد",
-      "كتاب المديرية",
-      "الورقة الزهرية من مستند القبض",
-      "كشف حساب للتثبيت (إن أمكن)",
-    ],
+    docs: ["مستند قيد", "كتاب المديرية", "الورقة الزهرية من مستند القبض", "كشف حساب للتثبيت (إن أمكن)"],
   },
   {
     transaction: "سحب السلفة",
@@ -127,6 +117,41 @@ const sdiUsage = [
   "اضغط (تصدير Excel) لإنشاء ملف يطابق النموذج الرسمي.",
 ];
 
+const studentAbsenceUsage = [
+  "افتح تبويب (غياب الطلبة) من القائمة الجانبية.",
+  "تبويب إدارة الطلبة: أضف الطلاب مع بياناتهم (الاسم، الصف، الشعبة، رقم ولي الأمر، اسم ولي الأمر). يمكنك استيراد قائمة طلاب من ملف CSV.",
+  "حقل الفرع: يظهر فقط للصفوف 11 و12 (الأول والثاني ثانوي) لإدخال التخصص (علمي، أدبي، إلخ).",
+  "تبويب رصد الغياب: اختر التاريخ والصف، ثم حدد الطلاب الغائبين بوضع علامة ✅ واضغط (حفظ الغياب).",
+  "بعد الحفظ يظهر جدول الطلاب الغائبين مع خيارات الإرسال بجانب كل طالب.",
+];
+
+const smsGatewayUsage = [
+  "افتح تبويب (إعدادات SMS) داخل صفحة غياب الطلبة.",
+  "الخطوة 1 — تحميل التطبيق: اضغط زر (تحميل من Google Play) أو (تحميل APK مباشر) لتثبيت تطبيق SMSGate على هاتفك الأندرويد.",
+  "الخطوة 2 — الصلاحيات: بعد التثبيت، اذهب إلى إعدادات الهاتف ← التطبيقات ← SMSGate ← اضغط ⋮ (ثلاث نقاط) ← 'السماح بالإعدادات المقيدة' ← ثم ادخل الأذونات وفعّل صلاحية SMS.",
+  "الخطوة 3 — تفعيل Cloud: افتح التطبيق ← Settings ← فعّل Cloud server ← سجّل حساب ← انسخ Username و Password و Device ID.",
+  "الخطوة 4 — الإدخال: اضغط (+ إضافة هاتف جديد)، أدخل البيانات الثلاثة، اختر وضع الاتصال (سحابي مُوصى به)، ثم اضغط (حفظ الكل).",
+  "الخطوة 5 — الاختبار: اضغط (🔌 اختبار الاتصال) للتأكد من نجاح الربط.",
+  "عدة هواتف: يمكنك إضافة أكثر من هاتف. عند الإرسال الجماعي، يتم توزيع الرسائل تلقائياً بالتناوب على جميع الهواتف المربوطة لتسريع الإرسال وتجنب الحظر.",
+  "اختيار الشريحة: إذا هاتفك فيه شريحتين، يمكنك اختيار SIM 1 أو SIM 2 أو تلقائي لكل هاتف.",
+];
+
+const messagingUsage = [
+  "إرسال SMS لطالب واحد: اضغط أيقونة 📱 (الهاتف) بجانب اسم الطالب الغائب. يتم إرسال الرسالة عبر بوابة SMSGate من هاتفك مباشرة.",
+  "إرسال SMS للجميع: اضغط زر (إرسال SMS من هاتفك) لإرسال رسائل لجميع أولياء أمور الغائبين دفعة واحدة.",
+  "واتساب لطالب واحد: اضغط أيقونة 💬 بجانب اسم الطالب لفتح محادثة واتساب مع ولي الأمر مع نص الرسالة جاهز.",
+  "واتساب آمن للجميع: اضغط (واتساب آمن للجميع) لفتح المحادثات واحدة تلو الأخرى بدون فتح جماعي يسبب حظر من واتساب. بعد إرسال كل رسالة اضغط (التالي).",
+  "نسخ جميع الرسائل: اضغط (نسخ جميع الرسائل) لنسخ كافة الأرقام والرسائل إلى الحافظة للصقها في أي تطبيق مراسلة.",
+  "الأرقام الأردنية: يتم تحويل الأرقام تلقائياً من الصيغة المحلية (07xx) إلى الدولية (962xx) عند إرسال واتساب.",
+];
+
+const absenceReportsUsage = [
+  "تبويب التقارير: عرض سجل غياب كل طالب مع عدد أيام الغياب الإجمالي.",
+  "التنبيهات: يظهر تنبيه ⚠️ إنذار عند تجاوز الطالب 10 أيام غياب.",
+  "تبويب الإحصائيات: تحليل شامل لنسب الغياب على مستوى المدرسة والصف والشعبة مع تنبيهات لونية عند تجاوز نسبة 20%.",
+  "التصدير: يمكنك تصدير التقارير وقوائم الطلاب إلى ملفات Word وExcel بتنسيق رسمي يتضمن شعار الوزارة وترويسة المدرسة.",
+];
+
 const updateInstructions = [
   "للمستخدم النهائي: اضغط زر (التحديثات) مرة واحدة؛ الزر ينفّذ تلقائياً (تحقق ← تنزيل ← تثبيت).",
   "عند اكتمال التنزيل ستظهر رسالة إعادة التشغيل لتثبيت النسخة الجديدة مباشرة.",
@@ -135,7 +160,7 @@ const updateInstructions = [
 ];
 
 const settingsUsage = [
-  "اسم المدرسة: يظهر في ترويسة جميع النماذج والتقارير المصدرة.",
+  "اسم المدرسة: يظهر في ترويسة جميع النماذج والتقارير المصدرة ونصوص رسائل SMS.",
   "المركز (اسم المديرية): يظهر في ترويسة كتب اللجان والنماذج الرسمية.",
   "اسم مدير المدرسة: يُستخدم في توقيعات النماذج وكتب اللجان.",
   "عضوا اللجنة المالية: يظهران في سندات الصرف والقبض.",
@@ -150,8 +175,22 @@ const troubleshooting = [
   "إذا فشل الاستيراد: استخدم أول شيت في Excel وتأكد أن الصفوف تحتوي أعمدة النموذج الرسمية.",
   "إذا حدث تعارض أرقام: راجع الإعدادات وأعد حفظ الأرصدة الافتتاحية قبل إدخال الحركات الجديدة.",
   "إذا فشل تبديل الحصص: يوجد تعارض مع معلم آخر في نفس الفترة، جرّب فترة أخرى.",
-  "إذا لم يظهر حقل الفرع: حقل الفرع يظهر فقط عند اختيار الصف (الثاني عشر).",
+  "إذا لم يظهر حقل الفرع: حقل الفرع يظهر فقط عند اختيار الصف (الحادي عشر أو الثاني عشر).",
+  "فشل إرسال SMS: تأكد من أن تطبيق SMSGate مفتوح على الهاتف، وأن صلاحية SMS مفعّلة، وأن البيانات (Username, Password, Device ID) صحيحة.",
+  "فشل اختبار الاتصال بـ SMS: تأكد أن Cloud server مفعّل في التطبيق وأن الإنترنت يعمل على الهاتف.",
+  "واتساب لا يفتح: تأكد أن رقم ولي الأمر مُدخل بشكل صحيح (مثلاً 0781234567).",
+  "الرسالة لم تصل رغم نجاح الإرسال: تأكد من وجود رصيد كافٍ في شريحة SIM وأن الرقم المُستقبِل صحيح.",
+  "صلاحية SMS باهتة (غير قابلة للتفعيل): اذهب إلى معلومات التطبيق ← ⋮ ← 'السماح بالإعدادات المقيدة' ثم ارجع وفعّل الصلاحية.",
 ];
+
+const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <Card className="shadow-card">
+    <CardHeader>
+      <CardTitle>{title}</CardTitle>
+    </CardHeader>
+    <CardContent>{children}</CardContent>
+  </Card>
+);
 
 export default function InstructionsPage() {
   return (
@@ -159,37 +198,20 @@ export default function InstructionsPage() {
       <div className="space-y-6 max-w-6xl" dir="rtl">
         <h1 className="text-2xl font-bold text-foreground">دليل استخدام البرمجية الكامل</h1>
 
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>البدء السريع</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ol className="list-decimal pr-5 space-y-2 text-sm text-muted-foreground">
-              {quickStart.map((step) => (
-                <li key={step}>{step}</li>
-              ))}
-            </ol>
-          </CardContent>
-        </Card>
+        <Section title="البدء السريع">
+          <ol className="list-decimal pr-5 space-y-2 text-sm text-muted-foreground">
+            {quickStart.map((step) => <li key={step}>{step}</li>)}
+          </ol>
+        </Section>
 
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>الإعدادات الأساسية</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
-              {settingsUsage.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <Section title="الإعدادات الأساسية">
+          <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
+            {settingsUsage.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        </Section>
 
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>تعليمات الحركات (من / إلى)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <Section title="تعليمات الحركات (من / إلى)">
+          <div className="space-y-4">
             {movementInstructions.map((item) => (
               <div key={item.title} className="rounded-lg border border-border bg-card p-4 space-y-2">
                 <h3 className="font-semibold text-foreground">{item.title}</h3>
@@ -197,133 +219,97 @@ export default function InstructionsPage() {
                 <p className="text-sm text-muted-foreground">{item.details}</p>
               </div>
             ))}
-          </CardContent>
-        </Card>
+          </div>
+        </Section>
 
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>المستندات المطلوبة لكل معاملة</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <Section title="المستندات المطلوبة لكل معاملة">
+          <div className="space-y-4">
             {requiredDocuments.map((item) => (
               <div key={item.transaction} className="rounded-lg border border-border bg-card p-4">
                 <h3 className="font-semibold text-foreground mb-2">{item.transaction}</h3>
                 <ul className="list-disc pr-5 space-y-1 text-sm text-muted-foreground">
-                  {item.docs.map((doc) => (
-                    <li key={doc}>{doc}</li>
-                  ))}
+                  {item.docs.map((doc) => <li key={doc}>{doc}</li>)}
                 </ul>
               </div>
             ))}
-          </CardContent>
-        </Card>
+          </div>
+        </Section>
 
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>استخدام تبويب السكرتير (الجرد والإتلاف والنماذج)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
-              {secretaryUsage.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <Section title="استخدام تبويب السكرتير (الجرد والإتلاف والنماذج)">
+          <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
+            {secretaryUsage.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        </Section>
 
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>الجدول المدرسي</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
-              {timetableUsage.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <Section title="الجدول المدرسي">
+          <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
+            {timetableUsage.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        </Section>
 
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>اللجان المدرسية</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
-              {committeesUsage.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <Section title="اللجان المدرسية">
+          <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
+            {committeesUsage.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        </Section>
 
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>جداول الامتحانات</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
-              {examUsage.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <Section title="جداول الامتحانات">
+          <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
+            {examUsage.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        </Section>
 
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>تحليل منحة SDI</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
-              {sdiUsage.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <Section title="تحليل منحة SDI">
+          <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
+            {sdiUsage.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        </Section>
 
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>آلية التحديث</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
-              {updateInstructions.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <Section title="📱 غياب الطلبة — إدارة الطلاب ورصد الغياب">
+          <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
+            {studentAbsenceUsage.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        </Section>
 
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>حل المشاكل الشائعة</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
-              {troubleshooting.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <Section title="📲 إعداد بوابة SMS (إرسال رسائل مجانية من هاتفك)">
+          <ol className="list-decimal pr-5 space-y-2 text-sm text-muted-foreground">
+            {smsGatewayUsage.map((item) => <li key={item}>{item}</li>)}
+          </ol>
+        </Section>
+
+        <Section title="📨 إرسال الرسائل (SMS وواتساب)">
+          <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
+            {messagingUsage.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        </Section>
+
+        <Section title="📊 تقارير وإحصائيات الغياب">
+          <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
+            {absenceReportsUsage.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        </Section>
+
+        <Section title="آلية التحديث">
+          <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
+            {updateInstructions.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        </Section>
+
+        <Section title="حل المشاكل الشائعة">
+          <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
+            {troubleshooting.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        </Section>
 
         <Card className="shadow-card">
           <CardHeader>
             <CardTitle>الدعم الفني</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>
-              الاسم: <span className="font-semibold text-foreground">الأستاذ علي مقدادي</span>
-            </p>
-            <p>
-              رقم الهاتف: <a href="tel:0780296130" className="font-semibold text-primary hover:underline" dir="ltr">0780296130</a>
-            </p>
+            <p>الاسم: <span className="font-semibold text-foreground">الأستاذ علي مقدادي</span></p>
+            <p>رقم الهاتف: <a href="tel:0780296130" className="font-semibold text-primary hover:underline" dir="ltr">0780296130</a></p>
             <Separator />
-            <p>
-              الهدف من البرمجية: <span className="text-foreground">تسهيل إدارة الحركات المالية والجرد والإتلاف والنماذج الرسمية والجدول المدرسي واللجان بدقة ووقت أقل.</span>
-            </p>
+            <p>الهدف من البرمجية: <span className="text-foreground">تسهيل إدارة الحركات المالية والجرد والإتلاف والنماذج الرسمية والجدول المدرسي واللجان وغياب الطلبة وإشعار أولياء الأمور بدقة ووقت أقل.</span></p>
           </CardContent>
         </Card>
       </div>
