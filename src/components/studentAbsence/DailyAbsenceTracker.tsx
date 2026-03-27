@@ -223,6 +223,7 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
     }
   };
 
+  if (students.length === 0) {
     return (
       <Card>
         <CardContent className="py-8 text-center text-muted-foreground">
