@@ -138,13 +138,46 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
     }
   };
 
-  const sendWhatsApp = (phone: string, message: string) => {
-    let intlPhone = phone.replace(/[\s\-\+]/g, "");
+  const sendWhatsApp = async (phone: string, message: string) => {
+    let intlPhone = phone.replace(/[^\d]/g, "");
     if (intlPhone.startsWith("07")) intlPhone = "962" + intlPhone.slice(1);
     else if (intlPhone.startsWith("00")) intlPhone = intlPhone.slice(2);
     else if (intlPhone.startsWith("7") && intlPhone.length === 9) intlPhone = "962" + intlPhone;
-    const encoded = encodeURIComponent(message);
-    window.open(`https://wa.me/${intlPhone}?text=${encoded}`, "_blank");
+
+    if (!intlPhone || intlPhone.length < 9) {
+      toast({ title: "رقم الهاتف غير صالح لواتساب", variant: "destructive" });
+      return;
+    }
+
+    const url = `https://wa.me/${intlPhone}?text=${encodeURIComponent(message)}`;
+
+    try {
+      const electronApi = (window as any)?.electronAPI;
+      if (electronApi?.openExternalUrl) {
+        const result = await electronApi.openExternalUrl(url);
+        if (!result?.success) {
+          throw new Error(result?.error || "تعذر فتح واتساب خارجياً");
+        }
+        return;
+      }
+
+      const popup = window.open(url, "_blank", "noopener,noreferrer");
+      if (!popup) {
+        const link = document.createElement("a");
+        link.href = url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (error) {
+      toast({
+        title: "تعذر فتح واتساب",
+        description: error instanceof Error ? error.message : "حدث خطأ غير متوقع",
+        variant: "destructive",
+      });
+    }
   };
 
   const sendAllSMS = () => {
@@ -162,23 +195,23 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
     toast({ title: `تم فتح ${todayAbsentRecords.length} رسالة SMS` });
   };
 
-  const startWhatsAppQueue = () => {
+  const startWhatsAppQueue = async () => {
     if (todayAbsentRecords.length === 0) {
       toast({ title: "لا يوجد طلبة غائبين", variant: "destructive" });
       return;
     }
 
     setWhatsAppQueueIndex(0);
-    sendWhatsApp(todayAbsentRecords[0].parentPhone, buildMessage(todayAbsentRecords[0]));
+    await sendWhatsApp(todayAbsentRecords[0].parentPhone, buildMessage(todayAbsentRecords[0]));
     toast({ title: "تم بدء وضع واتساب الآمن" });
   };
 
-  const openCurrentWhatsApp = () => {
+  const openCurrentWhatsApp = async () => {
     if (!activeQueueRecord) return;
-    sendWhatsApp(activeQueueRecord.parentPhone, buildMessage(activeQueueRecord));
+    await sendWhatsApp(activeQueueRecord.parentPhone, buildMessage(activeQueueRecord));
   };
 
-  const goToNextWhatsApp = () => {
+  const goToNextWhatsApp = async () => {
     if (whatsAppQueueIndex === null) return;
 
     const nextIndex = whatsAppQueueIndex + 1;
@@ -190,7 +223,7 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
 
     setWhatsAppQueueIndex(nextIndex);
     const nextRecord = todayAbsentRecords[nextIndex];
-    sendWhatsApp(nextRecord.parentPhone, buildMessage(nextRecord));
+    await sendWhatsApp(nextRecord.parentPhone, buildMessage(nextRecord));
   };
 
   const copyAllMessages = () => {
@@ -340,7 +373,7 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
                       <><Smartphone className="h-4 w-4" /> إرسال SMS من هاتفك</>
                     )}
                   </Button>
-                  <Button size="sm" variant="secondary" onClick={startWhatsAppQueue} className="gap-1">
+                  <Button size="sm" variant="secondary" onClick={() => void startWhatsAppQueue()} className="gap-1">
                     <MessageSquare className="h-4 w-4" /> واتساب آمن للجميع
                   </Button>
                   <Button size="sm" variant="outline" onClick={copyAllMessages} className="gap-1">
@@ -377,7 +410,7 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
                               onClick={() => sendIndividualSmsGateway(rec)}>
                               {sendingIndividual === rec.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Smartphone className="h-4 w-4" />}
                             </Button>
-                            <Button size="icon" variant="outline" title="واتساب" onClick={() => sendWhatsApp(rec.parentPhone, buildMessage(rec))}>
+                            <Button size="icon" variant="outline" title="واتساب" onClick={() => void sendWhatsApp(rec.parentPhone, buildMessage(rec))}>
                               <MessageSquare className="h-4 w-4 text-primary" />
                             </Button>
                           </div>
@@ -404,10 +437,10 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <Button onClick={openCurrentWhatsApp} className="gap-1">
+                  <Button onClick={() => void openCurrentWhatsApp()} className="gap-1">
                     <MessageSquare className="h-4 w-4" /> فتح الرسالة الحالية
                   </Button>
-                  <Button variant="secondary" onClick={goToNextWhatsApp} className="gap-1">
+                  <Button variant="secondary" onClick={() => void goToNextWhatsApp()} className="gap-1">
                     <Send className="h-4 w-4" /> التالي
                   </Button>
                   <Button variant="outline" onClick={() => setWhatsAppQueueIndex(null)}>

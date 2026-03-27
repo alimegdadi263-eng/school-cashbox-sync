@@ -204,6 +204,18 @@ function setupLanHandlers() {
     return { mode: networkMode };
   });
 
+  ipcMain.handle('open-external-url', async (_event, url) => {
+    try {
+      if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) {
+        return { success: false, error: 'Invalid URL' };
+      }
+      await shell.openExternal(url);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
   // Data operations (route to server DB or remote server)
   ipcMain.handle('lan-get-data', async (_event, key) => {
     try {
