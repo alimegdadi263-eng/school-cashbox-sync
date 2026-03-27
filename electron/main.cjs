@@ -1,4 +1,4 @@
-const { app, BrowserWindow, session, globalShortcut, dialog, ipcMain, BrowserView } = require('electron');
+const { app, BrowserWindow, session, globalShortcut, dialog, ipcMain, BrowserView, shell } = require('electron');
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -132,6 +132,11 @@ function createWindow() {
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url === '' || url === 'about:blank') return { action: 'allow' };
+    // Allow WhatsApp and other external links to open in default browser
+    if (url.startsWith('https://wa.me/') || url.startsWith('https://api.whatsapp.com/') || url.startsWith('https://web.whatsapp.com/')) {
+      shell.openExternal(url);
+      return { action: 'deny' };
+    }
     return { action: 'deny' };
   });
   mainWindow.webContents.on('will-navigate', (event, url) => {
