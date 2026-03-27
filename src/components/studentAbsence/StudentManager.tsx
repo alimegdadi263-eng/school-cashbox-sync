@@ -35,7 +35,7 @@ export default function StudentManager({ userId }: Props) {
   const [filterClass, setFilterClass] = useState("");
 
   const isSecondary = SECONDARY_CLASSES.includes(selectedGrade);
-  const savedBranches: string[] = JSON.parse(localStorage.getItem(BRANCHES_STORAGE_KEY) || '["علمي","أدبي","صناعي","فندقي","زراعي","اقتصاد منزلي"]');
+  const [savedBranches, setSavedBranches] = useState<string[]>(() => JSON.parse(localStorage.getItem(BRANCHES_STORAGE_KEY) || '[]'));
 
   const className = selectedGrade && selectedSection
     ? (isSecondary && selectedBranch ? `${selectedGrade} ${selectedBranch} ${selectedSection}` : `${selectedGrade} ${selectedSection}`)
@@ -157,12 +157,14 @@ export default function StudentManager({ userId }: Props) {
                 <Input
                   value={selectedBranch}
                   onChange={e => setSelectedBranch(e.target.value)}
-                  placeholder="مثال: علمي، أدبي"
+                  placeholder="اكتب اسم الحقل"
                   list="branches-list"
                 />
-                <datalist id="branches-list">
-                  {savedBranches.map(b => <option key={b} value={b} />)}
-                </datalist>
+                {savedBranches.length > 0 && (
+                  <datalist id="branches-list">
+                    {savedBranches.map(b => <option key={b} value={b} />)}
+                  </datalist>
+                )}
               </div>
             )}
             <div className="space-y-1">
