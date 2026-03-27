@@ -1,4 +1,4 @@
-// Android SMS Gateway integration via Edge Function proxy
+// Android SMS Gateway integration via backend proxy
 // Supports both Local (LAN) and Cloud modes
 
 const SMS_GATEWAY_KEY = "sms_gateway_config";
@@ -13,6 +13,7 @@ export interface SmsGatewayConfig {
   serverUrl: string;
   login: string;
   password: string;
+  deviceId: string;
 }
 
 export function loadGatewayConfig(): SmsGatewayConfig | null {
@@ -21,6 +22,7 @@ export function loadGatewayConfig(): SmsGatewayConfig | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed.mode) parsed.mode = "local";
+    if (!parsed.deviceId) parsed.deviceId = "";
     return parsed;
   } catch {
     return null;
@@ -47,14 +49,18 @@ export async function sendSmsViaGateway(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
         "x-sms-auth": auth,
         "x-sms-mode": config.mode,
         "x-sms-server": config.serverUrl || "",
+        "x-sms-action": "send",
       },
       body: JSON.stringify({
-        message,
+        deviceId: config.deviceId,
         phoneNumbers: [phone],
+        textMessage: {
+          text: message,
+        },
       }),
     });
 
@@ -78,14 +84,15 @@ export async function testGatewayConnection(
     const res = await fetch(PROXY_URL, {
       method: "GET",
       headers: {
-        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
         "x-sms-auth": auth,
         "x-sms-mode": config.mode,
         "x-sms-server": config.serverUrl || "",
+        "x-sms-action": "test",
       },
     });
-    // Any response from proxy (even error from SMS API) means connection works
-    return res.ok || res.status < 500;
+
+    return res.ok;
   } catch {
     return false;
   }
@@ -106,8 +113,8 @@ export async function sendBulkSmsViaGateway(
     } else {
       failed.push({ phone: msg.phone, error: result.error || "خطأ غير معروف" });
     }
-    onProgress?.(sent, messages.length, failed.map(f => f.phone));
-    await new Promise(r => setTimeout(r, 300));
+    onProgress?.(sent, messages.length, failed.map((f) => f.phone));
+    await new Promise((r) => setTimeout(r, 300));
   }
 
   return { sent, failed };
