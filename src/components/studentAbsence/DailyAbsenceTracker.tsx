@@ -14,7 +14,7 @@ import { CalendarIcon, Save, MessageSquare, Phone, Send, Copy, Smartphone, Loade
 import { cn } from "@/lib/utils";
 import type { StudentInfo, StudentAbsenceRecord } from "@/types/studentAbsence";
 import { STUDENTS_LIST_KEY, STUDENT_STORAGE_KEY } from "@/types/studentAbsence";
-import { loadGatewayConfig, sendBulkSmsViaGateway, sendSmsViaGateway } from "@/lib/smsGateway";
+import { loadGatewayConfig, loadGatewayProfiles, sendBulkSmsMultiGateway, sendSmsViaGateway } from "@/lib/smsGateway";
 
 const DAYS_AR = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 
@@ -122,11 +122,12 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
   };
 
   const sendIndividualSmsGateway = async (rec: StudentAbsenceRecord) => {
-    const config = loadGatewayConfig();
-    if (!config || !config.login || !config.password) {
+    const profiles = loadGatewayProfiles();
+    if (profiles.length === 0) {
       toast({ title: "يرجى إعداد بوابة SMS أولاً من تبويب 'إعدادات SMS'", variant: "destructive" });
       return;
     }
+    const config = profiles[0];
     setSendingIndividual(rec.id);
     const result = await sendSmsViaGateway(config, rec.parentPhone, buildMessage(rec));
     setSendingIndividual(null);
@@ -206,8 +207,8 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
   };
 
   const sendViaGateway = async () => {
-    const config = loadGatewayConfig();
-    if (!config || !config.login || !config.password) {
+    const profiles = loadGatewayProfiles();
+    if (profiles.length === 0) {
       toast({ title: "يرجى إعداد بوابة SMS أولاً من تبويب 'إعدادات SMS'", variant: "destructive" });
       return;
     }
@@ -224,7 +225,7 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
       text: buildMessage(rec),
     }));
 
-    const result = await sendBulkSmsViaGateway(config, messages, (sent, total) => {
+    const result = await sendBulkSmsMultiGateway(profiles, messages, (sent, total) => {
       setGatewayProgress({ sent, total });
     });
 

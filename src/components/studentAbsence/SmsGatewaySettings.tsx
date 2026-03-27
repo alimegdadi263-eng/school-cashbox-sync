@@ -6,17 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { Smartphone, Save, Wifi, WifiOff, ExternalLink, Globe, Router, Download, BookOpen, ChevronDown, ChevronUp } from "lucide-react";
+import { Smartphone, Save, Wifi, WifiOff, Globe, Router, Download, BookOpen, ChevronDown, ChevronUp, Plus, Trash2, Edit2, Check } from "lucide-react";
 import {
-  loadGatewayConfig,
-  saveGatewayConfig,
+  loadGatewayProfiles,
+  saveGatewayProfiles,
   testGatewayConnection,
   type SmsGatewayConfig,
   type GatewayMode,
 } from "@/lib/smsGateway";
 
 function SmsInstructions() {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   return (
     <Card className="border-primary/30 bg-primary/5">
@@ -31,75 +31,44 @@ function SmsInstructions() {
       </CardHeader>
       {open && (
         <CardContent className="space-y-4 text-sm">
-          {/* Step 1 */}
           <div className="rounded-lg border bg-background p-3 space-y-2">
             <p className="font-bold text-primary">الخطوة 1: تحميل تطبيق SMSGate على هاتفك</p>
             <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-              <li>اضغط على زر <strong>"تحميل التطبيق"</strong> أدناه لتحميل التطبيق مباشرة</li>
+              <li>اضغط على زر <strong>"تحميل التطبيق"</strong> أدناه</li>
               <li>أو ابحث عن <strong>"SMS Gate"</strong> في متجر Google Play</li>
               <li>ثبّت التطبيق على هاتفك الأندرويد</li>
             </ol>
           </div>
-
-          {/* Step 2 */}
           <div className="rounded-lg border bg-background p-3 space-y-2">
             <p className="font-bold text-primary">الخطوة 2: إعطاء الصلاحيات</p>
             <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-              <li>افتح <strong>إعدادات الهاتف</strong> ← <strong>التطبيقات</strong> ← <strong>SMSGate</strong></li>
-              <li>اضغط على <strong>⋮ (ثلاث نقاط)</strong> في الأعلى ← <strong>"السماح بالإعدادات المقيدة"</strong></li>
-              <li>ارجع وادخل <strong>الأذونات</strong> ← فعّل صلاحية <strong>SMS</strong></li>
+              <li>إعدادات الهاتف ← التطبيقات ← SMSGate</li>
+              <li>⋮ (ثلاث نقاط) ← <strong>"السماح بالإعدادات المقيدة"</strong></li>
+              <li>الأذونات ← فعّل صلاحية <strong>SMS</strong></li>
             </ol>
             <p className="text-xs text-destructive">⚠️ بدون هذه الخطوة لن يستطيع التطبيق إرسال الرسائل!</p>
           </div>
-
-          {/* Step 3 */}
           <div className="rounded-lg border bg-background p-3 space-y-2">
-            <p className="font-bold text-primary">الخطوة 3: تفعيل Cloud Server في التطبيق</p>
+            <p className="font-bold text-primary">الخطوة 3: تفعيل Cloud Server</p>
             <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-              <li>افتح تطبيق SMSGate على هاتفك</li>
-              <li>اذهب إلى <strong>Settings</strong> (الإعدادات)</li>
-              <li>فعّل <strong>Cloud server</strong></li>
-              <li>سجّل حساب أو سجّل دخول</li>
-              <li>ستظهر لك 3 بيانات مهمة:
-                <ul className="list-disc list-inside mr-4 mt-1">
-                  <li><strong>Username</strong> (اسم المستخدم)</li>
-                  <li><strong>Password</strong> (كلمة المرور)</li>
-                  <li><strong>Device ID</strong> (معرّف الجهاز)</li>
-                </ul>
-              </li>
+              <li>افتح SMSGate ← Settings ← فعّل <strong>Cloud server</strong></li>
+              <li>سجّل حساب وانسخ: <strong>Username</strong> و <strong>Password</strong> و <strong>Device ID</strong></li>
             </ol>
           </div>
-
-          {/* Step 4 */}
           <div className="rounded-lg border bg-background p-3 space-y-2">
-            <p className="font-bold text-primary">الخطوة 4: إدخال البيانات في النظام</p>
+            <p className="font-bold text-primary">الخطوة 4: إدخال البيانات هنا</p>
             <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-              <li>اختر الوضع <strong>"سحابي (Cloud)"</strong> أدناه</li>
-              <li>أدخل <strong>Username</strong> و <strong>Password</strong> و <strong>Device ID</strong></li>
-              <li>اضغط <strong>"حفظ الإعدادات"</strong></li>
-              <li>اضغط <strong>"اختبار الاتصال"</strong> للتأكد</li>
+              <li>اضغط <strong>"+ إضافة هاتف جديد"</strong></li>
+              <li>أدخل البيانات واضغط حفظ ثم اختبر الاتصال</li>
+              <li>يمكنك إضافة <strong>عدة هواتف</strong> لتوزيع الرسائل عليها!</li>
             </ol>
           </div>
-
-          {/* Step 5 */}
-          <div className="rounded-lg border bg-background p-3 space-y-2">
-            <p className="font-bold text-primary">الخطوة 5: إرسال الرسائل</p>
-            <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-              <li>اذهب إلى تبويب <strong>"رصد الغياب"</strong></li>
-              <li>حدد الطلاب الغائبين واحفظ الغياب</li>
-              <li>لإرسال SMS لطالب واحد: اضغط أيقونة 📱 بجانب اسمه</li>
-              <li>لإرسال للجميع: اضغط <strong>"إرسال SMS من هاتفك"</strong></li>
-              <li>لإرسال واتساب: اضغط أيقونة 💬 بجانب اسم الطالب</li>
-            </ol>
-          </div>
-
           <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1">
             <p className="font-bold text-destructive">⚠️ ملاحظات مهمة:</p>
             <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
-              <li>يجب أن يكون تطبيق SMSGate <strong>مفتوحاً</strong> على هاتفك أثناء الإرسال</li>
+              <li>يجب أن يكون تطبيق SMSGate <strong>مفتوحاً</strong> على الهاتف أثناء الإرسال</li>
               <li>تأكد من وجود <strong>رصيد كافٍ</strong> في شريحة SIM</li>
-              <li>الرسائل تُرسل من <strong>رقم هاتفك الشخصي</strong></li>
-              <li>عند تثبيت التطبيق من خارج المتجر، يجب <strong>السماح بالإعدادات المقيدة</strong> يدوياً</li>
+              <li>عند إضافة عدة هواتف، يتم <strong>توزيع الرسائل تلقائياً</strong> بالتناوب</li>
             </ul>
           </div>
         </CardContent>
@@ -108,223 +77,257 @@ function SmsInstructions() {
   );
 }
 
-export default function SmsGatewaySettings() {
-  const { toast } = useToast();
-  const [config, setConfig] = useState<SmsGatewayConfig>({
-    mode: "cloud",
-    serverUrl: "",
-    login: "",
-    password: "",
-    deviceId: "",
-  });
+const emptyProfile = (): SmsGatewayConfig => ({
+  id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+  name: "",
+  mode: "cloud",
+  serverUrl: "",
+  login: "",
+  password: "",
+  deviceId: "",
+});
+
+function GatewayProfileCard({
+  profile,
+  index,
+  onUpdate,
+  onDelete,
+  onTest,
+}: {
+  profile: SmsGatewayConfig;
+  index: number;
+  onUpdate: (p: SmsGatewayConfig) => void;
+  onDelete: () => void;
+  onTest: () => void;
+}) {
   const [testing, setTesting] = useState(false);
   const [connected, setConnected] = useState<boolean | null>(null);
+  const [editing, setEditing] = useState(!profile.login); // auto-open if new
 
-  useEffect(() => {
-    const saved = loadGatewayConfig();
-    if (saved) setConfig(saved);
-  }, []);
-
-  const handleSave = () => {
-    if (!config.login || !config.password) {
-      toast({ title: "يرجى تعبئة اسم المستخدم وكلمة المرور", variant: "destructive" });
-      return;
-    }
-    if (config.mode === "local" && !config.serverUrl) {
-      toast({ title: "يرجى إدخال عنوان السيرفر المحلي", variant: "destructive" });
-      return;
-    }
-    if (config.mode === "cloud" && !config.deviceId) {
-      toast({ title: "يرجى إدخال Device ID من تطبيق الهاتف", variant: "destructive" });
-      return;
-    }
-    saveGatewayConfig(config);
-    toast({ title: "تم حفظ إعدادات بوابة SMS" });
-  };
-
-  const handleTestConnection = async () => {
+  const handleTest = async () => {
     setTesting(true);
     setConnected(null);
-    const ok = await testGatewayConnection(config);
+    const ok = await testGatewayConnection(profile);
     setConnected(ok);
-    toast({
-      title: ok ? "✅ متصل بالبوابة بنجاح" : "❌ فشل الاتصال",
-      description: ok
-        ? undefined
-        : config.mode === "local"
-          ? "تأكد من عنوان IP وأن التطبيق مفتوح على نفس الشبكة"
-          : "تأكد من Username و Password وأن Cloud server مفعل داخل التطبيق",
-      variant: ok ? "default" : "destructive",
-    });
     setTesting(false);
+    onTest();
+  };
+
+  return (
+    <Card className="border-border">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center justify-between text-base">
+          <div className="flex items-center gap-2">
+            <Smartphone className="h-4 w-4" />
+            <span>{profile.name || `هاتف ${index + 1}`}</span>
+            {connected === true && <Badge variant="default" className="gap-1 text-xs"><Wifi className="h-3 w-3" /> متصل</Badge>}
+            {connected === false && <Badge variant="destructive" className="gap-1 text-xs"><WifiOff className="h-3 w-3" /> غير متصل</Badge>}
+          </div>
+          <div className="flex gap-1">
+            <Button size="icon" variant="ghost" onClick={() => setEditing(!editing)}>
+              {editing ? <Check className="h-4 w-4" /> : <Edit2 className="h-4 w-4" />}
+            </Button>
+            <Button size="icon" variant="ghost" onClick={onDelete} className="text-destructive hover:text-destructive">
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardTitle>
+      </CardHeader>
+      {editing && (
+        <CardContent className="space-y-3 pt-0">
+          <div className="space-y-1">
+            <Label>اسم الهاتف (للتمييز)</Label>
+            <Input
+              placeholder="مثال: هاتف أحمد"
+              value={profile.name || ""}
+              onChange={(e) => onUpdate({ ...profile, name: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">وضع الاتصال</Label>
+            <RadioGroup
+              value={profile.mode}
+              onValueChange={(v) => onUpdate({ ...profile, mode: v as GatewayMode })}
+              className="flex gap-4"
+            >
+              <label className="flex items-center gap-2 cursor-pointer">
+                <RadioGroupItem value="cloud" />
+                <span className="text-sm flex items-center gap-1"><Globe className="h-3 w-3" /> سحابي</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <RadioGroupItem value="local" />
+                <span className="text-sm flex items-center gap-1"><Router className="h-3 w-3" /> محلي</span>
+              </label>
+            </RadioGroup>
+          </div>
+          {profile.mode === "local" && (
+            <div className="space-y-1">
+              <Label>عنوان السيرفر</Label>
+              <Input dir="ltr" placeholder="http://192.168.1.5:8080" value={profile.serverUrl}
+                onChange={(e) => onUpdate({ ...profile, serverUrl: e.target.value })} />
+            </div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Username</Label>
+              <Input dir="ltr" placeholder="من تطبيق SMSGate" value={profile.login}
+                onChange={(e) => onUpdate({ ...profile, login: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label>Password</Label>
+              <Input dir="ltr" type="password" placeholder="من تطبيق SMSGate" value={profile.password}
+                onChange={(e) => onUpdate({ ...profile, password: e.target.value })} />
+            </div>
+          </div>
+          {profile.mode === "cloud" && (
+            <div className="space-y-1">
+              <Label>Device ID</Label>
+              <Input dir="ltr" placeholder="من تطبيق SMSGate" value={profile.deviceId}
+                onChange={(e) => onUpdate({ ...profile, deviceId: e.target.value })} />
+            </div>
+          )}
+          <div className="space-y-1">
+            <Label>شريحة SIM</Label>
+            <RadioGroup
+              value={String(profile.simNumber || 0)}
+              onValueChange={(v) => onUpdate({ ...profile, simNumber: Number(v) || undefined })}
+              className="flex gap-4"
+            >
+              <label className="flex items-center gap-2 cursor-pointer">
+                <RadioGroupItem value="0" />
+                <span className="text-sm">تلقائي</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <RadioGroupItem value="1" />
+                <span className="text-sm">SIM 1</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <RadioGroupItem value="2" />
+                <span className="text-sm">SIM 2</span>
+              </label>
+            </RadioGroup>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleTest} disabled={testing || !profile.login || !profile.password}>
+            {testing ? "جاري الاختبار..." : "🔌 اختبار الاتصال"}
+          </Button>
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
+export default function SmsGatewaySettings() {
+  const { toast } = useToast();
+  const [profiles, setProfiles] = useState<SmsGatewayConfig[]>([]);
+
+  useEffect(() => {
+    setProfiles(loadGatewayProfiles());
+  }, []);
+
+  const handleAddProfile = () => {
+    setProfiles(prev => [...prev, emptyProfile()]);
+  };
+
+  const handleUpdateProfile = (index: number, updated: SmsGatewayConfig) => {
+    setProfiles(prev => prev.map((p, i) => i === index ? updated : p));
+  };
+
+  const handleDeleteProfile = (index: number) => {
+    setProfiles(prev => {
+      const next = prev.filter((_, i) => i !== index);
+      saveGatewayProfiles(next);
+      return next;
+    });
+    toast({ title: "تم حذف الهاتف" });
+  };
+
+  const handleSaveAll = () => {
+    const invalid = profiles.find(p => !p.login || !p.password);
+    if (invalid) {
+      toast({ title: "يرجى تعبئة بيانات جميع الهواتف", variant: "destructive" });
+      return;
+    }
+    const cloudInvalid = profiles.find(p => p.mode === "cloud" && !p.deviceId);
+    if (cloudInvalid) {
+      toast({ title: `يرجى إدخال Device ID للهاتف "${cloudInvalid.name || "بدون اسم"}"`, variant: "destructive" });
+      return;
+    }
+    saveGatewayProfiles(profiles);
+    toast({ title: `تم حفظ ${profiles.length} هاتف/هواتف بنجاح ✅` });
   };
 
   return (
     <div className="space-y-4">
-      {/* Download Button */}
+      {/* Download */}
       <Card>
         <CardContent className="py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="font-bold text-base">📲 تطبيق SMSGate (مطلوب)</h3>
-              <p className="text-sm text-muted-foreground">حمّل التطبيق على هاتفك الأندرويد لتتمكن من إرسال SMS مجاناً</p>
+              <p className="text-sm text-muted-foreground">حمّل التطبيق على هاتفك الأندرويد لإرسال SMS مجاناً</p>
             </div>
             <div className="flex gap-2">
-              <a
-                href="https://play.google.com/store/apps/details?id=me.capcom.smsgateway"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Button className="gap-2">
-                  <Download className="h-4 w-4" /> تحميل من Google Play
-                </Button>
+              <a href="https://play.google.com/store/apps/details?id=me.capcom.smsgateway" target="_blank" rel="noopener noreferrer">
+                <Button className="gap-2"><Download className="h-4 w-4" /> Google Play</Button>
               </a>
-              <a
-                href="https://github.com/capcom6/sms-gateway/releases/latest"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Button variant="outline" className="gap-2">
-                  <Download className="h-4 w-4" /> تحميل APK مباشر
-                </Button>
+              <a href="https://github.com/capcom6/sms-gateway/releases/latest" target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" className="gap-2"><Download className="h-4 w-4" /> APK مباشر</Button>
               </a>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Instructions */}
       <SmsInstructions />
 
-      {/* Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Smartphone className="h-5 w-5" />
-            إعدادات بوابة SMS
-            {connected === true && <Badge variant="default" className="gap-1"><Wifi className="h-3 w-3" /> متصل</Badge>}
-            {connected === false && <Badge variant="destructive" className="gap-1"><WifiOff className="h-3 w-3" /> غير متصل</Badge>}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label className="text-base font-medium">وضع الاتصال</Label>
-            <RadioGroup
-              value={config.mode}
-              onValueChange={(v) => setConfig((p) => ({ ...p, mode: v as GatewayMode }))}
-              className="grid grid-cols-1 md:grid-cols-2 gap-3"
-            >
-              <label
-                htmlFor="mode-cloud"
-                className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
-                  config.mode === "cloud" ? "border-primary bg-primary/5" : "border-border"
-                }`}
-              >
-                <RadioGroupItem value="cloud" id="mode-cloud" className="mt-1" />
-                <div>
-                  <div className="flex items-center gap-1 font-medium">
-                    <Globe className="h-4 w-4" /> سحابي (Cloud) - مُوصى به
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    يعمل من أي مكان عبر الإنترنت
-                  </p>
-                </div>
-              </label>
-              <label
-                htmlFor="mode-local"
-                className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
-                  config.mode === "local" ? "border-primary bg-primary/5" : "border-border"
-                }`}
-              >
-                <RadioGroupItem value="local" id="mode-local" className="mt-1" />
-                <div>
-                  <div className="flex items-center gap-1 font-medium">
-                    <Router className="h-4 w-4" /> محلي (LAN)
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    يتطلب أن يكون الهاتف والكمبيوتر على نفس شبكة WiFi
-                  </p>
-                </div>
-              </label>
-            </RadioGroup>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {config.mode === "local" && (
-              <div className="space-y-1 md:col-span-2">
-                <Label>عنوان السيرفر (IP:Port)</Label>
-                <Input
-                  dir="ltr"
-                  placeholder="http://192.168.1.5:8080"
-                  value={config.serverUrl}
-                  onChange={(e) => setConfig((p) => ({ ...p, serverUrl: e.target.value }))}
-                />
-              </div>
-            )}
-            <div className="space-y-1">
-              <Label>اسم المستخدم (Username)</Label>
-              <Input
-                dir="ltr"
-                placeholder="Username من تطبيق SMSGate"
-                value={config.login}
-                onChange={(e) => setConfig((p) => ({ ...p, login: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>كلمة المرور (Password)</Label>
-              <Input
-                dir="ltr"
-                type="password"
-                placeholder="Password من تطبيق SMSGate"
-                value={config.password}
-                onChange={(e) => setConfig((p) => ({ ...p, password: e.target.value }))}
-              />
-            </div>
-            {config.mode === "cloud" && (
-              <div className="space-y-1 md:col-span-2">
-                <Label>معرّف الجهاز (Device ID)</Label>
-                <Input
-                  dir="ltr"
-                  placeholder="Device ID من تطبيق SMSGate"
-                  value={config.deviceId}
-                  onChange={(e) => setConfig((p) => ({ ...p, deviceId: e.target.value }))}
-                />
-              </div>
-            )}
-            <div className="space-y-1 md:col-span-2">
-              <Label>رقم الشريحة (SIM) للإرسال</Label>
-              <RadioGroup
-                value={String(config.simNumber || 0)}
-                onValueChange={(v) => setConfig((p) => ({ ...p, simNumber: Number(v) || undefined }))}
-                className="flex gap-4"
-              >
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <RadioGroupItem value="0" id="sim-auto" />
-                  <span className="text-sm">تلقائي (الافتراضي)</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <RadioGroupItem value="1" id="sim-1" />
-                  <span className="text-sm">SIM 1</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <RadioGroupItem value="2" id="sim-2" />
-                  <span className="text-sm">SIM 2</span>
-                </label>
-              </RadioGroup>
-              <p className="text-xs text-muted-foreground">اختر الشريحة التي تريد إرسال الرسائل منها (للهواتف ذات الشريحتين)</p>
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <Button onClick={handleSave} className="gap-1">
-              <Save className="h-4 w-4" /> حفظ الإعدادات
+      {/* Profiles */}
+      <div className="flex items-center justify-between">
+        <h3 className="font-bold text-lg flex items-center gap-2">
+          📱 الهواتف المربوطة ({profiles.length})
+        </h3>
+        <div className="flex gap-2">
+          <Button onClick={handleAddProfile} variant="outline" className="gap-1">
+            <Plus className="h-4 w-4" /> إضافة هاتف جديد
+          </Button>
+          {profiles.length > 0 && (
+            <Button onClick={handleSaveAll} className="gap-1">
+              <Save className="h-4 w-4" /> حفظ الكل
             </Button>
-            <Button variant="outline" onClick={handleTestConnection} disabled={testing || !config.login || !config.password}>
-              {testing ? "جاري الاختبار..." : "🔌 اختبار الاتصال"}
+          )}
+        </div>
+      </div>
+
+      {profiles.length === 0 && (
+        <Card>
+          <CardContent className="py-8 text-center text-muted-foreground">
+            <Smartphone className="h-10 w-10 mx-auto mb-3 opacity-50" />
+            <p className="text-lg mb-1">لا توجد هواتف مربوطة</p>
+            <p className="text-sm mb-3">اضغط "إضافة هاتف جديد" لربط أول هاتف</p>
+            <Button onClick={handleAddProfile} className="gap-1">
+              <Plus className="h-4 w-4" /> إضافة هاتف جديد
             </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
+
+      {profiles.length > 1 && (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+          💡 عند إرسال رسائل جماعية، سيتم <strong>توزيع الرسائل تلقائياً بالتناوب</strong> على جميع الهواتف لتسريع الإرسال وتجنب الحظر.
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {profiles.map((profile, index) => (
+          <GatewayProfileCard
+            key={profile.id || index}
+            profile={profile}
+            index={index}
+            onUpdate={(p) => handleUpdateProfile(index, p)}
+            onDelete={() => handleDeleteProfile(index)}
+            onTest={() => {}}
+          />
+        ))}
+      </div>
     </div>
   );
 }
