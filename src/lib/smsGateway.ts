@@ -59,9 +59,8 @@ export async function sendSmsViaGateway(
       body: JSON.stringify({
         deviceId: config.deviceId,
         phoneNumbers: [phone],
-        textMessage: {
-          text: message,
-        },
+        message: message,
+        ...(config.simNumber ? { simNumber: config.simNumber } : {}),
       }),
     });
 
