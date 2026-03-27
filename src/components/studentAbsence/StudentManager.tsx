@@ -6,13 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Upload, Download } from "lucide-react";
+import { Plus, Trash2, Upload, Download, FileText, FileDown } from "lucide-react";
 import type { StudentInfo } from "@/types/studentAbsence";
 import { CLASS_NAMES, SECONDARY_CLASSES } from "@/types/timetable";
 import { STUDENTS_LIST_KEY } from "@/types/studentAbsence";
+import { exportStudentListDocx, exportStudentListExcel } from "@/lib/exportStudentList";
 
 interface Props {
   userId: string;
+  schoolName?: string;
+  directorateName?: string;
 }
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -21,7 +24,7 @@ const GRADES = CLASS_NAMES; // الأول إلى الثاني عشر
 const SECTIONS = ["أ", "ب", "ج", "د", "هـ", "و"];
 const BRANCHES_STORAGE_KEY = "custom_branches";
 
-export default function StudentManager({ userId }: Props) {
+export default function StudentManager({ userId, schoolName, directorateName }: Props) {
   const { toast } = useToast();
   const storageKey = `${STUDENTS_LIST_KEY}_${userId}`;
 
