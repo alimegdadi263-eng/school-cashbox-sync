@@ -112,6 +112,8 @@ function createWindow() {
   // CSP
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     if (details.url.startsWith('file://')) { callback({ responseHeaders: { ...details.responseHeaders } }); return; }
+    // Don't modify CSP for Ajyal window
+    if (details.url.includes('ajyal.edu.jo')) { callback({ responseHeaders: { ...details.responseHeaders } }); return; }
     callback({
       responseHeaders: {
         ...details.responseHeaders,
