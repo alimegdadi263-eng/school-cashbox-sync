@@ -16,60 +16,38 @@ interface Props {
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
+const GRADES = ["الأول", "الثاني", "الثالث", "الرابع", "الخامس", "السادس", "السابع", "الثامن", "التاسع", "العاشر"];
+const SECTIONS = ["أ", "ب", "ج", "د", "هـ", "و"];
+
 export default function StudentManager({ userId }: Props) {
   const { toast } = useToast();
   const storageKey = `${STUDENTS_LIST_KEY}_${userId}`;
 
   const [students, setStudents] = useState<StudentInfo[]>([]);
   const [name, setName] = useState("");
-  const [className, setClassName] = useState("");
+  const [selectedGrade, setSelectedGrade] = useState("");
+  const [selectedSection, setSelectedSection] = useState("");
   const [parentPhone, setParentPhone] = useState("");
   const [parentName, setParentName] = useState("");
   const [filterClass, setFilterClass] = useState("");
 
-  // Custom classes management
-  const classesKey = `student_classes_${userId}`;
-  const [classes, setClasses] = useState<string[]>([]);
-  const [newClass, setNewClass] = useState("");
+  const className = selectedGrade && selectedSection ? `${selectedGrade} ${selectedSection}` : "";
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem(storageKey);
       if (saved) setStudents(JSON.parse(saved));
-      const savedClasses = localStorage.getItem(classesKey);
-      if (savedClasses) setClasses(JSON.parse(savedClasses));
     } catch {}
-  }, [storageKey, classesKey]);
+  }, [storageKey]);
 
   const saveStudents = (list: StudentInfo[]) => {
     setStudents(list);
     localStorage.setItem(storageKey, JSON.stringify(list));
   };
 
-  const saveClasses = (list: string[]) => {
-    setClasses(list);
-    localStorage.setItem(classesKey, JSON.stringify(list));
-  };
-
-  const addClass = () => {
-    const trimmed = newClass.trim();
-    if (!trimmed) return;
-    if (classes.includes(trimmed)) {
-      toast({ title: "الصف موجود مسبقاً", variant: "destructive" });
-      return;
-    }
-    saveClasses([...classes, trimmed]);
-    setNewClass("");
-    toast({ title: "تم إضافة الصف" });
-  };
-
-  const removeClass = (c: string) => {
-    saveClasses(classes.filter(x => x !== c));
-  };
-
   const addStudent = () => {
     if (!name.trim()) { toast({ title: "أدخل اسم الطالب", variant: "destructive" }); return; }
-    if (!className) { toast({ title: "اختر الصف", variant: "destructive" }); return; }
+    if (!className) { toast({ title: "اختر الصف والشعبة", variant: "destructive" }); return; }
     if (!parentPhone.trim()) { toast({ title: "أدخل رقم ولي الأمر", variant: "destructive" }); return; }
 
     const student: StudentInfo = {
@@ -89,8 +67,8 @@ export default function StudentManager({ userId }: Props) {
     toast({ title: "تم حذف الطالب" });
   };
 
+  const uniqueClasses = [...new Set(students.map(s => s.className))].sort();
   const filtered = filterClass ? students.filter(s => s.className === filterClass) : students;
-  const uniqueClasses = [...new Set(students.map(s => s.className))];
 
   // Export students as CSV
   const exportCSV = () => {
@@ -111,7 +89,6 @@ export default function StudentManager({ userId }: Props) {
       const text = ev.target?.result as string;
       const lines = text.split("\n").filter(l => l.trim());
       const newStudents: StudentInfo[] = [];
-      // Skip header
       for (let i = 1; i < lines.length; i++) {
         const parts = lines[i].split(",");
         if (parts.length >= 3) {
@@ -122,15 +99,10 @@ export default function StudentManager({ userId }: Props) {
             parentPhone: parts[2].trim(),
             parentName: parts[3]?.trim() || undefined,
           });
-          // Auto-add class if not exists
-          if (!classes.includes(parts[1].trim())) {
-            classes.push(parts[1].trim());
-          }
         }
       }
       if (newStudents.length > 0) {
         saveStudents([...students, ...newStudents]);
-        saveClasses([...classes]);
         toast({ title: `تم استيراد ${newStudents.length} طالب` });
       }
     };
@@ -140,44 +112,34 @@ export default function StudentManager({ userId }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Classes Management */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">📚 إدارة الصفوف</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {classes.map(c => (
-              <div key={c} className="flex items-center gap-1 bg-muted rounded-lg px-3 py-1.5 text-sm">
-                <span>{c}</span>
-                <button onClick={() => removeClass(c)} className="text-destructive hover:text-destructive/80 mr-1">×</button>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <Input value={newClass} onChange={e => setNewClass(e.target.value)} placeholder="اسم الصف (مثال: العاشر أ)" className="max-w-xs" onKeyDown={e => e.key === "Enter" && addClass()} />
-            <Button size="sm" onClick={addClass}><Plus className="w-4 h-4 ml-1" /> إضافة صف</Button>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Add Student */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">➕ إضافة طالب</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
             <div className="space-y-1">
               <Label>اسم الطالب</Label>
-              <Input value={name} onChange={e => setName(e.target.value)} placeholder="اسم الطالب" />
+              <Input value={name} onChange={e => setName(e.target.value)} placeholder="اسم الطالب الرباعي" />
             </div>
             <div className="space-y-1">
               <Label>الصف</Label>
-              <Select value={className} onValueChange={setClassName}>
+              <Select value={selectedGrade || "__none__"} onValueChange={v => setSelectedGrade(v === "__none__" ? "" : v)}>
                 <SelectTrigger><SelectValue placeholder="اختر الصف" /></SelectTrigger>
                 <SelectContent>
-                  {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  <SelectItem value="__none__" disabled>اختر الصف</SelectItem>
+                  {GRADES.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>الشعبة</Label>
+              <Select value={selectedSection || "__none__"} onValueChange={v => setSelectedSection(v === "__none__" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="اختر الشعبة" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__" disabled>اختر الشعبة</SelectItem>
+                  {SECTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -186,17 +148,20 @@ export default function StudentManager({ userId }: Props) {
               <Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} placeholder="07XXXXXXXX" dir="ltr" />
             </div>
             <div className="space-y-1">
-              <Label>اسم ولي الأمر (اختياري)</Label>
-              <Input value={parentName} onChange={e => setParentName(e.target.value)} placeholder="اسم ولي الأمر" />
+              <Label>اسم ولي الأمر</Label>
+              <Input value={parentName} onChange={e => setParentName(e.target.value)} placeholder="اختياري" />
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button onClick={addStudent}><Plus className="w-4 h-4 ml-1" /> إضافة</Button>
             <Button variant="outline" size="sm" onClick={exportCSV}><Download className="w-4 h-4 ml-1" /> تصدير CSV</Button>
             <label>
               <Button variant="outline" size="sm" asChild><span><Upload className="w-4 h-4 ml-1" /> استيراد CSV</span></Button>
               <input type="file" accept=".csv" className="hidden" onChange={importCSV} />
             </label>
+            <p className="text-xs text-muted-foreground self-center">
+              CSV = ملف إكسل بسيط. صدّر أولاً لترى الشكل المطلوب ثم عبّئ البيانات واستورد.
+            </p>
           </div>
         </CardContent>
       </Card>
