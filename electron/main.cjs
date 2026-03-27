@@ -441,6 +441,7 @@ app.whenReady().then(() => {
   clearDesktopCacheOnVersionChange().finally(() => {
     const mainWindow = createWindow();
     setupLanHandlers();
+    setupAjyalHandlers();
 
     if (!isDev) {
       setupAutoUpdater(mainWindow);
