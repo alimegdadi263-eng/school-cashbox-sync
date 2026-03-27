@@ -7,7 +7,8 @@ import DailyAbsenceTracker from "@/components/studentAbsence/DailyAbsenceTracker
 import AbsenceReports from "@/components/studentAbsence/AbsenceReports";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AbsenceStatistics from "@/components/studentAbsence/AbsenceStatistics";
-import { Users, ClipboardCheck, FileBarChart, BarChart3 } from "lucide-react";
+import SmsGatewaySettings from "@/components/studentAbsence/SmsGatewaySettings";
+import { Users, ClipboardCheck, FileBarChart, BarChart3, Smartphone } from "lucide-react";
 
 export default function StudentAbsencePage() {
   const { user, schoolName } = useAuth();
@@ -23,7 +24,7 @@ export default function StudentAbsencePage() {
         </h1>
 
         <Tabs defaultValue="daily" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="daily" className="flex items-center gap-1">
               <ClipboardCheck className="w-4 h-4" />
               الرصد اليومي
@@ -39,6 +40,10 @@ export default function StudentAbsencePage() {
             <TabsTrigger value="reports" className="flex items-center gap-1">
               <FileBarChart className="w-4 h-4" />
               التقارير
+            </TabsTrigger>
+            <TabsTrigger value="sms" className="flex items-center gap-1">
+              <Smartphone className="w-4 h-4" />
+              إعدادات SMS
             </TabsTrigger>
           </TabsList>
 
@@ -63,6 +68,9 @@ export default function StudentAbsencePage() {
               directorateName={state.directorateName || ""}
               principalName={state.directorName || ""}
             />
+          </TabsContent>
+          <TabsContent value="sms">
+            <SmsGatewaySettings />
           </TabsContent>
         </Tabs>
       </div>

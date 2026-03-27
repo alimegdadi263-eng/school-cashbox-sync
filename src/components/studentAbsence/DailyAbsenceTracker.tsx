@@ -10,10 +10,11 @@ import { Calendar } from "@/components/ui/calendar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { CalendarIcon, Save, MessageSquare, Phone, Send, Copy } from "lucide-react";
+import { CalendarIcon, Save, MessageSquare, Phone, Send, Copy, Smartphone, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { StudentInfo, StudentAbsenceRecord } from "@/types/studentAbsence";
 import { STUDENTS_LIST_KEY, STUDENT_STORAGE_KEY } from "@/types/studentAbsence";
+import { loadGatewayConfig, sendBulkSmsViaGateway, sendSmsViaGateway } from "@/lib/smsGateway";
 
 const DAYS_AR = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 
@@ -36,6 +37,8 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
   const [filterClass, setFilterClass] = useState("");
   const [absentIds, setAbsentIds] = useState<Set<string>>(new Set());
   const [whatsAppQueueIndex, setWhatsAppQueueIndex] = useState<number | null>(null);
+  const [sendingGateway, setSendingGateway] = useState(false);
+  const [gatewayProgress, setGatewayProgress] = useState({ sent: 0, total: 0 });
 
   useEffect(() => {
     try {
@@ -184,6 +187,42 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
     });
   };
 
+  const sendViaGateway = async () => {
+    const config = loadGatewayConfig();
+    if (!config || !config.serverUrl) {
+      toast({ title: "يرجى إعداد بوابة SMS أولاً من تبويب 'إعدادات SMS'", variant: "destructive" });
+      return;
+    }
+    if (todayAbsentRecords.length === 0) {
+      toast({ title: "لا يوجد طلبة غائبين", variant: "destructive" });
+      return;
+    }
+
+    setSendingGateway(true);
+    setGatewayProgress({ sent: 0, total: todayAbsentRecords.length });
+
+    const messages = todayAbsentRecords.map(rec => ({
+      phone: rec.parentPhone,
+      text: buildMessage(rec),
+    }));
+
+    const result = await sendBulkSmsViaGateway(config, messages, (sent, total) => {
+      setGatewayProgress({ sent, total });
+    });
+
+    setSendingGateway(false);
+
+    if (result.failed.length === 0) {
+      toast({ title: `✅ تم إرسال ${result.sent} رسالة بنجاح من هاتفك` });
+    } else {
+      toast({
+        title: `تم إرسال ${result.sent} رسالة، فشل ${result.failed.length}`,
+        description: result.failed.map(f => f.phone).join(", "),
+        variant: "destructive",
+      });
+    }
+  };
+
   if (students.length === 0) {
     return (
       <Card>
@@ -275,8 +314,12 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
               <CardTitle className="flex items-center justify-between gap-3 text-lg">
                 <span>📨 الطلبة الغائبون اليوم ({todayAbsentRecords.length})</span>
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" onClick={sendAllSMS} className="gap-1">
-                    <Send className="h-4 w-4" /> إرسال SMS للجميع
+                  <Button size="sm" onClick={sendViaGateway} disabled={sendingGateway} className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white">
+                    {sendingGateway ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> إرسال {gatewayProgress.sent}/{gatewayProgress.total}</>
+                    ) : (
+                      <><Smartphone className="h-4 w-4" /> إرسال SMS من هاتفك</>
+                    )}
                   </Button>
                   <Button size="sm" variant="secondary" onClick={startWhatsAppQueue} className="gap-1">
                     <MessageSquare className="h-4 w-4" /> واتساب آمن للجميع
