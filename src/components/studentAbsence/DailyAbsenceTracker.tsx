@@ -10,10 +10,11 @@ import { Calendar } from "@/components/ui/calendar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { CalendarIcon, Save, MessageSquare, Phone, Send, Copy } from "lucide-react";
+import { CalendarIcon, Save, MessageSquare, Phone, Send, Copy, Smartphone, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { StudentInfo, StudentAbsenceRecord } from "@/types/studentAbsence";
 import { STUDENTS_LIST_KEY, STUDENT_STORAGE_KEY } from "@/types/studentAbsence";
+import { loadGatewayConfig, sendBulkSmsViaGateway, sendSmsViaGateway } from "@/lib/smsGateway";
 
 const DAYS_AR = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 
