@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useFinance } from "@/context/FinanceContext";
 import AppLayout from "@/components/AppLayout";
 import StudentManager from "@/components/studentAbsence/StudentManager";
 import DailyAbsenceTracker from "@/components/studentAbsence/DailyAbsenceTracker";
@@ -9,6 +10,7 @@ import { Users, ClipboardCheck, FileBarChart } from "lucide-react";
 
 export default function StudentAbsencePage() {
   const { user, schoolName } = useAuth();
+  const { state } = useFinance();
   const userId = user?.id || "anonymous";
 
   return (
@@ -42,7 +44,12 @@ export default function StudentAbsencePage() {
             <StudentManager userId={userId} />
           </TabsContent>
           <TabsContent value="reports">
-            <AbsenceReports userId={userId} schoolName={schoolName || ""} />
+            <AbsenceReports
+              userId={userId}
+              schoolName={schoolName || ""}
+              directorateName={state.directorateName || ""}
+              principalName={state.directorName || ""}
+            />
           </TabsContent>
         </Tabs>
       </div>
