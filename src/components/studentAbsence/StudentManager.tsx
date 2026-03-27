@@ -29,11 +29,17 @@ export default function StudentManager({ userId }: Props) {
   const [name, setName] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
   const [selectedSection, setSelectedSection] = useState("");
+  const [selectedBranch, setSelectedBranch] = useState("");
   const [parentPhone, setParentPhone] = useState("");
   const [parentName, setParentName] = useState("");
   const [filterClass, setFilterClass] = useState("");
 
-  const className = selectedGrade && selectedSection ? `${selectedGrade} ${selectedSection}` : "";
+  const isSecondary = SECONDARY_CLASSES.includes(selectedGrade);
+  const savedBranches: string[] = JSON.parse(localStorage.getItem(BRANCHES_STORAGE_KEY) || '["علمي","أدبي","صناعي","فندقي","زراعي","اقتصاد منزلي"]');
+
+  const className = selectedGrade && selectedSection
+    ? (isSecondary && selectedBranch ? `${selectedGrade} ${selectedBranch} ${selectedSection}` : `${selectedGrade} ${selectedSection}`)
+    : "";
 
   useEffect(() => {
     try {
