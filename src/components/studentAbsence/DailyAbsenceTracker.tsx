@@ -121,10 +121,27 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
     window.open(`sms:${phone}?body=${encoded}`, "_blank");
   };
 
+  const sendIndividualSmsGateway = async (rec: StudentAbsenceRecord) => {
+    const config = loadGatewayConfig();
+    if (!config || !config.login || !config.password) {
+      toast({ title: "يرجى إعداد بوابة SMS أولاً من تبويب 'إعدادات SMS'", variant: "destructive" });
+      return;
+    }
+    setSendingIndividual(rec.id);
+    const result = await sendSmsViaGateway(config, rec.parentPhone, buildMessage(rec));
+    setSendingIndividual(null);
+    if (result.success) {
+      toast({ title: `✅ تم إرسال SMS لولي أمر ${rec.studentName}` });
+    } else {
+      toast({ title: `❌ فشل الإرسال: ${result.error}`, variant: "destructive" });
+    }
+  };
+
   const sendWhatsApp = (phone: string, message: string) => {
-    let intlPhone = phone;
-    if (phone.startsWith("07")) intlPhone = "962" + phone.slice(1);
-    else if (phone.startsWith("00")) intlPhone = phone.slice(2);
+    let intlPhone = phone.replace(/[\s\-\+]/g, "");
+    if (intlPhone.startsWith("07")) intlPhone = "962" + intlPhone.slice(1);
+    else if (intlPhone.startsWith("00")) intlPhone = intlPhone.slice(2);
+    else if (intlPhone.startsWith("7") && intlPhone.length === 9) intlPhone = "962" + intlPhone;
     const encoded = encodeURIComponent(message);
     window.open(`https://wa.me/${intlPhone}?text=${encoded}`, "_blank");
   };
