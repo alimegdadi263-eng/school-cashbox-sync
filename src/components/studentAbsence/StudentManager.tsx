@@ -66,7 +66,7 @@ export default function StudentManager({ userId }: Props) {
       parentName: parentName.trim() || undefined,
     };
     saveStudents([...students, student]);
-    setName(""); setParentPhone(""); setParentName("");
+    setName(""); setParentPhone(""); setParentName(""); setSelectedBranch("");
     toast({ title: "تم إضافة الطالب" });
   };
 
