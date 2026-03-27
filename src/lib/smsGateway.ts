@@ -1,14 +1,16 @@
-// Android SMS Gateway integration
+// Android SMS Gateway integration via Edge Function proxy
 // Supports both Local (LAN) and Cloud modes
 
 const SMS_GATEWAY_KEY = "sms_gateway_config";
-const CLOUD_API_URL = "https://api.sms-gate.app/api/3rdparty/v1";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const PROXY_URL = `${SUPABASE_URL}/functions/v1/sms-proxy`;
 
 export type GatewayMode = "local" | "cloud";
 
 export interface SmsGatewayConfig {
   mode: GatewayMode;
-  serverUrl: string; // For local mode: http://192.168.1.5:8080
+  serverUrl: string;
   login: string;
   password: string;
 }
@@ -18,7 +20,6 @@ export function loadGatewayConfig(): SmsGatewayConfig | null {
     const raw = localStorage.getItem(SMS_GATEWAY_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    // Migrate old config without mode
     if (!parsed.mode) parsed.mode = "local";
     return parsed;
   } catch {
@@ -30,9 +31,8 @@ export function saveGatewayConfig(config: SmsGatewayConfig) {
   localStorage.setItem(SMS_GATEWAY_KEY, JSON.stringify(config));
 }
 
-function getBaseUrl(config: SmsGatewayConfig): string {
-  if (config.mode === "cloud") return CLOUD_API_URL;
-  return config.serverUrl.replace(/\/$/, "");
+function getAuthToken(config: SmsGatewayConfig): string {
+  return btoa(`${config.login}:${config.password}`);
 }
 
 export async function sendSmsViaGateway(
@@ -41,15 +41,16 @@ export async function sendSmsViaGateway(
   message: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const baseUrl = getBaseUrl(config);
-    const url = `${baseUrl}/message`;
-    const auth = btoa(`${config.login}:${config.password}`);
+    const auth = getAuthToken(config);
 
-    const res = await fetch(url, {
+    const res = await fetch(PROXY_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Basic ${auth}`,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        "x-sms-auth": auth,
+        "x-sms-mode": config.mode,
+        "x-sms-server": config.serverUrl || "",
       },
       body: JSON.stringify({
         message,
@@ -72,14 +73,19 @@ export async function testGatewayConnection(
   config: SmsGatewayConfig
 ): Promise<boolean> {
   try {
-    const baseUrl = getBaseUrl(config);
-    const auth = btoa(`${config.login}:${config.password}`);
-    const res = await fetch(`${baseUrl}/message`, {
+    const auth = getAuthToken(config);
+
+    const res = await fetch(PROXY_URL, {
       method: "GET",
-      headers: { Authorization: `Basic ${auth}` },
+      headers: {
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        "x-sms-auth": auth,
+        "x-sms-mode": config.mode,
+        "x-sms-server": config.serverUrl || "",
+      },
     });
-    // Any response (even 405 Method Not Allowed) means server is reachable
-    return true;
+    // Any response from proxy (even error from SMS API) means connection works
+    return res.ok || res.status < 500;
   } catch {
     return false;
   }
