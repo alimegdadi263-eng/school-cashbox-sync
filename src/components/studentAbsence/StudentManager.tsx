@@ -6,13 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Upload, Download } from "lucide-react";
+import { Plus, Trash2, Upload, Download, FileText, FileDown } from "lucide-react";
 import type { StudentInfo } from "@/types/studentAbsence";
 import { CLASS_NAMES, SECONDARY_CLASSES } from "@/types/timetable";
 import { STUDENTS_LIST_KEY } from "@/types/studentAbsence";
+import { exportStudentListDocx, exportStudentListExcel } from "@/lib/exportStudentList";
 
 interface Props {
   userId: string;
+  schoolName?: string;
+  directorateName?: string;
 }
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -21,7 +24,7 @@ const GRADES = CLASS_NAMES; // الأول إلى الثاني عشر
 const SECTIONS = ["أ", "ب", "ج", "د", "هـ", "و"];
 const BRANCHES_STORAGE_KEY = "custom_branches";
 
-export default function StudentManager({ userId }: Props) {
+export default function StudentManager({ userId, schoolName, directorateName }: Props) {
   const { toast } = useToast();
   const storageKey = `${STUDENTS_LIST_KEY}_${userId}`;
 
@@ -186,14 +189,16 @@ export default function StudentManager({ userId }: Props) {
           </div>
           <div className="flex gap-2 flex-wrap">
             <Button onClick={addStudent}><Plus className="w-4 h-4 ml-1" /> إضافة</Button>
-            <Button variant="outline" size="sm" onClick={exportCSV}><Download className="w-4 h-4 ml-1" /> تصدير CSV</Button>
+            <Button variant="outline" size="sm" onClick={() => exportStudentListDocx(students, schoolName || "", directorateName || "", filterClass || undefined)}>
+              <FileText className="w-4 h-4 ml-1" /> تصدير Word
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => exportStudentListExcel(students, schoolName || "", filterClass || undefined)}>
+              <FileDown className="w-4 h-4 ml-1" /> تصدير Excel
+            </Button>
             <label>
               <Button variant="outline" size="sm" asChild><span><Upload className="w-4 h-4 ml-1" /> استيراد CSV</span></Button>
               <input type="file" accept=".csv" className="hidden" onChange={importCSV} />
             </label>
-            <p className="text-xs text-muted-foreground self-center">
-              CSV = ملف إكسل بسيط. صدّر أولاً لترى الشكل المطلوب ثم عبّئ البيانات واستورد.
-            </p>
           </div>
         </CardContent>
       </Card>
