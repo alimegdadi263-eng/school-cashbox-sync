@@ -294,7 +294,7 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
                             <Phone className="w-4 h-4" />
                           </Button>
                           <Button size="icon" variant="outline" title="واتساب" onClick={() => sendWhatsApp(rec.parentPhone, buildMessage(rec))}>
-                            <MessageSquare className="w-4 h-4 text-green-600" />
+                            <MessageSquare className="w-4 h-4 text-primary" />
                           </Button>
                         </div>
                       </TableCell>
