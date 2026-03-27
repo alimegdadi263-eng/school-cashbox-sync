@@ -6,7 +6,8 @@ import StudentManager from "@/components/studentAbsence/StudentManager";
 import DailyAbsenceTracker from "@/components/studentAbsence/DailyAbsenceTracker";
 import AbsenceReports from "@/components/studentAbsence/AbsenceReports";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, ClipboardCheck, FileBarChart } from "lucide-react";
+import AbsenceStatistics from "@/components/studentAbsence/AbsenceStatistics";
+import { Users, ClipboardCheck, FileBarChart, BarChart3 } from "lucide-react";
 
 export default function StudentAbsencePage() {
   const { user, schoolName } = useAuth();
