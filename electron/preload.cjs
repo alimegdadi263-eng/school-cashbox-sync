@@ -41,4 +41,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     /** Check if connected */
     isConnected: () => ipcRenderer.invoke('lan-is-connected'),
   },
+
+  // ── Ajyal Integration APIs ──
+  ajyal: {
+    /** Open Ajyal window and auto-fill credentials */
+    openWindow: (username, password) => ipcRenderer.invoke('ajyal-open-window', username, password),
+    /** Check if user completed login (after OTP) */
+    checkLogin: () => ipcRenderer.invoke('ajyal-check-login'),
+    /** Submit a single absence record */
+    submitAbsence: (data) => ipcRenderer.invoke('ajyal-submit-absence', data),
+    /** Close the Ajyal window */
+    closeWindow: () => ipcRenderer.invoke('ajyal-close-window'),
+  },
 });
