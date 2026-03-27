@@ -10,7 +10,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { CalendarIcon, Save, MessageSquare, Phone, Send } from "lucide-react";
+import { CalendarIcon, Save, MessageSquare, Phone, Send, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { StudentInfo, StudentAbsenceRecord } from "@/types/studentAbsence";
 import { STUDENTS_LIST_KEY, STUDENT_STORAGE_KEY } from "@/types/studentAbsence";
@@ -162,6 +162,19 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
     toast({ title: `تم فتح ${todayAbsentRecords.length} رسالة واتساب` });
   };
 
+  const copyAllMessages = () => {
+    if (todayAbsentRecords.length === 0) {
+      toast({ title: "لا يوجد طلبة غائبين", variant: "destructive" });
+      return;
+    }
+    const text = todayAbsentRecords.map((rec, i) => {
+      return `${i + 1}. ${rec.parentPhone} — ${rec.studentName} (${rec.className})\n${buildMessage(rec)}`;
+    }).join("\n\n─────────────\n\n");
+    navigator.clipboard.writeText(text).then(() => {
+      toast({ title: `تم نسخ ${todayAbsentRecords.length} رسالة إلى الحافظة` });
+    });
+  };
+
   if (students.length === 0) {
     return (
       <Card>
@@ -263,6 +276,9 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
                 </Button>
                 <Button size="sm" variant="secondary" onClick={sendAllWhatsApp} className="gap-1">
                   <MessageSquare className="w-4 h-4" /> واتساب للجميع
+                </Button>
+                <Button size="sm" variant="outline" onClick={copyAllMessages} className="gap-1">
+                  <Copy className="w-4 h-4" /> نسخ جميع الرسائل
                 </Button>
               </div>
             </CardTitle>
