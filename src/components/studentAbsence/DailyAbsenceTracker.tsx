@@ -14,7 +14,7 @@ import { CalendarIcon, Save, MessageSquare, Phone, Send, Copy, Smartphone, Loade
 import { cn } from "@/lib/utils";
 import type { StudentInfo, StudentAbsenceRecord } from "@/types/studentAbsence";
 import { STUDENTS_LIST_KEY, STUDENT_STORAGE_KEY } from "@/types/studentAbsence";
-import { loadGatewayConfig, sendBulkSmsViaGateway, sendSmsViaGateway } from "@/lib/smsGateway";
+import { loadGatewayConfig, loadGatewayProfiles, sendBulkSmsMultiGateway, sendSmsViaGateway } from "@/lib/smsGateway";
 
 const DAYS_AR = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 
