@@ -15,9 +15,12 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const AJYAL_CREDS_KEY = "ajyal_credentials";
 
+type LoginMethod = "credentials" | "sanad";
+
 interface AjyalCredentials {
   username: string;
   password: string;
+  loginMethod: LoginMethod;
 }
 
 interface Props {
