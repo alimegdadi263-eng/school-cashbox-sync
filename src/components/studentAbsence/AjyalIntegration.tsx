@@ -37,7 +37,7 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
   const { toast } = useToast();
   const [credentials, setCredentials] = useState<AjyalCredentials>({ username: "", password: "", loginMethod: "credentials" });
   const [showPassword, setShowPassword] = useState(false);
-  const [isWindowOpen, setIsWindowOpen] = useState(false);
+  const [isViewOpen, setIsViewOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitProgress, setSubmitProgress] = useState({ done: 0, total: 0 });
@@ -66,6 +66,23 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
       }
     } catch {}
   }, [userId]);
+
+  // Listen for toolbar actions from embedded Ajyal view
+  useEffect(() => {
+    const ajyal = getElectronAjyal();
+    if (!ajyal?.onAction) return;
+    const cleanup = ajyal.onAction((data: any) => {
+      if (data.type === 'import-request') {
+        importStudentsFromAjyal();
+      } else if (data.type === 'absence-request') {
+        submitAbsences();
+      } else if (data.type === 'closed') {
+        setIsViewOpen(false);
+        setIsLoggedIn(false);
+      }
+    });
+    return cleanup;
+  }, [isLoggedIn, todayAbsences]);
 
   const saveCredentials = () => {
     localStorage.setItem(`${AJYAL_CREDS_KEY}_${userId}`, JSON.stringify(credentials));
