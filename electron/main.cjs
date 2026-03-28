@@ -278,7 +278,7 @@ function setupAjyalHandlers() {
         return { success: true, message: 'Window already open' };
       }
 
-      const ajyalUrl = 'https://ajyal.moe.gov.jo/login';
+      const ajyalUrl = 'https://ajyal.moe.gov.jo';
 
       ajyalWindow = new BrowserWindow({
         width: 1200,
