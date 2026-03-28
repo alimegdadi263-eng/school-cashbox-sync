@@ -240,12 +240,32 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
         <AlertTitle>ربط منصة أجيال</AlertTitle>
         <AlertDescription className="text-sm space-y-2">
           <p>سجّل الدخول بحساب المدير لتتمكن من استيراد بيانات الطلاب وتعبئة الغياب تلقائياً.</p>
-          <p className="font-medium">الطريقة الجديدة:</p>
-          <ul className="list-disc list-inside space-y-1 mr-2">
-            <li>اختر طريقة الدخول ← فتح أجيال (يظهر داخل التطبيق)</li>
-            <li>سجّل الدخول ← استخدم <strong>أزرار الشريط العلوي</strong> مباشرة (استيراد الطلاب / تعبئة الغياب)</li>
-            <li>الطلاب المستوردون يُحفظون تلقائياً في <strong>إدارة الطلبة</strong> مرتبين حسب الصف</li>
-          </ul>
+          <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="border rounded-lg p-3 bg-muted/30">
+              <p className="font-bold text-sm mb-2 flex items-center gap-1">📥 خطوات استيراد الطلاب:</p>
+              <ol className="list-decimal list-inside space-y-1 mr-1 text-xs">
+                <li>فتح أجيال وتسجيل الدخول</li>
+                <li>من القائمة الرئيسية ← <strong>"إدارة الطلبة"</strong> أو <strong>"الطلبة"</strong></li>
+                <li>الدخول إلى <strong>"بيانات الطلبة"</strong> أو <strong>"قائمة الطلبة"</strong></li>
+                <li>تحديد: العام الدراسي، الصف، الشعبة</li>
+                <li>الضغط على <strong>"بحث"</strong> أو <strong>"عرض"</strong></li>
+                <li>اضغط زر <strong>"📥 استيراد الطلاب"</strong> من الشريط العلوي</li>
+                <li>الطلاب يُحفظون تلقائياً في <strong>إدارة الطلبة</strong> مرتبين حسب الصف</li>
+              </ol>
+            </div>
+            <div className="border rounded-lg p-3 bg-muted/30">
+              <p className="font-bold text-sm mb-2 flex items-center gap-1">📋 خطوات تعبئة الغياب:</p>
+              <ol className="list-decimal list-inside space-y-1 mr-1 text-xs">
+                <li>سجّل الغياب أولاً من تبويب <strong>"الرصد اليومي"</strong> في البرمجية</li>
+                <li>من أجيال ← <strong>"الحضور والغياب"</strong></li>
+                <li>الدخول إلى <strong>"تسجيل الغياب"</strong> أو <strong>"متابعة الغياب"</strong></li>
+                <li>تحديد: التاريخ، الصف، الشعبة</li>
+                <li>الضغط على <strong>"عرض الطلبة"</strong></li>
+                <li>اضغط زر <strong>"📋 تعبئة الغياب"</strong> من الشريط العلوي</li>
+                <li>يتم وضع علامة الغياب تلقائياً ← اضغط <strong>"حفظ"</strong></li>
+              </ol>
+            </div>
+          </div>
         </AlertDescription>
       </Alert>
 
@@ -402,8 +422,10 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
                 )}
                 <Alert>
                   <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription className="text-xs">
-                    <strong>ملاحظة:</strong> تأكد أنك في صفحة تسجيل الغياب في أجيال قبل الضغط على "تعبئة تلقائية".
+                  <AlertDescription className="text-xs space-y-1">
+                    <p><strong>قبل التعبئة،</strong> تأكد أنك في صفحة تسجيل الغياب بعد تنفيذ الخطوات:</p>
+                    <p>الحضور والغياب ← تسجيل الغياب ← اختر التاريخ والصف والشعبة ← عرض الطلبة</p>
+                    <p>⚠️ بعد التعبئة التلقائية، اضغط <strong>"حفظ"</strong> في صفحة أجيال لتأكيد البيانات.</p>
                   </AlertDescription>
                 </Alert>
               </CardContent>
@@ -421,9 +443,11 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
               <CardContent className="space-y-3">
                 <Alert>
                   <Info className="h-4 w-4" />
-                  <AlertDescription className="text-sm">
-                    <p>انتقل إلى صفحة <strong>قائمة الطلاب</strong> في منصة أجيال، ثم اضغط الزر أدناه لاستيراد البيانات تلقائياً.</p>
-                    <p className="text-xs text-muted-foreground mt-1">سيتم استيراد: اسم الطالب، الصف والشعبة، ورقم ولي الأمر (إن وُجد).</p>
+                  <AlertDescription className="text-sm space-y-1">
+                    <p><strong>قبل الاستيراد،</strong> تأكد أنك في صفحة قائمة الطلاب بعد تنفيذ الخطوات:</p>
+                    <p className="text-xs">إدارة الطلبة ← بيانات الطلبة ← اختر العام والصف والشعبة ← بحث/عرض</p>
+                    <p className="text-xs text-muted-foreground">سيتم استيراد: اسم الطالب، الصف والشعبة، ورقم ولي الأمر (إن وُجد).</p>
+                    <p className="text-xs text-muted-foreground">⚠️ كرّر العملية لكل صف وشعبة على حدة لاستيراد جميع الطلاب.</p>
                   </AlertDescription>
                 </Alert>
 
