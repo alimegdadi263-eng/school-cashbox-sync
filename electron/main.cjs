@@ -278,7 +278,7 @@ function setupAjyalHandlers() {
         return { success: true, message: 'Window already open' };
       }
 
-      const ajyalUrl = 'https://ajyal.moe.gov.jo/login';
+      const ajyalUrl = 'https://ajyal.moe.gov.jo';
 
       ajyalWindow = new BrowserWindow({
         width: 1200,
@@ -368,8 +368,23 @@ function setupAjyalHandlers() {
     }
     try {
       const url = ajyalWindow.webContents.getURL();
-      // If URL is no longer /login, user is logged in
-      const loggedIn = !url.includes('/login');
+      // Check if user passed the login page (dashboard, home, or any non-login page)
+      const isOnLogin = url.includes('/login') || url.includes('/auth') || url === 'https://ajyal.moe.gov.jo/' || url === 'https://ajyal.moe.gov.jo';
+      // Also check page content for logged-in indicators
+      let hasLoggedInUI = false;
+      try {
+        hasLoggedInUI = await ajyalWindow.webContents.executeJavaScript(`
+          !!(document.querySelector('[class*="dashboard"]') || 
+             document.querySelector('[class*="sidebar"]') || 
+             document.querySelector('[class*="navbar"]') ||
+             document.querySelector('[class*="logout"]') ||
+             document.querySelector('a[href*="logout"]') ||
+             document.querySelector('button[class*="logout"]') ||
+             document.body.innerText.includes('تسجيل خروج') ||
+             document.body.innerText.includes('لوحة'))
+        `);
+      } catch {}
+      const loggedIn = hasLoggedInUI || !isOnLogin;
       return { loggedIn, url };
     } catch (err) {
       return { loggedIn: false, error: err.message };
