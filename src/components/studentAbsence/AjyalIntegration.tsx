@@ -37,7 +37,7 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
   const { toast } = useToast();
   const [credentials, setCredentials] = useState<AjyalCredentials>({ username: "", password: "", loginMethod: "credentials" });
   const [showPassword, setShowPassword] = useState(false);
-  const [isWindowOpen, setIsWindowOpen] = useState(false);
+  const [isViewOpen, setIsViewOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitProgress, setSubmitProgress] = useState({ done: 0, total: 0 });
@@ -67,6 +67,23 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
     } catch {}
   }, [userId]);
 
+  // Listen for toolbar actions from embedded Ajyal view
+  useEffect(() => {
+    const ajyal = getElectronAjyal();
+    if (!ajyal?.onAction) return;
+    const cleanup = ajyal.onAction((data: any) => {
+      if (data.type === 'import-request') {
+        importStudentsFromAjyal();
+      } else if (data.type === 'absence-request') {
+        submitAbsences();
+      } else if (data.type === 'closed') {
+        setIsViewOpen(false);
+        setIsLoggedIn(false);
+      }
+    });
+    return cleanup;
+  }, [isLoggedIn, todayAbsences]);
+
   const saveCredentials = () => {
     localStorage.setItem(`${AJYAL_CREDS_KEY}_${userId}`, JSON.stringify(credentials));
     toast({ title: "تم حفظ بيانات الدخول" });
@@ -92,11 +109,11 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
         credentials.loginMethod
       );
       if (result?.success) {
-        setIsWindowOpen(true);
+        setIsViewOpen(true);
         const desc = credentials.loginMethod === "sanad"
-          ? "سجّل الدخول عبر سند في النافذة المفتوحة ثم اضغط 'تأكيد تسجيل الدخول'"
-          : "أدخل رمز OTP يدوياً ثم اضغط 'تأكيد تسجيل الدخول'";
-        toast({ title: "تم فتح نافذة أجيال", description: desc });
+          ? "سيظهر موقع أجيال داخل التطبيق. سجّل الدخول عبر سند ثم استخدم أزرار الشريط العلوي"
+          : "سيظهر موقع أجيال داخل التطبيق. أدخل OTP ثم استخدم أزرار الشريط العلوي للاستيراد أو تعبئة الغياب";
+        toast({ title: "تم فتح أجيال داخل التطبيق", description: desc });
       } else {
         toast({ title: "فشل فتح النافذة", description: result?.error, variant: "destructive" });
       }
@@ -174,8 +191,20 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
           parentPhone: s.parentPhone || "",
           parentName: s.parentName || "",
         }));
+        
+        // Auto-save directly to Student Manager storage, sorted by class
+        const storageKey = `${STUDENTS_LIST_KEY}_${userId}`;
+        const existing: StudentInfo[] = JSON.parse(localStorage.getItem(storageKey) || "[]");
+        const existingSet = new Set(existing.map(s => `${s.name}||${s.className}`));
+        const newStudents = mapped.filter(s => !existingSet.has(`${s.name}||${s.className}`));
+        const merged = [...existing, ...newStudents].sort((a, b) => a.className.localeCompare(b.className, 'ar'));
+        localStorage.setItem(storageKey, JSON.stringify(merged));
+        
         setImportedStudents(mapped);
-        toast({ title: `تم استيراد ${mapped.length} طالب من أجيال` });
+        toast({ 
+          title: `تم استيراد ${newStudents.length} طالب جديد وحفظهم في إدارة الطلبة`,
+          description: newStudents.length < mapped.length ? `(تم تجاهل ${mapped.length - newStudents.length} طالب مكرر)` : undefined
+        });
       } else {
         toast({
           title: "لم يتم العثور على طلاب",
@@ -191,22 +220,15 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
   };
 
   const saveImportedStudents = () => {
-    if (importedStudents.length === 0) return;
-    const storageKey = `${STUDENTS_LIST_KEY}_${userId}`;
-    const existing: StudentInfo[] = JSON.parse(localStorage.getItem(storageKey) || "[]");
-    // Merge: don't duplicate by name+class
-    const existingSet = new Set(existing.map(s => `${s.name}||${s.className}`));
-    const newStudents = importedStudents.filter(s => !existingSet.has(`${s.name}||${s.className}`));
-    const merged = [...existing, ...newStudents];
-    localStorage.setItem(storageKey, JSON.stringify(merged));
-    toast({ title: `تم حفظ ${newStudents.length} طالب جديد (تم تجاهل ${importedStudents.length - newStudents.length} مكرر)` });
+    // Already auto-saved, just clear the preview
     setImportedStudents([]);
+    toast({ title: "تم الحفظ مسبقاً في إدارة الطلبة ✓" });
   };
 
   const closeAjyalWindow = async () => {
     const ajyal = getElectronAjyal();
     if (ajyal) await ajyal.closeWindow();
-    setIsWindowOpen(false);
+    setIsViewOpen(false);
     setIsLoggedIn(false);
   };
 
@@ -217,11 +239,12 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
         <Info className="h-4 w-4" />
         <AlertTitle>ربط منصة أجيال</AlertTitle>
         <AlertDescription className="text-sm space-y-2">
-          <p>سجّل الدخول بحساب المدير لتتمكن من تعبئة الغياب تلقائياً واستيراد بيانات الطلاب.</p>
-          <p className="font-medium">طريقتا الدخول:</p>
+          <p>سجّل الدخول بحساب المدير لتتمكن من استيراد بيانات الطلاب وتعبئة الغياب تلقائياً.</p>
+          <p className="font-medium">الطريقة الجديدة:</p>
           <ul className="list-disc list-inside space-y-1 mr-2">
-            <li><strong>اسم مستخدم وكلمة مرور:</strong> أدخل بيانات الحساب ← فتح أجيال ← أدخل OTP ← تأكيد</li>
-            <li><strong>عبر سند:</strong> فتح أجيال ← سجّل الدخول عبر تطبيق سند يدوياً ← تأكيد</li>
+            <li>اختر طريقة الدخول ← فتح أجيال (يظهر داخل التطبيق)</li>
+            <li>سجّل الدخول ← استخدم <strong>أزرار الشريط العلوي</strong> مباشرة (استيراد الطلاب / تعبئة الغياب)</li>
+            <li>الطلاب المستوردون يُحفظون تلقائياً في <strong>إدارة الطلبة</strong> مرتبين حسب الصف</li>
           </ul>
         </AlertDescription>
       </Alert>
@@ -250,7 +273,7 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
               value={credentials.loginMethod}
               onValueChange={(v) => setCredentials(c => ({ ...c, loginMethod: v as LoginMethod }))}
               className="flex gap-4"
-              disabled={isWindowOpen}
+              disabled={isViewOpen}
             >
               <div className="flex items-center gap-2 border rounded-lg px-4 py-2.5 cursor-pointer hover:bg-muted/50 transition-colors">
                 <RadioGroupItem value="credentials" id="method-creds" />
@@ -274,12 +297,12 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>اسم المستخدم (رقم الموظف)</Label>
-                <Input value={credentials.username} onChange={e => setCredentials(c => ({ ...c, username: e.target.value }))} placeholder="أدخل اسم المستخدم" disabled={isWindowOpen} />
+                <Input value={credentials.username} onChange={e => setCredentials(c => ({ ...c, username: e.target.value }))} placeholder="أدخل اسم المستخدم" disabled={isViewOpen} />
               </div>
               <div className="space-y-1">
                 <Label>كلمة المرور</Label>
                 <div className="relative">
-                  <Input type={showPassword ? "text" : "password"} value={credentials.password} onChange={e => setCredentials(c => ({ ...c, password: e.target.value }))} placeholder="أدخل كلمة المرور" disabled={isWindowOpen} />
+                  <Input type={showPassword ? "text" : "password"} value={credentials.password} onChange={e => setCredentials(c => ({ ...c, password: e.target.value }))} placeholder="أدخل كلمة المرور" disabled={isViewOpen} />
                   <Button type="button" variant="ghost" size="icon" className="absolute left-1 top-0 h-full" onClick={() => setShowPassword(!showPassword)}>
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
@@ -288,17 +311,17 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
             </div>
           )}
 
-          {credentials.loginMethod === "sanad" && !isWindowOpen && (
+          {credentials.loginMethod === "sanad" && !isViewOpen && (
             <Alert>
               <Shield className="h-4 w-4" />
               <AlertDescription className="text-sm">
-                سيتم فتح صفحة دخول أجيال مباشرة. اضغط على زر "الدخول عبر سند" في الصفحة المفتوحة وأكمل التحقق من تطبيق سند على هاتفك.
+                سيتم فتح موقع أجيال داخل التطبيق. اضغط على "الدخول عبر سند" في الصفحة وأكمل التحقق من تطبيق سند. بعد الدخول استخدم أزرار الشريط العلوي.
               </AlertDescription>
             </Alert>
           )}
 
           <div className="flex flex-wrap gap-2">
-            {!isWindowOpen ? (
+            {!isViewOpen ? (
               <Button
                 onClick={openAjyalWindow}
                 disabled={!isElectron || (credentials.loginMethod === "credentials" && (!credentials.username || !credentials.password))}
@@ -319,7 +342,7 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
             )}
           </div>
 
-          {isWindowOpen && (
+          {isViewOpen && (
             <div className="flex items-center gap-2">
               <Badge variant={isLoggedIn ? "default" : "secondary"}>
                 {isLoggedIn ? "✓ متصل بأجيال" : "⏳ بانتظار تسجيل الدخول..."}
