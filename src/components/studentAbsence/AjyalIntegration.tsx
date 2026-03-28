@@ -145,10 +145,15 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
       );
       if (result?.success) {
         setIsViewOpen(true);
-        const desc = credentials.loginMethod === "sanad"
-          ? "سيظهر موقع أجيال داخل التطبيق. سجّل الدخول عبر سند ثم استخدم أزرار الشريط العلوي"
-          : "سيظهر موقع أجيال داخل التطبيق. أدخل OTP ثم استخدم أزرار الشريط العلوي للاستيراد أو تعبئة الغياب";
-        toast({ title: "تم فتح أجيال داخل التطبيق", description: desc });
+        if (result.reused) {
+          setIsLoggedIn(true);
+          toast({ title: "تم إعادة فتح أجيال (الجلسة محفوظة) ✓" });
+        } else {
+          const desc = credentials.loginMethod === "sanad"
+            ? "سيظهر موقع أجيال داخل التطبيق. سجّل الدخول عبر سند ثم استخدم أزرار الشريط العلوي"
+            : "سيظهر موقع أجيال داخل التطبيق. أدخل OTP ثم استخدم أزرار الشريط العلوي للاستيراد أو تعبئة الغياب";
+          toast({ title: "تم فتح أجيال داخل التطبيق", description: desc });
+        }
       } else {
         toast({ title: "فشل فتح النافذة", description: result?.error, variant: "destructive" });
       }
