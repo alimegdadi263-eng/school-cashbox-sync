@@ -50,7 +50,7 @@ export default function AbsenceReports({ userId, schoolName, directorateName, pr
     localStorage.setItem(absenceKey, JSON.stringify(list));
   };
 
-  const classes = useMemo(() => [...new Set(records.map(r => r.className))], [records]);
+  const classes = useMemo(() => [...new Set(records.map(r => r.className))].filter(Boolean), [records]);
   const studentsInClass = useMemo(() => {
     const filtered = filterClass ? records.filter(r => r.className === filterClass) : records;
     return [...new Set(filtered.map(r => r.studentName))];

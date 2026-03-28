@@ -86,7 +86,7 @@ export default function StudentManager({ userId, schoolName, directorateName }: 
     toast({ title: "تم حذف الطالب" });
   };
 
-  const uniqueClasses = [...new Set(students.map(s => s.className))].sort();
+  const uniqueClasses = [...new Set(students.map(s => s.className))].filter(Boolean).sort();
   const filtered = filterClass ? students.filter(s => s.className === filterClass) : students;
 
   // Export students as CSV

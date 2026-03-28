@@ -13,10 +13,16 @@ const root = createRoot(rootElement);
 const renderFatalError = (message: string) => {
   root.render(
     <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6" dir="rtl">
-      <div className="max-w-lg w-full rounded-lg border bg-card p-6 space-y-3 text-center">
+      <div className="max-w-lg w-full rounded-lg border bg-card p-6 space-y-4 text-center">
         <h1 className="text-xl font-bold">حدث خطأ أثناء تشغيل الواجهة</h1>
         <p className="text-sm text-muted-foreground break-words">{message}</p>
-        <p className="text-xs text-muted-foreground">أغلق البرنامج ثم شغّله من جديد، وإذا تكرر الخطأ أعد تثبيت النسخة الجديدة.</p>
+        <p className="text-xs text-muted-foreground">اضغط "رجوع" للعودة للبرنامج، أو أغلقه وشغّله من جديد.</p>
+        <button
+          onClick={() => { try { root.render(<App />); } catch { window.location.reload(); } }}
+          className="inline-flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-6 py-2 text-sm font-medium hover:bg-primary/90 transition-colors"
+        >
+          ← رجوع
+        </button>
       </div>
     </div>
   );

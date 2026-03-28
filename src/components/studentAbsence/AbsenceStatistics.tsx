@@ -76,10 +76,10 @@ export default function AbsenceStatistics({ userId, schoolName, directorateName,
   const grades = useMemo(() => {
     const set = new Set<string>();
     students.forEach(s => {
-      const parts = s.className.split(" ");
-      if (parts.length >= 1) set.add(parts[0]);
+      const parts = s.className.trim().split(" ");
+      if (parts.length >= 1 && parts[0]) set.add(parts[0]);
     });
-    return [...set];
+    return [...set].filter(Boolean);
   }, [students]);
 
   const sections = useMemo(() => {
