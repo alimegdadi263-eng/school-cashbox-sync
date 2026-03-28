@@ -436,6 +436,126 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
         </CardContent>
       </Card>
 
+      {/* Command #5: Live Progress Log */}
+      {showLog && progressLog.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                {(isImporting || isSubmitting) && <Loader2 className="w-4 h-4 animate-spin" />}
+                📋 سجل العمليات
+              </CardTitle>
+              <Button size="sm" variant="ghost" onClick={() => { setShowLog(false); setProgressLog([]); }}>✕</Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-muted/50 border rounded-lg p-3 max-h-48 overflow-y-auto text-xs font-mono space-y-1" dir="rtl">
+              {progressLog.map((msg, i) => (
+                <div key={i} className={msg.includes('✓') ? 'text-green-600' : msg.includes('⚠️') || msg.includes('✗') ? 'text-red-500' : 'text-foreground'}>
+                  {msg}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Command #6: Import Report */}
+      {importReport && (
+        <Card className="border-green-200 dark:border-green-800">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                📊 تقرير الاستيراد
+              </CardTitle>
+              <Button size="sm" variant="ghost" onClick={() => setImportReport(null)}>✕</Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="grid grid-cols-3 gap-2 text-center text-sm">
+              <div className="bg-green-50 dark:bg-green-950 rounded-lg p-2">
+                <div className="font-bold text-green-700 dark:text-green-400">{importReport.totalImported}</div>
+                <div className="text-xs text-muted-foreground">طالب مستورد</div>
+              </div>
+              <div className="bg-yellow-50 dark:bg-yellow-950 rounded-lg p-2">
+                <div className="font-bold text-yellow-700 dark:text-yellow-400">{importReport.totalDuplicates}</div>
+                <div className="text-xs text-muted-foreground">مكرر (تم تجاهله)</div>
+              </div>
+              <div className="bg-red-50 dark:bg-red-950 rounded-lg p-2">
+                <div className="font-bold text-red-700 dark:text-red-400">{importReport.failed.length}</div>
+                <div className="text-xs text-muted-foreground">صف فشل</div>
+              </div>
+            </div>
+            {importReport.processed.length > 0 && (
+              <div className="border rounded-lg p-2 text-xs space-y-1">
+                <p className="font-semibold mb-1">الصفوف المعالجة:</p>
+                {importReport.processed.map((p, i) => (
+                  <div key={i} className="flex justify-between">
+                    <span>{p.className}</span>
+                    <Badge variant="secondary" className="text-xs">{p.count} طالب</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+            {importReport.failed.length > 0 && (
+              <div className="border border-red-200 dark:border-red-800 rounded-lg p-2 text-xs space-y-1">
+                <p className="font-semibold text-red-600 mb-1">صفوف فشلت:</p>
+                {importReport.failed.map((f, i) => (
+                  <div key={i} className="flex justify-between text-red-600">
+                    <span>{f.className}</span>
+                    <span>{f.error}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Command #6: Absence Report */}
+      {absenceReport && (
+        <Card className="border-blue-200 dark:border-blue-800">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                📊 تقرير تعبئة الغياب
+              </CardTitle>
+              <Button size="sm" variant="ghost" onClick={() => setAbsenceReport(null)}>✕</Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-3 text-center">
+              <div className="font-bold text-xl text-blue-700 dark:text-blue-400">{absenceReport.totalMarked}</div>
+              <div className="text-sm text-muted-foreground">طالب تم تسجيل غيابه</div>
+            </div>
+            {absenceReport.processed.length > 0 && (
+              <div className="border rounded-lg p-2 text-xs space-y-1">
+                <p className="font-semibold mb-1">الصفوف المعالجة:</p>
+                {absenceReport.processed.map((p, i) => (
+                  <div key={i} className="flex justify-between">
+                    <span>{p.className}</span>
+                    <Badge variant="secondary" className="text-xs">{p.marked}/{p.total} تم التسجيل</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+            {absenceReport.notFound.length > 0 && (
+              <div className="border border-red-200 dark:border-red-800 rounded-lg p-2 text-xs space-y-1">
+                <p className="font-semibold text-red-600 mb-1">طلاب لم يُعثر عليهم:</p>
+                {absenceReport.notFound.map((nf, i) => (
+                  <div key={i}>
+                    <span className="font-medium">{nf.className}: </span>
+                    <span className="text-red-600">{nf.students.join('، ')}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Features Tabs */}
       {isLoggedIn && (
         <Tabs value={activeTab} onValueChange={setActiveTab}>
