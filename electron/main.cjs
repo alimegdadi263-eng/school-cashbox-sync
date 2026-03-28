@@ -271,12 +271,14 @@ function setupLanHandlers() {
 let ajyalWindow = null;
 
 function setupAjyalHandlers() {
-  ipcMain.handle('ajyal-open-window', async (_event, username, password) => {
+  ipcMain.handle('ajyal-open-window', async (_event, username, password, loginMethod = 'credentials') => {
     try {
       if (ajyalWindow && !ajyalWindow.isDestroyed()) {
         ajyalWindow.focus();
         return { success: true, message: 'Window already open' };
       }
+
+      const ajyalUrl = 'https://ajyal.moe.gov.jo/login';
 
       ajyalWindow = new BrowserWindow({
         width: 1200,
@@ -293,12 +295,20 @@ function setupAjyalHandlers() {
 
       ajyalWindow.on('closed', () => { ajyalWindow = null; });
 
-      await ajyalWindow.loadURL('https://ajyal.edu.jo/login');
+      ajyalWindow.webContents.setWindowOpenHandler(({ url }) => {
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+          ajyalWindow.loadURL(url);
+          return { action: 'deny' };
+        }
+        return { action: 'allow' };
+      });
+
+      await ajyalWindow.loadURL(ajyalUrl);
 
       // Wait for page to load then auto-fill credentials
       ajyalWindow.webContents.on('did-finish-load', async () => {
         const currentURL = ajyalWindow?.webContents?.getURL() || '';
-        if (currentURL.includes('/login')) {
+        if (loginMethod === 'credentials' && currentURL.includes('/login')) {
           try {
             await ajyalWindow.webContents.executeJavaScript(`
               (function() {
@@ -346,7 +356,7 @@ function setupAjyalHandlers() {
         }
       });
 
-      return { success: true };
+      return { success: true, url: ajyalUrl };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -363,6 +373,43 @@ function setupAjyalHandlers() {
       return { loggedIn, url };
     } catch (err) {
       return { loggedIn: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('ajyal-import-students', async () => {
+    if (!ajyalWindow || ajyalWindow.isDestroyed()) {
+      return { success: false, error: 'Window not open' };
+    }
+    try {
+      const result = await ajyalWindow.webContents.executeJavaScript(`
+        (function () {
+          try {
+            const text = (value) => (value || '').replace(/\s+/g, ' ').trim();
+            const rows = Array.from(document.querySelectorAll('table tr'));
+            const students = rows
+              .map((row) => {
+                const cells = Array.from(row.querySelectorAll('td, th')).map((cell) => text(cell.textContent));
+                if (cells.length < 2) return null;
+
+                const name = cells.find((cell) => /[\u0600-\u06FF]{2,}/.test(cell) && !/الصف|الشعبة|الهاتف|ولي الأمر/.test(cell)) || '';
+                const className = cells.find((cell) => /صف|شعبة|أول|ثاني|ثالث|رابع|خامس|سادس|سابع|ثامن|تاسع|عاشر|حادي عشر|ثاني عشر/.test(cell)) || '';
+                const parentPhone = cells.find((cell) => /(07|962)\d{8,}/.test(cell.replace(/\s+/g, ''))) || '';
+                const parentName = cells.find((cell) => /ولي الأمر|الأب|الأم/.test(cell)) || '';
+
+                if (!name || /اسم الطالب|الطالب/.test(name)) return null;
+                return { name, className, parentPhone, parentName };
+              })
+              .filter(Boolean);
+
+            return { success: students.length > 0, students, count: students.length };
+          } catch (error) {
+            return { success: false, error: error.message };
+          }
+        })();
+      `);
+      return result;
+    } catch (err) {
+      return { success: false, error: err.message };
     }
   });
 
