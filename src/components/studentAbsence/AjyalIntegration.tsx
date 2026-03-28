@@ -34,7 +34,7 @@ function getElectronAjyal() {
 
 export default function AjyalIntegration({ userId, schoolName }: Props) {
   const { toast } = useToast();
-  const [credentials, setCredentials] = useState<AjyalCredentials>({ username: "", password: "" });
+  const [credentials, setCredentials] = useState<AjyalCredentials>({ username: "", password: "", loginMethod: "credentials" });
   const [showPassword, setShowPassword] = useState(false);
   const [isWindowOpen, setIsWindowOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
