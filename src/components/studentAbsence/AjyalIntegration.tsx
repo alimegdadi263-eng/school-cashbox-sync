@@ -235,11 +235,12 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
         <Info className="h-4 w-4" />
         <AlertTitle>ربط منصة أجيال</AlertTitle>
         <AlertDescription className="text-sm space-y-2">
-          <p>سجّل الدخول بحساب المدير لتتمكن من تعبئة الغياب تلقائياً واستيراد بيانات الطلاب.</p>
-          <p className="font-medium">طريقتا الدخول:</p>
+          <p>سجّل الدخول بحساب المدير لتتمكن من استيراد بيانات الطلاب وتعبئة الغياب تلقائياً.</p>
+          <p className="font-medium">الطريقة الجديدة:</p>
           <ul className="list-disc list-inside space-y-1 mr-2">
-            <li><strong>اسم مستخدم وكلمة مرور:</strong> أدخل بيانات الحساب ← فتح أجيال ← أدخل OTP ← تأكيد</li>
-            <li><strong>عبر سند:</strong> فتح أجيال ← سجّل الدخول عبر تطبيق سند يدوياً ← تأكيد</li>
+            <li>اختر طريقة الدخول ← فتح أجيال (يظهر داخل التطبيق)</li>
+            <li>سجّل الدخول ← استخدم <strong>أزرار الشريط العلوي</strong> مباشرة (استيراد الطلاب / تعبئة الغياب)</li>
+            <li>الطلاب المستوردون يُحفظون تلقائياً في <strong>إدارة الطلبة</strong> مرتبين حسب الصف</li>
           </ul>
         </AlertDescription>
       </Alert>
