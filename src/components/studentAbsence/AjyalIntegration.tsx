@@ -4,10 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { ExternalLink, LogIn, Send, Loader2, CheckCircle2, AlertTriangle, Eye, EyeOff, Info } from "lucide-react";
-import type { StudentAbsenceRecord } from "@/types/studentAbsence";
-import { STUDENT_STORAGE_KEY } from "@/types/studentAbsence";
+import { ExternalLink, LogIn, Send, Loader2, CheckCircle2, AlertTriangle, Eye, EyeOff, Info, Download, Users, Trash2 } from "lucide-react";
+import type { StudentInfo, StudentAbsenceRecord } from "@/types/studentAbsence";
+import { STUDENT_STORAGE_KEY, STUDENTS_LIST_KEY } from "@/types/studentAbsence";
 import { format } from "date-fns";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -36,21 +38,19 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitProgress, setSubmitProgress] = useState({ done: 0, total: 0 });
   const [todayAbsences, setTodayAbsences] = useState<StudentAbsenceRecord[]>([]);
+  const [importedStudents, setImportedStudents] = useState<StudentInfo[]>([]);
+  const [isImporting, setIsImporting] = useState(false);
+  const [activeTab, setActiveTab] = useState("absence");
 
   const isElectron = !!getElectronAjyal();
 
-  // Load saved credentials
   useEffect(() => {
     try {
       const saved = localStorage.getItem(`${AJYAL_CREDS_KEY}_${userId}`);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setCredentials(parsed);
-      }
+      if (saved) setCredentials(JSON.parse(saved));
     } catch {}
   }, [userId]);
 
-  // Load today's absences
   useEffect(() => {
     try {
       const absenceKey = `${STUDENT_STORAGE_KEY}_${userId}`;
@@ -74,14 +74,11 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
       toast({ title: "هذه الميزة متاحة فقط في نسخة سطح المكتب", variant: "destructive" });
       return;
     }
-
     if (!credentials.username || !credentials.password) {
       toast({ title: "أدخل اسم المستخدم وكلمة المرور أولاً", variant: "destructive" });
       return;
     }
-
     saveCredentials();
-
     try {
       const result = await ajyal.openWindow(credentials.username, credentials.password);
       if (result?.success) {
@@ -98,7 +95,6 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
   const confirmLogin = async () => {
     const ajyal = getElectronAjyal();
     if (!ajyal) return;
-
     try {
       const result = await ajyal.checkLogin();
       if (result?.loggedIn) {
@@ -115,15 +111,12 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
   const submitAbsences = async () => {
     const ajyal = getElectronAjyal();
     if (!ajyal) return;
-
     if (todayAbsences.length === 0) {
       toast({ title: "لا يوجد غياب مسجل لهذا اليوم", variant: "destructive" });
       return;
     }
-
     setIsSubmitting(true);
     setSubmitProgress({ done: 0, total: todayAbsences.length });
-
     try {
       for (let i = 0; i < todayAbsences.length; i++) {
         const record = todayAbsences[i];
@@ -132,23 +125,12 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
           className: record.className,
           date: record.date,
         });
-
         setSubmitProgress({ done: i + 1, total: todayAbsences.length });
-
         if (!result?.success) {
-          toast({
-            title: `فشل تسجيل غياب: ${record.studentName}`,
-            description: result?.error || "خطأ غير معروف",
-            variant: "destructive",
-          });
+          toast({ title: `فشل تسجيل غياب: ${record.studentName}`, description: result?.error || "خطأ غير معروف", variant: "destructive" });
         }
-
-        // Small delay between submissions
-        if (i < todayAbsences.length - 1) {
-          await new Promise(r => setTimeout(r, 1500));
-        }
+        if (i < todayAbsences.length - 1) await new Promise(r => setTimeout(r, 1500));
       }
-
       toast({ title: `تم تسجيل ${todayAbsences.length} غياب في أجيال ✓` });
     } catch (err: any) {
       toast({ title: "خطأ في التسجيل", description: err.message, variant: "destructive" });
@@ -157,11 +139,60 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
     }
   };
 
+  const importStudentsFromAjyal = async () => {
+    const ajyal = getElectronAjyal();
+    if (!ajyal) {
+      toast({ title: "هذه الميزة متاحة فقط في نسخة سطح المكتب", variant: "destructive" });
+      return;
+    }
+    if (!isLoggedIn) {
+      toast({ title: "سجّل الدخول في أجيال أولاً", variant: "destructive" });
+      return;
+    }
+    setIsImporting(true);
+    try {
+      const result = await ajyal.importStudents();
+      if (result?.success && result.students?.length > 0) {
+        const generateId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        const mapped: StudentInfo[] = result.students.map((s: any) => ({
+          id: generateId(),
+          name: s.name || "",
+          className: s.className || "",
+          parentPhone: s.parentPhone || "",
+          parentName: s.parentName || "",
+        }));
+        setImportedStudents(mapped);
+        toast({ title: `تم استيراد ${mapped.length} طالب من أجيال` });
+      } else {
+        toast({
+          title: "لم يتم العثور على طلاب",
+          description: result?.error || "تأكد أنك في صفحة قائمة الطلاب في أجيال",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      toast({ title: "خطأ في الاستيراد", description: err.message, variant: "destructive" });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const saveImportedStudents = () => {
+    if (importedStudents.length === 0) return;
+    const storageKey = `${STUDENTS_LIST_KEY}_${userId}`;
+    const existing: StudentInfo[] = JSON.parse(localStorage.getItem(storageKey) || "[]");
+    // Merge: don't duplicate by name+class
+    const existingSet = new Set(existing.map(s => `${s.name}||${s.className}`));
+    const newStudents = importedStudents.filter(s => !existingSet.has(`${s.name}||${s.className}`));
+    const merged = [...existing, ...newStudents];
+    localStorage.setItem(storageKey, JSON.stringify(merged));
+    toast({ title: `تم حفظ ${newStudents.length} طالب جديد (تم تجاهل ${importedStudents.length - newStudents.length} مكرر)` });
+    setImportedStudents([]);
+  };
+
   const closeAjyalWindow = async () => {
     const ajyal = getElectronAjyal();
-    if (ajyal) {
-      await ajyal.closeWindow();
-    }
+    if (ajyal) await ajyal.closeWindow();
     setIsWindowOpen(false);
     setIsLoggedIn(false);
   };
@@ -171,16 +202,14 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
       {/* Instructions */}
       <Alert>
         <Info className="h-4 w-4" />
-        <AlertTitle>ربط منصة أجيال - تعبئة الغياب تلقائياً</AlertTitle>
+        <AlertTitle>ربط منصة أجيال</AlertTitle>
         <AlertDescription className="text-sm space-y-2">
-          <p>هذه الميزة تفتح منصة أجيال في نافذة داخل البرنامج وتعبئ بيانات الغياب تلقائياً.</p>
+          <p>سجّل الدخول بحساب المدير لتتمكن من تعبئة الغياب تلقائياً واستيراد بيانات الطلاب.</p>
           <ol className="list-decimal list-inside space-y-1 mr-2">
             <li>أدخل بيانات حساب أجيال (المدير) أدناه</li>
             <li>اضغط "فتح أجيال وتسجيل الدخول"</li>
             <li>أدخل رمز OTP يدوياً في النافذة المفتوحة</li>
             <li>اضغط "تأكيد تسجيل الدخول"</li>
-            <li>انتقل إلى صفحة الغياب في أجيال</li>
-            <li>اضغط "تعبئة الغياب تلقائياً" لإرسال بيانات اليوم</li>
           </ol>
         </AlertDescription>
       </Alert>
@@ -189,9 +218,7 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>غير متاح</AlertTitle>
-          <AlertDescription>
-            هذه الميزة متاحة فقط في نسخة سطح المكتب (Electron). لا يمكن فتح نافذة متصفح من الويب.
-          </AlertDescription>
+          <AlertDescription>هذه الميزة متاحة فقط في نسخة سطح المكتب (Electron).</AlertDescription>
         </Alert>
       )}
 
@@ -207,30 +234,13 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>اسم المستخدم (رقم الموظف)</Label>
-              <Input
-                value={credentials.username}
-                onChange={e => setCredentials(c => ({ ...c, username: e.target.value }))}
-                placeholder="أدخل اسم المستخدم"
-                disabled={isWindowOpen}
-              />
+              <Input value={credentials.username} onChange={e => setCredentials(c => ({ ...c, username: e.target.value }))} placeholder="أدخل اسم المستخدم" disabled={isWindowOpen} />
             </div>
             <div className="space-y-1">
               <Label>كلمة المرور</Label>
               <div className="relative">
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  value={credentials.password}
-                  onChange={e => setCredentials(c => ({ ...c, password: e.target.value }))}
-                  placeholder="أدخل كلمة المرور"
-                  disabled={isWindowOpen}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute left-1 top-0 h-full"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
+                <Input type={showPassword ? "text" : "password"} value={credentials.password} onChange={e => setCredentials(c => ({ ...c, password: e.target.value }))} placeholder="أدخل كلمة المرور" disabled={isWindowOpen} />
+                <Button type="button" variant="ghost" size="icon" className="absolute left-1 top-0 h-full" onClick={() => setShowPassword(!showPassword)}>
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
@@ -251,9 +261,7 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
                     تأكيد تسجيل الدخول (بعد OTP)
                   </Button>
                 )}
-                <Button onClick={closeAjyalWindow} variant="outline">
-                  إغلاق نافذة أجيال
-                </Button>
+                <Button onClick={closeAjyalWindow} variant="outline">إغلاق نافذة أجيال</Button>
               </>
             )}
           </div>
@@ -268,65 +276,139 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
         </CardContent>
       </Card>
 
-      {/* Submit Absences */}
+      {/* Features Tabs */}
       {isLoggedIn && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Send className="w-5 h-5" />
-              تعبئة غياب اليوم في أجيال
-              <Badge variant="outline" className="mr-2">{todayAbsences.length} طالب</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {todayAbsences.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                لا يوجد غياب مسجل لهذا اليوم. سجّل الغياب أولاً من تبويب "الرصد اليومي".
-              </p>
-            ) : (
-              <>
-                <div className="border rounded-lg p-3 bg-muted/30 max-h-48 overflow-y-auto">
-                  <p className="font-semibold mb-2 text-sm">الطلاب الغائبون اليوم:</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1">
-                    {todayAbsences.map(r => (
-                      <div key={r.id} className="text-xs border rounded p-1.5 bg-background">
-                        <span className="font-medium">{r.studentName}</span>
-                        <span className="text-muted-foreground"> - {r.className}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="absence" className="flex items-center gap-1">
+              <Send className="w-4 h-4" />
+              تعبئة الغياب
+            </TabsTrigger>
+            <TabsTrigger value="import" className="flex items-center gap-1">
+              <Download className="w-4 h-4" />
+              استيراد الطلاب
+            </TabsTrigger>
+          </TabsList>
 
-                <Button
-                  onClick={submitAbsences}
-                  disabled={isSubmitting}
-                  className="w-full"
-                  size="lg"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                      جاري التعبئة... ({submitProgress.done}/{submitProgress.total})
-                    </>
+          <TabsContent value="absence">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Send className="w-5 h-5" />
+                  تعبئة غياب اليوم في أجيال
+                  <Badge variant="outline" className="mr-2">{todayAbsences.length} طالب</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {todayAbsences.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">لا يوجد غياب مسجل لهذا اليوم. سجّل الغياب أولاً من تبويب "الرصد اليومي".</p>
+                ) : (
+                  <>
+                    <div className="border rounded-lg p-3 bg-muted/30 max-h-48 overflow-y-auto">
+                      <p className="font-semibold mb-2 text-sm">الطلاب الغائبون اليوم:</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1">
+                        {todayAbsences.map(r => (
+                          <div key={r.id} className="text-xs border rounded p-1.5 bg-background">
+                            <span className="font-medium">{r.studentName}</span>
+                            <span className="text-muted-foreground"> - {r.className}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <Button onClick={submitAbsences} disabled={isSubmitting} className="w-full" size="lg">
+                      {isSubmitting ? (
+                        <><Loader2 className="w-4 h-4 ml-2 animate-spin" />جاري التعبئة... ({submitProgress.done}/{submitProgress.total})</>
+                      ) : (
+                        <><Send className="w-4 h-4 ml-2" />تعبئة الغياب تلقائياً ({todayAbsences.length} طالب)</>
+                      )}
+                    </Button>
+                  </>
+                )}
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    <strong>ملاحظة:</strong> تأكد أنك في صفحة تسجيل الغياب في أجيال قبل الضغط على "تعبئة تلقائية".
+                  </AlertDescription>
+                </Alert>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="import">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Download className="w-5 h-5" />
+                  استيراد بيانات الطلاب من أجيال
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription className="text-sm">
+                    <p>انتقل إلى صفحة <strong>قائمة الطلاب</strong> في منصة أجيال، ثم اضغط الزر أدناه لاستيراد البيانات تلقائياً.</p>
+                    <p className="text-xs text-muted-foreground mt-1">سيتم استيراد: اسم الطالب، الصف والشعبة، ورقم ولي الأمر (إن وُجد).</p>
+                  </AlertDescription>
+                </Alert>
+
+                <Button onClick={importStudentsFromAjyal} disabled={isImporting} className="w-full" size="lg">
+                  {isImporting ? (
+                    <><Loader2 className="w-4 h-4 ml-2 animate-spin" />جاري الاستيراد...</>
                   ) : (
-                    <>
-                      <Send className="w-4 h-4 ml-2" />
-                      تعبئة الغياب تلقائياً ({todayAbsences.length} طالب)
-                    </>
+                    <><Download className="w-4 h-4 ml-2" />استيراد الطلاب من أجيال</>
                   )}
                 </Button>
-              </>
-            )}
 
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription className="text-xs">
-                <strong>ملاحظة:</strong> تأكد أنك في صفحة تسجيل الغياب في أجيال قبل الضغط على "تعبئة تلقائية".
-                قد تحتاج لتعديل الـ selectors حسب تحديثات الموقع.
-              </AlertDescription>
-            </Alert>
-          </CardContent>
-        </Card>
+                {importedStudents.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-sm flex items-center gap-1">
+                        <Users className="w-4 h-4" />
+                        تم استيراد {importedStudents.length} طالب
+                      </h3>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={saveImportedStudents}>
+                          <CheckCircle2 className="w-4 h-4 ml-1" />
+                          حفظ في النظام
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setImportedStudents([])}>
+                          <Trash2 className="w-4 h-4 ml-1" />
+                          تجاهل
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="border rounded-lg overflow-hidden max-h-72 overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-center w-10">م</TableHead>
+                            <TableHead className="text-center">اسم الطالب</TableHead>
+                            <TableHead className="text-center">الصف/الشعبة</TableHead>
+                            <TableHead className="text-center">رقم ولي الأمر</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {importedStudents.slice(0, 50).map((s, i) => (
+                            <TableRow key={s.id}>
+                              <TableCell className="text-center text-xs">{i + 1}</TableCell>
+                              <TableCell className="text-center text-sm font-medium">{s.name}</TableCell>
+                              <TableCell className="text-center text-sm">{s.className}</TableCell>
+                              <TableCell className="text-center text-sm">{s.parentPhone || "-"}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      {importedStudents.length > 50 && (
+                        <p className="text-xs text-center text-muted-foreground py-2">... و {importedStudents.length - 50} طالب آخر</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );
