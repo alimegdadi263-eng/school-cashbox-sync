@@ -71,7 +71,7 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
     setAbsentIds(new Set(todayRecords.map(r => r.studentId)));
   }, [dateStr, records]);
 
-  const classes = useMemo(() => [...new Set(students.map(s => s.className))], [students]);
+  const classes = useMemo(() => [...new Set(students.map(s => s.className))].filter(Boolean), [students]);
   const filteredStudents = filterClass ? students.filter(s => s.className === filterClass) : students;
   const todayAbsentRecords = records.filter(r => r.date === dateStr);
   const activeQueueRecord = whatsAppQueueIndex !== null ? todayAbsentRecords[whatsAppQueueIndex] : null;
