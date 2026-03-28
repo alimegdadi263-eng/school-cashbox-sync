@@ -434,15 +434,29 @@ function setupAjyalHandlers(mainWindow) {
           `);
 
           if (action === 'import') {
-            mainWindow.webContents.send('ajyal-action', { type: 'import-request' });
+            // Run import directly in main process
+            mainWindow.webContents.send('ajyal-action', { type: 'import-started' });
+            try {
+              const result = await runImportStudents(mainWindow);
+              mainWindow.webContents.send('ajyal-action', { type: 'import-result', ...result });
+            } catch (e) {
+              mainWindow.webContents.send('ajyal-action', { type: 'import-result', success: false, error: e.message });
+            }
           } else if (action === 'absence') {
-            mainWindow.webContents.send('ajyal-action', { type: 'absence-request' });
+            // Run absence directly in main process
+            mainWindow.webContents.send('ajyal-action', { type: 'absence-started' });
+            try {
+              const result = await runSubmitAbsence(mainWindow);
+              mainWindow.webContents.send('ajyal-action', { type: 'absence-result', ...result });
+            } catch (e) {
+              mainWindow.webContents.send('ajyal-action', { type: 'absence-result', success: false, error: e.message });
+            }
           } else if (action === 'close') {
             clearInterval(pollInterval);
+            // Hide BrowserView instead of destroying (keep session alive)
             if (ajyalView && !ajyalView.webContents.isDestroyed()) {
               mainWindow.removeBrowserView(ajyalView);
-              ajyalView.webContents.destroy();
-              ajyalView = null;
+              // Don't destroy - keep alive for next time
             }
             mainWindow.webContents.send('ajyal-action', { type: 'closed' });
           }
