@@ -33,6 +33,19 @@ function getElectronAjyal() {
   return (window as any)?.electronAPI?.ajyal;
 }
 
+interface ImportReport {
+  processed: { className: string; count: number }[];
+  failed: { className: string; error: string }[];
+  totalImported: number;
+  totalDuplicates: number;
+}
+
+interface AbsenceReport {
+  processed: { className: string; marked: number; total: number }[];
+  notFound: { className: string; students: string[] }[];
+  totalMarked: number;
+}
+
 export default function AjyalIntegration({ userId, schoolName }: Props) {
   const { toast } = useToast();
   const [credentials, setCredentials] = useState<AjyalCredentials>({ username: "", password: "", loginMethod: "credentials" });
@@ -45,6 +58,10 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
   const [importedStudents, setImportedStudents] = useState<StudentInfo[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [activeTab, setActiveTab] = useState("absence");
+  const [progressLog, setProgressLog] = useState<string[]>([]);
+  const [showLog, setShowLog] = useState(false);
+  const [importReport, setImportReport] = useState<ImportReport | null>(null);
+  const [absenceReport, setAbsenceReport] = useState<AbsenceReport | null>(null);
 
   const isElectron = !!getElectronAjyal();
 
