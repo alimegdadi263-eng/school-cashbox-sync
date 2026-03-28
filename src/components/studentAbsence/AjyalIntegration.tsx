@@ -111,9 +111,9 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
       if (result?.success) {
         setIsViewOpen(true);
         const desc = credentials.loginMethod === "sanad"
-          ? "سجّل الدخول عبر سند في النافذة المفتوحة ثم اضغط 'تأكيد تسجيل الدخول'"
-          : "أدخل رمز OTP يدوياً ثم اضغط 'تأكيد تسجيل الدخول'";
-        toast({ title: "تم فتح نافذة أجيال", description: desc });
+          ? "سيظهر موقع أجيال داخل التطبيق. سجّل الدخول عبر سند ثم استخدم أزرار الشريط العلوي"
+          : "سيظهر موقع أجيال داخل التطبيق. أدخل OTP ثم استخدم أزرار الشريط العلوي للاستيراد أو تعبئة الغياب";
+        toast({ title: "تم فتح أجيال داخل التطبيق", description: desc });
       } else {
         toast({ title: "فشل فتح النافذة", description: result?.error, variant: "destructive" });
       }
