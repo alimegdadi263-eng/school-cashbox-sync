@@ -191,8 +191,20 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
           parentPhone: s.parentPhone || "",
           parentName: s.parentName || "",
         }));
+        
+        // Auto-save directly to Student Manager storage, sorted by class
+        const storageKey = `${STUDENTS_LIST_KEY}_${userId}`;
+        const existing: StudentInfo[] = JSON.parse(localStorage.getItem(storageKey) || "[]");
+        const existingSet = new Set(existing.map(s => `${s.name}||${s.className}`));
+        const newStudents = mapped.filter(s => !existingSet.has(`${s.name}||${s.className}`));
+        const merged = [...existing, ...newStudents].sort((a, b) => a.className.localeCompare(b.className, 'ar'));
+        localStorage.setItem(storageKey, JSON.stringify(merged));
+        
         setImportedStudents(mapped);
-        toast({ title: `تم استيراد ${mapped.length} طالب من أجيال` });
+        toast({ 
+          title: `تم استيراد ${newStudents.length} طالب جديد وحفظهم في إدارة الطلبة`,
+          description: newStudents.length < mapped.length ? `(تم تجاهل ${mapped.length - newStudents.length} طالب مكرر)` : undefined
+        });
       } else {
         toast({
           title: "لم يتم العثور على طلاب",
@@ -208,17 +220,9 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
   };
 
   const saveImportedStudents = () => {
-    if (importedStudents.length === 0) return;
-    const storageKey = `${STUDENTS_LIST_KEY}_${userId}`;
-    const existing: StudentInfo[] = JSON.parse(localStorage.getItem(storageKey) || "[]");
-    // Merge: don't duplicate by name+class
-    const existingSet = new Set(existing.map(s => `${s.name}||${s.className}`));
-    const newStudents = importedStudents.filter(s => !existingSet.has(`${s.name}||${s.className}`));
-    // Sort all students by className for organized display in Student Manager
-    const merged = [...existing, ...newStudents].sort((a, b) => a.className.localeCompare(b.className, 'ar'));
-    localStorage.setItem(storageKey, JSON.stringify(merged));
-    toast({ title: `تم حفظ ${newStudents.length} طالب جديد في إدارة الطلبة (تم تجاهل ${importedStudents.length - newStudents.length} مكرر)` });
+    // Already auto-saved, just clear the preview
     setImportedStudents([]);
+    toast({ title: "تم الحفظ مسبقاً في إدارة الطلبة ✓" });
   };
 
   const closeAjyalWindow = async () => {
