@@ -77,16 +77,25 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
       toast({ title: "هذه الميزة متاحة فقط في نسخة سطح المكتب", variant: "destructive" });
       return;
     }
-    if (!credentials.username || !credentials.password) {
-      toast({ title: "أدخل اسم المستخدم وكلمة المرور أولاً", variant: "destructive" });
-      return;
+    if (credentials.loginMethod === "credentials") {
+      if (!credentials.username || !credentials.password) {
+        toast({ title: "أدخل اسم المستخدم وكلمة المرور أولاً", variant: "destructive" });
+        return;
+      }
     }
     saveCredentials();
     try {
-      const result = await ajyal.openWindow(credentials.username, credentials.password);
+      const result = await ajyal.openWindow(
+        credentials.loginMethod === "credentials" ? credentials.username : "",
+        credentials.loginMethod === "credentials" ? credentials.password : "",
+        credentials.loginMethod
+      );
       if (result?.success) {
         setIsWindowOpen(true);
-        toast({ title: "تم فتح نافذة أجيال", description: "أدخل رمز OTP يدوياً ثم اضغط 'تأكيد تسجيل الدخول'" });
+        const desc = credentials.loginMethod === "sanad"
+          ? "سجّل الدخول عبر سند في النافذة المفتوحة ثم اضغط 'تأكيد تسجيل الدخول'"
+          : "أدخل رمز OTP يدوياً ثم اضغط 'تأكيد تسجيل الدخول'";
+        toast({ title: "تم فتح نافذة أجيال", description: desc });
       } else {
         toast({ title: "فشل فتح النافذة", description: result?.error, variant: "destructive" });
       }
