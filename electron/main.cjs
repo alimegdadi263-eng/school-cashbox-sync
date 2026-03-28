@@ -487,57 +487,253 @@ function setupAjyalHandlers(mainWindow) {
     }
   });
 
+  // Helper: execute JS with retry and wait
+  async function ajyalExec(js) {
+    if (!ajyalView || ajyalView.webContents.isDestroyed()) throw new Error('View not open');
+    return ajyalView.webContents.executeJavaScript(js);
+  }
+
+  async function ajyalWait(ms = 2000) {
+    return new Promise(r => setTimeout(r, ms));
+  }
+
+  // Helper: update toolbar status text
+  async function updateToolbarStatus(text) {
+    try {
+      await ajyalExec(`(function(){ const s = document.getElementById('toolbar-status'); if(s) s.textContent = '${text}'; })()`);
+    } catch {}
+  }
+
+  // Helper: click element by text content (searches links, buttons, menu items, spans, divs)
+  const clickByTextJS = (texts, tag = 'a, button, span, li, div, label, [role="menuitem"], [role="button"], .nav-link, .menu-item, .sidebar-link') => `
+    (function() {
+      const targets = ${JSON.stringify(texts)};
+      const els = document.querySelectorAll('${tag}');
+      for (const el of els) {
+        const t = (el.textContent || '').replace(/\\s+/g, ' ').trim();
+        for (const target of targets) {
+          if (t === target || t.includes(target)) {
+            el.click();
+            el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            return { clicked: true, text: t };
+          }
+        }
+      }
+      // Try href-based matching for links
+      const links = document.querySelectorAll('a[href]');
+      for (const link of links) {
+        const t = (link.textContent || '').replace(/\\s+/g, ' ').trim();
+        for (const target of targets) {
+          if (t.includes(target)) { link.click(); return { clicked: true, text: t }; }
+        }
+      }
+      return { clicked: false };
+    })()
+  `;
+
+  // Helper: select dropdown option by visible text
+  const selectOptionJS = (selectTexts, optionText) => `
+    (function() {
+      const selectors = ${JSON.stringify(selectTexts)};
+      // Try native <select> elements
+      const selects = document.querySelectorAll('select');
+      for (const sel of selects) {
+        const label = sel.closest('div, label, .form-group')?.textContent || '';
+        for (const s of selectors) {
+          if (label.includes(s) || sel.name?.includes(s) || sel.id?.includes(s)) {
+            for (const opt of sel.options) {
+              if (opt.text.includes('${optionText}') || opt.value.includes('${optionText}')) {
+                sel.value = opt.value;
+                sel.dispatchEvent(new Event('change', { bubbles: true }));
+                return { selected: true, value: opt.value };
+              }
+            }
+          }
+        }
+      }
+      // Try custom dropdowns (click to open, then click option)
+      const dropdowns = document.querySelectorAll('[class*="select"], [class*="dropdown"], [role="listbox"], [role="combobox"]');
+      for (const dd of dropdowns) {
+        const label = dd.closest('div, label, .form-group')?.textContent || '';
+        for (const s of selectors) {
+          if (label.includes(s)) {
+            dd.click();
+            return { selected: false, opened: true };
+          }
+        }
+      }
+      return { selected: false };
+    })()
+  `;
+
+  // Helper: get all select options for a field
+  const getSelectOptionsJS = (selectTexts) => `
+    (function() {
+      const selectors = ${JSON.stringify(selectTexts)};
+      const selects = document.querySelectorAll('select');
+      for (const sel of selects) {
+        const label = sel.closest('div, label, .form-group')?.textContent || '';
+        for (const s of selectors) {
+          if (label.includes(s) || sel.name?.includes(s) || sel.id?.includes(s)) {
+            return Array.from(sel.options).map(o => ({ value: o.value, text: o.text.trim() })).filter(o => o.text && o.value);
+          }
+        }
+      }
+      return [];
+    })()
+  `;
+
+  // Helper: set select value directly
+  const setSelectValueJS = (selectTexts, value) => `
+    (function() {
+      const selectors = ${JSON.stringify(selectTexts)};
+      const selects = document.querySelectorAll('select');
+      for (const sel of selects) {
+        const label = sel.closest('div, label, .form-group')?.textContent || '';
+        for (const s of selectors) {
+          if (label.includes(s) || sel.name?.includes(s) || sel.id?.includes(s)) {
+            sel.value = '${value}';
+            sel.dispatchEvent(new Event('change', { bubbles: true }));
+            return { selected: true };
+          }
+        }
+      }
+      return { selected: false };
+    })()
+  `;
+
+  // Helper: scrape student table from current page
+  const scrapeStudentsJS = `
+    (function () {
+      try {
+        const text = (value) => (value || '').replace(/\\s+/g, ' ').trim();
+        const rows = Array.from(document.querySelectorAll('table tr, table tbody tr'));
+        const students = rows.map((row) => {
+          const cells = Array.from(row.querySelectorAll('td')).map((cell) => text(cell.textContent));
+          if (cells.length < 2) return null;
+          const name = cells.find((cell) => /[\\u0600-\\u06FF]{2,}/.test(cell) && !/الصف|الشعبة|الهاتف|ولي الأمر|اسم الطالب|الرقم|م\\.?$|العام|التاريخ|البحث|عرض|حفظ/.test(cell)) || '';
+          const className = cells.find((cell) => /أول|ثاني|ثالث|رابع|خامس|سادس|سابع|ثامن|تاسع|عاشر|حادي|إعدادي|ابتدائي|ثانوي/.test(cell)) || '';
+          const parentPhone = cells.find((cell) => /(07|962)\\d{7,}/.test(cell.replace(/[\\s-]/g, ''))) || '';
+          const parentName = '';
+          if (!name || name.length < 4) return null;
+          return { name, className, parentPhone, parentName };
+        }).filter(Boolean);
+        return { success: students.length > 0, students, count: students.length };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    })()
+  `;
+
   ipcMain.handle('ajyal-import-students', async () => {
     if (!ajyalView || ajyalView.webContents.isDestroyed()) {
       return { success: false, error: 'View not open' };
     }
     try {
-      // Show loading indicator on toolbar
+      // Show loading indicator
       try {
-        await ajyalView.webContents.executeJavaScript(`
-          (function() {
-            const btn = document.getElementById('btn-import-students');
-            if (btn) { btn.textContent = '⏳ جاري الاستيراد...'; btn.disabled = true; }
-          })();
-        `);
+        await ajyalExec(`(function(){ const btn = document.getElementById('btn-import-students'); if(btn){ btn.textContent = '⏳ جاري الاستيراد...'; btn.disabled = true; } })()`);
       } catch {}
 
-      const result = await ajyalView.webContents.executeJavaScript(`
-        (function () {
-          try {
-            const text = (value) => (value || '').replace(/\\s+/g, ' ').trim();
-            const rows = Array.from(document.querySelectorAll('table tr'));
-            const students = rows
-              .map((row) => {
-                const cells = Array.from(row.querySelectorAll('td, th')).map((cell) => text(cell.textContent));
-                if (cells.length < 2) return null;
-                const name = cells.find((cell) => /[\\u0600-\\u06FF]{2,}/.test(cell) && !/الصف|الشعبة|الهاتف|ولي الأمر|اسم الطالب|الرقم|م\\.?$/.test(cell)) || '';
-                const className = cells.find((cell) => /صف|شعبة|أول|ثاني|ثالث|رابع|خامس|سادس|سابع|ثامن|تاسع|عاشر|حادي عشر|ثاني عشر/.test(cell)) || '';
-                const parentPhone = cells.find((cell) => /(07|962)\\d{8,}/.test(cell.replace(/\\s+/g, ''))) || '';
-                const parentName = cells.find((cell) => /ولي الأمر|الأب|الأم/.test(cell)) || '';
-                if (!name || /اسم الطالب|الطالب/.test(name)) return null;
-                return { name, className, parentPhone, parentName };
-              })
-              .filter(Boolean);
-            return { success: students.length > 0, students, count: students.length };
-          } catch (error) {
-            return { success: false, error: error.message };
+      await updateToolbarStatus('جاري التنقل إلى قائمة الطلاب...');
+
+      // Step 1: Navigate to student list - try clicking menu items
+      let navResult = await ajyalExec(clickByTextJS(['إدارة الطلبة', 'الطلبة', 'بيانات الطلبة', 'إدارة الطلاب', 'Students']));
+      await ajyalWait(2000);
+
+      // Step 2: Try to click sub-menu
+      if (navResult.clicked) {
+        const subNav = await ajyalExec(clickByTextJS(['بيانات الطلبة', 'قائمة الطلبة', 'قائمة الطلاب', 'عرض الطلبة', 'Student List']));
+        await ajyalWait(2000);
+      }
+
+      // Step 3: Discover available grades and sections
+      await updateToolbarStatus('جاري اكتشاف الصفوف والشعب...');
+      const gradeOptions = await ajyalExec(getSelectOptionsJS(['الصف', 'المرحلة', 'الفصل', 'grade', 'class', 'Grade']));
+      const sectionOptions = await ajyalExec(getSelectOptionsJS(['الشعبة', 'القسم', 'الفرع', 'section', 'Section']));
+
+      let allStudents = [];
+
+      if (gradeOptions.length > 0) {
+        // Iterate through all grades
+        for (let gi = 0; gi < gradeOptions.length; gi++) {
+          const grade = gradeOptions[gi];
+          // Skip empty/placeholder options
+          if (!grade.text || grade.text === '--' || grade.text === 'اختر' || grade.text.includes('اختر') || grade.value === '' || grade.value === '0') continue;
+
+          await updateToolbarStatus(`جاري استيراد: ${grade.text} (${gi + 1}/${gradeOptions.length})`);
+          await ajyalExec(setSelectValueJS(['الصف', 'المرحلة', 'الفصل', 'grade', 'class', 'Grade'], grade.value));
+          await ajyalWait(1000);
+
+          // Re-fetch sections for this grade (they may change)
+          const currentSections = await ajyalExec(getSelectOptionsJS(['الشعبة', 'القسم', 'الفرع', 'section', 'Section']));
+
+          if (currentSections.length > 0) {
+            for (const sec of currentSections) {
+              if (!sec.text || sec.text === '--' || sec.text.includes('اختر') || sec.value === '' || sec.value === '0') continue;
+
+              await ajyalExec(setSelectValueJS(['الشعبة', 'القسم', 'الفرع', 'section', 'Section'], sec.value));
+              await ajyalWait(500);
+
+              // Click search/show button
+              await ajyalExec(clickByTextJS(['بحث', 'عرض', 'Search', 'Show', 'إظهار', 'استعلام'], 'button, input[type="submit"], input[type="button"], a.btn, .btn'));
+              await ajyalWait(2500);
+
+              // Scrape students from table
+              const result = await ajyalExec(scrapeStudentsJS);
+              if (result.success && result.students) {
+                // Tag students with grade+section info
+                const tagged = result.students.map(s => ({
+                  ...s,
+                  className: s.className || `${grade.text} ${sec.text}`
+                }));
+                allStudents.push(...tagged);
+              }
+            }
+          } else {
+            // No sections, just search with grade only
+            await ajyalExec(clickByTextJS(['بحث', 'عرض', 'Search', 'Show', 'إظهار', 'استعلام'], 'button, input[type="submit"], input[type="button"], a.btn, .btn'));
+            await ajyalWait(2500);
+
+            const result = await ajyalExec(scrapeStudentsJS);
+            if (result.success && result.students) {
+              const tagged = result.students.map(s => ({
+                ...s,
+                className: s.className || grade.text
+              }));
+              allStudents.push(...tagged);
+            }
           }
-        })();
-      `);
+        }
+      } else {
+        // No grade dropdown found - just try to scrape current page
+        await updateToolbarStatus('لم يُعثر على قوائم الصفوف، جاري قراءة الصفحة الحالية...');
+        await ajyalExec(clickByTextJS(['بحث', 'عرض', 'Search', 'Show'], 'button, input[type="submit"], input[type="button"], a.btn, .btn'));
+        await ajyalWait(2500);
+        const result = await ajyalExec(scrapeStudentsJS);
+        if (result.success && result.students) {
+          allStudents = result.students;
+        }
+      }
 
-      // Reset toolbar button
+      // Remove duplicates
+      const seen = new Set();
+      allStudents = allStudents.filter(s => {
+        const key = `${s.name}||${s.className}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      // Reset toolbar
+      await updateToolbarStatus(`تم استيراد ${allStudents.length} طالب ✓`);
       try {
-        await ajyalView.webContents.executeJavaScript(`
-          (function() {
-            const btn = document.getElementById('btn-import-students');
-            if (btn) { btn.textContent = '📥 استيراد الطلاب'; btn.disabled = false; }
-          })();
-        `);
+        await ajyalExec(`(function(){ const btn = document.getElementById('btn-import-students'); if(btn){ btn.textContent = '📥 استيراد الطلاب'; btn.disabled = false; } })()`);
       } catch {}
 
-      return result;
+      return { success: allStudents.length > 0, students: allStudents, count: allStudents.length };
     } catch (err) {
+      try { await ajyalExec(`(function(){ const btn = document.getElementById('btn-import-students'); if(btn){ btn.textContent = '📥 استيراد الطلاب'; btn.disabled = false; } })()`); } catch {}
       return { success: false, error: err.message };
     }
   });
@@ -547,39 +743,121 @@ function setupAjyalHandlers(mainWindow) {
       return { success: false, error: 'View not open' };
     }
     try {
-      const result = await ajyalView.webContents.executeJavaScript(`
-        (function() {
+      // data can be single record or array of records grouped by class
+      const records = Array.isArray(data) ? data : [data];
+      
+      if (records.length === 0) return { success: false, error: 'No records' };
+
+      // If navigateFirst flag is set, auto-navigate to attendance page
+      if (data.navigateFirst || (records[0] && records[0].navigateFirst)) {
+        await updateToolbarStatus('جاري التنقل إلى صفحة تسجيل الغياب...');
+        
+        // Navigate to attendance section
+        await ajyalExec(clickByTextJS(['الحضور والغياب', 'الغياب', 'Attendance', 'متابعة الحضور']));
+        await ajyalWait(2000);
+        
+        // Navigate to absence registration
+        await ajyalExec(clickByTextJS(['تسجيل الغياب', 'متابعة الغياب', 'رصد الغياب', 'Absence', 'تسجيل الحضور والغياب']));
+        await ajyalWait(2000);
+      }
+
+      // Group records by class for batch processing
+      const byClass = {};
+      for (const r of records) {
+        const key = r.className || 'unknown';
+        if (!byClass[key]) byClass[key] = [];
+        byClass[key].push(r);
+      }
+
+      let totalMarked = 0;
+      const classKeys = Object.keys(byClass);
+
+      for (let ci = 0; ci < classKeys.length; ci++) {
+        const cls = classKeys[ci];
+        const classRecords = byClass[cls];
+        
+        await updateToolbarStatus(`جاري تعبئة غياب: ${cls} (${ci + 1}/${classKeys.length})`);
+
+        // Try to select the correct grade/section
+        // Parse className like "الأول أ" into grade="الأول" section="أ"
+        const parts = cls.split(/\s+/);
+        const grade = parts.slice(0, -1).join(' ') || parts[0];
+        const section = parts.length > 1 ? parts[parts.length - 1] : '';
+
+        // Select date (today)
+        const today = new Date();
+        const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        await ajyalExec(`
+          (function() {
+            const dateInputs = document.querySelectorAll('input[type="date"]');
+            for (const d of dateInputs) {
+              d.value = '${dateStr}';
+              d.dispatchEvent(new Event('change', { bubbles: true }));
+              d.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+          })()
+        `);
+
+        // Select grade
+        if (grade) {
+          await ajyalExec(setSelectValueJS(['الصف', 'المرحلة', 'الفصل', 'grade', 'class'], grade));
+          await ajyalWait(500);
+        }
+        // Select section
+        if (section) {
+          await ajyalExec(setSelectValueJS(['الشعبة', 'القسم', 'section'], section));
+          await ajyalWait(500);
+        }
+
+        // Click show students button
+        await ajyalExec(clickByTextJS(['عرض الطلبة', 'عرض', 'بحث', 'Show', 'Search', 'إظهار'], 'button, input[type="submit"], input[type="button"], a.btn, .btn'));
+        await ajyalWait(2500);
+
+        // Mark absent students by finding their names and clicking checkboxes
+        for (const record of classRecords) {
           try {
-            const studentName = ${JSON.stringify(data.studentName)};
-            const className = ${JSON.stringify(data.className)};
-            const searchInputs = document.querySelectorAll('input[type="search"], input[type="text"], input.search-input');
-            let filled = false;
-            for (const input of searchInputs) {
-              if (input.placeholder && (input.placeholder.includes('بحث') || input.placeholder.includes('طالب'))) {
-                input.focus();
-                input.value = studentName;
-                input.dispatchEvent(new Event('input', { bubbles: true }));
-                input.dispatchEvent(new Event('change', { bubbles: true }));
-                filled = true;
-                break;
-              }
-            }
-            if (!filled) {
-              const elements = document.querySelectorAll('td, span, div, label');
-              for (const el of elements) {
-                if (el.textContent.trim() === studentName) { el.click(); filled = true; break; }
-              }
-            }
-            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-            for (const cb of checkboxes) {
-              const parent = cb.closest('tr, div, label');
-              if (parent && parent.textContent.includes(studentName) && !cb.checked) { cb.click(); break; }
-            }
-            return { success: true, filled };
-          } catch (e) { return { success: false, error: e.message }; }
-        })();
-      `);
-      return result;
+            await ajyalExec(`
+              (function() {
+                const studentName = ${JSON.stringify(record.studentName)};
+                // Search in table rows
+                const rows = document.querySelectorAll('table tr, table tbody tr');
+                for (const row of rows) {
+                  if (row.textContent.includes(studentName)) {
+                    // Find checkbox or radio or clickable absence indicator
+                    const cb = row.querySelector('input[type="checkbox"], input[type="radio"]');
+                    if (cb && !cb.checked) { cb.click(); return true; }
+                    // Try clicking cell with absence indicator
+                    const cells = row.querySelectorAll('td');
+                    for (const cell of cells) {
+                      const t = cell.textContent.trim();
+                      if (t === 'غ' || t === 'غائب' || t === 'absent' || t === '' || cell.querySelector('select')) {
+                        const sel = cell.querySelector('select');
+                        if (sel) {
+                          for (const opt of sel.options) {
+                            if (opt.text.includes('غائب') || opt.text.includes('غ') || opt.value === 'absent' || opt.value === 'A') {
+                              sel.value = opt.value;
+                              sel.dispatchEvent(new Event('change', { bubbles: true }));
+                              break;
+                            }
+                          }
+                        } else {
+                          cell.click();
+                        }
+                        break;
+                      }
+                    }
+                    break;
+                  }
+                }
+              })()
+            `);
+            totalMarked++;
+          } catch {}
+        }
+      }
+
+      await updateToolbarStatus(`تم تعبئة ${totalMarked} غياب ✓ - اضغط حفظ في أجيال`);
+      return { success: true, marked: totalMarked, total: records.length };
     } catch (err) {
       return { success: false, error: err.message };
     }
