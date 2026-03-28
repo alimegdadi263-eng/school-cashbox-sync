@@ -109,7 +109,7 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
         credentials.loginMethod
       );
       if (result?.success) {
-        setIsWindowOpen(true);
+        setIsViewOpen(true);
         const desc = credentials.loginMethod === "sanad"
           ? "سجّل الدخول عبر سند في النافذة المفتوحة ثم اضغط 'تأكيد تسجيل الدخول'"
           : "أدخل رمز OTP يدوياً ثم اضغط 'تأكيد تسجيل الدخول'";
@@ -224,7 +224,7 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
   const closeAjyalWindow = async () => {
     const ajyal = getElectronAjyal();
     if (ajyal) await ajyal.closeWindow();
-    setIsWindowOpen(false);
+    setIsViewOpen(false);
     setIsLoggedIn(false);
   };
 
@@ -268,7 +268,7 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
               value={credentials.loginMethod}
               onValueChange={(v) => setCredentials(c => ({ ...c, loginMethod: v as LoginMethod }))}
               className="flex gap-4"
-              disabled={isWindowOpen}
+              disabled={isViewOpen}
             >
               <div className="flex items-center gap-2 border rounded-lg px-4 py-2.5 cursor-pointer hover:bg-muted/50 transition-colors">
                 <RadioGroupItem value="credentials" id="method-creds" />
@@ -292,12 +292,12 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>اسم المستخدم (رقم الموظف)</Label>
-                <Input value={credentials.username} onChange={e => setCredentials(c => ({ ...c, username: e.target.value }))} placeholder="أدخل اسم المستخدم" disabled={isWindowOpen} />
+                <Input value={credentials.username} onChange={e => setCredentials(c => ({ ...c, username: e.target.value }))} placeholder="أدخل اسم المستخدم" disabled={isViewOpen} />
               </div>
               <div className="space-y-1">
                 <Label>كلمة المرور</Label>
                 <div className="relative">
-                  <Input type={showPassword ? "text" : "password"} value={credentials.password} onChange={e => setCredentials(c => ({ ...c, password: e.target.value }))} placeholder="أدخل كلمة المرور" disabled={isWindowOpen} />
+                  <Input type={showPassword ? "text" : "password"} value={credentials.password} onChange={e => setCredentials(c => ({ ...c, password: e.target.value }))} placeholder="أدخل كلمة المرور" disabled={isViewOpen} />
                   <Button type="button" variant="ghost" size="icon" className="absolute left-1 top-0 h-full" onClick={() => setShowPassword(!showPassword)}>
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
@@ -306,7 +306,7 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
             </div>
           )}
 
-          {credentials.loginMethod === "sanad" && !isWindowOpen && (
+          {credentials.loginMethod === "sanad" && !isViewOpen && (
             <Alert>
               <Shield className="h-4 w-4" />
               <AlertDescription className="text-sm">
@@ -316,7 +316,7 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
           )}
 
           <div className="flex flex-wrap gap-2">
-            {!isWindowOpen ? (
+            {!isViewOpen ? (
               <Button
                 onClick={openAjyalWindow}
                 disabled={!isElectron || (credentials.loginMethod === "credentials" && (!credentials.username || !credentials.password))}
@@ -337,7 +337,7 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
             )}
           </div>
 
-          {isWindowOpen && (
+          {isViewOpen && (
             <div className="flex items-center gap-2">
               <Badge variant={isLoggedIn ? "default" : "secondary"}>
                 {isLoggedIn ? "✓ متصل بأجيال" : "⏳ بانتظار تسجيل الدخول..."}
