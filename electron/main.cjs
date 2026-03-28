@@ -298,11 +298,12 @@ function setupAjyalHandlers(mainWindow) {
 
   ipcMain.handle('ajyal-open-embedded', async (_event, username, password, loginMethod = 'credentials') => {
     try {
-      // Remove existing view if any
-      if (ajyalView) {
-        try { mainWindow.removeBrowserView(ajyalView); } catch {}
-        try { ajyalView.webContents.destroy(); } catch {}
-        ajyalView = null;
+      // Reuse existing view if session is alive
+      if (ajyalView && !ajyalView.webContents.isDestroyed()) {
+        mainWindow.addBrowserView(ajyalView);
+        const bounds = mainWindow.getContentBounds();
+        ajyalView.setBounds({ x: 0, y: 0, width: bounds.width, height: bounds.height });
+        return { success: true, url: ajyalView.webContents.getURL(), reused: true };
       }
 
       const ajyalUrl = 'https://ajyal.moe.gov.jo';
