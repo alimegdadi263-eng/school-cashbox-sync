@@ -148,20 +148,20 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
     setIsSubmitting(true);
     setSubmitProgress({ done: 0, total: todayAbsences.length });
     try {
-      for (let i = 0; i < todayAbsences.length; i++) {
-        const record = todayAbsences[i];
-        const result = await ajyal.submitAbsence({
-          studentName: record.studentName,
-          className: record.className,
-          date: record.date,
-        });
-        setSubmitProgress({ done: i + 1, total: todayAbsences.length });
-        if (!result?.success) {
-          toast({ title: `فشل تسجيل غياب: ${record.studentName}`, description: result?.error || "خطأ غير معروف", variant: "destructive" });
-        }
-        if (i < todayAbsences.length - 1) await new Promise(r => setTimeout(r, 1500));
+      // Send all records at once with navigateFirst flag for auto-navigation
+      const allRecords = todayAbsences.map(r => ({
+        studentName: r.studentName,
+        className: r.className,
+        date: r.date,
+        navigateFirst: true,
+      }));
+      const result = await ajyal.submitAbsence(allRecords);
+      setSubmitProgress({ done: todayAbsences.length, total: todayAbsences.length });
+      if (result?.success) {
+        toast({ title: `تم تعبئة ${result.marked || todayAbsences.length} غياب في أجيال ✓`, description: "اضغط 'حفظ' في صفحة أجيال لتأكيد البيانات" });
+      } else {
+        toast({ title: "حدث خطأ أثناء التعبئة", description: result?.error, variant: "destructive" });
       }
-      toast({ title: `تم تسجيل ${todayAbsences.length} غياب في أجيال ✓` });
     } catch (err: any) {
       toast({ title: "خطأ في التسجيل", description: err.message, variant: "destructive" });
     } finally {
