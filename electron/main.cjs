@@ -381,24 +381,7 @@ function setupAjyalHandlers(mainWindow) {
               const toolbar = document.createElement('div');
               toolbar.id = 'school-toolbar';
               toolbar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:50px;background:linear-gradient(135deg,#1e40af,#3b82f6);color:white;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:999999;font-family:Arial,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,0.3);direction:rtl;';
-              toolbar.innerHTML = \`
-                <div style="display:flex;align-items:center;gap:12px;">
-                  <span style="font-weight:bold;font-size:14px;">🏫 الإدارة المدرسية</span>
-                  <span style="font-size:12px;opacity:0.8;">|</span>
-                  <span style="font-size:12px;opacity:0.8;" id="toolbar-status">متصل بأجيال</span>
-                </div>
-                <div style="display:flex;gap:8px;">
-                  <button id="btn-import-students" style="background:#10b981;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;display:flex;align-items:center;gap:4px;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">
-                    📥 استيراد الطلاب
-                  </button>
-                  <button id="btn-submit-absence" style="background:#f59e0b;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;display:flex;align-items:center;gap:4px;" onmouseover="this.style.background='#d97706'" onmouseout="this.style.background='#f59e0b'">
-                    📋 تعبئة الغياب
-                  </button>
-                  <button id="btn-close-ajyal" style="background:#ef4444;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
-                    ✕ إغلاق
-                  </button>
-                </div>
-              \`;
+              toolbar.innerHTML = '<div style="display:flex;align-items:center;gap:12px;"><span style="font-weight:bold;font-size:14px;">🏫 الإدارة المدرسية</span><span style="font-size:12px;opacity:0.8;">|</span><span style="font-size:12px;opacity:0.8;" id="toolbar-status">متصل بأجيال</span></div><div style="display:flex;gap:8px;"><button id="btn-import-students" style="background:#10b981;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;display:flex;align-items:center;gap:4px;" onmouseover="this.style.background=\'#059669\'" onmouseout="this.style.background=\'#10b981\'">📥 استيراد الطلاب</button><button id="btn-submit-absence" style="background:#f59e0b;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;display:flex;align-items:center;gap:4px;" onmouseover="this.style.background=\'#d97706\'" onmouseout="this.style.background=\'#f59e0b\'">📋 تعبئة الغياب</button><button id="btn-close-ajyal" style="background:#ef4444;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;" onmouseover="this.style.background=\'#dc2626\'" onmouseout="this.style.background=\'#ef4444\'">✕ إغلاق</button></div>';
               document.body.style.paddingTop = '50px';
               document.body.insertBefore(toolbar, document.body.firstChild);
             })();
@@ -780,15 +763,7 @@ function setupAjyalHandlers(mainWindow) {
         // Set date
         const today = new Date();
         const dateStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-        await ajyalExec(\`
-          (function() {
-            const dateInputs = document.querySelectorAll('input[type="date"]');
-            for (const d of dateInputs) {
-              d.value = '\${dateStr}';
-              d.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-          })()
-        \`);
+        await ajyalExec('(function() { var dateInputs = document.querySelectorAll("input[type=\\"date\\"]"); for (var i = 0; i < dateInputs.length; i++) { dateInputs[i].value = "' + dateStr + '"; dateInputs[i].dispatchEvent(new Event("change", { bubbles: true })); } })()');
 
         if (grade) {
           await ajyalExec(setSelectValueJS(['الصف', 'المرحلة', 'الفصل', 'grade', 'class'], grade));
@@ -804,47 +779,19 @@ function setupAjyalHandlers(mainWindow) {
 
         for (const record of classRecords) {
           try {
-            await ajyalExec(\`
-              (function() {
-                const studentName = \${JSON.stringify(record.studentName)};
-                const rows = document.querySelectorAll('table tr, table tbody tr');
-                for (const row of rows) {
-                  if (row.textContent.includes(studentName)) {
-                    const cb = row.querySelector('input[type="checkbox"], input[type="radio"]');
-                    if (cb && !cb.checked) { cb.click(); return true; }
-                    const cells = row.querySelectorAll('td');
-                    for (const cell of cells) {
-                      const t = cell.textContent.trim();
-                      if (t === 'غ' || t === 'غائب' || t === '' || cell.querySelector('select')) {
-                        const sel = cell.querySelector('select');
-                        if (sel) {
-                          for (const opt of sel.options) {
-                            if (opt.text.includes('غائب') || opt.text.includes('غ') || opt.value === 'absent' || opt.value === 'A') {
-                              sel.value = opt.value;
-                              sel.dispatchEvent(new Event('change', { bubbles: true }));
-                              break;
-                            }
-                          }
-                        } else { cell.click(); }
-                        break;
-                      }
-                    }
-                    break;
-                  }
-                }
-              })()
-            \`);
+            const studentNameJson = JSON.stringify(record.studentName);
+            await ajyalExec('(function() { var studentName = ' + studentNameJson + '; var rows = document.querySelectorAll("table tr, table tbody tr"); for (var i = 0; i < rows.length; i++) { var row = rows[i]; if (row.textContent.indexOf(studentName) !== -1) { var cb = row.querySelector("input[type=\\"checkbox\\"], input[type=\\"radio\\"]"); if (cb && !cb.checked) { cb.click(); return true; } var cells = row.querySelectorAll("td"); for (var j = 0; j < cells.length; j++) { var cell = cells[j]; var t = cell.textContent.trim(); if (t === "غ" || t === "غائب" || t === "" || cell.querySelector("select")) { var sel = cell.querySelector("select"); if (sel) { for (var k = 0; k < sel.options.length; k++) { var opt = sel.options[k]; if (opt.text.indexOf("غائب") !== -1 || opt.text.indexOf("غ") !== -1 || opt.value === "absent" || opt.value === "A") { sel.value = opt.value; sel.dispatchEvent(new Event("change", { bubbles: true })); break; } } } else { cell.click(); } break; } } break; } } })()');
             totalMarked++;
           } catch {}
         }
       }
 
-      await updateToolbarStatus(\`✅ تم تعبئة \${totalMarked} غياب - اضغط حفظ في أجيال\`);
-      await ajyalExec(\`(function(){ const btn = document.getElementById('btn-submit-absence'); if(btn){ btn.textContent = '📋 تعبئة الغياب'; btn.disabled = false; } })()\`);
+      await updateToolbarStatus('✅ تم تعبئة ' + totalMarked + ' غياب - اضغط حفظ في أجيال');
+      await ajyalExec('(function(){ var btn = document.getElementById("btn-submit-absence"); if(btn){ btn.textContent = "📋 تعبئة الغياب"; btn.disabled = false; } })()');
 
       return { success: true, marked: totalMarked, total: records.length };
     } catch (err) {
-      try { await ajyalExec(\`(function(){ const btn = document.getElementById('btn-submit-absence'); if(btn){ btn.textContent = '📋 تعبئة الغياب'; btn.disabled = false; } })()\`); } catch {}
+      try { await ajyalExec('(function(){ var btn = document.getElementById("btn-submit-absence"); if(btn){ btn.textContent = "📋 تعبئة الغياب"; btn.disabled = false; } })()'); } catch {}
       return { success: false, error: err.message };
     }
   }
