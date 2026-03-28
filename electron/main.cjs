@@ -966,7 +966,7 @@ function setupAjyalHandlers(mainWindow) {
   });
 
   ipcMain.handle('ajyal-submit-absence', async (_event, data) => {
-    return runSubmitAbsence(mainWindow);
+    return runSubmitAbsence(mainWindow, data);
   });
 
   ipcMain.handle('ajyal-close-window', async () => {
