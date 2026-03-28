@@ -504,7 +504,8 @@ function setupAjyalHandlers(mainWindow) {
   // Helper: update toolbar status text
   async function updateToolbarStatus(text) {
     try {
-      await ajyalExec(`(function(){ const s = document.getElementById('toolbar-status'); if(s) s.textContent = '${text}'; })()`);
+      const safeText = String(text).replace(/'/g, "\\'");
+      await ajyalExec('(function(){ var s = document.getElementById("toolbar-status"); if(s) s.textContent = \'' + safeText + '\'; })()');
     } catch {}
   }
 
