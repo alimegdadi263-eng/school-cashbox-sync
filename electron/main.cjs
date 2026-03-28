@@ -298,11 +298,12 @@ function setupAjyalHandlers(mainWindow) {
 
   ipcMain.handle('ajyal-open-embedded', async (_event, username, password, loginMethod = 'credentials') => {
     try {
-      // Remove existing view if any
-      if (ajyalView) {
-        try { mainWindow.removeBrowserView(ajyalView); } catch {}
-        try { ajyalView.webContents.destroy(); } catch {}
-        ajyalView = null;
+      // Reuse existing view if session is alive
+      if (ajyalView && !ajyalView.webContents.isDestroyed()) {
+        mainWindow.addBrowserView(ajyalView);
+        const bounds = mainWindow.getContentBounds();
+        ajyalView.setBounds({ x: 0, y: 0, width: bounds.width, height: bounds.height });
+        return { success: true, url: ajyalView.webContents.getURL(), reused: true };
       }
 
       const ajyalUrl = 'https://ajyal.moe.gov.jo';
@@ -318,10 +319,9 @@ function setupAjyalHandlers(mainWindow) {
 
       mainWindow.addBrowserView(ajyalView);
 
-      // Set bounds to fill window with space for top toolbar
+      // Set bounds to fill entire window (toolbar is injected inside the page)
       const bounds = mainWindow.getContentBounds();
-      const toolbarHeight = 50;
-      ajyalView.setBounds({ x: 0, y: toolbarHeight, width: bounds.width, height: bounds.height - toolbarHeight });
+      ajyalView.setBounds({ x: 0, y: 0, width: bounds.width, height: bounds.height });
       ajyalView.setAutoResize({ width: true, height: true });
 
       // Handle navigation within Ajyal
@@ -435,15 +435,29 @@ function setupAjyalHandlers(mainWindow) {
           `);
 
           if (action === 'import') {
-            mainWindow.webContents.send('ajyal-action', { type: 'import-request' });
+            // Run import directly in main process
+            mainWindow.webContents.send('ajyal-action', { type: 'import-started' });
+            try {
+              const result = await runImportStudents(mainWindow);
+              mainWindow.webContents.send('ajyal-action', { type: 'import-result', ...result });
+            } catch (e) {
+              mainWindow.webContents.send('ajyal-action', { type: 'import-result', success: false, error: e.message });
+            }
           } else if (action === 'absence') {
-            mainWindow.webContents.send('ajyal-action', { type: 'absence-request' });
+            // Run absence directly in main process
+            mainWindow.webContents.send('ajyal-action', { type: 'absence-started' });
+            try {
+              const result = await runSubmitAbsence(mainWindow);
+              mainWindow.webContents.send('ajyal-action', { type: 'absence-result', ...result });
+            } catch (e) {
+              mainWindow.webContents.send('ajyal-action', { type: 'absence-result', success: false, error: e.message });
+            }
           } else if (action === 'close') {
             clearInterval(pollInterval);
+            // Hide BrowserView instead of destroying (keep session alive)
             if (ajyalView && !ajyalView.webContents.isDestroyed()) {
               mainWindow.removeBrowserView(ajyalView);
-              ajyalView.webContents.destroy();
-              ajyalView = null;
+              // Don't destroy - keep alive for next time
             }
             mainWindow.webContents.send('ajyal-action', { type: 'closed' });
           }
@@ -625,29 +639,23 @@ function setupAjyalHandlers(mainWindow) {
     })()
   `;
 
-  ipcMain.handle('ajyal-import-students', async () => {
+  // ── Shared import function (used by toolbar and IPC) ──
+  async function runImportStudents(mainWindow) {
     if (!ajyalView || ajyalView.webContents.isDestroyed()) {
       return { success: false, error: 'View not open' };
     }
     try {
-      // Show loading indicator
-      try {
-        await ajyalExec(`(function(){ const btn = document.getElementById('btn-import-students'); if(btn){ btn.textContent = '⏳ جاري الاستيراد...'; btn.disabled = true; } })()`);
-      } catch {}
-
+      await ajyalExec(`(function(){ const btn = document.getElementById('btn-import-students'); if(btn){ btn.textContent = '⏳ جاري الاستيراد...'; btn.disabled = true; } })()`);
       await updateToolbarStatus('جاري التنقل إلى قائمة الطلاب...');
 
-      // Step 1: Navigate to student list - try clicking menu items
       let navResult = await ajyalExec(clickByTextJS(['إدارة الطلبة', 'الطلبة', 'بيانات الطلبة', 'إدارة الطلاب', 'Students']));
       await ajyalWait(2000);
 
-      // Step 2: Try to click sub-menu
       if (navResult.clicked) {
-        const subNav = await ajyalExec(clickByTextJS(['بيانات الطلبة', 'قائمة الطلبة', 'قائمة الطلاب', 'عرض الطلبة', 'Student List']));
+        await ajyalExec(clickByTextJS(['بيانات الطلبة', 'قائمة الطلبة', 'قائمة الطلاب', 'عرض الطلبة', 'Student List']));
         await ajyalWait(2000);
       }
 
-      // Step 3: Discover available grades and sections
       await updateToolbarStatus('جاري اكتشاف الصفوف والشعب...');
       const gradeOptions = await ajyalExec(getSelectOptionsJS(['الصف', 'المرحلة', 'الفصل', 'grade', 'class', 'Grade']));
       const sectionOptions = await ajyalExec(getSelectOptionsJS(['الشعبة', 'القسم', 'الفرع', 'section', 'Section']));
@@ -655,113 +663,100 @@ function setupAjyalHandlers(mainWindow) {
       let allStudents = [];
 
       if (gradeOptions.length > 0) {
-        // Iterate through all grades
         for (let gi = 0; gi < gradeOptions.length; gi++) {
           const grade = gradeOptions[gi];
-          // Skip empty/placeholder options
           if (!grade.text || grade.text === '--' || grade.text === 'اختر' || grade.text.includes('اختر') || grade.value === '' || grade.value === '0') continue;
 
           await updateToolbarStatus(`جاري استيراد: ${grade.text} (${gi + 1}/${gradeOptions.length})`);
           await ajyalExec(setSelectValueJS(['الصف', 'المرحلة', 'الفصل', 'grade', 'class', 'Grade'], grade.value));
           await ajyalWait(1000);
 
-          // Re-fetch sections for this grade (they may change)
           const currentSections = await ajyalExec(getSelectOptionsJS(['الشعبة', 'القسم', 'الفرع', 'section', 'Section']));
 
           if (currentSections.length > 0) {
             for (const sec of currentSections) {
               if (!sec.text || sec.text === '--' || sec.text.includes('اختر') || sec.value === '' || sec.value === '0') continue;
-
               await ajyalExec(setSelectValueJS(['الشعبة', 'القسم', 'الفرع', 'section', 'Section'], sec.value));
               await ajyalWait(500);
-
-              // Click search/show button
               await ajyalExec(clickByTextJS(['بحث', 'عرض', 'Search', 'Show', 'إظهار', 'استعلام'], 'button, input[type="submit"], input[type="button"], a.btn, .btn'));
               await ajyalWait(2500);
-
-              // Scrape students from table
               const result = await ajyalExec(scrapeStudentsJS);
               if (result.success && result.students) {
-                // Tag students with grade+section info
-                const tagged = result.students.map(s => ({
-                  ...s,
-                  className: s.className || `${grade.text} ${sec.text}`
-                }));
-                allStudents.push(...tagged);
+                allStudents.push(...result.students.map(s => ({ ...s, className: s.className || `${grade.text} ${sec.text}` })));
               }
+              await updateToolbarStatus(`تم استيراد ${allStudents.length} طالب حتى الآن...`);
             }
           } else {
-            // No sections, just search with grade only
             await ajyalExec(clickByTextJS(['بحث', 'عرض', 'Search', 'Show', 'إظهار', 'استعلام'], 'button, input[type="submit"], input[type="button"], a.btn, .btn'));
             await ajyalWait(2500);
-
             const result = await ajyalExec(scrapeStudentsJS);
             if (result.success && result.students) {
-              const tagged = result.students.map(s => ({
-                ...s,
-                className: s.className || grade.text
-              }));
-              allStudents.push(...tagged);
+              allStudents.push(...result.students.map(s => ({ ...s, className: s.className || grade.text })));
             }
           }
         }
       } else {
-        // No grade dropdown found - just try to scrape current page
         await updateToolbarStatus('لم يُعثر على قوائم الصفوف، جاري قراءة الصفحة الحالية...');
         await ajyalExec(clickByTextJS(['بحث', 'عرض', 'Search', 'Show'], 'button, input[type="submit"], input[type="button"], a.btn, .btn'));
         await ajyalWait(2500);
         const result = await ajyalExec(scrapeStudentsJS);
-        if (result.success && result.students) {
-          allStudents = result.students;
-        }
+        if (result.success && result.students) allStudents = result.students;
       }
 
-      // Remove duplicates
+      // Deduplicate
       const seen = new Set();
-      allStudents = allStudents.filter(s => {
-        const key = `${s.name}||${s.className}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
+      allStudents = allStudents.filter(s => { const k = `${s.name}||${s.className}`; if (seen.has(k)) return false; seen.add(k); return true; });
 
-      // Reset toolbar
-      await updateToolbarStatus(`تم استيراد ${allStudents.length} طالب ✓`);
-      try {
-        await ajyalExec(`(function(){ const btn = document.getElementById('btn-import-students'); if(btn){ btn.textContent = '📥 استيراد الطلاب'; btn.disabled = false; } })()`);
-      } catch {}
+      await updateToolbarStatus(`✅ تم استيراد ${allStudents.length} طالب بنجاح`);
+      await ajyalExec(`(function(){ const btn = document.getElementById('btn-import-students'); if(btn){ btn.textContent = '📥 استيراد الطلاب'; btn.disabled = false; } })()`);
 
       return { success: allStudents.length > 0, students: allStudents, count: allStudents.length };
     } catch (err) {
       try { await ajyalExec(`(function(){ const btn = document.getElementById('btn-import-students'); if(btn){ btn.textContent = '📥 استيراد الطلاب'; btn.disabled = false; } })()`); } catch {}
       return { success: false, error: err.message };
     }
-  });
+  }
 
-  ipcMain.handle('ajyal-submit-absence', async (_event, data) => {
+  // ── Shared absence function ──
+  async function runSubmitAbsence(mainWindow) {
     if (!ajyalView || ajyalView.webContents.isDestroyed()) {
       return { success: false, error: 'View not open' };
     }
     try {
-      // data can be single record or array of records grouped by class
-      const records = Array.isArray(data) ? data : [data];
-      
-      if (records.length === 0) return { success: false, error: 'No records' };
+      // Get absence records from renderer localStorage
+      const records = await mainWindow.webContents.executeJavaScript(`
+        (function() {
+          try {
+            // Find userId from auth state
+            const keys = Object.keys(localStorage);
+            let absKey = keys.find(k => k.startsWith('student_absence_data_'));
+            if (!absKey) return [];
+            const allRecords = JSON.parse(localStorage.getItem(absKey) || '[]');
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            const todayStr = yyyy + '/' + mm + '/' + dd;
+            return allRecords.filter(r => r.date === todayStr);
+          } catch(e) { return []; }
+        })()
+      `);
 
-      // If navigateFirst flag is set, auto-navigate to attendance page
-      if (data.navigateFirst || (records[0] && records[0].navigateFirst)) {
-        await updateToolbarStatus('جاري التنقل إلى صفحة تسجيل الغياب...');
-        
-        // Navigate to attendance section
-        await ajyalExec(clickByTextJS(['الحضور والغياب', 'الغياب', 'Attendance', 'متابعة الحضور']));
-        await ajyalWait(2000);
-        
-        // Navigate to absence registration
-        await ajyalExec(clickByTextJS(['تسجيل الغياب', 'متابعة الغياب', 'رصد الغياب', 'Absence', 'تسجيل الحضور والغياب']));
-        await ajyalWait(2000);
+      if (!records || records.length === 0) {
+        await updateToolbarStatus('⚠️ لا يوجد غياب مسجل لهذا اليوم');
+        return { success: false, error: 'لا يوجد غياب مسجل لهذا اليوم. سجّل الغياب أولاً من الرصد اليومي.' };
       }
 
-      // Group records by class for batch processing
+      await ajyalExec(`(function(){ const btn = document.getElementById('btn-submit-absence'); if(btn){ btn.textContent = '⏳ جاري التعبئة...'; btn.disabled = true; } })()`);
+      await updateToolbarStatus('جاري التنقل إلى صفحة تسجيل الغياب...');
+
+      // Navigate to attendance section
+      await ajyalExec(clickByTextJS(['الحضور والغياب', 'الغياب', 'Attendance', 'متابعة الحضور']));
+      await ajyalWait(2000);
+      await ajyalExec(clickByTextJS(['تسجيل الغياب', 'متابعة الغياب', 'رصد الغياب', 'Absence', 'تسجيل الحضور والغياب']));
+      await ajyalWait(2000);
+
+      // Group by class
       const byClass = {};
       for (const r of records) {
         const key = r.className || 'unknown';
@@ -778,59 +773,49 @@ function setupAjyalHandlers(mainWindow) {
         
         await updateToolbarStatus(`جاري تعبئة غياب: ${cls} (${ci + 1}/${classKeys.length})`);
 
-        // Try to select the correct grade/section
-        // Parse className like "الأول أ" into grade="الأول" section="أ"
-        const parts = cls.split(/\s+/);
+        const parts = cls.split(/\\s+/);
         const grade = parts.slice(0, -1).join(' ') || parts[0];
         const section = parts.length > 1 ? parts[parts.length - 1] : '';
 
-        // Select date (today)
+        // Set date
         const today = new Date();
-        const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        await ajyalExec(`
+        const dateStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+        await ajyalExec(\`
           (function() {
             const dateInputs = document.querySelectorAll('input[type="date"]');
             for (const d of dateInputs) {
-              d.value = '${dateStr}';
+              d.value = '\${dateStr}';
               d.dispatchEvent(new Event('change', { bubbles: true }));
-              d.dispatchEvent(new Event('input', { bubbles: true }));
             }
           })()
-        `);
+        \`);
 
-        // Select grade
         if (grade) {
           await ajyalExec(setSelectValueJS(['الصف', 'المرحلة', 'الفصل', 'grade', 'class'], grade));
           await ajyalWait(500);
         }
-        // Select section
         if (section) {
           await ajyalExec(setSelectValueJS(['الشعبة', 'القسم', 'section'], section));
           await ajyalWait(500);
         }
 
-        // Click show students button
         await ajyalExec(clickByTextJS(['عرض الطلبة', 'عرض', 'بحث', 'Show', 'Search', 'إظهار'], 'button, input[type="submit"], input[type="button"], a.btn, .btn'));
         await ajyalWait(2500);
 
-        // Mark absent students by finding their names and clicking checkboxes
         for (const record of classRecords) {
           try {
-            await ajyalExec(`
+            await ajyalExec(\`
               (function() {
-                const studentName = ${JSON.stringify(record.studentName)};
-                // Search in table rows
+                const studentName = \${JSON.stringify(record.studentName)};
                 const rows = document.querySelectorAll('table tr, table tbody tr');
                 for (const row of rows) {
                   if (row.textContent.includes(studentName)) {
-                    // Find checkbox or radio or clickable absence indicator
                     const cb = row.querySelector('input[type="checkbox"], input[type="radio"]');
                     if (cb && !cb.checked) { cb.click(); return true; }
-                    // Try clicking cell with absence indicator
                     const cells = row.querySelectorAll('td');
                     for (const cell of cells) {
                       const t = cell.textContent.trim();
-                      if (t === 'غ' || t === 'غائب' || t === 'absent' || t === '' || cell.querySelector('select')) {
+                      if (t === 'غ' || t === 'غائب' || t === '' || cell.querySelector('select')) {
                         const sel = cell.querySelector('select');
                         if (sel) {
                           for (const opt of sel.options) {
@@ -840,9 +825,7 @@ function setupAjyalHandlers(mainWindow) {
                               break;
                             }
                           }
-                        } else {
-                          cell.click();
-                        }
+                        } else { cell.click(); }
                         break;
                       }
                     }
@@ -850,24 +833,34 @@ function setupAjyalHandlers(mainWindow) {
                   }
                 }
               })()
-            `);
+            \`);
             totalMarked++;
           } catch {}
         }
       }
 
-      await updateToolbarStatus(`تم تعبئة ${totalMarked} غياب ✓ - اضغط حفظ في أجيال`);
+      await updateToolbarStatus(\`✅ تم تعبئة \${totalMarked} غياب - اضغط حفظ في أجيال\`);
+      await ajyalExec(\`(function(){ const btn = document.getElementById('btn-submit-absence'); if(btn){ btn.textContent = '📋 تعبئة الغياب'; btn.disabled = false; } })()\`);
+
       return { success: true, marked: totalMarked, total: records.length };
     } catch (err) {
+      try { await ajyalExec(\`(function(){ const btn = document.getElementById('btn-submit-absence'); if(btn){ btn.textContent = '📋 تعبئة الغياب'; btn.disabled = false; } })()\`); } catch {}
       return { success: false, error: err.message };
     }
+  }
+
+  ipcMain.handle('ajyal-import-students', async () => {
+    return runImportStudents(mainWindow);
+  });
+
+  ipcMain.handle('ajyal-submit-absence', async (_event, data) => {
+    return runSubmitAbsence(mainWindow);
   });
 
   ipcMain.handle('ajyal-close-window', async () => {
     if (ajyalView && !ajyalView.webContents.isDestroyed()) {
       mainWindow.removeBrowserView(ajyalView);
-      ajyalView.webContents.destroy();
-      ajyalView = null;
+      // Keep view alive - don't destroy, so session persists
     }
     return { success: true };
   });
