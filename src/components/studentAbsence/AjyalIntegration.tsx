@@ -72,17 +72,52 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
     const ajyal = getElectronAjyal();
     if (!ajyal?.onAction) return;
     const cleanup = ajyal.onAction((data: any) => {
-      if (data.type === 'import-request') {
+      if (data.type === 'import-started') {
+        setIsImporting(true);
+        toast({ title: "⏳ جاري استيراد الطلاب تلقائياً..." });
+      } else if (data.type === 'import-result') {
+        setIsImporting(false);
+        if (data.success && data.students?.length > 0) {
+          const generateId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+          const mapped: StudentInfo[] = data.students.map((s: any) => ({
+            id: generateId(),
+            name: s.name || "",
+            className: s.className || "",
+            parentPhone: s.parentPhone || "",
+            parentName: s.parentName || "",
+          }));
+          const storageKey = `${STUDENTS_LIST_KEY}_${userId}`;
+          const existing: StudentInfo[] = JSON.parse(localStorage.getItem(storageKey) || "[]");
+          const existingSet = new Set(existing.map(s => `${s.name}||${s.className}`));
+          const newStudents = mapped.filter(s => !existingSet.has(`${s.name}||${s.className}`));
+          const merged = [...existing, ...newStudents].sort((a, b) => a.className.localeCompare(b.className, 'ar'));
+          localStorage.setItem(storageKey, JSON.stringify(merged));
+          setImportedStudents(mapped);
+          toast({ title: `✅ تم استيراد ${newStudents.length} طالب جديد وحفظهم في إدارة الطلبة` });
+        } else {
+          toast({ title: "لم يتم العثور على طلاب", description: data.error, variant: "destructive" });
+        }
+      } else if (data.type === 'absence-started') {
+        setIsSubmitting(true);
+        toast({ title: "⏳ جاري تعبئة الغياب تلقائياً..." });
+      } else if (data.type === 'absence-result') {
+        setIsSubmitting(false);
+        if (data.success) {
+          toast({ title: `✅ تم تعبئة ${data.marked} غياب - اضغط حفظ في أجيال` });
+        } else {
+          toast({ title: "خطأ في تعبئة الغياب", description: data.error, variant: "destructive" });
+        }
+      } else if (data.type === 'import-request') {
         importStudentsFromAjyal();
       } else if (data.type === 'absence-request') {
         submitAbsences();
       } else if (data.type === 'closed') {
         setIsViewOpen(false);
-        setIsLoggedIn(false);
+        // Don't reset isLoggedIn - session is preserved
       }
     });
     return cleanup;
-  }, [isLoggedIn, todayAbsences]);
+  }, [userId, todayAbsences]);
 
   const saveCredentials = () => {
     localStorage.setItem(`${AJYAL_CREDS_KEY}_${userId}`, JSON.stringify(credentials));
