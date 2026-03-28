@@ -89,11 +89,19 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
     const ajyal = getElectronAjyal();
     if (!ajyal?.onAction) return;
     const cleanup = ajyal.onAction((data: any) => {
-      if (data.type === 'import-started') {
+      if (data.type === 'progress') {
+        // Command #5: Real-time progress messages
+        setProgressLog(prev => [...prev, `[${new Date().toLocaleTimeString('ar')}] ${data.message}`]);
+        setShowLog(true);
+      } else if (data.type === 'import-started') {
         setIsImporting(true);
+        setProgressLog([]);
+        setImportReport(null);
+        setShowLog(true);
         toast({ title: "⏳ جاري استيراد الطلاب تلقائياً..." });
       } else if (data.type === 'import-result') {
         setIsImporting(false);
+        if (data.report) setImportReport(data.report);
         if (data.success && data.students?.length > 0) {
           const generateId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
           const mapped: StudentInfo[] = data.students.map((s: any) => ({
@@ -116,9 +124,13 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
         }
       } else if (data.type === 'absence-started') {
         setIsSubmitting(true);
+        setProgressLog([]);
+        setAbsenceReport(null);
+        setShowLog(true);
         toast({ title: "⏳ جاري تعبئة الغياب تلقائياً..." });
       } else if (data.type === 'absence-result') {
         setIsSubmitting(false);
+        if (data.report) setAbsenceReport(data.report);
         if (data.success) {
           toast({ title: `✅ تم تعبئة ${data.marked} غياب - اضغط حفظ في أجيال` });
         } else {
@@ -130,7 +142,6 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
         submitAbsences();
       } else if (data.type === 'closed') {
         setIsViewOpen(false);
-        // Don't reset isLoggedIn - session is preserved
       }
     });
     return cleanup;
