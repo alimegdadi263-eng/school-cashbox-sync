@@ -292,9 +292,135 @@ function setupLanHandlers() {
 // ── Ajyal Integration IPC Handlers ───────────────────────────────────────────
 let ajyalView = null;
 let mainWindowRef = null;
+let ajyalToolbarPollInterval = null;
+let ajyalActionInProgress = false;
 
 function setupAjyalHandlers(mainWindow) {
   mainWindowRef = mainWindow;
+
+  async function setToolbarButtonsDisabled(disabled) {
+    try {
+      await ajyalExec(
+        '(function(){' +
+        'var toolbar = document.getElementById("school-toolbar");' +
+        'if (toolbar) toolbar.dataset.busy = ' + JSON.stringify(disabled ? 'true' : 'false') + ';' +
+        'var ids = ["btn-import-students", "btn-submit-absence", "btn-close-ajyal"];' +
+        'for (var i = 0; i < ids.length; i++) {' +
+        '  var btn = document.getElementById(ids[i]);' +
+        '  if (btn) {' +
+        '    btn.disabled = ' + (disabled ? 'true' : 'false') + ';' +
+        '    btn.style.opacity = ' + (disabled ? '0.65' : '1') + ';' +
+        '    btn.style.cursor = ' + (disabled ? 'wait' : 'pointer') + ';' +
+        '  }' +
+        '}' +
+        '})()'
+      );
+    } catch {}
+  }
+
+  async function resetToolbarUi() {
+    try {
+      await ajyalExec(
+        '(function(){' +
+        'var importBtn = document.getElementById("btn-import-students");' +
+        'var absenceBtn = document.getElementById("btn-submit-absence");' +
+        'var closeBtn = document.getElementById("btn-close-ajyal");' +
+        'if (importBtn) importBtn.textContent = "📥 استيراد الطلاب";' +
+        'if (absenceBtn) absenceBtn.textContent = "📋 تعبئة الغياب";' +
+        'if (closeBtn) closeBtn.textContent = "✕ رجوع";' +
+        '})()'
+      );
+      await setToolbarButtonsDisabled(false);
+      await updateToolbarStatus('متصل بأجيال');
+    } catch {}
+  }
+
+  function stopAjyalToolbarPolling() {
+    if (ajyalToolbarPollInterval) {
+      clearInterval(ajyalToolbarPollInterval);
+      ajyalToolbarPollInterval = null;
+    }
+  }
+
+  function startAjyalToolbarPolling() {
+    stopAjyalToolbarPolling();
+    ajyalToolbarPollInterval = setInterval(async () => {
+      if (!ajyalView || ajyalView.webContents.isDestroyed()) {
+        stopAjyalToolbarPolling();
+        ajyalActionInProgress = false;
+        return;
+      }
+
+      try {
+        const action = await ajyalView.webContents.executeJavaScript(`
+          (function() {
+            const toolbar = document.getElementById('school-toolbar');
+            if (!toolbar) return null;
+
+            if (!toolbar.dataset.handlersSet) {
+              toolbar.dataset.handlersSet = 'true';
+              document.getElementById('btn-import-students')?.addEventListener('click', () => {
+                if (toolbar.dataset.busy === 'true') return;
+                toolbar.dataset.action = 'import';
+              });
+              document.getElementById('btn-submit-absence')?.addEventListener('click', () => {
+                if (toolbar.dataset.busy === 'true') return;
+                toolbar.dataset.action = 'absence';
+              });
+              document.getElementById('btn-close-ajyal')?.addEventListener('click', () => {
+                if (toolbar.dataset.busy === 'true') return;
+                toolbar.dataset.action = 'close';
+              });
+            }
+
+            const action = toolbar.dataset.action;
+            if (action) {
+              delete toolbar.dataset.action;
+              return action;
+            }
+            return null;
+          })();
+        `);
+
+        if (!action || ajyalActionInProgress) return;
+
+        if (action === 'import') {
+          ajyalActionInProgress = true;
+          await setToolbarButtonsDisabled(true);
+          mainWindow.webContents.send('ajyal-action', { type: 'import-started' });
+          try {
+            const result = await runImportStudents(mainWindow);
+            mainWindow.webContents.send('ajyal-action', { type: 'import-result', ...result });
+          } catch (e) {
+            mainWindow.webContents.send('ajyal-action', { type: 'import-result', success: false, error: e.message });
+          } finally {
+            ajyalActionInProgress = false;
+            await resetToolbarUi();
+          }
+        } else if (action === 'absence') {
+          ajyalActionInProgress = true;
+          await setToolbarButtonsDisabled(true);
+          mainWindow.webContents.send('ajyal-action', { type: 'absence-started' });
+          try {
+            const result = await runSubmitAbsence(mainWindow);
+            mainWindow.webContents.send('ajyal-action', { type: 'absence-result', ...result });
+          } catch (e) {
+            mainWindow.webContents.send('ajyal-action', { type: 'absence-result', success: false, error: e.message });
+          } finally {
+            ajyalActionInProgress = false;
+            await resetToolbarUi();
+          }
+        } else if (action === 'close') {
+          ajyalActionInProgress = false;
+          stopAjyalToolbarPolling();
+          if (ajyalView && !ajyalView.webContents.isDestroyed()) {
+            mainWindow.removeBrowserView(ajyalView);
+          }
+          mainWindow.webContents.send('ajyal-action', { type: 'closed' });
+        }
+      } catch {}
+    }, 500);
+  }
 
   ipcMain.handle('ajyal-open-embedded', async (_event, username, password, loginMethod = 'credentials') => {
     try {
@@ -303,6 +429,10 @@ function setupAjyalHandlers(mainWindow) {
         mainWindow.addBrowserView(ajyalView);
         const bounds = mainWindow.getContentBounds();
         ajyalView.setBounds({ x: 0, y: 0, width: bounds.width, height: bounds.height });
+        startAjyalToolbarPolling();
+        setTimeout(() => {
+          resetToolbarUi().catch(() => {});
+        }, 150);
         return { success: true, url: ajyalView.webContents.getURL(), reused: true };
       }
 
@@ -398,61 +528,7 @@ function setupAjyalHandlers(mainWindow) {
 
       // (handlers already registered above)
 
-      // Listen for toolbar button clicks via polling
-      const pollInterval = setInterval(async () => {
-        if (!ajyalView || ajyalView.webContents.isDestroyed()) {
-          clearInterval(pollInterval);
-          return;
-        }
-        try {
-          const action = await ajyalView.webContents.executeJavaScript(`
-            (function() {
-              const toolbar = document.getElementById('school-toolbar');
-              if (!toolbar) return null;
-              
-              // Setup click handlers if not already set
-              if (!toolbar.dataset.handlersSet) {
-                toolbar.dataset.handlersSet = 'true';
-                document.getElementById('btn-import-students')?.addEventListener('click', () => { toolbar.dataset.action = 'import'; });
-                document.getElementById('btn-submit-absence')?.addEventListener('click', () => { toolbar.dataset.action = 'absence'; });
-                document.getElementById('btn-close-ajyal')?.addEventListener('click', () => { toolbar.dataset.action = 'close'; });
-              }
-              
-              const action = toolbar.dataset.action;
-              if (action) { delete toolbar.dataset.action; return action; }
-              return null;
-            })();
-          `);
-
-          if (action === 'import') {
-            // Run import directly in main process
-            mainWindow.webContents.send('ajyal-action', { type: 'import-started' });
-            try {
-              const result = await runImportStudents(mainWindow);
-              mainWindow.webContents.send('ajyal-action', { type: 'import-result', ...result });
-            } catch (e) {
-              mainWindow.webContents.send('ajyal-action', { type: 'import-result', success: false, error: e.message });
-            }
-          } else if (action === 'absence') {
-            // Run absence directly in main process
-            mainWindow.webContents.send('ajyal-action', { type: 'absence-started' });
-            try {
-              const result = await runSubmitAbsence(mainWindow);
-              mainWindow.webContents.send('ajyal-action', { type: 'absence-result', ...result });
-            } catch (e) {
-              mainWindow.webContents.send('ajyal-action', { type: 'absence-result', success: false, error: e.message });
-            }
-          } else if (action === 'close') {
-            clearInterval(pollInterval);
-            // Hide BrowserView instead of destroying (keep session alive)
-            if (ajyalView && !ajyalView.webContents.isDestroyed()) {
-              mainWindow.removeBrowserView(ajyalView);
-              // Don't destroy - keep alive for next time
-            }
-            mainWindow.webContents.send('ajyal-action', { type: 'closed' });
-          }
-        } catch {}
-      }, 500);
+      startAjyalToolbarPolling();
 
       return { success: true, url: ajyalUrl };
     } catch (err) {
@@ -971,6 +1047,8 @@ function setupAjyalHandlers(mainWindow) {
 
   ipcMain.handle('ajyal-close-window', async () => {
     if (ajyalView && !ajyalView.webContents.isDestroyed()) {
+      stopAjyalToolbarPolling();
+      ajyalActionInProgress = false;
       mainWindow.removeBrowserView(ajyalView);
       // Keep view alive - don't destroy, so session persists
     }
