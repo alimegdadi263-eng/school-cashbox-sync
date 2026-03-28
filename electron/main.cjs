@@ -509,13 +509,22 @@ function setupAjyalHandlers(mainWindow) {
     } catch {}
   }
 
-  // Helper: click element by text content (searches links, buttons, menu items, spans, divs)
+  // Helper: normalize Arabic text (remove diacritics/tashkeel, normalize whitespace)
+  const normalizeArabicJS = `
+    function normalizeArabic(text) {
+      return (text || '').replace(/[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06DC\\u06DF-\\u06E4\\u06E7\\u06E8\\u06EA-\\u06ED]/g, '').replace(/\\s+/g, ' ').trim();
+    }
+  `;
+
+  // Fix #4: Improved text matching with normalization, partial matching, and href patterns
   const clickByTextJS = (texts, tag = 'a, button, span, li, div, label, [role="menuitem"], [role="button"], .nav-link, .menu-item, .sidebar-link') => `
     (function() {
-      const targets = ${JSON.stringify(texts)};
+      ${normalizeArabicJS}
+      const targets = ${JSON.stringify(texts)}.map(t => normalizeArabic(t));
       const els = document.querySelectorAll('${tag}');
+      // Pass 1: exact or includes match (normalized)
       for (const el of els) {
-        const t = (el.textContent || '').replace(/\\s+/g, ' ').trim();
+        const t = normalizeArabic(el.textContent);
         for (const target of targets) {
           if (t === target || t.includes(target)) {
             el.click();
@@ -524,12 +533,27 @@ function setupAjyalHandlers(mainWindow) {
           }
         }
       }
-      // Try href-based matching for links
-      const links = document.querySelectorAll('a[href]');
-      for (const link of links) {
-        const t = (link.textContent || '').replace(/\\s+/g, ' ').trim();
+      // Pass 2: partial match (at least 3 chars overlap)
+      for (const el of els) {
+        const t = normalizeArabic(el.textContent);
         for (const target of targets) {
-          if (t.includes(target)) { link.click(); return { clicked: true, text: t }; }
+          if (target.length >= 3 && t.includes(target.substring(0, Math.min(target.length, 6)))) {
+            el.click();
+            el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            return { clicked: true, text: t, partial: true };
+          }
+        }
+      }
+      // Pass 3: href-based matching for known Ajyal URL paths
+      const hrefPatterns = { 'الطلبة': ['/students', '/student'], 'إدارة الطلبة': ['/students', '/student'], 'الحضور والغياب': ['/attendance', '/absence'], 'تسجيل الغياب': ['/absence', '/record-absence'], 'بيانات الطلبة': ['/students/list', '/student-data'] };
+      const links = document.querySelectorAll('a[href]');
+      for (const target of ${JSON.stringify(texts)}) {
+        const patterns = hrefPatterns[target] || [];
+        for (const link of links) {
+          const href = link.getAttribute('href') || '';
+          for (const pattern of patterns) {
+            if (href.includes(pattern)) { link.click(); return { clicked: true, text: link.textContent.trim(), href: true }; }
+          }
         }
       }
       return { clicked: false };
@@ -607,23 +631,68 @@ function setupAjyalHandlers(mainWindow) {
     })()
   `;
 
-  // Helper: scrape student table from current page
+  // Fix #2: Improved student scraping - detect name column by header row
   const scrapeStudentsJS = `
     (function () {
       try {
         const text = (value) => (value || '').replace(/\\s+/g, ' ').trim();
-        const rows = Array.from(document.querySelectorAll('table tr, table tbody tr'));
-        const students = rows.map((row) => {
+        const tables = document.querySelectorAll('table');
+        if (tables.length === 0) return { success: false, error: 'No table found' };
+        
+        let bestTable = null;
+        let maxRows = 0;
+        for (const tbl of tables) {
+          const rc = tbl.querySelectorAll('tbody tr, tr').length;
+          if (rc > maxRows) { maxRows = rc; bestTable = tbl; }
+        }
+        if (!bestTable) return { success: false, error: 'No table found' };
+        
+        // Find header row and identify column indices
+        const headerRow = bestTable.querySelector('thead tr') || bestTable.querySelector('tr');
+        const headerCells = Array.from(headerRow.querySelectorAll('th, td')).map(c => text(c.textContent));
+        
+        let nameColIdx = -1;
+        let classColIdx = -1;
+        let phoneColIdx = -1;
+        
+        for (let i = 0; i < headerCells.length; i++) {
+          const h = headerCells[i];
+          if (/اسم الطالب|الاسم|اسم|Student Name|Name/i.test(h) && nameColIdx === -1) nameColIdx = i;
+          if (/الصف|الفصل|المرحلة|Class|Grade/i.test(h) && classColIdx === -1) classColIdx = i;
+          if (/الهاتف|الجوال|رقم.*ولي|Phone|Mobile/i.test(h) && phoneColIdx === -1) phoneColIdx = i;
+        }
+        
+        // Fallback: find name column by content if header detection fails
+        const dataRows = Array.from(bestTable.querySelectorAll('tbody tr'));
+        if (dataRows.length === 0) {
+          // Use all tr except first (header)
+          const allRows = Array.from(bestTable.querySelectorAll('tr'));
+          if (allRows.length > 1) dataRows.push(...allRows.slice(1));
+        }
+        
+        if (nameColIdx === -1 && dataRows.length > 0) {
+          const sampleCells = Array.from(dataRows[0].querySelectorAll('td')).map(c => text(c.textContent));
+          for (let i = 0; i < sampleCells.length; i++) {
+            if (/[\\u0600-\\u06FF]{2,}/.test(sampleCells[i]) && sampleCells[i].length >= 4 && !/\\d{5,}/.test(sampleCells[i])) {
+              nameColIdx = i;
+              break;
+            }
+          }
+        }
+        
+        if (nameColIdx === -1) return { success: false, error: 'Could not identify name column' };
+        
+        const students = dataRows.map((row) => {
           const cells = Array.from(row.querySelectorAll('td')).map((cell) => text(cell.textContent));
-          if (cells.length < 2) return null;
-          const name = cells.find((cell) => /[\\u0600-\\u06FF]{2,}/.test(cell) && !/الصف|الشعبة|الهاتف|ولي الأمر|اسم الطالب|الرقم|م\\.?$|العام|التاريخ|البحث|عرض|حفظ/.test(cell)) || '';
-          const className = cells.find((cell) => /أول|ثاني|ثالث|رابع|خامس|سادس|سابع|ثامن|تاسع|عاشر|حادي|إعدادي|ابتدائي|ثانوي/.test(cell)) || '';
-          const parentPhone = cells.find((cell) => /(07|962)\\d{7,}/.test(cell.replace(/[\\s-]/g, ''))) || '';
-          const parentName = '';
+          if (cells.length <= nameColIdx) return null;
+          const name = cells[nameColIdx] || '';
+          const className = classColIdx >= 0 && cells[classColIdx] ? cells[classColIdx] : '';
+          const parentPhone = phoneColIdx >= 0 && cells[phoneColIdx] ? cells[phoneColIdx] : (cells.find(c => /(07|962)\\d{7,}/.test(c.replace(/[\\s-]/g, ''))) || '');
           if (!name || name.length < 4) return null;
-          return { name, className, parentPhone, parentName };
+          return { name, className, parentPhone, parentName: '' };
         }).filter(Boolean);
-        return { success: students.length > 0, students, count: students.length };
+        
+        return { success: students.length > 0, students, count: students.length, nameColIdx, classColIdx };
       } catch (error) {
         return { success: false, error: error.message };
       }
@@ -708,30 +777,33 @@ function setupAjyalHandlers(mainWindow) {
     }
   }
 
-  // ── Shared absence function ──
-  async function runSubmitAbsence(mainWindow) {
+  // Fix #1: Accept absence data directly from IPC instead of re-reading localStorage
+  async function runSubmitAbsence(mainWindow, absenceData) {
     if (!ajyalView || ajyalView.webContents.isDestroyed()) {
       return { success: false, error: 'View not open' };
     }
     try {
-      // Get absence records from renderer localStorage
-      const records = await mainWindow.webContents.executeJavaScript(`
-        (function() {
-          try {
-            // Find userId from auth state
-            const keys = Object.keys(localStorage);
-            let absKey = keys.find(k => k.startsWith('student_absence_data_'));
-            if (!absKey) return [];
-            const allRecords = JSON.parse(localStorage.getItem(absKey) || '[]');
-            const today = new Date();
-            const yyyy = today.getFullYear();
-            const mm = String(today.getMonth() + 1).padStart(2, '0');
-            const dd = String(today.getDate()).padStart(2, '0');
-            const todayStr = yyyy + '/' + mm + '/' + dd;
-            return allRecords.filter(r => r.date === todayStr);
-          } catch(e) { return []; }
-        })()
-      `);
+      let records = absenceData || null;
+
+      // Fallback: if no data passed, read from localStorage
+      if (!records || records.length === 0) {
+        records = await mainWindow.webContents.executeJavaScript(
+          '(function() {' +
+          'try {' +
+          'var keys = Object.keys(localStorage);' +
+          'var absKey = keys.find(function(k) { return k.startsWith("student_absence_data_"); });' +
+          'if (!absKey) return [];' +
+          'var allRecords = JSON.parse(localStorage.getItem(absKey) || "[]");' +
+          'var today = new Date();' +
+          'var yyyy = today.getFullYear();' +
+          'var mm = String(today.getMonth() + 1).padStart(2, "0");' +
+          'var dd = String(today.getDate()).padStart(2, "0");' +
+          'var todayStr = yyyy + "/" + mm + "/" + dd;' +
+          'return allRecords.filter(function(r) { return r.date === todayStr; });' +
+          '} catch(e) { return []; }' +
+          '})()'
+        );
+      }
 
       if (!records || records.length === 0) {
         await updateToolbarStatus('⚠️ لا يوجد غياب مسجل لهذا اليوم');
@@ -758,37 +830,122 @@ function setupAjyalHandlers(mainWindow) {
       let totalMarked = 0;
       const classKeys = Object.keys(byClass);
 
+      // Fix #3: Improved className parsing - extract section as last Arabic letter (أ-د)
+      function parseClassName(cls) {
+        // Match last Arabic letter that looks like a section (أ، ب، ج، د، ه، و)
+        const sectionMatch = cls.match(/([أبجدهو])\s*$/);
+        let section = '';
+        let grade = cls;
+        if (sectionMatch) {
+          section = sectionMatch[1];
+          grade = cls.substring(0, cls.lastIndexOf(section)).trim();
+        }
+        // Handle formats like "8ب" or "الثامنب"
+        if (!sectionMatch) {
+          const inlineMatch = cls.match(/(\d+|[\u0600-\u06FF]+)\s*([أبجدهو])$/);
+          if (inlineMatch) {
+            section = inlineMatch[2];
+            grade = inlineMatch[1].trim();
+          }
+        }
+        if (!grade) grade = cls;
+        return { grade, section };
+      }
+
       for (let ci = 0; ci < classKeys.length; ci++) {
         const cls = classKeys[ci];
         const classRecords = byClass[cls];
         
-        await updateToolbarStatus(`جاري تعبئة غياب: ${cls} (${ci + 1}/${classKeys.length})`);
+        await updateToolbarStatus('جاري تعبئة غياب: ' + cls + ' (' + (ci + 1) + '/' + classKeys.length + ')');
 
-        const parts = cls.split(/\\s+/);
-        const grade = parts.slice(0, -1).join(' ') || parts[0];
-        const section = parts.length > 1 ? parts[parts.length - 1] : '';
+        const parsed = parseClassName(cls);
+        const grade = parsed.grade;
+        const section = parsed.section;
 
         // Set date
         const today = new Date();
         const dateStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
         await ajyalExec('(function() { var dateInputs = document.querySelectorAll("input[type=\\"date\\"]"); for (var i = 0; i < dateInputs.length; i++) { dateInputs[i].value = "' + dateStr + '"; dateInputs[i].dispatchEvent(new Event("change", { bubbles: true })); } })()');
 
+        // Fix #3: Use partial matching for grade dropdown
         if (grade) {
-          await ajyalExec(setSelectValueJS(['الصف', 'المرحلة', 'الفصل', 'grade', 'class'], grade));
+          // Try exact match first, then partial match
+          const gradeSelectResult = await ajyalExec(
+            '(function() {' +
+            'var grade = ' + JSON.stringify(grade) + ';' +
+            'var selects = document.querySelectorAll("select");' +
+            'for (var i = 0; i < selects.length; i++) {' +
+            '  var sel = selects[i];' +
+            '  var label = (sel.closest("div, label, .form-group") || {}).textContent || "";' +
+            '  if (label.indexOf("الصف") !== -1 || label.indexOf("المرحلة") !== -1 || sel.name && sel.name.indexOf("grade") !== -1 || sel.name && sel.name.indexOf("class") !== -1) {' +
+            '    for (var j = 0; j < sel.options.length; j++) {' +
+            '      var opt = sel.options[j];' +
+            '      if (opt.text.trim() === grade || opt.text.includes(grade) || grade.includes(opt.text.trim())) {' +
+            '        sel.value = opt.value; sel.dispatchEvent(new Event("change", { bubbles: true })); return { selected: true };' +
+            '      }' +
+            '    }' +
+            '  }' +
+            '}' +
+            'return { selected: false };' +
+            '})()'
+          );
           await ajyalWait(500);
         }
         if (section) {
-          await ajyalExec(setSelectValueJS(['الشعبة', 'القسم', 'section'], section));
+          await ajyalExec(setSelectValueJS(['\u0627\u0644\u0634\u0639\u0628\u0629', '\u0627\u0644\u0642\u0633\u0645', 'section'], section));
           await ajyalWait(500);
         }
 
         await ajyalExec(clickByTextJS(['عرض الطلبة', 'عرض', 'بحث', 'Show', 'Search', 'إظهار'], 'button, input[type="submit"], input[type="button"], a.btn, .btn'));
         await ajyalWait(2500);
 
+        // Fix #5: Match students by name AND verify className to handle duplicate names
         for (const record of classRecords) {
           try {
             const studentNameJson = JSON.stringify(record.studentName);
-            await ajyalExec('(function() { var studentName = ' + studentNameJson + '; var rows = document.querySelectorAll("table tr, table tbody tr"); for (var i = 0; i < rows.length; i++) { var row = rows[i]; if (row.textContent.indexOf(studentName) !== -1) { var cb = row.querySelector("input[type=\\"checkbox\\"], input[type=\\"radio\\"]"); if (cb && !cb.checked) { cb.click(); return true; } var cells = row.querySelectorAll("td"); for (var j = 0; j < cells.length; j++) { var cell = cells[j]; var t = cell.textContent.trim(); if (t === "غ" || t === "غائب" || t === "" || cell.querySelector("select")) { var sel = cell.querySelector("select"); if (sel) { for (var k = 0; k < sel.options.length; k++) { var opt = sel.options[k]; if (opt.text.indexOf("غائب") !== -1 || opt.text.indexOf("غ") !== -1 || opt.value === "absent" || opt.value === "A") { sel.value = opt.value; sel.dispatchEvent(new Event("change", { bubbles: true })); break; } } } else { cell.click(); } break; } } break; } } })()');
+            const classNameJson = JSON.stringify(record.className || '');
+            await ajyalExec(
+              '(function() {' +
+              'var studentName = ' + studentNameJson + ';' +
+              'var expectedClass = ' + classNameJson + ';' +
+              'var rows = document.querySelectorAll("table tr, table tbody tr");' +
+              'var matchedRows = [];' +
+              'for (var i = 0; i < rows.length; i++) {' +
+              '  var row = rows[i];' +
+              '  var cells = Array.from(row.querySelectorAll("td"));' +
+              '  var rowText = cells.map(function(c) { return c.textContent.trim(); }).join(" ");' +
+              '  if (rowText.indexOf(studentName) !== -1) {' +
+              '    matchedRows.push(row);' +
+              '  }' +
+              '}' +
+              '// If multiple matches, verify by class column' +
+              'var targetRow = matchedRows[0];' +
+              'if (matchedRows.length > 1 && expectedClass) {' +
+              '  for (var m = 0; m < matchedRows.length; m++) {' +
+              '    if (matchedRows[m].textContent.indexOf(expectedClass) !== -1) {' +
+              '      targetRow = matchedRows[m]; break;' +
+              '    }' +
+              '  }' +
+              '}' +
+              'if (!targetRow) return false;' +
+              'var cb = targetRow.querySelector("input[type=\\"checkbox\\"], input[type=\\"radio\\"]");' +
+              'if (cb && !cb.checked) { cb.click(); return true; }' +
+              'var cells = targetRow.querySelectorAll("td");' +
+              'for (var j = 0; j < cells.length; j++) {' +
+              '  var cell = cells[j];' +
+              '  var sel = cell.querySelector("select");' +
+              '  if (sel) {' +
+              '    for (var k = 0; k < sel.options.length; k++) {' +
+              '      var opt = sel.options[k];' +
+              '      if (opt.text.indexOf("غائب") !== -1 || opt.text.indexOf("غ") !== -1 || opt.value === "absent" || opt.value === "A") {' +
+              '        sel.value = opt.value; sel.dispatchEvent(new Event("change", { bubbles: true })); return true;' +
+              '      }' +
+              '    }' +
+              '  }' +
+              '}' +
+              'return false;' +
+              '})()'
+            );
             totalMarked++;
           } catch {}
         }
@@ -809,7 +966,7 @@ function setupAjyalHandlers(mainWindow) {
   });
 
   ipcMain.handle('ajyal-submit-absence', async (_event, data) => {
-    return runSubmitAbsence(mainWindow);
+    return runSubmitAbsence(mainWindow, data);
   });
 
   ipcMain.handle('ajyal-close-window', async () => {
