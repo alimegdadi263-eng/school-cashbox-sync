@@ -215,10 +215,6 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
       toast({ title: "هذه الميزة متاحة فقط في نسخة سطح المكتب", variant: "destructive" });
       return;
     }
-    if (!isLoggedIn) {
-      toast({ title: "سجّل الدخول في أجيال أولاً", variant: "destructive" });
-      return;
-    }
     setIsImporting(true);
     try {
       const result = await ajyal.importStudents();
