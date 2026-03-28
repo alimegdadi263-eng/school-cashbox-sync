@@ -268,51 +268,58 @@ function setupLanHandlers() {
 }
 
 // ── Ajyal Integration IPC Handlers ───────────────────────────────────────────
-let ajyalWindow = null;
+let ajyalView = null;
+let mainWindowRef = null;
 
-function setupAjyalHandlers() {
-  ipcMain.handle('ajyal-open-window', async (_event, username, password, loginMethod = 'credentials') => {
+function setupAjyalHandlers(mainWindow) {
+  mainWindowRef = mainWindow;
+
+  ipcMain.handle('ajyal-open-embedded', async (_event, username, password, loginMethod = 'credentials') => {
     try {
-      if (ajyalWindow && !ajyalWindow.isDestroyed()) {
-        ajyalWindow.focus();
-        return { success: true, message: 'Window already open' };
+      // Remove existing view if any
+      if (ajyalView) {
+        try { mainWindow.removeBrowserView(ajyalView); } catch {}
+        try { ajyalView.webContents.destroy(); } catch {}
+        ajyalView = null;
       }
 
       const ajyalUrl = 'https://ajyal.moe.gov.jo';
 
-      ajyalWindow = new BrowserWindow({
-        width: 1200,
-        height: 800,
-        title: 'منصة أجيال - تعبئة الغياب',
-        autoHideMenuBar: true,
+      ajyalView = new BrowserView({
         webPreferences: {
           contextIsolation: true,
           nodeIntegration: false,
-          sandbox: false, // needed for executeJavaScript
+          sandbox: false,
           devTools: isDev,
         },
       });
 
-      ajyalWindow.on('closed', () => { ajyalWindow = null; });
+      mainWindow.addBrowserView(ajyalView);
 
-      ajyalWindow.webContents.setWindowOpenHandler(({ url }) => {
+      // Set bounds to fill window with space for top toolbar
+      const bounds = mainWindow.getContentBounds();
+      const toolbarHeight = 50;
+      ajyalView.setBounds({ x: 0, y: toolbarHeight, width: bounds.width, height: bounds.height - toolbarHeight });
+      ajyalView.setAutoResize({ width: true, height: true });
+
+      // Handle navigation within Ajyal
+      ajyalView.webContents.setWindowOpenHandler(({ url }) => {
         if (url.startsWith('http://') || url.startsWith('https://')) {
-          ajyalWindow.loadURL(url);
-          return { action: 'deny' };
+          ajyalView.webContents.loadURL(url);
         }
-        return { action: 'allow' };
+        return { action: 'deny' };
       });
 
-      await ajyalWindow.loadURL(ajyalUrl);
+      await ajyalView.webContents.loadURL(ajyalUrl);
 
-      // Wait for page to load then auto-fill credentials
-      ajyalWindow.webContents.on('did-finish-load', async () => {
-        const currentURL = ajyalWindow?.webContents?.getURL() || '';
-        if (loginMethod === 'credentials' && currentURL.includes('/login')) {
+      // Auto-fill credentials on login page
+      ajyalView.webContents.on('did-finish-load', async () => {
+        if (!ajyalView) return;
+        const currentURL = ajyalView.webContents.getURL();
+        if (loginMethod === 'credentials' && (currentURL.includes('/login') || currentURL.includes('ajyal.moe.gov.jo'))) {
           try {
-            await ajyalWindow.webContents.executeJavaScript(`
+            await ajyalView.webContents.executeJavaScript(`
               (function() {
-                // Try common selectors for login forms
                 const selectors = [
                   'input[name="username"]', 'input[name="email"]', 'input[name="user"]',
                   'input[id="username"]', 'input[id="email"]', 'input[type="text"]',
@@ -321,19 +328,10 @@ function setupAjyalHandlers() {
                 const passSelectors = [
                   'input[name="password"]', 'input[id="password"]', 'input[type="password"]'
                 ];
-
                 let userInput = null;
-                for (const sel of selectors) {
-                  userInput = document.querySelector(sel);
-                  if (userInput) break;
-                }
-
+                for (const sel of selectors) { userInput = document.querySelector(sel); if (userInput) break; }
                 let passInput = null;
-                for (const sel of passSelectors) {
-                  passInput = document.querySelector(sel);
-                  if (passInput) break;
-                }
-
+                for (const sel of passSelectors) { passInput = document.querySelector(sel); if (passInput) break; }
                 if (userInput) {
                   userInput.focus();
                   userInput.value = ${JSON.stringify(username)};
@@ -346,15 +344,89 @@ function setupAjyalHandlers() {
                   passInput.dispatchEvent(new Event('input', { bubbles: true }));
                   passInput.dispatchEvent(new Event('change', { bubbles: true }));
                 }
-
-                return { userFound: !!userInput, passFound: !!passInput };
               })();
             `);
           } catch (e) {
             console.error('Auto-fill failed:', e.message);
           }
         }
+
+        // Inject floating toolbar into the Ajyal page
+        try {
+          await ajyalView.webContents.executeJavaScript(`
+            (function() {
+              if (document.getElementById('school-toolbar')) return;
+              const toolbar = document.createElement('div');
+              toolbar.id = 'school-toolbar';
+              toolbar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:50px;background:linear-gradient(135deg,#1e40af,#3b82f6);color:white;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:999999;font-family:Arial,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,0.3);direction:rtl;';
+              toolbar.innerHTML = \`
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <span style="font-weight:bold;font-size:14px;">🏫 الإدارة المدرسية</span>
+                  <span style="font-size:12px;opacity:0.8;">|</span>
+                  <span style="font-size:12px;opacity:0.8;" id="toolbar-status">متصل بأجيال</span>
+                </div>
+                <div style="display:flex;gap:8px;">
+                  <button id="btn-import-students" style="background:#10b981;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;display:flex;align-items:center;gap:4px;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">
+                    📥 استيراد الطلاب
+                  </button>
+                  <button id="btn-submit-absence" style="background:#f59e0b;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;display:flex;align-items:center;gap:4px;" onmouseover="this.style.background='#d97706'" onmouseout="this.style.background='#f59e0b'">
+                    📋 تعبئة الغياب
+                  </button>
+                  <button id="btn-close-ajyal" style="background:#ef4444;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
+                    ✕ إغلاق
+                  </button>
+                </div>
+              \`;
+              document.body.style.paddingTop = '50px';
+              document.body.insertBefore(toolbar, document.body.firstChild);
+            })();
+          `);
+        } catch (e) {
+          console.error('Toolbar injection failed:', e.message);
+        }
       });
+
+      // Listen for toolbar button clicks via polling
+      const pollInterval = setInterval(async () => {
+        if (!ajyalView || ajyalView.webContents.isDestroyed()) {
+          clearInterval(pollInterval);
+          return;
+        }
+        try {
+          const action = await ajyalView.webContents.executeJavaScript(`
+            (function() {
+              const toolbar = document.getElementById('school-toolbar');
+              if (!toolbar) return null;
+              
+              // Setup click handlers if not already set
+              if (!toolbar.dataset.handlersSet) {
+                toolbar.dataset.handlersSet = 'true';
+                document.getElementById('btn-import-students')?.addEventListener('click', () => { toolbar.dataset.action = 'import'; });
+                document.getElementById('btn-submit-absence')?.addEventListener('click', () => { toolbar.dataset.action = 'absence'; });
+                document.getElementById('btn-close-ajyal')?.addEventListener('click', () => { toolbar.dataset.action = 'close'; });
+              }
+              
+              const action = toolbar.dataset.action;
+              if (action) { delete toolbar.dataset.action; return action; }
+              return null;
+            })();
+          `);
+
+          if (action === 'import') {
+            mainWindow.webContents.send('ajyal-action', { type: 'import-request' });
+          } else if (action === 'absence') {
+            mainWindow.webContents.send('ajyal-action', { type: 'absence-request' });
+          } else if (action === 'close') {
+            clearInterval(pollInterval);
+            if (ajyalView && !ajyalView.webContents.isDestroyed()) {
+              mainWindow.removeBrowserView(ajyalView);
+              ajyalView.webContents.destroy();
+              ajyalView = null;
+            }
+            mainWindow.webContents.send('ajyal-action', { type: 'closed' });
+          }
+        } catch {}
+      }, 500);
 
       return { success: true, url: ajyalUrl };
     } catch (err) {
@@ -362,66 +434,86 @@ function setupAjyalHandlers() {
     }
   });
 
+  // Keep old handler for backwards compat
+  ipcMain.handle('ajyal-open-window', async (_event, username, password, loginMethod = 'credentials') => {
+    return ipcMain.emit('ajyal-open-embedded', null, username, password, loginMethod) || 
+           { success: true, message: 'Redirected to embedded mode' };
+  });
+
   ipcMain.handle('ajyal-check-login', async () => {
-    if (!ajyalWindow || ajyalWindow.isDestroyed()) {
-      return { loggedIn: false, error: 'Window not open' };
+    if (!ajyalView || ajyalView.webContents.isDestroyed()) {
+      return { loggedIn: false, error: 'View not open' };
     }
     try {
-      const url = ajyalWindow.webContents.getURL();
-      // Check if user passed the login page (dashboard, home, or any non-login page)
+      const url = ajyalView.webContents.getURL();
       const isOnLogin = url.includes('/login') || url.includes('/auth') || url === 'https://ajyal.moe.gov.jo/' || url === 'https://ajyal.moe.gov.jo';
-      // Also check page content for logged-in indicators
       let hasLoggedInUI = false;
       try {
-        hasLoggedInUI = await ajyalWindow.webContents.executeJavaScript(`
+        hasLoggedInUI = await ajyalView.webContents.executeJavaScript(`
           !!(document.querySelector('[class*="dashboard"]') || 
              document.querySelector('[class*="sidebar"]') || 
              document.querySelector('[class*="navbar"]') ||
              document.querySelector('[class*="logout"]') ||
              document.querySelector('a[href*="logout"]') ||
-             document.querySelector('button[class*="logout"]') ||
              document.body.innerText.includes('تسجيل خروج') ||
              document.body.innerText.includes('لوحة'))
         `);
       } catch {}
-      const loggedIn = hasLoggedInUI || !isOnLogin;
-      return { loggedIn, url };
+      return { loggedIn: hasLoggedInUI || !isOnLogin, url };
     } catch (err) {
       return { loggedIn: false, error: err.message };
     }
   });
 
   ipcMain.handle('ajyal-import-students', async () => {
-    if (!ajyalWindow || ajyalWindow.isDestroyed()) {
-      return { success: false, error: 'Window not open' };
+    if (!ajyalView || ajyalView.webContents.isDestroyed()) {
+      return { success: false, error: 'View not open' };
     }
     try {
-      const result = await ajyalWindow.webContents.executeJavaScript(`
+      // Show loading indicator on toolbar
+      try {
+        await ajyalView.webContents.executeJavaScript(`
+          (function() {
+            const btn = document.getElementById('btn-import-students');
+            if (btn) { btn.textContent = '⏳ جاري الاستيراد...'; btn.disabled = true; }
+          })();
+        `);
+      } catch {}
+
+      const result = await ajyalView.webContents.executeJavaScript(`
         (function () {
           try {
-            const text = (value) => (value || '').replace(/\s+/g, ' ').trim();
+            const text = (value) => (value || '').replace(/\\s+/g, ' ').trim();
             const rows = Array.from(document.querySelectorAll('table tr'));
             const students = rows
               .map((row) => {
                 const cells = Array.from(row.querySelectorAll('td, th')).map((cell) => text(cell.textContent));
                 if (cells.length < 2) return null;
-
-                const name = cells.find((cell) => /[\u0600-\u06FF]{2,}/.test(cell) && !/الصف|الشعبة|الهاتف|ولي الأمر/.test(cell)) || '';
+                const name = cells.find((cell) => /[\\u0600-\\u06FF]{2,}/.test(cell) && !/الصف|الشعبة|الهاتف|ولي الأمر|اسم الطالب|الرقم|م\\.?$/.test(cell)) || '';
                 const className = cells.find((cell) => /صف|شعبة|أول|ثاني|ثالث|رابع|خامس|سادس|سابع|ثامن|تاسع|عاشر|حادي عشر|ثاني عشر/.test(cell)) || '';
-                const parentPhone = cells.find((cell) => /(07|962)\d{8,}/.test(cell.replace(/\s+/g, ''))) || '';
+                const parentPhone = cells.find((cell) => /(07|962)\\d{8,}/.test(cell.replace(/\\s+/g, ''))) || '';
                 const parentName = cells.find((cell) => /ولي الأمر|الأب|الأم/.test(cell)) || '';
-
                 if (!name || /اسم الطالب|الطالب/.test(name)) return null;
                 return { name, className, parentPhone, parentName };
               })
               .filter(Boolean);
-
             return { success: students.length > 0, students, count: students.length };
           } catch (error) {
             return { success: false, error: error.message };
           }
         })();
       `);
+
+      // Reset toolbar button
+      try {
+        await ajyalView.webContents.executeJavaScript(`
+          (function() {
+            const btn = document.getElementById('btn-import-students');
+            if (btn) { btn.textContent = '📥 استيراد الطلاب'; btn.disabled = false; }
+          })();
+        `);
+      } catch {}
+
       return result;
     } catch (err) {
       return { success: false, error: err.message };
@@ -429,24 +521,17 @@ function setupAjyalHandlers() {
   });
 
   ipcMain.handle('ajyal-submit-absence', async (_event, data) => {
-    if (!ajyalWindow || ajyalWindow.isDestroyed()) {
-      return { success: false, error: 'Window not open' };
+    if (!ajyalView || ajyalView.webContents.isDestroyed()) {
+      return { success: false, error: 'View not open' };
     }
     try {
-      // Inject JS to fill absence form
-      // NOTE: These selectors need to be updated based on the actual Ajyal page structure
-      const result = await ajyalWindow.webContents.executeJavaScript(`
+      const result = await ajyalView.webContents.executeJavaScript(`
         (function() {
           try {
             const studentName = ${JSON.stringify(data.studentName)};
             const className = ${JSON.stringify(data.className)};
-            const date = ${JSON.stringify(data.date)};
-
-            // Try to find and fill student search/select fields
-            // These selectors MUST be updated to match ajyal.edu.jo actual DOM
             const searchInputs = document.querySelectorAll('input[type="search"], input[type="text"], input.search-input');
             let filled = false;
-
             for (const input of searchInputs) {
               if (input.placeholder && (input.placeholder.includes('بحث') || input.placeholder.includes('طالب'))) {
                 input.focus();
@@ -457,37 +542,19 @@ function setupAjyalHandlers() {
                 break;
               }
             }
-
-            // If no search found, try selecting from a list
             if (!filled) {
-              const allText = document.body.innerText;
-              if (allText.includes(studentName)) {
-                // Try clicking on the student name
-                const elements = document.querySelectorAll('td, span, div, label');
-                for (const el of elements) {
-                  if (el.textContent.trim() === studentName) {
-                    el.click();
-                    filled = true;
-                    break;
-                  }
-                }
+              const elements = document.querySelectorAll('td, span, div, label');
+              for (const el of elements) {
+                if (el.textContent.trim() === studentName) { el.click(); filled = true; break; }
               }
             }
-
-            // Look for absence checkbox/button
             const checkboxes = document.querySelectorAll('input[type="checkbox"]');
             for (const cb of checkboxes) {
               const parent = cb.closest('tr, div, label');
-              if (parent && parent.textContent.includes(studentName) && !cb.checked) {
-                cb.click();
-                break;
-              }
+              if (parent && parent.textContent.includes(studentName) && !cb.checked) { cb.click(); break; }
             }
-
             return { success: true, filled };
-          } catch (e) {
-            return { success: false, error: e.message };
-          }
+          } catch (e) { return { success: false, error: e.message }; }
         })();
       `);
       return result;
@@ -497,11 +564,16 @@ function setupAjyalHandlers() {
   });
 
   ipcMain.handle('ajyal-close-window', async () => {
-    if (ajyalWindow && !ajyalWindow.isDestroyed()) {
-      ajyalWindow.close();
-      ajyalWindow = null;
+    if (ajyalView && !ajyalView.webContents.isDestroyed()) {
+      mainWindow.removeBrowserView(ajyalView);
+      ajyalView.webContents.destroy();
+      ajyalView = null;
     }
     return { success: true };
+  });
+
+  ipcMain.handle('ajyal-is-open', () => {
+    return { isOpen: !!ajyalView && !ajyalView.webContents.isDestroyed() };
   });
 }
 app.whenReady().then(() => {
