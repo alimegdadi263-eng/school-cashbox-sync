@@ -45,15 +45,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ── Ajyal Integration APIs ──
   ajyal: {
-    /** Open Ajyal window and auto-fill credentials */
-    openWindow: (username, password, loginMethod = 'credentials') => ipcRenderer.invoke('ajyal-open-window', username, password, loginMethod),
-    /** Check if user completed login (after OTP) */
+    /** Open Ajyal embedded in main window */
+    openWindow: (username, password, loginMethod = 'credentials') => ipcRenderer.invoke('ajyal-open-embedded', username, password, loginMethod),
+    /** Check if user completed login */
     checkLogin: () => ipcRenderer.invoke('ajyal-check-login'),
     /** Submit a single absence record */
     submitAbsence: (data) => ipcRenderer.invoke('ajyal-submit-absence', data),
     /** Import students from Ajyal current page */
     importStudents: () => ipcRenderer.invoke('ajyal-import-students'),
-    /** Close the Ajyal window */
+    /** Close the Ajyal view */
     closeWindow: () => ipcRenderer.invoke('ajyal-close-window'),
+    /** Check if Ajyal view is open */
+    isOpen: () => ipcRenderer.invoke('ajyal-is-open'),
+    /** Listen for toolbar actions from Ajyal page */
+    onAction: (callback) => {
+      const listener = (_event, data) => callback(data);
+      ipcRenderer.on('ajyal-action', listener);
+      return () => ipcRenderer.removeListener('ajyal-action', listener);
+    },
   },
 });
