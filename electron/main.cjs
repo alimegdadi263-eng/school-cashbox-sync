@@ -92,7 +92,18 @@ function createWindow() {
 
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
     console.error('Renderer failed to load:', { errorCode, errorDescription, validatedURL });
-    dialog.showErrorBox('خطأ في تحميل الواجهة', `تعذر تحميل واجهة البرنامج.\n${errorDescription} (${errorCode})\n${validatedURL || ''}`);
+    dialog.showMessageBox(mainWindow, {
+      type: 'error',
+      title: 'خطأ في تحميل الواجهة',
+      message: `تعذر تحميل واجهة البرنامج.\n${errorDescription} (${errorCode})`,
+      buttons: ['إعادة المحاولة', 'إغلاق'],
+      defaultId: 0,
+    }).then(({ response }) => {
+      if (response === 0) {
+        if (isDev) mainWindow.loadURL('http://localhost:8080');
+        else mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+      }
+    });
   });
   mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
     if (level >= 2) {
@@ -101,7 +112,18 @@ function createWindow() {
   });
   mainWindow.webContents.on('render-process-gone', (_event, details) => {
     console.error('Renderer process crashed:', details);
-    dialog.showErrorBox('تعطل الواجهة', 'حدث تعطل في واجهة البرنامج. أعد تشغيل التطبيق.');
+    dialog.showMessageBox(mainWindow, {
+      type: 'error',
+      title: 'تعطل الواجهة',
+      message: 'حدث تعطل في واجهة البرنامج.',
+      buttons: ['إعادة التحميل', 'إغلاق'],
+      defaultId: 0,
+    }).then(({ response }) => {
+      if (response === 0) {
+        if (isDev) mainWindow.loadURL('http://localhost:8080');
+        else mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+      }
+    });
   });
 
   if (!isDev) { mainWindow.setMenu(null); mainWindow.removeMenu(); }
