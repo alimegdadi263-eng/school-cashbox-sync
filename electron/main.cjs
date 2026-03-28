@@ -361,11 +361,11 @@ function setupAjyalHandlers(mainWindow) {
               toolbar.dataset.handlersSet = 'true';
               document.getElementById('btn-import-students')?.addEventListener('click', () => {
                 if (toolbar.dataset.busy === 'true') return;
-                toolbar.dataset.action = 'import';
+                toolbar.dataset.action = 'import-discover';
               });
               document.getElementById('btn-submit-absence')?.addEventListener('click', () => {
                 if (toolbar.dataset.busy === 'true') return;
-                toolbar.dataset.action = 'absence';
+                toolbar.dataset.action = 'absence-discover';
               });
               document.getElementById('btn-close-ajyal')?.addEventListener('click', () => {
                 if (toolbar.dataset.busy === 'true') return;
@@ -384,12 +384,31 @@ function setupAjyalHandlers(mainWindow) {
 
         if (!action || ajyalActionInProgress) return;
 
-        if (action === 'import') {
+        if (action === 'import-discover') {
           ajyalActionInProgress = true;
           await setToolbarButtonsDisabled(true);
-          mainWindow.webContents.send('ajyal-action', { type: 'import-started' });
           try {
-            const result = await runImportStudents(mainWindow);
+            await discoverAndShowGradePanel('import');
+          } catch (e) {
+            ajyalActionInProgress = false;
+            await resetToolbarUi();
+          }
+        } else if (action === 'absence-discover') {
+          ajyalActionInProgress = true;
+          await setToolbarButtonsDisabled(true);
+          try {
+            await discoverAndShowGradePanel('absence');
+          } catch (e) {
+            ajyalActionInProgress = false;
+            await resetToolbarUi();
+          }
+        } else if (action === 'import-execute') {
+          try {
+            var selectedJson = await ajyalExec('(function(){ var t = document.getElementById("school-toolbar"); var v = t ? t.dataset.selectedGrades : ""; delete t.dataset.selectedGrades; return v || "[]"; })()');
+            var selectedGrades = JSON.parse(selectedJson);
+            await hideGradePanel();
+            mainWindow.webContents.send('ajyal-action', { type: 'import-started' });
+            var result = await runImportStudents(mainWindow, selectedGrades);
             mainWindow.webContents.send('ajyal-action', { type: 'import-result', ...result });
           } catch (e) {
             mainWindow.webContents.send('ajyal-action', { type: 'import-result', success: false, error: e.message });
@@ -397,19 +416,24 @@ function setupAjyalHandlers(mainWindow) {
             ajyalActionInProgress = false;
             await resetToolbarUi();
           }
-        } else if (action === 'absence') {
-          ajyalActionInProgress = true;
-          await setToolbarButtonsDisabled(true);
-          mainWindow.webContents.send('ajyal-action', { type: 'absence-started' });
+        } else if (action === 'absence-execute') {
           try {
-            const result = await runSubmitAbsence(mainWindow);
-            mainWindow.webContents.send('ajyal-action', { type: 'absence-result', ...result });
+            var selectedJson2 = await ajyalExec('(function(){ var t = document.getElementById("school-toolbar"); var v = t ? t.dataset.selectedGrades : ""; delete t.dataset.selectedGrades; return v || "[]"; })()');
+            var selectedGrades2 = JSON.parse(selectedJson2);
+            await hideGradePanel();
+            mainWindow.webContents.send('ajyal-action', { type: 'absence-started' });
+            var result2 = await runSubmitAbsence(mainWindow, null, selectedGrades2);
+            mainWindow.webContents.send('ajyal-action', { type: 'absence-result', ...result2 });
           } catch (e) {
             mainWindow.webContents.send('ajyal-action', { type: 'absence-result', success: false, error: e.message });
           } finally {
             ajyalActionInProgress = false;
             await resetToolbarUi();
           }
+        } else if (action === 'cancel-grade-select') {
+          await hideGradePanel();
+          ajyalActionInProgress = false;
+          await resetToolbarUi();
         } else if (action === 'close') {
           ajyalActionInProgress = false;
           stopAjyalToolbarPolling();
@@ -475,6 +499,10 @@ function setupAjyalHandlers(mainWindow) {
             'toolbar.innerHTML = \'<div style="display:flex;align-items:center;gap:12px;"><span style="font-weight:bold;font-size:14px;">🏫 الإدارة المدرسية</span><span style="font-size:12px;opacity:0.8;">|</span><span style="font-size:12px;opacity:0.8;" id="toolbar-status">متصل بأجيال</span></div><div style="display:flex;gap:8px;"><button id="btn-import-students" style="background:#10b981;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;">📥 استيراد الطلاب</button><button id="btn-submit-absence" style="background:#f59e0b;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;">📋 تعبئة الغياب</button><button id="btn-close-ajyal" style="background:#ef4444;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;">✕ رجوع</button></div>\';' +
             'document.body.style.paddingTop = "50px";' +
             'document.body.insertBefore(toolbar, document.body.firstChild);' +
+            'var gradePanel = document.createElement("div");' +
+            'gradePanel.id = "grade-selection-panel";' +
+            'gradePanel.style.cssText = "display:none;position:fixed;top:50px;left:0;right:0;background:rgba(0,0,0,0.85);color:white;padding:16px;z-index:999998;direction:rtl;font-family:Arial,sans-serif;max-height:60vh;overflow-y:auto;";' +
+            'document.body.appendChild(gradePanel);' +
             '})();'
           );
         } catch (e) {
@@ -583,6 +611,92 @@ function setupAjyalHandlers(mainWindow) {
       const safeText = String(text).replace(/'/g, "\\'");
       await ajyalExec('(function(){ var s = document.getElementById("toolbar-status"); if(s) s.textContent = \'' + safeText + '\'; })()');
     } catch {}
+  }
+
+  // Grade selection panel helpers
+  async function hideGradePanel() {
+    try {
+      await ajyalExec('(function(){ var p = document.getElementById("grade-selection-panel"); if(p) p.style.display = "none"; })()');
+    } catch {}
+  }
+
+  async function discoverAndShowGradePanel(mode) {
+    await updateToolbarStatus('جاري اكتشاف الصفوف...');
+    await ajyalExec(clickByTextJS(['إدارة الطلبة', 'الطلبة', 'بيانات الطلبة', 'إدارة الطلاب', 'Students']));
+    await ajyalWait(2000);
+    await ajyalExec(clickByTextJS(['بيانات الطلبة', 'قائمة الطلبة', 'قائمة الطلاب', 'عرض الطلبة', 'Student List']));
+    await ajyalWait(2000);
+
+    const gradeOptions = await ajyalExec(getSelectOptionsJS(['الصف', 'المرحلة', 'الفصل', 'grade', 'class', 'Grade']));
+    const validGrades = gradeOptions.filter(function(g) {
+      return g.text && g.text !== '--' && !g.text.includes('اختر') && g.value !== '' && g.value !== '0';
+    });
+
+    if (validGrades.length === 0) {
+      await updateToolbarStatus('⚠️ لم يُعثر على صفوف');
+      ajyalActionInProgress = false;
+      await resetToolbarUi();
+      return;
+    }
+
+    const actionLabel = mode === 'import' ? 'استيراد الطلاب' : 'تعبئة الغياب';
+    const executeAction = mode === 'import' ? 'import-execute' : 'absence-execute';
+    const gradesJson = JSON.stringify(validGrades);
+
+    await ajyalExec(
+      '(function(){' +
+      'var panel = document.getElementById("grade-selection-panel");' +
+      'if (!panel) return;' +
+      'var grades = ' + gradesJson + ';' +
+      'var actionLabel = ' + JSON.stringify(actionLabel) + ';' +
+      'var executeAction = ' + JSON.stringify(executeAction) + ';' +
+      'var html = "<div style=\\"display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;\\">"' +
+      '+ "<h3 style=\\"margin:0;font-size:16px;font-weight:bold;\\">اختر الصفوف لـ " + actionLabel + "</h3>"' +
+      '+ "<button id=\\"btn-cancel-grade\\" style=\\"background:#ef4444;color:white;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-size:13px;\\">✕ إلغاء</button>"' +
+      '+ "</div>";' +
+      'html += "<div style=\\"display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;\\">";' +
+      'html += "<label style=\\"display:flex;align-items:center;gap:6px;background:#1e40af;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;\\">"' +
+      '+ "<input type=\\"checkbox\\" id=\\"chk-all-grades\\" checked style=\\"width:16px;height:16px;\\"> الكل</label>";' +
+      'for (var i = 0; i < grades.length; i++) {' +
+      '  var g = grades[i];' +
+      '  html += "<label style=\\"display:flex;align-items:center;gap:6px;background:#334155;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;\\">"' +
+      '  + "<input type=\\"checkbox\\" class=\\"grade-chk\\" value=\\"" + g.value + "\\" data-text=\\"" + g.text + "\\" checked style=\\"width:16px;height:16px;\\"> " + g.text + "</label>";' +
+      '}' +
+      'html += "</div>";' +
+      'html += "<button id=\\"btn-execute-grades\\" style=\\"background:#10b981;color:white;border:none;padding:10px 32px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:bold;width:100%\\">🚀 تنفيذ " + actionLabel + "</button>";' +
+      'panel.innerHTML = html;' +
+      'panel.style.display = "block";' +
+      'var allChk = document.getElementById("chk-all-grades");' +
+      'var gradeChks = document.querySelectorAll(".grade-chk");' +
+      'allChk.addEventListener("change", function() {' +
+      '  for (var j = 0; j < gradeChks.length; j++) gradeChks[j].checked = allChk.checked;' +
+      '});' +
+      'for (var k = 0; k < gradeChks.length; k++) {' +
+      '  gradeChks[k].addEventListener("change", function() {' +
+      '    var allChecked = true;' +
+      '    for (var m = 0; m < gradeChks.length; m++) { if (!gradeChks[m].checked) { allChecked = false; break; } }' +
+      '    allChk.checked = allChecked;' +
+      '  });' +
+      '}' +
+      'document.getElementById("btn-execute-grades").addEventListener("click", function() {' +
+      '  var selected = [];' +
+      '  for (var n = 0; n < gradeChks.length; n++) {' +
+      '    if (gradeChks[n].checked) selected.push({ value: gradeChks[n].value, text: gradeChks[n].getAttribute("data-text") });' +
+      '  }' +
+      '  var toolbar = document.getElementById("school-toolbar");' +
+      '  if (toolbar) {' +
+      '    toolbar.dataset.selectedGrades = JSON.stringify(selected);' +
+      '    toolbar.dataset.action = executeAction;' +
+      '  }' +
+      '});' +
+      'document.getElementById("btn-cancel-grade").addEventListener("click", function() {' +
+      '  var toolbar = document.getElementById("school-toolbar");' +
+      '  if (toolbar) toolbar.dataset.action = "cancel-grade-select";' +
+      '});' +
+      '})()'
+    );
+
+    await updateToolbarStatus('حدد الصفوف المطلوبة ثم اضغط تنفيذ');
   }
 
   // Helper: normalize Arabic text (remove diacritics/tashkeel, normalize whitespace)
@@ -776,7 +890,7 @@ function setupAjyalHandlers(mainWindow) {
   `;
 
   // ── Shared import function (used by toolbar and IPC) ──
-  async function runImportStudents(mainWindow) {
+  async function runImportStudents(mainWindow, selectedGrades) {
     if (!ajyalView || ajyalView.webContents.isDestroyed()) {
       return { success: false, error: 'View not open' };
     }
@@ -802,6 +916,12 @@ function setupAjyalHandlers(mainWindow) {
         for (let gi = 0; gi < gradeOptions.length; gi++) {
           const grade = gradeOptions[gi];
           if (!grade.text || grade.text === '--' || grade.text === 'اختر' || grade.text.includes('اختر') || grade.value === '' || grade.value === '0') continue;
+
+          // Filter by selected grades if provided
+          if (selectedGrades && selectedGrades.length > 0) {
+            const isSelected = selectedGrades.some(function(sg) { return sg.value === grade.value || sg.text === grade.text; });
+            if (!isSelected) continue;
+          }
 
           await updateToolbarStatus(`جاري استيراد: ${grade.text} (${gi + 1}/${gradeOptions.length})`);
           await ajyalExec(setSelectValueJS(['الصف', 'المرحلة', 'الفصل', 'grade', 'class', 'Grade'], grade.value));
@@ -854,7 +974,7 @@ function setupAjyalHandlers(mainWindow) {
   }
 
   // Fix #1: Accept absence data directly from IPC instead of re-reading localStorage
-  async function runSubmitAbsence(mainWindow, absenceData) {
+  async function runSubmitAbsence(mainWindow, absenceData, selectedGrades) {
     if (!ajyalView || ajyalView.webContents.isDestroyed()) {
       return { success: false, error: 'View not open' };
     }
@@ -906,6 +1026,15 @@ function setupAjyalHandlers(mainWindow) {
       let totalMarked = 0;
       const classKeys = Object.keys(byClass);
 
+      // Filter classKeys by selected grades if provided
+      const filteredClassKeys = (selectedGrades && selectedGrades.length > 0)
+        ? classKeys.filter(function(cls) {
+            return selectedGrades.some(function(sg) {
+              return cls.includes(sg.text) || sg.text.includes(cls);
+            });
+          })
+        : classKeys;
+
       // Fix #3: Improved className parsing - extract section as last Arabic letter (أ-د)
       function parseClassName(cls) {
         // Match last Arabic letter that looks like a section (أ، ب، ج، د، ه، و)
@@ -928,11 +1057,11 @@ function setupAjyalHandlers(mainWindow) {
         return { grade, section };
       }
 
-      for (let ci = 0; ci < classKeys.length; ci++) {
-        const cls = classKeys[ci];
+      for (let ci = 0; ci < filteredClassKeys.length; ci++) {
+        const cls = filteredClassKeys[ci];
         const classRecords = byClass[cls];
         
-        await updateToolbarStatus('جاري تعبئة غياب: ' + cls + ' (' + (ci + 1) + '/' + classKeys.length + ')');
+        await updateToolbarStatus('جاري تعبئة غياب: ' + cls + ' (' + (ci + 1) + '/' + filteredClassKeys.length + ')');
 
         const parsed = parseClassName(cls);
         const grade = parsed.grade;
@@ -1038,7 +1167,7 @@ function setupAjyalHandlers(mainWindow) {
   }
 
   ipcMain.handle('ajyal-import-students', async () => {
-    return runImportStudents(mainWindow);
+    return runImportStudents(mainWindow, null);
   });
 
   ipcMain.handle('ajyal-submit-absence', async (_event, data) => {
