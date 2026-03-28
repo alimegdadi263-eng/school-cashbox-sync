@@ -197,9 +197,10 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
     // Merge: don't duplicate by name+class
     const existingSet = new Set(existing.map(s => `${s.name}||${s.className}`));
     const newStudents = importedStudents.filter(s => !existingSet.has(`${s.name}||${s.className}`));
-    const merged = [...existing, ...newStudents];
+    // Sort all students by className for organized display in Student Manager
+    const merged = [...existing, ...newStudents].sort((a, b) => a.className.localeCompare(b.className, 'ar'));
     localStorage.setItem(storageKey, JSON.stringify(merged));
-    toast({ title: `تم حفظ ${newStudents.length} طالب جديد (تم تجاهل ${importedStudents.length - newStudents.length} مكرر)` });
+    toast({ title: `تم حفظ ${newStudents.length} طالب جديد في إدارة الطلبة (تم تجاهل ${importedStudents.length - newStudents.length} مكرر)` });
     setImportedStudents([]);
   };
 
