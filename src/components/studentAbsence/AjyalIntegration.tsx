@@ -218,12 +218,11 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
         <AlertTitle>ربط منصة أجيال</AlertTitle>
         <AlertDescription className="text-sm space-y-2">
           <p>سجّل الدخول بحساب المدير لتتمكن من تعبئة الغياب تلقائياً واستيراد بيانات الطلاب.</p>
-          <ol className="list-decimal list-inside space-y-1 mr-2">
-            <li>أدخل بيانات حساب أجيال (المدير) أدناه</li>
-            <li>اضغط "فتح أجيال وتسجيل الدخول"</li>
-            <li>أدخل رمز OTP يدوياً في النافذة المفتوحة</li>
-            <li>اضغط "تأكيد تسجيل الدخول"</li>
-          </ol>
+          <p className="font-medium">طريقتا الدخول:</p>
+          <ul className="list-disc list-inside space-y-1 mr-2">
+            <li><strong>اسم مستخدم وكلمة مرور:</strong> أدخل بيانات الحساب ← فتح أجيال ← أدخل OTP ← تأكيد</li>
+            <li><strong>عبر سند:</strong> فتح أجيال ← سجّل الدخول عبر تطبيق سند يدوياً ← تأكيد</li>
+          </ul>
         </AlertDescription>
       </Alert>
 
@@ -235,7 +234,7 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
         </Alert>
       )}
 
-      {/* Credentials */}
+      {/* Login Method & Credentials */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
@@ -243,35 +242,76 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
             بيانات حساب أجيال
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label>اسم المستخدم (رقم الموظف)</Label>
-              <Input value={credentials.username} onChange={e => setCredentials(c => ({ ...c, username: e.target.value }))} placeholder="أدخل اسم المستخدم" disabled={isWindowOpen} />
-            </div>
-            <div className="space-y-1">
-              <Label>كلمة المرور</Label>
-              <div className="relative">
-                <Input type={showPassword ? "text" : "password"} value={credentials.password} onChange={e => setCredentials(c => ({ ...c, password: e.target.value }))} placeholder="أدخل كلمة المرور" disabled={isWindowOpen} />
-                <Button type="button" variant="ghost" size="icon" className="absolute left-1 top-0 h-full" onClick={() => setShowPassword(!showPassword)}>
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
+        <CardContent className="space-y-4">
+          {/* Login Method Selection */}
+          <div className="space-y-2">
+            <Label className="font-semibold">طريقة تسجيل الدخول</Label>
+            <RadioGroup
+              value={credentials.loginMethod}
+              onValueChange={(v) => setCredentials(c => ({ ...c, loginMethod: v as LoginMethod }))}
+              className="flex gap-4"
+              disabled={isWindowOpen}
+            >
+              <div className="flex items-center gap-2 border rounded-lg px-4 py-2.5 cursor-pointer hover:bg-muted/50 transition-colors">
+                <RadioGroupItem value="credentials" id="method-creds" />
+                <Label htmlFor="method-creds" className="cursor-pointer flex items-center gap-1.5">
+                  <LogIn className="w-4 h-4" />
+                  اسم مستخدم وكلمة مرور
+                </Label>
+              </div>
+              <div className="flex items-center gap-2 border rounded-lg px-4 py-2.5 cursor-pointer hover:bg-muted/50 transition-colors">
+                <RadioGroupItem value="sanad" id="method-sanad" />
+                <Label htmlFor="method-sanad" className="cursor-pointer flex items-center gap-1.5">
+                  <Shield className="w-4 h-4" />
+                  الدخول عبر سند
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          {/* Credentials Fields - only for username/password method */}
+          {credentials.loginMethod === "credentials" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>اسم المستخدم (رقم الموظف)</Label>
+                <Input value={credentials.username} onChange={e => setCredentials(c => ({ ...c, username: e.target.value }))} placeholder="أدخل اسم المستخدم" disabled={isWindowOpen} />
+              </div>
+              <div className="space-y-1">
+                <Label>كلمة المرور</Label>
+                <div className="relative">
+                  <Input type={showPassword ? "text" : "password"} value={credentials.password} onChange={e => setCredentials(c => ({ ...c, password: e.target.value }))} placeholder="أدخل كلمة المرور" disabled={isWindowOpen} />
+                  <Button type="button" variant="ghost" size="icon" className="absolute left-1 top-0 h-full" onClick={() => setShowPassword(!showPassword)}>
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {credentials.loginMethod === "sanad" && !isWindowOpen && (
+            <Alert>
+              <Shield className="h-4 w-4" />
+              <AlertDescription className="text-sm">
+                سيتم فتح صفحة دخول أجيال مباشرة. اضغط على زر "الدخول عبر سند" في الصفحة المفتوحة وأكمل التحقق من تطبيق سند على هاتفك.
+              </AlertDescription>
+            </Alert>
+          )}
 
           <div className="flex flex-wrap gap-2">
             {!isWindowOpen ? (
-              <Button onClick={openAjyalWindow} disabled={!isElectron || !credentials.username || !credentials.password}>
+              <Button
+                onClick={openAjyalWindow}
+                disabled={!isElectron || (credentials.loginMethod === "credentials" && (!credentials.username || !credentials.password))}
+              >
                 <ExternalLink className="w-4 h-4 ml-2" />
-                فتح أجيال وتسجيل الدخول
+                {credentials.loginMethod === "sanad" ? "فتح أجيال (الدخول عبر سند)" : "فتح أجيال وتسجيل الدخول"}
               </Button>
             ) : (
               <>
                 {!isLoggedIn && (
                   <Button onClick={confirmLogin} variant="secondary">
                     <CheckCircle2 className="w-4 h-4 ml-2" />
-                    تأكيد تسجيل الدخول (بعد OTP)
+                    {credentials.loginMethod === "sanad" ? "تأكيد تسجيل الدخول (بعد سند)" : "تأكيد تسجيل الدخول (بعد OTP)"}
                   </Button>
                 )}
                 <Button onClick={closeAjyalWindow} variant="outline">إغلاق نافذة أجيال</Button>
