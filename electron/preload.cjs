@@ -46,11 +46,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── Ajyal Integration APIs ──
   ajyal: {
     /** Open Ajyal window and auto-fill credentials */
-    openWindow: (username, password) => ipcRenderer.invoke('ajyal-open-window', username, password),
+    openWindow: (username, password, loginMethod = 'credentials') => ipcRenderer.invoke('ajyal-open-window', username, password, loginMethod),
     /** Check if user completed login (after OTP) */
     checkLogin: () => ipcRenderer.invoke('ajyal-check-login'),
     /** Submit a single absence record */
     submitAbsence: (data) => ipcRenderer.invoke('ajyal-submit-absence', data),
+    /** Import students from Ajyal current page */
+    importStudents: () => ipcRenderer.invoke('ajyal-import-students'),
     /** Close the Ajyal window */
     closeWindow: () => ipcRenderer.invoke('ajyal-close-window'),
   },
