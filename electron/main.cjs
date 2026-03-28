@@ -318,10 +318,9 @@ function setupAjyalHandlers(mainWindow) {
 
       mainWindow.addBrowserView(ajyalView);
 
-      // Set bounds to fill window with space for top toolbar
+      // Set bounds to fill entire window (toolbar is injected inside the page)
       const bounds = mainWindow.getContentBounds();
-      const toolbarHeight = 50;
-      ajyalView.setBounds({ x: 0, y: toolbarHeight, width: bounds.width, height: bounds.height - toolbarHeight });
+      ajyalView.setBounds({ x: 0, y: 0, width: bounds.width, height: bounds.height });
       ajyalView.setAutoResize({ width: true, height: true });
 
       // Handle navigation within Ajyal
