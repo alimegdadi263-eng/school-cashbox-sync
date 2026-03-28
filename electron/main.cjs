@@ -332,9 +332,70 @@ function setupAjyalHandlers(mainWindow) {
         return { action: 'deny' };
       });
 
+      // Setup navigation handlers BEFORE loading URL
+      const injectToolbar = async () => {
+        if (!ajyalView || ajyalView.webContents.isDestroyed()) return;
+        try {
+          await ajyalView.webContents.executeJavaScript(
+            '(function() {' +
+            'if (document.getElementById("school-toolbar")) return;' +
+            'var toolbar = document.createElement("div");' +
+            'toolbar.id = "school-toolbar";' +
+            'toolbar.style.cssText = "position:fixed;top:0;left:0;right:0;height:50px;background:linear-gradient(135deg,#1e40af,#3b82f6);color:white;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:999999;font-family:Arial,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,0.3);direction:rtl;";' +
+            'toolbar.innerHTML = \'<div style="display:flex;align-items:center;gap:12px;"><span style="font-weight:bold;font-size:14px;">🏫 الإدارة المدرسية</span><span style="font-size:12px;opacity:0.8;">|</span><span style="font-size:12px;opacity:0.8;" id="toolbar-status">متصل بأجيال</span></div><div style="display:flex;gap:8px;"><button id="btn-import-students" style="background:#10b981;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;">📥 استيراد الطلاب</button><button id="btn-submit-absence" style="background:#f59e0b;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;">📋 تعبئة الغياب</button><button id="btn-close-ajyal" style="background:#ef4444;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;">✕ رجوع</button></div>\';' +
+            'document.body.style.paddingTop = "50px";' +
+            'document.body.insertBefore(toolbar, document.body.firstChild);' +
+            '})();'
+          );
+        } catch (e) {
+          console.error('Toolbar injection failed:', e.message);
+        }
+      };
+
+      const autoFillCredentials = async () => {
+        if (!ajyalView || ajyalView.webContents.isDestroyed()) return;
+        const currentURL = ajyalView.webContents.getURL();
+        if (loginMethod === 'credentials' && (currentURL.includes('/login') || currentURL.includes('ajyal.moe.gov.jo'))) {
+          try {
+            await ajyalView.webContents.executeJavaScript(
+              '(function() {' +
+              'var selectors = ["input[name=\\"username\\"]","input[name=\\"email\\"]","input[name=\\"user\\"]","input[id=\\"username\\"]","input[id=\\"email\\"]","input[type=\\"text\\"]"];' +
+              'var passSelectors = ["input[name=\\"password\\"]","input[id=\\"password\\"]","input[type=\\"password\\"]"];' +
+              'var userInput = null;' +
+              'for (var i = 0; i < selectors.length; i++) { userInput = document.querySelector(selectors[i]); if (userInput) break; }' +
+              'var passInput = null;' +
+              'for (var i = 0; i < passSelectors.length; i++) { passInput = document.querySelector(passSelectors[i]); if (passInput) break; }' +
+              'if (userInput) { userInput.focus(); userInput.value = ' + JSON.stringify(username) + '; userInput.dispatchEvent(new Event("input", { bubbles: true })); userInput.dispatchEvent(new Event("change", { bubbles: true })); }' +
+              'if (passInput) { passInput.focus(); passInput.value = ' + JSON.stringify(password) + '; passInput.dispatchEvent(new Event("input", { bubbles: true })); passInput.dispatchEvent(new Event("change", { bubbles: true })); }' +
+              '})();'
+            );
+          } catch (e) {
+            console.error('Auto-fill failed:', e.message);
+          }
+        }
+      };
+
+      ajyalView.webContents.on('did-finish-load', async () => {
+        if (!ajyalView) return;
+        await autoFillCredentials();
+        await injectToolbar();
+      });
+
+      // Re-inject toolbar on in-page navigations (SPA)
+      ajyalView.webContents.on('did-navigate-in-page', async () => {
+        await injectToolbar();
+      });
+
+      // Also inject after a short delay for dynamic pages
+      ajyalView.webContents.on('dom-ready', async () => {
+        setTimeout(async () => { await injectToolbar(); }, 1500);
+      });
+
       await ajyalView.webContents.loadURL(ajyalUrl);
 
-      // Auto-fill credentials on login page
+      // Also inject immediately after load
+      await injectToolbar();
+
       ajyalView.webContents.on('did-finish-load', async () => {
         if (!ajyalView) return;
         const currentURL = ajyalView.webContents.getURL();
