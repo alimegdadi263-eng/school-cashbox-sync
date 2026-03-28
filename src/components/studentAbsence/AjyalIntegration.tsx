@@ -315,7 +315,8 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
             <Alert>
               <Shield className="h-4 w-4" />
               <AlertDescription className="text-sm">
-                سيتم فتح صفحة دخول أجيال مباشرة. اضغط على زر "الدخول عبر سند" في الصفحة المفتوحة وأكمل التحقق من تطبيق سند على هاتفك.
+                سيتم فتح موقع أجيال داخل التطبيق. اضغط على "الدخول عبر سند" في الصفحة وأكمل التحقق من تطبيق سند. بعد الدخول استخدم أزرار الشريط العلوي.
+              </AlertDescription>
               </AlertDescription>
             </Alert>
           )}
