@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTimetable } from "@/context/TimetableContext";
 import type { Teacher, SubjectAssignment, BlockedPeriod } from "@/types/timetable";
-import { CLASS_NAMES, SECTIONS, DEFAULT_SUBJECTS, SECONDARY_CLASSES } from "@/types/timetable";
+import { CLASS_NAMES, SECTIONS, DEFAULT_SUBJECTS, SECONDARY_CLASSES, normalizeSubjectName } from "@/types/timetable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2, Edit, UserPlus, X, Upload, FileSpreadsheet, FileText } from "lucide-react";
+import { Plus, Trash2, Edit, UserPlus, X, Upload, FileSpreadsheet, FileText, Download } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import BlockedPeriodsEditor from "./BlockedPeriodsEditor";
 import * as ExcelJS from "exceljs";
