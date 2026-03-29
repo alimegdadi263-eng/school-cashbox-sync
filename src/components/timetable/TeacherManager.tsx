@@ -132,7 +132,24 @@ export default function TeacherManager() {
     toast({ title: "تم حذف المعلم" });
   };
 
-  // Import teachers from Excel - supports multiple formats
+  const getExcelCellText = (value: ExcelJS.CellValue | null | undefined): string => {
+    if (value == null) return "";
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      return String(value).trim();
+    }
+    if (value instanceof Date) return value.toISOString();
+    if (typeof value === "object") {
+      if ("text" in value && typeof value.text === "string") return value.text.trim();
+      if ("richText" in value && Array.isArray(value.richText)) {
+        return value.richText.map(part => part.text || "").join("").trim();
+      }
+      if ("result" in value && value.result != null) return String(value.result).trim();
+      if ("formula" in value && value.formula) return String(value.formula).trim();
+    }
+    return String(value).trim();
+  };
+
+  // Import teachers from Excel - supports exported format exactly and merged variants
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -143,111 +160,128 @@ export default function TeacherManager() {
       const ws = wb.worksheets[0];
       if (!ws) throw new Error("لا يوجد أوراق");
 
-      const imported: Teacher[] = [];
+      const importedMap = new Map<string, Teacher>();
+      const customColumns = {
+        teacher: 1,
+        subject: 2,
+        className: 3,
+        section: 4,
+        periods: 5,
+        branch: 6,
+      };
 
-      let isMergedFormat = false;
-      let headerRow = 0;
-      
+      let headerRow = 1;
+      let exportColumns: { teacher: number; subject: number; classSection: number; periods: number } | null = null;
+
       ws.eachRow((row, rowNum) => {
-        if (headerRow > 0) return;
-        for (let c = 1; c <= 6; c++) {
-          const val = String(row.getCell(c).value || "").trim();
-          if (val.includes("الصف") && val.includes("الشعبة")) {
-            isMergedFormat = true;
-            headerRow = rowNum;
-            return;
-          }
-          if (val === "المادة" || val === "اسم المعلم" || val === "اسم المعلم/ة") {
-            headerRow = rowNum;
-          }
+        if (exportColumns) return;
+        const values = Array.from({ length: Math.max(row.cellCount, 6) }, (_, idx) => getExcelCellText(row.getCell(idx + 1).value));
+
+        const teacherIdx = values.findIndex(val => ["اسم المعلم", "اسم المعلم/ة"].includes(val));
+        const subjectIdx = values.findIndex(val => val === "المادة");
+        const classSectionIdx = values.findIndex(val => val === "الصف/الشعبة");
+        const periodsIdx = values.findIndex(val => val === "الحصص الأسبوعية");
+
+        if (teacherIdx >= 0 && subjectIdx >= 0 && classSectionIdx >= 0 && periodsIdx >= 0) {
+          headerRow = rowNum;
+          exportColumns = {
+            teacher: teacherIdx + 1,
+            subject: subjectIdx + 1,
+            classSection: classSectionIdx + 1,
+            periods: periodsIdx + 1,
+          };
+        } else if (teacherIdx >= 0 || subjectIdx >= 0) {
+          headerRow = rowNum;
         }
       });
 
-      if (headerRow === 0) headerRow = 1;
+      let lastTeacherName = "";
 
-      if (isMergedFormat) {
-        let currentTeacher: Teacher | null = null;
+      ws.eachRow((row, rowNum) => {
+        if (rowNum <= headerRow) return;
 
-        ws.eachRow((row, rowNum) => {
-          if (rowNum <= headerRow) return;
-          
-          const col1 = String(row.getCell(1).value || "").trim();
-          const col2 = String(row.getCell(2).value || "").trim();
-          const col3 = String(row.getCell(3).value || "").trim();
-          const col4 = String(row.getCell(4).value || "").trim();
-          const col5 = row.getCell(5).value;
+        const rowValues = Array.from({ length: Math.max(row.cellCount, 6) }, (_, idx) => getExcelCellText(row.getCell(idx + 1).value));
+        if (rowValues.every(val => !val)) return;
 
-          if (col2.includes("إجمالي") || col2.includes("المجموع")) return;
-          if (!col3 && !col4) return;
+        const isSummaryRow = rowValues.some(val => val.includes("إجمالي المعلمين") || val.includes("إجمالي الحصص") || val.includes("المجموع"));
+        if (isSummaryRow) return;
 
-          if (col2 && (col1 && !isNaN(Number(col1)))) {
-            currentTeacher = { id: crypto.randomUUID(), name: col2, subjects: [], blockedPeriods: [] };
-            imported.push(currentTeacher);
-          }
+        let teacherName = "";
+        let subjectName = "";
+        let className = "";
+        let section = "أ";
+        let branch = "";
+        let periods = 0;
 
-          if (!currentTeacher) return;
-          if (!col3 || !col4) return;
+        if (exportColumns) {
+          teacherName = rowValues[exportColumns.teacher - 1] || lastTeacherName;
+          subjectName = rowValues[exportColumns.subject - 1];
+          const classSection = rowValues[exportColumns.classSection - 1];
+          periods = Number(rowValues[exportColumns.periods - 1]) || 0;
 
-          let className = "";
-          let section = "أ";
-          
-          if (col4.includes("/")) {
-            const parts = col4.split("/");
-            className = parts[0].trim();
-            section = parts[1].trim();
+          if (classSection.includes("/")) {
+            const [rawClassName, rawSection = "أ"] = classSection.split("/");
+            className = rawClassName.trim();
+            section = rawSection.trim() || "أ";
           } else {
-            className = col4;
+            className = classSection.trim();
           }
-
-          const periods = Number(col5) || 1;
-
-          currentTeacher.subjects.push({
-            subjectName: normalizeSubjectName(col3),
-            className,
-            section,
-            branch: undefined,
-            periodsPerWeek: periods,
-          });
-        });
-
-        const newSubjectsSet = new Set<string>();
-        imported.forEach(t => t.subjects.forEach(s => {
-          if (!allSubjects.includes(s.subjectName) && !newSubjectsSet.has(s.subjectName)) {
-            newSubjectsSet.add(s.subjectName);
-          }
-        }));
-        if (newSubjectsSet.size > 0) {
-          const updatedCustom = [...customSubjects, ...Array.from(newSubjectsSet)];
-          setCustomSubjects(updatedCustom);
-          localStorage.setItem(CUSTOM_SUBJECTS_KEY, JSON.stringify(updatedCustom));
+        } else {
+          teacherName = rowValues[customColumns.teacher - 1] || lastTeacherName;
+          subjectName = rowValues[customColumns.subject - 1];
+          className = rowValues[customColumns.className - 1];
+          section = rowValues[customColumns.section - 1] || "أ";
+          periods = Number(rowValues[customColumns.periods - 1]) || 0;
+          branch = rowValues[customColumns.branch - 1];
         }
 
-      } else {
-        ws.eachRow((row, rowNum) => {
-          if (rowNum <= headerRow) return;
-          const name = String(row.getCell(1).value || "").trim();
-          if (!name) return;
-          const subject = String(row.getCell(2).value || "").trim();
-          const className = String(row.getCell(3).value || "").trim();
-          const section = String(row.getCell(4).value || "أ").trim();
-          const periods = Number(row.getCell(5).value) || 3;
-          const branch = String(row.getCell(6).value || "").trim();
+        teacherName = teacherName.trim();
+        subjectName = normalizeSubjectName(subjectName.trim());
+        className = className.trim();
+        section = section.trim() || "أ";
+        branch = branch.trim();
 
-          let teacher = imported.find(t => t.name === name);
-          if (!teacher) {
-            teacher = { id: crypto.randomUUID(), name, subjects: [], blockedPeriods: [] };
-            imported.push(teacher);
-          }
-          if (subject && className) {
-            teacher.subjects.push({
-              subjectName: normalizeSubjectName(subject),
-              className,
-              section,
-              branch: branch || undefined,
-              periodsPerWeek: periods,
-            });
-          }
-        });
+        if (!teacherName) return;
+        lastTeacherName = teacherName;
+        if (!subjectName || !className || periods <= 0) return;
+
+        let teacher = importedMap.get(teacherName);
+        if (!teacher) {
+          teacher = { id: crypto.randomUUID(), name: teacherName, subjects: [], blockedPeriods: [] };
+          importedMap.set(teacherName, teacher);
+        }
+
+        const duplicateSubject = teacher.subjects.some(subject =>
+          subject.subjectName === subjectName &&
+          subject.className === className &&
+          subject.section === section &&
+          (subject.branch || "") === (branch || "") &&
+          subject.periodsPerWeek === periods
+        );
+
+        if (!duplicateSubject) {
+          teacher.subjects.push({
+            subjectName,
+            className,
+            section,
+            branch: branch || undefined,
+            periodsPerWeek: periods,
+          });
+        }
+      });
+
+      const imported = Array.from(importedMap.values()).filter(teacher => teacher.subjects.length > 0);
+
+      const newSubjectsSet = new Set<string>();
+      imported.forEach(t => t.subjects.forEach(s => {
+        if (!allSubjects.includes(s.subjectName) && !newSubjectsSet.has(s.subjectName)) {
+          newSubjectsSet.add(s.subjectName);
+        }
+      }));
+      if (newSubjectsSet.size > 0) {
+        const updatedCustom = [...customSubjects, ...Array.from(newSubjectsSet)];
+        setCustomSubjects(updatedCustom);
+        localStorage.setItem(CUSTOM_SUBJECTS_KEY, JSON.stringify(updatedCustom));
       }
 
       let skipped = 0;
