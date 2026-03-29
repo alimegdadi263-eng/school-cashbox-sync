@@ -91,8 +91,9 @@ export default function TeacherManager() {
       toast({ title: "أدخل اسم المادة", variant: "destructive" });
       return;
     }
+    const normalized = normalizeSubjectName(newSubject.trim());
     setSubjects([...subjects, {
-      subjectName: newSubject.trim(),
+      subjectName: normalized,
       className: newClass,
       section: newSection,
       branch: SECONDARY_CLASSES.includes(newClass) ? newBranch : undefined,
