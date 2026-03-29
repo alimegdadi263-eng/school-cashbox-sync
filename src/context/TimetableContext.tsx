@@ -238,21 +238,22 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       newTT[key] = Array.from({ length: daysCount }, () => Array(periodsPerDay).fill(null));
     });
 
-    const teacherUsage: Record<string, Set<number>[]> = {};
-    teachers.forEach(t => {
-      teacherUsage[t.id] = Array.from({ length: daysCount }, () => new Set<number>());
-    });
-
-    // Track 6th and 7th period counts per teacher for equal distribution
     const latePeriodCount: Record<string, { sixth: number; seventh: number }> = {};
     teachers.forEach(t => { latePeriodCount[t.id] = { sixth: 0, seventh: 0 }; });
+
+    const classDayLoad: Record<string, number[]> = {};
+    classKeys.forEach(key => {
+      classDayLoad[key] = Array(daysCount).fill(0);
+    });
 
     interface Assignment {
       teacherId: string;
       teacherName: string;
       subjectName: string;
       classKey: string;
+      total: number;
       remaining: number;
+      perDayCount: number[];
     }
 
     const assignments: Assignment[] = [];
@@ -264,111 +265,107 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
           teacherName: t.name,
           subjectName: s.subjectName,
           classKey: key,
+          total: s.periodsPerWeek,
           remaining: s.periodsPerWeek,
+          perDayCount: Array(daysCount).fill(0),
         });
       });
     });
 
-    // Sort by most periods first for better distribution
-    assignments.sort((a, b) => b.remaining - a.remaining);
-
     const sixthPeriodIdx = periodsPerDay - 2;
     const seventhPeriodIdx = periodsPerDay - 1;
 
-    // Calculate how many periods per day each assignment needs on average
-    // to decide if we should allow repeats per day
     const getMaxPerDay = (totalPeriods: number): number => {
       const avg = totalPeriods / daysCount;
-      return Math.ceil(avg); // e.g., 18/5 = 3.6 → allow up to 4 per day
+      return Math.max(1, Math.ceil(avg));
     };
 
-    for (const assignment of assignments) {
-      let placed = 0;
-      const dayOrder = Array.from({ length: daysCount }, (_, i) => i);
-      const teacher = teachers.find(t => t.id === assignment.teacherId)!;
-      const maxPerDay = getMaxPerDay(assignment.remaining);
+    const isTeacherBusy = (teacherId: string, day: number, period: number, ignoreClassKey?: string) => {
+      for (const [classKey, days] of Object.entries(newTT)) {
+        if (ignoreClassKey && classKey === ignoreClassKey) continue;
+        if (days[day]?.[period]?.teacherId === teacherId) return true;
+      }
+      return false;
+    };
 
-      // Track how many times this subject is placed per day in this class
-      const perDayCount: number[] = Array(daysCount).fill(0);
+    const getTeacherDayLoad = (teacherId: string, day: number) => {
+      let count = 0;
+      for (const days of Object.values(newTT)) {
+        for (let period = 0; period < periodsPerDay; period++) {
+          if (days[day]?.[period]?.teacherId === teacherId) count++;
+        }
+      }
+      return count;
+    };
 
-      let attempts = 0;
-      const maxAttempts = 3; // Try multiple rounds
+    const placeAssignment = (assignment: Assignment, day: number, period: number) => {
+      newTT[assignment.classKey][day][period] = {
+        teacherId: assignment.teacherId,
+        teacherName: assignment.teacherName,
+        subjectName: assignment.subjectName,
+      };
+      assignment.remaining -= 1;
+      assignment.perDayCount[day] += 1;
+      classDayLoad[assignment.classKey][day] += 1;
+      if (period === sixthPeriodIdx) latePeriodCount[assignment.teacherId].sixth += 1;
+      if (period === seventhPeriodIdx) latePeriodCount[assignment.teacherId].seventh += 1;
+    };
 
-      while (placed < assignment.remaining && attempts < maxAttempts) {
-        let didPlace = false;
-        dayOrder.sort(() => Math.random() - 0.5);
+    const findBestSlot = (assignment: Assignment, respectDailyLimit: boolean) => {
+      const teacher = teachers.find(t => t.id === assignment.teacherId);
+      if (!teacher) return null;
 
-        for (const day of dayOrder) {
-          if (placed >= assignment.remaining) break;
+      const maxPerDay = getMaxPerDay(assignment.total);
+      let best: { day: number; period: number; score: number } | null = null;
 
-          // Allow repeats but spread evenly - skip if this day already has max
-          if (perDayCount[day] >= maxPerDay) continue;
+      for (let day = 0; day < daysCount; day++) {
+        if (respectDailyLimit && assignment.perDayCount[day] >= maxPerDay) continue;
 
-          // Build period priority: all periods available
-          const periodOrder: number[] = [];
-          for (let p = 0; p < periodsPerDay; p++) {
-            if (p !== sixthPeriodIdx && p !== seventhPeriodIdx) periodOrder.push(p);
-          }
-          periodOrder.sort(() => Math.random() - 0.5);
+        for (let period = 0; period < periodsPerDay; period++) {
+          if (newTT[assignment.classKey][day][period] !== null) continue;
+          if (isTeacherBusy(assignment.teacherId, day, period, assignment.classKey)) continue;
+          if (isBlocked(teacher, day, period)) continue;
 
-          // Add 6th and 7th with fairness
-          const allSixthCounts = Object.values(latePeriodCount).map(c => c.sixth);
-          const allSeventhCounts = Object.values(latePeriodCount).map(c => c.seventh);
-          const minSixth = Math.min(...allSixthCounts);
-          const minSeventh = Math.min(...allSeventhCounts);
+          let score = period * 100;
+          score += assignment.perDayCount[day] * 20;
+          score += classDayLoad[assignment.classKey][day] * 4;
+          score += getTeacherDayLoad(assignment.teacherId, day) * 8;
 
-          if (latePeriodCount[assignment.teacherId].sixth <= minSixth + 1) {
-            periodOrder.push(sixthPeriodIdx);
-          }
-          if (latePeriodCount[assignment.teacherId].seventh <= minSeventh + 1) {
-            periodOrder.push(seventhPeriodIdx);
-          }
+          if (period === sixthPeriodIdx) score += 35 + latePeriodCount[assignment.teacherId].sixth * 5;
+          if (period === seventhPeriodIdx) score += 55 + latePeriodCount[assignment.teacherId].seventh * 6;
 
-          for (const period of periodOrder) {
-            if (newTT[assignment.classKey][day][period] !== null) continue;
-            if (teacherUsage[assignment.teacherId][day].has(period)) continue;
-            if (isBlocked(teacher, day, period)) continue;
-
-            newTT[assignment.classKey][day][period] = {
-              teacherId: assignment.teacherId,
-              teacherName: assignment.teacherName,
-              subjectName: assignment.subjectName,
-            };
-            teacherUsage[assignment.teacherId][day].add(period);
-            perDayCount[day]++;
-            if (period === sixthPeriodIdx) latePeriodCount[assignment.teacherId].sixth++;
-            if (period === seventhPeriodIdx) latePeriodCount[assignment.teacherId].seventh++;
-            placed++;
-            didPlace = true;
-            break;
+          if (!best || score < best.score) {
+            best = { day, period, score };
           }
         }
+      }
 
-        if (!didPlace) {
-          // Fallback: place anywhere possible including late periods, no day limit
-          for (let day = 0; day < daysCount && placed < assignment.remaining; day++) {
-            for (let period = 0; period < periodsPerDay; period++) {
-              if (newTT[assignment.classKey][day][period] !== null) continue;
-              if (teacherUsage[assignment.teacherId][day].has(period)) continue;
-              if (isBlocked(teacher, day, period)) continue;
-              newTT[assignment.classKey][day][period] = {
-                teacherId: assignment.teacherId,
-                teacherName: assignment.teacherName,
-                subjectName: assignment.subjectName,
-              };
-              teacherUsage[assignment.teacherId][day].add(period);
-              perDayCount[day]++;
-              if (period === sixthPeriodIdx) latePeriodCount[assignment.teacherId].sixth++;
-              if (period === seventhPeriodIdx) latePeriodCount[assignment.teacherId].seventh++;
-              placed++;
-            }
-          }
-          attempts++;
-        }
+      return best;
+    };
+
+    let progress = true;
+    let guard = 0;
+
+    while (progress && guard < 500) {
+      progress = false;
+      guard += 1;
+
+      const activeAssignments = assignments
+        .filter(assignment => assignment.remaining > 0)
+        .sort((a, b) => {
+          if (b.remaining !== a.remaining) return b.remaining - a.remaining;
+          return a.classKey.localeCompare(b.classKey, "ar");
+        });
+
+      for (const assignment of activeAssignments) {
+        const slot = findBestSlot(assignment, true) ?? findBestSlot(assignment, false);
+        if (!slot) continue;
+
+        placeAssignment(assignment, slot.day, slot.period);
+        progress = true;
       }
     }
 
-    // Compact: remove ALL gaps - periods must fill from first to last, no empty before filled
     const compactTimetable = (tt: ClassTimetable) => {
       const allClassKeys = Object.keys(tt);
 
@@ -406,12 +403,11 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                 }
                 
                 if (!conflict) {
-                  // Also check blocked periods
                   const teacher = teachers.find(t => t.id === cell.teacherId);
                   if (teacher && isBlocked(teacher, day, p)) {
-                    continue; // try next period
+                    continue;
                   }
-                  
+
                   periods[p] = cell;
                   periods[np] = null;
                   changed = true;
@@ -457,15 +453,12 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                 if (conflictingClassKey && tt[conflictingClassKey]) {
                   const otherPeriods = tt[conflictingClassKey][day];
                   const conflictCell = otherPeriods[p]!;
-                  
-                  // Can we move the conflicting cell to period np in the other class?
+
                   if (otherPeriods[np] === null) {
-                    // Check that the conflicting teacher isn't already at np elsewhere
                     let canSwap = true;
                     for (const [checkKey, checkDays] of Object.entries(tt)) {
                       if (checkKey === conflictingClassKey) continue;
                       if (checkKey === ck) {
-                        // cellToMove is leaving np, so no conflict
                         continue;
                       }
                       if (checkDays[day]?.[np]?.teacherId === conflictCell.teacherId) {
@@ -475,7 +468,11 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                     }
                     
                     if (canSwap) {
-                      // Perform the swap
+                      const moveTeacher = teachers.find(t => t.id === conflictCell.teacherId);
+                      if (moveTeacher && isBlocked(moveTeacher, day, np)) {
+                        continue;
+                      }
+
                       otherPeriods[np] = conflictCell;
                       otherPeriods[p] = null;
                       periods[p] = cellToMove;
@@ -485,13 +482,53 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                     }
                   }
                 }
-                break; // only try first filled period after gap
               }
             }
           }
         }
       }
     };
+
+    compactTimetable(newTT);
+
+    Object.keys(latePeriodCount).forEach(teacherId => {
+      latePeriodCount[teacherId] = { sixth: 0, seventh: 0 };
+    });
+    for (const days of Object.values(newTT)) {
+      for (let day = 0; day < daysCount; day++) {
+        if (sixthPeriodIdx >= 0) {
+          const sixthCell = days[day]?.[sixthPeriodIdx];
+          if (sixthCell) latePeriodCount[sixthCell.teacherId].sixth += 1;
+        }
+        if (seventhPeriodIdx >= 0) {
+          const seventhCell = days[day]?.[seventhPeriodIdx];
+          if (seventhCell) latePeriodCount[seventhCell.teacherId].seventh += 1;
+        }
+      }
+    }
+
+    let recoveryProgress = true;
+    let recoveryGuard = 0;
+    while (recoveryProgress && recoveryGuard < 200) {
+      recoveryProgress = false;
+      recoveryGuard += 1;
+
+      const remainingAssignments = assignments
+        .filter(assignment => assignment.remaining > 0)
+        .sort((a, b) => b.remaining - a.remaining);
+
+      for (const assignment of remainingAssignments) {
+        const slot = findBestSlot(assignment, false);
+        if (!slot) continue;
+
+        placeAssignment(assignment, slot.day, slot.period);
+        recoveryProgress = true;
+      }
+
+      if (recoveryProgress) {
+        compactTimetable(newTT);
+      }
+    }
 
     compactTimetable(newTT);
 
