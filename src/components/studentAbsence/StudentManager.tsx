@@ -307,6 +307,10 @@ export default function StudentManager({ userId, schoolName, directorateName }: 
               <Button variant="outline" size="sm" asChild><span><Upload className="w-4 h-4 ml-1" /> استيراد CSV</span></Button>
               <input type="file" accept=".csv" className="hidden" onChange={importCSV} />
             </label>
+            <label>
+              <Button variant="outline" size="sm" asChild><span><FileSpreadsheet className="w-4 h-4 ml-1" /> استيراد Excel (أجيال)</span></Button>
+              <input type="file" accept=".xls,.xlsx" className="hidden" onChange={importExcel} />
+            </label>
           </div>
         </CardContent>
       </Card>
