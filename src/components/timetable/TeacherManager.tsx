@@ -145,14 +145,9 @@ export default function TeacherManager() {
 
       const imported: Teacher[] = [];
 
-      // Detect format: check if column headers contain "الصف/الشعبة" (merged format)
-      // Format A (كشف أنصبة): م | اسم المعلم | المادة | الصف/الشعبة | الحصص | إجمالي
-      // Format B (simple): اسم المعلم | المادة | الصف | الشعبة | الحصص | الفرع
-
       let isMergedFormat = false;
       let headerRow = 0;
       
-      // Find header row and detect format
       ws.eachRow((row, rowNum) => {
         if (headerRow > 0) return;
         for (let c = 1; c <= 6; c++) {
@@ -168,11 +163,9 @@ export default function TeacherManager() {
         }
       });
 
-      if (headerRow === 0) headerRow = 1; // fallback
+      if (headerRow === 0) headerRow = 1;
 
       if (isMergedFormat) {
-        // Format A: teacher name only on first row, subsequent rows inherit
-        // Columns: م(1) | اسم المعلم(2) | المادة(3) | الصف/الشعبة(4) | الحصص(5) | إجمالي(6)
         let currentTeacher: Teacher | null = null;
 
         ws.eachRow((row, rowNum) => {
@@ -180,15 +173,13 @@ export default function TeacherManager() {
           
           const col1 = String(row.getCell(1).value || "").trim();
           const col2 = String(row.getCell(2).value || "").trim();
-          const col3 = String(row.getCell(3).value || "").trim(); // المادة
-          const col4 = String(row.getCell(4).value || "").trim(); // الصف/الشعبة
-          const col5 = row.getCell(5).value; // الحصص
+          const col3 = String(row.getCell(3).value || "").trim();
+          const col4 = String(row.getCell(4).value || "").trim();
+          const col5 = row.getCell(5).value;
 
-          // Skip summary/empty rows
           if (col2.includes("إجمالي") || col2.includes("المجموع")) return;
           if (!col3 && !col4) return;
 
-          // New teacher if col1 has a number or col2 has a name
           if (col2 && (col1 && !isNaN(Number(col1)))) {
             currentTeacher = { id: crypto.randomUUID(), name: col2, subjects: [], blockedPeriods: [] };
             imported.push(currentTeacher);
@@ -197,7 +188,6 @@ export default function TeacherManager() {
           if (!currentTeacher) return;
           if (!col3 || !col4) return;
 
-          // Parse "الصف/الشعبة" - e.g. "الحادي عشر/أ"
           let className = "";
           let section = "أ";
           
@@ -218,14 +208,8 @@ export default function TeacherManager() {
             branch: undefined,
             periodsPerWeek: periods,
           });
-
-          // Auto-add new subjects to custom subjects list
-          if (!allSubjects.includes(col3) && !imported.some(t => t === currentTeacher)) {
-            // Will be added after loop
-          }
         });
 
-        // Collect all unique subjects and add missing ones to custom list
         const newSubjectsSet = new Set<string>();
         imported.forEach(t => t.subjects.forEach(s => {
           if (!allSubjects.includes(s.subjectName) && !newSubjectsSet.has(s.subjectName)) {
@@ -239,7 +223,6 @@ export default function TeacherManager() {
         }
 
       } else {
-        // Format B (simple): each row is independent
         ws.eachRow((row, rowNum) => {
           if (rowNum <= headerRow) return;
           const name = String(row.getCell(1).value || "").trim();
@@ -267,7 +250,6 @@ export default function TeacherManager() {
         });
       }
 
-      // Check for duplicate teacher names with existing teachers
       let skipped = 0;
       const toAdd = imported.filter(t => {
         if (teachers.some(existing => existing.name === t.name)) {
@@ -290,6 +272,106 @@ export default function TeacherManager() {
       toast({ title: "خطأ في استيراد الملف", description: String(err), variant: "destructive" });
     }
     e.target.value = "";
+  };
+
+  // Export teachers to Excel (same format as import)
+  const handleExportExcel = async () => {
+    if (teachers.length === 0) {
+      toast({ title: "لا يوجد معلمون للتصدير", variant: "destructive" });
+      return;
+    }
+    try {
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet("كشف الأنصبة");
+      ws.views = [{ rightToLeft: true }];
+
+      const border: Partial<ExcelJS.Borders> = {
+        top: { style: "thin" }, bottom: { style: "thin" },
+        left: { style: "thin" }, right: { style: "thin" },
+      };
+      const fontName = "Traditional Arabic";
+
+      // Title
+      const titleRow = ws.addRow(["كشف أنصبة المعلمين"]);
+      ws.mergeCells(1, 1, 1, 6);
+      titleRow.getCell(1).font = { name: fontName, bold: true, size: 16, color: { argb: "FF2B3A55" } };
+      titleRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
+      titleRow.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD4A84B" } };
+      titleRow.height = 35;
+
+      ws.addRow([]);
+
+      // Headers - same format as import
+      const headerRow = ws.addRow(["م", "اسم المعلم/ة", "المادة", "الصف/الشعبة", "الحصص الأسبوعية", "إجمالي الأنصبة"]);
+      headerRow.height = 30;
+      headerRow.eachCell(c => {
+        c.font = { name: fontName, bold: true, size: 12, color: { argb: "FFFFFFFF" } };
+        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2B3A55" } };
+        c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+        c.border = border;
+      });
+
+      let rowNum = 0;
+      for (const teacher of teachers) {
+        const totalPeriods = teacher.subjects.reduce((sum, s) => sum + s.periodsPerWeek, 0);
+
+        if (teacher.subjects.length === 0) {
+          rowNum++;
+          const row = ws.addRow([rowNum, teacher.name, "—", "—", 0, 0]);
+          row.eachCell(c => { c.font = { name: fontName, size: 11 }; c.border = border; c.alignment = { horizontal: "center", vertical: "middle" }; });
+          continue;
+        }
+
+        for (let si = 0; si < teacher.subjects.length; si++) {
+          const s = teacher.subjects[si];
+          const isFirst = si === 0;
+          if (isFirst) rowNum++;
+          const row = ws.addRow([
+            isFirst ? rowNum : "",
+            isFirst ? teacher.name : "",
+            s.subjectName,
+            `${s.className}/${s.section}`,
+            s.periodsPerWeek,
+            isFirst ? totalPeriods : "",
+          ]);
+          row.eachCell((c, colNum) => {
+            c.font = { name: fontName, size: 11, bold: (colNum === 6 && isFirst) };
+            c.border = border;
+            c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+          });
+        }
+
+        if (teacher.subjects.length > 1) {
+          const startR = ws.rowCount - teacher.subjects.length + 1;
+          const endR = ws.rowCount;
+          ws.mergeCells(startR, 1, endR, 1);
+          ws.mergeCells(startR, 2, endR, 2);
+          ws.mergeCells(startR, 6, endR, 6);
+        }
+      }
+
+      // Summary
+      ws.addRow([]);
+      const summaryRow = ws.addRow(["", `إجمالي المعلمين: ${teachers.length}`, "", "", "", `إجمالي الحصص: ${teachers.reduce((s, t) => s + t.subjects.reduce((ss, sub) => ss + sub.periodsPerWeek, 0), 0)}`]);
+      summaryRow.eachCell(c => {
+        c.font = { name: fontName, bold: true, size: 12 };
+        c.alignment = { horizontal: "center", vertical: "middle" };
+      });
+
+      ws.getColumn(1).width = 6;
+      ws.getColumn(2).width = 25;
+      ws.getColumn(3).width = 20;
+      ws.getColumn(4).width = 18;
+      ws.getColumn(5).width = 18;
+      ws.getColumn(6).width = 18;
+
+      const { saveAs } = await import("file-saver");
+      const buffer = await wb.xlsx.writeBuffer();
+      saveAs(new Blob([buffer]), `كشف_أنصبة_المعلمين.xlsx`);
+      toast({ title: "تم تصدير كشف الأنصبة بنجاح" });
+    } catch (err) {
+      toast({ title: "خطأ في التصدير", description: String(err), variant: "destructive" });
+    }
   };
 
   return (
