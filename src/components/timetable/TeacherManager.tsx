@@ -379,6 +379,10 @@ export default function TeacherManager() {
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-lg">إدارة المعلمين</CardTitle>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={teachers.length === 0}>
+            <Download className="w-4 h-4 ml-1" />
+            تصدير Excel
+          </Button>
           <label className="cursor-pointer">
             <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
             <Button variant="outline" size="sm" asChild>
