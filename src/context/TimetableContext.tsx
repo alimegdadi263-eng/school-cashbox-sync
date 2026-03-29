@@ -44,6 +44,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [timetable, setTimetableState] = useState<ClassTimetable>({});
   const [periodsPerDay, setPeriodsPerDayState] = useState(7);
+  const [unplacedPeriods, setUnplacedPeriods] = useState<UnplacedPeriod[]>([]);
 
   useEffect(() => {
     const loadData = async () => {
