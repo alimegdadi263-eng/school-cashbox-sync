@@ -351,38 +351,33 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Compact: remove gaps in each class/day while avoiding teacher conflicts
+    // Compact: remove ALL gaps - periods must fill from first to last, no empty before filled
     const compactTimetable = (tt: ClassTimetable) => {
       const allClassKeys = Object.keys(tt);
-      // Build teacher occupation map: teacherId -> day -> Set<period>
-      const buildOccupation = () => {
-        const occ: Record<string, Set<number>[]> = {};
-        teachers.forEach(t => { occ[t.id] = Array.from({ length: daysCount }, () => new Set<number>()); });
-        for (const [ck, days] of Object.entries(tt)) {
-          days.forEach((periods, di) => {
-            periods.forEach((cell, pi) => {
-              if (cell && occ[cell.teacherId]) occ[cell.teacherId][di].add(pi);
-            });
-          });
-        }
-        return occ;
-      };
 
-      // Iterate multiple passes until stable
+      // Multiple passes until fully compacted
       let changed = true;
       let passes = 0;
-      while (changed && passes < 20) {
+      while (changed && passes < 50) {
         changed = false;
         passes++;
-        for (const ck of allClassKeys) {
+        
+        // Process classes in random order each pass for fairness
+        const shuffledKeys = [...allClassKeys].sort(() => Math.random() - 0.5);
+        
+        for (const ck of shuffledKeys) {
           for (let day = 0; day < daysCount; day++) {
             const periods = tt[ck][day];
+            
+            // Find first gap
             for (let p = 0; p < periodsPerDay - 1; p++) {
               if (periods[p] !== null) continue;
+              
               // Find next non-null period to move up
               for (let np = p + 1; np < periodsPerDay; np++) {
                 if (periods[np] === null) continue;
                 const cell = periods[np]!;
+                
                 // Check if moving this teacher to period p causes a conflict
                 let conflict = false;
                 for (const [otherKey, otherDays] of Object.entries(tt)) {
@@ -392,12 +387,88 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                     break;
                   }
                 }
+                
                 if (!conflict) {
+                  // Also check blocked periods
+                  const teacher = teachers.find(t => t.id === cell.teacherId);
+                  if (teacher && isBlocked(teacher, day, p)) {
+                    continue; // try next period
+                  }
+                  
                   periods[p] = cell;
                   periods[np] = null;
                   changed = true;
                   break;
                 }
+              }
+            }
+          }
+        }
+      }
+      
+      // Second pass: try to swap conflicting cells to resolve remaining gaps
+      let swapPass = 0;
+      let swapChanged = true;
+      while (swapChanged && swapPass < 30) {
+        swapChanged = false;
+        swapPass++;
+        
+        for (const ck of allClassKeys) {
+          for (let day = 0; day < daysCount; day++) {
+            const periods = tt[ck][day];
+            
+            for (let p = 0; p < periodsPerDay - 1; p++) {
+              if (periods[p] !== null) continue;
+              
+              // Find a filled period after the gap
+              for (let np = p + 1; np < periodsPerDay; np++) {
+                if (periods[np] === null) continue;
+                const cellToMove = periods[np]!;
+                
+                // Direct move blocked by conflict - try finding a swap partner
+                // Look for another class that has the conflicting teacher at period p
+                // and see if we can swap that teacher's cell with something compatible
+                let conflictingClassKey = "";
+                for (const [otherKey, otherDays] of Object.entries(tt)) {
+                  if (otherKey === ck) continue;
+                  if (otherDays[day]?.[p]?.teacherId === cellToMove.teacherId) {
+                    conflictingClassKey = otherKey;
+                    break;
+                  }
+                }
+                
+                if (conflictingClassKey && tt[conflictingClassKey]) {
+                  const otherPeriods = tt[conflictingClassKey][day];
+                  const conflictCell = otherPeriods[p]!;
+                  
+                  // Can we move the conflicting cell to period np in the other class?
+                  if (otherPeriods[np] === null) {
+                    // Check that the conflicting teacher isn't already at np elsewhere
+                    let canSwap = true;
+                    for (const [checkKey, checkDays] of Object.entries(tt)) {
+                      if (checkKey === conflictingClassKey) continue;
+                      if (checkKey === ck) {
+                        // cellToMove is leaving np, so no conflict
+                        continue;
+                      }
+                      if (checkDays[day]?.[np]?.teacherId === conflictCell.teacherId) {
+                        canSwap = false;
+                        break;
+                      }
+                    }
+                    
+                    if (canSwap) {
+                      // Perform the swap
+                      otherPeriods[np] = conflictCell;
+                      otherPeriods[p] = null;
+                      periods[p] = cellToMove;
+                      periods[np] = null;
+                      swapChanged = true;
+                      break;
+                    }
+                  }
+                }
+                break; // only try first filled period after gap
               }
             }
           }

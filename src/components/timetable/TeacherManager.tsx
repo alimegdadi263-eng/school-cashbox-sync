@@ -131,7 +131,7 @@ export default function TeacherManager() {
     toast({ title: "تم حذف المعلم" });
   };
 
-  // Import teachers from Excel
+  // Import teachers from Excel - supports multiple formats
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -143,35 +143,148 @@ export default function TeacherManager() {
       if (!ws) throw new Error("لا يوجد أوراق");
 
       const imported: Teacher[] = [];
-      ws.eachRow((row, rowNum) => {
-        if (rowNum === 1) return; // skip header
-        const name = String(row.getCell(1).value || "").trim();
-        if (!name) return;
-        const subject = String(row.getCell(2).value || "").trim();
-        const className = String(row.getCell(3).value || "").trim();
-        const section = String(row.getCell(4).value || "أ").trim();
-        const periods = Number(row.getCell(5).value) || 3;
-        const branch = String(row.getCell(6).value || "").trim();
 
-        // Check if teacher already added in this batch
-        let teacher = imported.find(t => t.name === name);
-        if (!teacher) {
-          teacher = { id: crypto.randomUUID(), name, subjects: [], blockedPeriods: [] };
-          imported.push(teacher);
-        }
-        if (subject && className) {
-          teacher.subjects.push({
-            subjectName: subject,
-            className,
-            section,
-            branch: branch || undefined,
-            periodsPerWeek: periods,
-          });
+      // Detect format: check if column headers contain "الصف/الشعبة" (merged format)
+      // Format A (كشف أنصبة): م | اسم المعلم | المادة | الصف/الشعبة | الحصص | إجمالي
+      // Format B (simple): اسم المعلم | المادة | الصف | الشعبة | الحصص | الفرع
+
+      let isMergedFormat = false;
+      let headerRow = 0;
+      
+      // Find header row and detect format
+      ws.eachRow((row, rowNum) => {
+        if (headerRow > 0) return;
+        for (let c = 1; c <= 6; c++) {
+          const val = String(row.getCell(c).value || "").trim();
+          if (val.includes("الصف") && val.includes("الشعبة")) {
+            isMergedFormat = true;
+            headerRow = rowNum;
+            return;
+          }
+          if (val === "المادة" || val === "اسم المعلم" || val === "اسم المعلم/ة") {
+            headerRow = rowNum;
+          }
         }
       });
 
-      imported.forEach(t => addTeacher(t));
-      toast({ title: `تم استيراد ${imported.length} معلم بنجاح` });
+      if (headerRow === 0) headerRow = 1; // fallback
+
+      if (isMergedFormat) {
+        // Format A: teacher name only on first row, subsequent rows inherit
+        // Columns: م(1) | اسم المعلم(2) | المادة(3) | الصف/الشعبة(4) | الحصص(5) | إجمالي(6)
+        let currentTeacher: Teacher | null = null;
+
+        ws.eachRow((row, rowNum) => {
+          if (rowNum <= headerRow) return;
+          
+          const col1 = String(row.getCell(1).value || "").trim();
+          const col2 = String(row.getCell(2).value || "").trim();
+          const col3 = String(row.getCell(3).value || "").trim(); // المادة
+          const col4 = String(row.getCell(4).value || "").trim(); // الصف/الشعبة
+          const col5 = row.getCell(5).value; // الحصص
+
+          // Skip summary/empty rows
+          if (col2.includes("إجمالي") || col2.includes("المجموع")) return;
+          if (!col3 && !col4) return;
+
+          // New teacher if col1 has a number or col2 has a name
+          if (col2 && (col1 && !isNaN(Number(col1)))) {
+            currentTeacher = { id: crypto.randomUUID(), name: col2, subjects: [], blockedPeriods: [] };
+            imported.push(currentTeacher);
+          }
+
+          if (!currentTeacher) return;
+          if (!col3 || !col4) return;
+
+          // Parse "الصف/الشعبة" - e.g. "الحادي عشر/أ"
+          let className = "";
+          let section = "أ";
+          
+          if (col4.includes("/")) {
+            const parts = col4.split("/");
+            className = parts[0].trim();
+            section = parts[1].trim();
+          } else {
+            className = col4;
+          }
+
+          const periods = Number(col5) || 1;
+
+          currentTeacher.subjects.push({
+            subjectName: col3,
+            className,
+            section,
+            branch: undefined,
+            periodsPerWeek: periods,
+          });
+
+          // Auto-add new subjects to custom subjects list
+          if (!allSubjects.includes(col3) && !imported.some(t => t === currentTeacher)) {
+            // Will be added after loop
+          }
+        });
+
+        // Collect all unique subjects and add missing ones to custom list
+        const newSubjectsSet = new Set<string>();
+        imported.forEach(t => t.subjects.forEach(s => {
+          if (!allSubjects.includes(s.subjectName) && !newSubjectsSet.has(s.subjectName)) {
+            newSubjectsSet.add(s.subjectName);
+          }
+        }));
+        if (newSubjectsSet.size > 0) {
+          const updatedCustom = [...customSubjects, ...Array.from(newSubjectsSet)];
+          setCustomSubjects(updatedCustom);
+          localStorage.setItem(CUSTOM_SUBJECTS_KEY, JSON.stringify(updatedCustom));
+        }
+
+      } else {
+        // Format B (simple): each row is independent
+        ws.eachRow((row, rowNum) => {
+          if (rowNum <= headerRow) return;
+          const name = String(row.getCell(1).value || "").trim();
+          if (!name) return;
+          const subject = String(row.getCell(2).value || "").trim();
+          const className = String(row.getCell(3).value || "").trim();
+          const section = String(row.getCell(4).value || "أ").trim();
+          const periods = Number(row.getCell(5).value) || 3;
+          const branch = String(row.getCell(6).value || "").trim();
+
+          let teacher = imported.find(t => t.name === name);
+          if (!teacher) {
+            teacher = { id: crypto.randomUUID(), name, subjects: [], blockedPeriods: [] };
+            imported.push(teacher);
+          }
+          if (subject && className) {
+            teacher.subjects.push({
+              subjectName: subject,
+              className,
+              section,
+              branch: branch || undefined,
+              periodsPerWeek: periods,
+            });
+          }
+        });
+      }
+
+      // Check for duplicate teacher names with existing teachers
+      let skipped = 0;
+      const toAdd = imported.filter(t => {
+        if (teachers.some(existing => existing.name === t.name)) {
+          skipped++;
+          return false;
+        }
+        return true;
+      });
+
+      toAdd.forEach(t => addTeacher(t));
+      
+      const totalSubjects = toAdd.reduce((sum, t) => sum + t.subjects.length, 0);
+      const totalPeriods = toAdd.reduce((sum, t) => sum + t.subjects.reduce((s, sub) => s + sub.periodsPerWeek, 0), 0);
+      
+      let msg = `تم استيراد ${toAdd.length} معلم (${totalSubjects} مادة، ${totalPeriods} حصة)`;
+      if (skipped > 0) msg += ` - تم تخطي ${skipped} معلم مكرر`;
+      
+      toast({ title: msg });
     } catch (err) {
       toast({ title: "خطأ في استيراد الملف", description: String(err), variant: "destructive" });
     }
