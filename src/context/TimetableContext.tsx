@@ -275,38 +275,48 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     const sixthPeriodIdx = periodsPerDay - 2;
     const seventhPeriodIdx = periodsPerDay - 1;
 
+    // Calculate how many periods per day each assignment needs on average
+    // to decide if we should allow repeats per day
+    const getMaxPerDay = (totalPeriods: number): number => {
+      const avg = totalPeriods / daysCount;
+      return Math.ceil(avg); // e.g., 18/5 = 3.6 → allow up to 4 per day
+    };
+
     for (const assignment of assignments) {
       let placed = 0;
       const dayOrder = Array.from({ length: daysCount }, (_, i) => i);
       const teacher = teachers.find(t => t.id === assignment.teacherId)!;
+      const maxPerDay = getMaxPerDay(assignment.remaining);
 
-      while (placed < assignment.remaining) {
+      // Track how many times this subject is placed per day in this class
+      const perDayCount: number[] = Array(daysCount).fill(0);
+
+      let attempts = 0;
+      const maxAttempts = 3; // Try multiple rounds
+
+      while (placed < assignment.remaining && attempts < maxAttempts) {
         let didPlace = false;
         dayOrder.sort(() => Math.random() - 0.5);
 
         for (const day of dayOrder) {
           if (placed >= assignment.remaining) break;
 
-          const alreadyThisClassThisDay = newTT[assignment.classKey][day].some(
-            c => c && c.teacherId === assignment.teacherId && c.subjectName === assignment.subjectName
-          );
-          if (alreadyThisClassThisDay && placed < assignment.remaining - 1) continue;
+          // Allow repeats but spread evenly - skip if this day already has max
+          if (perDayCount[day] >= maxPerDay) continue;
 
-          // Build period priority: early periods first, then late periods with fairness check
+          // Build period priority: all periods available
           const periodOrder: number[] = [];
           for (let p = 0; p < periodsPerDay; p++) {
             if (p !== sixthPeriodIdx && p !== seventhPeriodIdx) periodOrder.push(p);
           }
-          // Shuffle early periods for variety
           periodOrder.sort(() => Math.random() - 0.5);
 
-          // Add 6th and 7th with fairness - teacher with fewer late periods gets priority
+          // Add 6th and 7th with fairness
           const allSixthCounts = Object.values(latePeriodCount).map(c => c.sixth);
           const allSeventhCounts = Object.values(latePeriodCount).map(c => c.seventh);
           const minSixth = Math.min(...allSixthCounts);
           const minSeventh = Math.min(...allSeventhCounts);
 
-          // Only allow 6th if teacher isn't too far ahead
           if (latePeriodCount[assignment.teacherId].sixth <= minSixth + 1) {
             periodOrder.push(sixthPeriodIdx);
           }
@@ -325,6 +335,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
               subjectName: assignment.subjectName,
             };
             teacherUsage[assignment.teacherId][day].add(period);
+            perDayCount[day]++;
             if (period === sixthPeriodIdx) latePeriodCount[assignment.teacherId].sixth++;
             if (period === seventhPeriodIdx) latePeriodCount[assignment.teacherId].seventh++;
             placed++;
@@ -334,7 +345,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (!didPlace) {
-          // Fallback: place anywhere possible including late periods
+          // Fallback: place anywhere possible including late periods, no day limit
           for (let day = 0; day < daysCount && placed < assignment.remaining; day++) {
             for (let period = 0; period < periodsPerDay; period++) {
               if (newTT[assignment.classKey][day][period] !== null) continue;
@@ -346,13 +357,13 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                 subjectName: assignment.subjectName,
               };
               teacherUsage[assignment.teacherId][day].add(period);
+              perDayCount[day]++;
               if (period === sixthPeriodIdx) latePeriodCount[assignment.teacherId].sixth++;
               if (period === seventhPeriodIdx) latePeriodCount[assignment.teacherId].seventh++;
               placed++;
-              break;
             }
           }
-          break;
+          attempts++;
         }
       }
     }
