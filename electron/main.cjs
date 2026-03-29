@@ -299,24 +299,31 @@ let ajyalActionInProgress = false;
 const AJYAL_NAV_MAP = {
   import: {
     steps: [
-      { action: 'click', targets: ['إدارة الطلبة', 'الطلبة', 'بيانات الطلبة', 'إدارة الطلاب', 'Students'], message: 'جاري الانتقال إلى قسم الطلاب...', wait: 2000 },
-      { action: 'click', targets: ['بيانات الطلبة', 'قائمة الطلبة', 'قائمة الطلاب', 'عرض الطلبة', 'Student List'], message: 'جاري فتح قائمة الطلبة...', wait: 2000 },
+      { action: 'click', targets: ['القوائم والخدمات', 'القوائم', 'الخدمات'], message: 'جاري فتح القوائم والخدمات...', wait: 2000 },
+      { action: 'click', targets: ['شؤون الطلبة', 'شئون الطلبة', 'إدارة الطلبة', 'الطلبة'], message: 'جاري الانتقال إلى شؤون الطلبة...', wait: 2000 },
     ],
     gradeLabels: ['الصف', 'المرحلة', 'الفصل', 'grade', 'class', 'Grade'],
     sectionLabels: ['الشعبة', 'القسم', 'الفرع', 'section', 'Section'],
-    searchButtons: ['بحث', 'عرض', 'Search', 'Show', 'إظهار', 'استعلام'],
-    searchTag: 'button, input[type="submit"], input[type="button"], a.btn, .btn',
+    searchButtons: ['بحث', 'عرض', 'Search', 'Show', 'إظهار', 'استعلام', 'تصدير'],
+    exportButtons: ['تصدير', 'Export', 'تنزيل', 'Download'],
+    searchTag: 'button, input[type="submit"], input[type="button"], a.btn, .btn, a',
     tableWait: 2500,
   },
   absence: {
     steps: [
-      { action: 'click', targets: ['الحضور والغياب', 'الغياب', 'Attendance', 'متابعة الحضور'], message: 'جاري الانتقال إلى قسم الغياب...', wait: 2000 },
-      { action: 'click', targets: ['تسجيل الغياب', 'متابعة الغياب', 'رصد الغياب', 'Absence', 'تسجيل الحضور والغياب'], message: 'جاري فتح صفحة تسجيل الغياب...', wait: 2000 },
+      { action: 'click', targets: ['القوائم والخدمات', 'القوائم', 'الخدمات'], message: 'جاري فتح القوائم والخدمات...', wait: 2000 },
+      { action: 'click', targets: ['الانضباط المدرسي', 'الغياب', 'الحضور والغياب'], message: 'جاري الانتقال إلى الانضباط المدرسي...', wait: 2000 },
+      { action: 'click', targets: ['ادخال الانضباط المدرسي', 'إدخال الانضباط', 'تسجيل الغياب', 'رصد الغياب'], message: 'جاري فتح إدخال الانضباط المدرسي...', wait: 2000 },
     ],
+    confirmSteps: [
+      { action: 'click', targets: ['الانضباط المدرسي', 'الغياب'], message: 'جاري العودة إلى الانضباط المدرسي...', wait: 2000 },
+      { action: 'click', targets: ['تأكيد الانتهاء من الغياب', 'تأكيد الانتهاء', 'تأكيد', 'حفظ'], message: 'جاري تأكيد الانتهاء من الغياب...', wait: 2000 },
+    ],
+    absenceType: ['بدون عذر', 'غائب بدون عذر', 'غياب بدون عذر'],
     gradeLabels: ['الصف', 'المرحلة', 'الفصل', 'grade', 'class', 'Grade'],
     sectionLabels: ['الشعبة', 'القسم', 'الفرع', 'section', 'Section'],
     searchButtons: ['عرض الطلبة', 'عرض', 'بحث', 'Show', 'Search', 'إظهار'],
-    searchTag: 'button, input[type="submit"], input[type="button"], a.btn, .btn',
+    searchTag: 'button, input[type="submit"], input[type="button"], a.btn, .btn, a',
     tableWait: 2500,
   },
 };
