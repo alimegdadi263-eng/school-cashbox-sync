@@ -211,7 +211,7 @@ export default function TeacherManager() {
           const periods = Number(col5) || 1;
 
           currentTeacher.subjects.push({
-            subjectName: col3,
+            subjectName: normalizeSubjectName(col3),
             className,
             section,
             branch: undefined,
@@ -256,7 +256,7 @@ export default function TeacherManager() {
           }
           if (subject && className) {
             teacher.subjects.push({
-              subjectName: subject,
+              subjectName: normalizeSubjectName(subject),
               className,
               section,
               branch: branch || undefined,
