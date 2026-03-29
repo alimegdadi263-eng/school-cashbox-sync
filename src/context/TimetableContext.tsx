@@ -2,9 +2,18 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import type { Teacher, ClassTimetable, TimetableCell } from "@/types/timetable";
 import { getClassKey, DAYS, MAX_PERIODS } from "@/types/timetable";
 
+export interface UnplacedPeriod {
+  teacherId: string;
+  teacherName: string;
+  subjectName: string;
+  classKey: string;
+  count: number;
+}
+
 interface TimetableContextType {
   teachers: Teacher[];
   timetable: ClassTimetable;
+  unplacedPeriods: UnplacedPeriod[];
   periodsPerDay: number;
   setPeriodsPerDay: (n: number) => void;
   addTeacher: (teacher: Teacher) => void;
@@ -12,7 +21,8 @@ interface TimetableContextType {
   removeTeacher: (id: string) => void;
   setTimetable: (tt: ClassTimetable) => void;
   updateCell: (classKey: string, day: number, period: number, cell: TimetableCell | null) => void;
-  swapCells: (classKey: string, day: number, periodA: number, periodB: number) => boolean;
+  swapCells: (classKey: string, day: number, period: number, periodA: number) => boolean;
+  placeFromStaging: (stagingIdx: number, classKey: string, day: number, period: number) => boolean;
   generateTimetable: () => void;
   getTeacherSchedule: (teacherId: string) => { classKey: string; day: number; period: number; subjectName: string }[];
   getAllClassKeys: () => string[];
@@ -38,6 +48,16 @@ async function lanSyncSaveTimetable(data: any) {
       await lan.setData(STORAGE_KEY, data);
     }
   } catch {}
+}
+
+// Fisher-Yates shuffle
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 export function TimetableProvider({ children }: { children: React.ReactNode }) {
@@ -82,16 +102,13 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     loadData();
   }, []);
 
-  // Bidirectional LAN sync - both server and client pull changes
   useEffect(() => {
     const lan = getElectronLanHelper();
     if (!lan) return;
-
     const timer = setInterval(async () => {
       try {
         const conn = await lan.isConnected();
         if (!conn?.connected) return;
-
         const result = await lan.getData(STORAGE_KEY);
         if (result?.success && result.data) {
           const currentStr = localStorage.getItem(STORAGE_KEY);
@@ -105,7 +122,6 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         }
       } catch {}
     }, 5000);
-
     return () => clearInterval(timer);
   }, []);
 
@@ -167,14 +183,12 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     save(teachers, newTT, periodsPerDay);
   };
 
-  // Swap two cells in the same class & day, checking for teacher conflicts
   const swapCells = (classKey: string, day: number, periodA: number, periodB: number): boolean => {
     const newTT = { ...timetable };
     if (!newTT[classKey]) return false;
     const cellA = newTT[classKey][day][periodA];
     const cellB = newTT[classKey][day][periodB];
 
-    // Check conflicts: if cellA's teacher is already in periodB elsewhere, or cellB's teacher in periodA
     const wouldConflict = (teacherId: string | undefined, period: number) => {
       if (!teacherId) return false;
       for (const [key, days] of Object.entries(newTT)) {
@@ -185,7 +199,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     };
 
     if (wouldConflict(cellA?.teacherId, periodB) || wouldConflict(cellB?.teacherId, periodA)) {
-      return false; // conflict
+      return false;
     }
 
     newTT[classKey] = newTT[classKey].map((d, di) => {
@@ -198,6 +212,46 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     });
     setTimetableState(newTT);
     save(teachers, newTT, periodsPerDay);
+    return true;
+  };
+
+  // Place a period from the unplaced staging area into the timetable
+  const placeFromStaging = (stagingIdx: number, classKey: string, day: number, period: number): boolean => {
+    if (stagingIdx < 0 || stagingIdx >= unplacedPeriods.length) return false;
+    const item = unplacedPeriods[stagingIdx];
+
+    // Must match classKey
+    if (item.classKey !== classKey) return false;
+
+    // Check slot is empty
+    if (timetable[classKey]?.[day]?.[period] !== null) return false;
+
+    // Check teacher not busy at that slot
+    for (const [ck, days] of Object.entries(timetable)) {
+      if (ck === classKey) continue;
+      if (days[day]?.[period]?.teacherId === item.teacherId) return false;
+    }
+
+    // Check blocked
+    const teacher = teachers.find(t => t.id === item.teacherId);
+    if (teacher && (teacher.blockedPeriods || []).some(bp => bp.day === day && bp.period === period)) return false;
+
+    // Place it
+    const newTT = { ...timetable };
+    newTT[classKey] = newTT[classKey].map((d, di) =>
+      di === day ? d.map((p, pi) => pi === period ? { teacherId: item.teacherId, teacherName: item.teacherName, subjectName: item.subjectName } : p) : d
+    );
+    setTimetableState(newTT);
+    save(teachers, newTT, periodsPerDay);
+
+    // Update unplaced
+    const newUnplaced = [...unplacedPeriods];
+    if (item.count <= 1) {
+      newUnplaced.splice(stagingIdx, 1);
+    } else {
+      newUnplaced[stagingIdx] = { ...item, count: item.count - 1 };
+    }
+    setUnplacedPeriods(newUnplaced);
     return true;
   };
 
@@ -223,6 +277,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
   const clearTimetable = () => {
     setTimetableState({});
+    setUnplacedPeriods([]);
     save(teachers, {}, periodsPerDay);
   };
 
@@ -276,7 +331,9 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     const sixthPeriodIdx = periodsPerDay - 2;
     const seventhPeriodIdx = periodsPerDay - 1;
 
+    // For subjects with 6+ periods, allow up to 2 per day; otherwise 1
     const getMaxPerDay = (totalPeriods: number): number => {
+      if (totalPeriods >= 6) return 2;
       const avg = totalPeriods / daysCount;
       return Math.max(1, Math.ceil(avg));
     };
@@ -319,18 +376,26 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       const maxPerDay = getMaxPerDay(assignment.total);
       let best: { day: number; period: number; score: number } | null = null;
 
-      for (let day = 0; day < daysCount; day++) {
+      // Randomize day/period iteration order for variety
+      const dayOrder = shuffle(Array.from({ length: daysCount }, (_, i) => i));
+      const periodOrder = shuffle(Array.from({ length: periodsPerDay }, (_, i) => i));
+
+      for (const day of dayOrder) {
         if (respectDailyLimit && assignment.perDayCount[day] >= maxPerDay) continue;
 
-        for (let period = 0; period < periodsPerDay; period++) {
+        for (const period of periodOrder) {
           if (newTT[assignment.classKey][day][period] !== null) continue;
           if (isTeacherBusy(assignment.teacherId, day, period, assignment.classKey)) continue;
           if (isBlocked(teacher, day, period)) continue;
 
+          // Prefer earlier periods (lower period index)
           let score = period * 100;
+          // Spread across days
           score += assignment.perDayCount[day] * 20;
           score += classDayLoad[assignment.classKey][day] * 4;
           score += getTeacherDayLoad(assignment.teacherId, day) * 8;
+          // Add small random noise for variety
+          score += Math.random() * 15;
 
           if (period === sixthPeriodIdx) score += 35 + latePeriodCount[assignment.teacherId].sixth * 5;
           if (period === seventhPeriodIdx) score += 55 + latePeriodCount[assignment.teacherId].seventh * 6;
@@ -344,6 +409,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       return best;
     };
 
+    // Main placement loop
     let progress = true;
     let guard = 0;
 
@@ -351,49 +417,38 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       progress = false;
       guard += 1;
 
-      const activeAssignments = assignments
-        .filter(assignment => assignment.remaining > 0)
-        .sort((a, b) => {
-          if (b.remaining !== a.remaining) return b.remaining - a.remaining;
-          return a.classKey.localeCompare(b.classKey, "ar");
-        });
+      const activeAssignments = shuffle(
+        assignments.filter(a => a.remaining > 0)
+      ).sort((a, b) => {
+        if (b.remaining !== a.remaining) return b.remaining - a.remaining;
+        return 0;
+      });
 
       for (const assignment of activeAssignments) {
         const slot = findBestSlot(assignment, true) ?? findBestSlot(assignment, false);
         if (!slot) continue;
-
         placeAssignment(assignment, slot.day, slot.period);
         progress = true;
       }
     }
 
+    // Compaction function
     const compactTimetable = (tt: ClassTimetable) => {
       const allClassKeys = Object.keys(tt);
-
-      // Multiple passes until fully compacted
       let changed = true;
       let passes = 0;
       while (changed && passes < 50) {
         changed = false;
         passes++;
-        
-        // Process classes in random order each pass for fairness
         const shuffledKeys = [...allClassKeys].sort(() => Math.random() - 0.5);
-        
         for (const ck of shuffledKeys) {
           for (let day = 0; day < daysCount; day++) {
             const periods = tt[ck][day];
-            
-            // Find first gap
             for (let p = 0; p < periodsPerDay - 1; p++) {
               if (periods[p] !== null) continue;
-              
-              // Find next non-null period to move up
               for (let np = p + 1; np < periodsPerDay; np++) {
                 if (periods[np] === null) continue;
                 const cell = periods[np]!;
-                
-                // Check if moving this teacher to period p causes a conflict
                 let conflict = false;
                 for (const [otherKey, otherDays] of Object.entries(tt)) {
                   if (otherKey === ck) continue;
@@ -402,13 +457,9 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                     break;
                   }
                 }
-                
                 if (!conflict) {
                   const teacher = teachers.find(t => t.id === cell.teacherId);
-                  if (teacher && isBlocked(teacher, day, p)) {
-                    continue;
-                  }
-
+                  if (teacher && isBlocked(teacher, day, p)) continue;
                   periods[p] = cell;
                   periods[np] = null;
                   changed = true;
@@ -419,29 +470,21 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
           }
         }
       }
-      
-      // Second pass: try to swap conflicting cells to resolve remaining gaps
+
+      // Swap pass to resolve remaining gaps
       let swapPass = 0;
       let swapChanged = true;
       while (swapChanged && swapPass < 30) {
         swapChanged = false;
         swapPass++;
-        
         for (const ck of allClassKeys) {
           for (let day = 0; day < daysCount; day++) {
             const periods = tt[ck][day];
-            
             for (let p = 0; p < periodsPerDay - 1; p++) {
               if (periods[p] !== null) continue;
-              
-              // Find a filled period after the gap
               for (let np = p + 1; np < periodsPerDay; np++) {
                 if (periods[np] === null) continue;
                 const cellToMove = periods[np]!;
-                
-                // Direct move blocked by conflict - try finding a swap partner
-                // Look for another class that has the conflicting teacher at period p
-                // and see if we can swap that teacher's cell with something compatible
                 let conflictingClassKey = "";
                 for (const [otherKey, otherDays] of Object.entries(tt)) {
                   if (otherKey === ck) continue;
@@ -450,30 +493,21 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                     break;
                   }
                 }
-                
                 if (conflictingClassKey && tt[conflictingClassKey]) {
                   const otherPeriods = tt[conflictingClassKey][day];
                   const conflictCell = otherPeriods[p]!;
-
                   if (otherPeriods[np] === null) {
                     let canSwap = true;
                     for (const [checkKey, checkDays] of Object.entries(tt)) {
-                      if (checkKey === conflictingClassKey) continue;
-                      if (checkKey === ck) {
-                        continue;
-                      }
+                      if (checkKey === conflictingClassKey || checkKey === ck) continue;
                       if (checkDays[day]?.[np]?.teacherId === conflictCell.teacherId) {
                         canSwap = false;
                         break;
                       }
                     }
-                    
                     if (canSwap) {
                       const moveTeacher = teachers.find(t => t.id === conflictCell.teacherId);
-                      if (moveTeacher && isBlocked(moveTeacher, day, np)) {
-                        continue;
-                      }
-
+                      if (moveTeacher && isBlocked(moveTeacher, day, np)) continue;
                       otherPeriods[np] = conflictCell;
                       otherPeriods[p] = null;
                       periods[p] = cellToMove;
@@ -492,6 +526,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
     compactTimetable(newTT);
 
+    // Recovery loop
     Object.keys(latePeriodCount).forEach(teacherId => {
       latePeriodCount[teacherId] = { sixth: 0, seventh: 0 };
     });
@@ -513,42 +548,45 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     while (recoveryProgress && recoveryGuard < 200) {
       recoveryProgress = false;
       recoveryGuard += 1;
-
-      const remainingAssignments = assignments
-        .filter(assignment => assignment.remaining > 0)
-        .sort((a, b) => b.remaining - a.remaining);
-
+      const remainingAssignments = shuffle(
+        assignments.filter(a => a.remaining > 0)
+      ).sort((a, b) => b.remaining - a.remaining);
       for (const assignment of remainingAssignments) {
         const slot = findBestSlot(assignment, false);
         if (!slot) continue;
-
         placeAssignment(assignment, slot.day, slot.period);
         recoveryProgress = true;
       }
-
-      if (recoveryProgress) {
-        compactTimetable(newTT);
-      }
+      if (recoveryProgress) compactTimetable(newTT);
     }
 
     compactTimetable(newTT);
+
+    // Collect unplaced periods
+    const newUnplaced: UnplacedPeriod[] = [];
+    for (const assignment of assignments) {
+      if (assignment.remaining > 0) {
+        newUnplaced.push({
+          teacherId: assignment.teacherId,
+          teacherName: assignment.teacherName,
+          subjectName: assignment.subjectName,
+          classKey: assignment.classKey,
+          count: assignment.remaining,
+        });
+      }
+    }
+    setUnplacedPeriods(newUnplaced);
 
     setTimetableState(newTT);
     save(teachers, newTT, periodsPerDay);
   };
 
-  // Generate daily schedule handling absent teachers
   const generateDailySchedule = (day: number, absentTeacherIds: string[]): ClassTimetable => {
     const dailyTT: ClassTimetable = {};
-    
-    // Deep copy original timetable for this day only
     for (const [classKey, days] of Object.entries(timetable)) {
       dailyTT[classKey] = [days[day].map(cell => cell ? { ...cell } : null)];
     }
-
     if (absentTeacherIds.length === 0) return dailyTT;
-
-    // Remove absent teachers' periods
     for (const classKey of Object.keys(dailyTT)) {
       const periods = dailyTT[classKey][0];
       for (let p = 0; p < periods.length; p++) {
@@ -557,25 +595,20 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         }
       }
     }
-
-    // Compact: move periods up to fill gaps, prioritize removing from end (7th, 6th...)
     for (const classKey of Object.keys(dailyTT)) {
       const periods = dailyTT[classKey][0];
-      // Collect non-null periods
       const filled = periods.filter(p => p !== null);
-      // Pad with nulls at the end
       const compacted = [...filled, ...Array(periodsPerDay - filled.length).fill(null)];
       dailyTT[classKey] = [compacted];
     }
-
     return dailyTT;
   };
 
   return (
     <TimetableContext.Provider value={{
-      teachers, timetable, periodsPerDay, setPeriodsPerDay,
+      teachers, timetable, unplacedPeriods, periodsPerDay, setPeriodsPerDay,
       addTeacher, updateTeacher, removeTeacher,
-      setTimetable, updateCell, swapCells, generateTimetable,
+      setTimetable, updateCell, swapCells, placeFromStaging, generateTimetable,
       getTeacherSchedule, getAllClassKeys, clearTimetable,
       generateDailySchedule,
     }}>
