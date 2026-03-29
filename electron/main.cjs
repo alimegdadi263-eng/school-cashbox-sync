@@ -1233,8 +1233,10 @@ function setupAjyalHandlers(mainWindow) {
               '  }' +
               '}' +
               'if (!targetRow) return false;' +
-              'var cb = targetRow.querySelector("input[type=\\"checkbox\\"], input[type=\\"radio\\"]");' +
-              'if (cb && !cb.checked) { cb.click(); return true; }' +
+              // First try checkbox (mark student as present for attendance, then we select absence type)
+              'var cb = targetRow.querySelector("input[type=\\"checkbox\\"]");' +
+              'if (cb && !cb.checked) { cb.click(); }' +
+              // Look for absence type select and set "بدون عذر"
               'var cells = targetRow.querySelectorAll("td");' +
               'for (var j = 0; j < cells.length; j++) {' +
               '  var cell = cells[j];' +
@@ -1242,12 +1244,20 @@ function setupAjyalHandlers(mainWindow) {
               '  if (sel) {' +
               '    for (var k = 0; k < sel.options.length; k++) {' +
               '      var opt = sel.options[k];' +
-              '      if (opt.text.indexOf("غائب") !== -1 || opt.text.indexOf("غ") !== -1 || opt.value === "absent" || opt.value === "A") {' +
+              '      if (opt.text.indexOf("بدون عذر") !== -1 || opt.text.indexOf("غائب بدون عذر") !== -1 || opt.text.indexOf("غياب بدون عذر") !== -1) {' +
               '        sel.value = opt.value; sel.dispatchEvent(new Event("change", { bubbles: true })); return true;' +
+              '      }' +
+              '    }' +
+              // Fallback: any absence option
+              '    for (var k2 = 0; k2 < sel.options.length; k2++) {' +
+              '      var opt2 = sel.options[k2];' +
+              '      if (opt2.text.indexOf("غائب") !== -1 || opt2.text.indexOf("غ") !== -1 || opt2.value === "absent" || opt2.value === "A") {' +
+              '        sel.value = opt2.value; sel.dispatchEvent(new Event("change", { bubbles: true })); return true;' +
               '      }' +
               '    }' +
               '  }' +
               '}' +
+              'if (cb && cb.checked) return true;' +
               'return false;' +
               '})()'
             );
