@@ -6,11 +6,32 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Upload, Download, FileText, FileDown } from "lucide-react";
+import { Plus, Trash2, Upload, Download, FileText, FileDown, FileSpreadsheet } from "lucide-react";
 import type { StudentInfo } from "@/types/studentAbsence";
 import { CLASS_NAMES, SECONDARY_CLASSES } from "@/types/timetable";
 import { STUDENTS_LIST_KEY } from "@/types/studentAbsence";
 import { exportStudentListDocx, exportStudentListExcel } from "@/lib/exportStudentList";
+
+// Map Ajyal platform grade names to system grade names
+const AJYAL_GRADE_MAP: Record<string, string> = {
+  "الأول": "الأول", "الاول": "الأول",
+  "الثاني": "الثاني",
+  "الثالث": "الثالث",
+  "الرابع": "الرابع",
+  "الخامس": "الخامس",
+  "السادس": "السادس",
+  "السابع": "السابع",
+  "الثامن": "الثامن",
+  "التاسع": "التاسع",
+  "العاشر": "العاشر",
+  "الحادي عشر": "الحادي عشر",
+  "الثاني عشر": "الثاني عشر",
+};
+
+function mapAjyalGrade(raw: string): string {
+  const trimmed = raw.trim();
+  return AJYAL_GRADE_MAP[trimmed] || trimmed;
+}
 
 interface Props {
   userId: string;
@@ -126,6 +147,93 @@ export default function StudentManager({ userId, schoolName, directorateName }: 
       }
     };
     reader.readAsText(file);
+    e.target.value = "";
+  };
+
+  // Import from Ajyal Excel (.xls HTML format)
+  const importExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const html = ev.target?.result as string;
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, "text/html");
+        const rows = doc.querySelectorAll("table tr");
+        if (rows.length < 2) {
+          toast({ title: "الملف فارغ أو غير صالح", variant: "destructive" });
+          return;
+        }
+
+        // Find column indices from header row
+        const headers = Array.from(rows[0].querySelectorAll("th, td")).map(th => th.textContent?.trim() || "");
+        const colMap = {
+          fullName: headers.indexOf("الاسم الكامل"),
+          grade: headers.indexOf("الصف"),
+          branch: headers.indexOf("المرحلة / القسم / المسار"),
+          section: headers.indexOf("الشعبة"),
+          parentPhone: headers.indexOf("هاتف ولي الأمر"),
+          mainPhone: headers.indexOf("الهاتف الأساسي"),
+          studentPhone: headers.indexOf("رقم الهاتف"),
+        };
+
+        if (colMap.fullName === -1) {
+          toast({ title: "لم يتم العثور على عمود 'الاسم الكامل'", variant: "destructive" });
+          return;
+        }
+
+        const newStudents: StudentInfo[] = [];
+        const existingNames = new Set(students.map(s => `${s.name}_${s.className}`));
+
+        for (let i = 1; i < rows.length; i++) {
+          const cells = Array.from(rows[i].querySelectorAll("td"));
+          if (cells.length < 5) continue;
+
+          const fullName = cells[colMap.fullName]?.textContent?.trim() || "";
+          if (!fullName) continue;
+
+          const gradeRaw = colMap.grade !== -1 ? (cells[colMap.grade]?.textContent?.trim() || "") : "";
+          const grade = mapAjyalGrade(gradeRaw);
+          const sectionRaw = colMap.section !== -1 ? (cells[colMap.section]?.textContent?.trim() || "") : "";
+          const branchRaw = colMap.branch !== -1 ? (cells[colMap.branch]?.textContent?.trim() || "") : "";
+
+          // Build className matching system format
+          const isSecGrade = SECONDARY_CLASSES.includes(grade);
+          let builtClassName = "";
+          if (grade && sectionRaw) {
+            builtClassName = isSecGrade && branchRaw ? `${grade} ${branchRaw} ${sectionRaw}` : `${grade} ${sectionRaw}`;
+          }
+
+          // Get phone - prefer parent phone, fallback to main, then student
+          const phone = (colMap.parentPhone !== -1 ? cells[colMap.parentPhone]?.textContent?.trim() : "") ||
+                        (colMap.mainPhone !== -1 ? cells[colMap.mainPhone]?.textContent?.trim() : "") ||
+                        (colMap.studentPhone !== -1 ? cells[colMap.studentPhone]?.textContent?.trim() : "") ||
+                        "";
+
+          const key = `${fullName}_${builtClassName}`;
+          if (existingNames.has(key)) continue;
+          existingNames.add(key);
+
+          newStudents.push({
+            id: generateId(),
+            name: fullName,
+            className: builtClassName,
+            parentPhone: phone,
+          });
+        }
+
+        if (newStudents.length > 0) {
+          saveStudents([...students, ...newStudents]);
+          toast({ title: `تم استيراد ${newStudents.length} طالب من ملف أجيال` });
+        } else {
+          toast({ title: "لم يتم العثور على طلاب جدد (قد يكونون مسجلين مسبقاً)", variant: "destructive" });
+        }
+      } catch (err) {
+        toast({ title: "خطأ في قراءة الملف", variant: "destructive" });
+      }
+    };
+    reader.readAsText(file, "utf-8");
     e.target.value = "";
   };
 
