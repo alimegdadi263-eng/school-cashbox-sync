@@ -114,28 +114,34 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addTeacher = (teacher: Teacher) => {
-    const next = [...teachers, teacher];
-    setTeachers(next);
-    save(next, timetable, periodsPerDay);
+    setTeachers(prev => {
+      const next = [...prev, teacher];
+      save(next, timetable, periodsPerDay);
+      return next;
+    });
   };
 
   const updateTeacher = (teacher: Teacher) => {
-    const next = teachers.map(t => t.id === teacher.id ? teacher : t);
-    setTeachers(next);
-    save(next, timetable, periodsPerDay);
+    setTeachers(prev => {
+      const next = prev.map(t => t.id === teacher.id ? teacher : t);
+      save(next, timetable, periodsPerDay);
+      return next;
+    });
   };
 
   const removeTeacher = (id: string) => {
-    const next = teachers.filter(t => t.id !== id);
-    setTeachers(next);
     const newTT = { ...timetable };
     for (const key of Object.keys(newTT)) {
       newTT[key] = newTT[key].map(day =>
         day.map(cell => (cell && cell.teacherId === id ? null : cell))
       );
     }
-    setTimetableState(newTT);
-    save(next, newTT, periodsPerDay);
+    setTeachers(prev => {
+      const next = prev.filter(t => t.id !== id);
+      setTimetableState(newTT);
+      save(next, newTT, periodsPerDay);
+      return next;
+    });
   };
 
   const setTimetable = (tt: ClassTimetable) => {
