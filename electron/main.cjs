@@ -299,24 +299,31 @@ let ajyalActionInProgress = false;
 const AJYAL_NAV_MAP = {
   import: {
     steps: [
-      { action: 'click', targets: ['إدارة الطلبة', 'الطلبة', 'بيانات الطلبة', 'إدارة الطلاب', 'Students'], message: 'جاري الانتقال إلى قسم الطلاب...', wait: 2000 },
-      { action: 'click', targets: ['بيانات الطلبة', 'قائمة الطلبة', 'قائمة الطلاب', 'عرض الطلبة', 'Student List'], message: 'جاري فتح قائمة الطلبة...', wait: 2000 },
+      { action: 'click', targets: ['القوائم والخدمات', 'القوائم', 'الخدمات'], message: 'جاري فتح القوائم والخدمات...', wait: 2000 },
+      { action: 'click', targets: ['شؤون الطلبة', 'شئون الطلبة', 'إدارة الطلبة', 'الطلبة'], message: 'جاري الانتقال إلى شؤون الطلبة...', wait: 2000 },
     ],
     gradeLabels: ['الصف', 'المرحلة', 'الفصل', 'grade', 'class', 'Grade'],
     sectionLabels: ['الشعبة', 'القسم', 'الفرع', 'section', 'Section'],
-    searchButtons: ['بحث', 'عرض', 'Search', 'Show', 'إظهار', 'استعلام'],
-    searchTag: 'button, input[type="submit"], input[type="button"], a.btn, .btn',
+    searchButtons: ['بحث', 'عرض', 'Search', 'Show', 'إظهار', 'استعلام', 'تصدير'],
+    exportButtons: ['تصدير', 'Export', 'تنزيل', 'Download'],
+    searchTag: 'button, input[type="submit"], input[type="button"], a.btn, .btn, a',
     tableWait: 2500,
   },
   absence: {
     steps: [
-      { action: 'click', targets: ['الحضور والغياب', 'الغياب', 'Attendance', 'متابعة الحضور'], message: 'جاري الانتقال إلى قسم الغياب...', wait: 2000 },
-      { action: 'click', targets: ['تسجيل الغياب', 'متابعة الغياب', 'رصد الغياب', 'Absence', 'تسجيل الحضور والغياب'], message: 'جاري فتح صفحة تسجيل الغياب...', wait: 2000 },
+      { action: 'click', targets: ['القوائم والخدمات', 'القوائم', 'الخدمات'], message: 'جاري فتح القوائم والخدمات...', wait: 2000 },
+      { action: 'click', targets: ['الانضباط المدرسي', 'الغياب', 'الحضور والغياب'], message: 'جاري الانتقال إلى الانضباط المدرسي...', wait: 2000 },
+      { action: 'click', targets: ['ادخال الانضباط المدرسي', 'إدخال الانضباط', 'تسجيل الغياب', 'رصد الغياب'], message: 'جاري فتح إدخال الانضباط المدرسي...', wait: 2000 },
     ],
+    confirmSteps: [
+      { action: 'click', targets: ['الانضباط المدرسي', 'الغياب'], message: 'جاري العودة إلى الانضباط المدرسي...', wait: 2000 },
+      { action: 'click', targets: ['تأكيد الانتهاء من الغياب', 'تأكيد الانتهاء', 'تأكيد', 'حفظ'], message: 'جاري تأكيد الانتهاء من الغياب...', wait: 2000 },
+    ],
+    absenceType: ['بدون عذر', 'غائب بدون عذر', 'غياب بدون عذر'],
     gradeLabels: ['الصف', 'المرحلة', 'الفصل', 'grade', 'class', 'Grade'],
     sectionLabels: ['الشعبة', 'القسم', 'الفرع', 'section', 'Section'],
     searchButtons: ['عرض الطلبة', 'عرض', 'بحث', 'Show', 'Search', 'إظهار'],
-    searchTag: 'button, input[type="submit"], input[type="button"], a.btn, .btn',
+    searchTag: 'button, input[type="submit"], input[type="button"], a.btn, .btn, a',
     tableWait: 2500,
   },
 };
@@ -1226,8 +1233,10 @@ function setupAjyalHandlers(mainWindow) {
               '  }' +
               '}' +
               'if (!targetRow) return false;' +
-              'var cb = targetRow.querySelector("input[type=\\"checkbox\\"], input[type=\\"radio\\"]");' +
-              'if (cb && !cb.checked) { cb.click(); return true; }' +
+              // First try checkbox (mark student as present for attendance, then we select absence type)
+              'var cb = targetRow.querySelector("input[type=\\"checkbox\\"]");' +
+              'if (cb && !cb.checked) { cb.click(); }' +
+              // Look for absence type select and set "بدون عذر"
               'var cells = targetRow.querySelectorAll("td");' +
               'for (var j = 0; j < cells.length; j++) {' +
               '  var cell = cells[j];' +
@@ -1235,12 +1244,20 @@ function setupAjyalHandlers(mainWindow) {
               '  if (sel) {' +
               '    for (var k = 0; k < sel.options.length; k++) {' +
               '      var opt = sel.options[k];' +
-              '      if (opt.text.indexOf("غائب") !== -1 || opt.text.indexOf("غ") !== -1 || opt.value === "absent" || opt.value === "A") {' +
+              '      if (opt.text.indexOf("بدون عذر") !== -1 || opt.text.indexOf("غائب بدون عذر") !== -1 || opt.text.indexOf("غياب بدون عذر") !== -1) {' +
               '        sel.value = opt.value; sel.dispatchEvent(new Event("change", { bubbles: true })); return true;' +
+              '      }' +
+              '    }' +
+              // Fallback: any absence option
+              '    for (var k2 = 0; k2 < sel.options.length; k2++) {' +
+              '      var opt2 = sel.options[k2];' +
+              '      if (opt2.text.indexOf("غائب") !== -1 || opt2.text.indexOf("غ") !== -1 || opt2.value === "absent" || opt2.value === "A") {' +
+              '        sel.value = opt2.value; sel.dispatchEvent(new Event("change", { bubbles: true })); return true;' +
               '      }' +
               '    }' +
               '  }' +
               '}' +
+              'if (cb && cb.checked) return true;' +
               'return false;' +
               '})()'
             );
@@ -1260,8 +1277,20 @@ function setupAjyalHandlers(mainWindow) {
         }
       }
 
+      // Confirmation step: navigate back and confirm absence completion
+      if (totalMarked > 0 && nav.confirmSteps) {
+        sendProgress('جاري تأكيد الانتهاء من الغياب...');
+        await updateToolbarStatus('loading', 'جاري تأكيد الانتهاء من الغياب...');
+        for (const step of nav.confirmSteps) {
+          sendProgress(step.message);
+          await ajyalExec(clickByTextJS(step.targets));
+          await ajyalWait(step.wait);
+        }
+        sendProgress('تم تأكيد الانتهاء من الغياب ✓');
+      }
+
       report.totalMarked = totalMarked;
-      const successMsg = '✅ تم تعبئة ' + totalMarked + ' غياب - اضغط حفظ في أجيال';
+      const successMsg = '✅ تم تعبئة ' + totalMarked + ' غياب وتأكيد الانتهاء';
       await updateToolbarStatus('success', successMsg);
       sendProgress(successMsg);
       await showButtonFeedback('btn-submit-absence', totalMarked > 0);
