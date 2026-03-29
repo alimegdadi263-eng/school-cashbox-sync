@@ -17,12 +17,12 @@ import {
 const COLORS = [
   "hsl(var(--primary))",
   "hsl(var(--chart-2))",
-  "#f59e0b",
-  "#10b981",
-  "#6366f1",
-  "#ec4899",
-  "#14b8a6",
-  "#f97316",
+  "hsl(var(--accent))",
+  "hsl(var(--success))",
+  "hsl(var(--secondary-foreground))",
+  "hsl(var(--muted-foreground))",
+  "hsl(var(--ring))",
+  "hsl(var(--foreground))",
 ];
 
 export default function TimetableStatistics() {
@@ -95,6 +95,11 @@ export default function TimetableStatistics() {
   }));
 
   const allSubjects = Array.from(new Set(classStats.flatMap(cs => Object.keys(cs.subjects)))).sort();
+  const subjectTotals = allSubjects.reduce<Record<string, number>>((acc, subject) => {
+    acc[subject] = classStats.reduce((sum, row) => sum + (row.subjects[subject] || 0), 0);
+    return acc;
+  }, {});
+  const grandTotal = classStats.reduce((sum, row) => sum + row.total, 0);
 
   return (
     <Card>
@@ -167,6 +172,15 @@ export default function TimetableStatistics() {
                       <TableCell className="text-center font-bold bg-muted">{cs.total}</TableCell>
                     </TableRow>
                   ))}
+                  <TableRow className="bg-muted/60 font-bold">
+                    <TableCell>مجموع حصص المواد</TableCell>
+                    {allSubjects.map(s => (
+                      <TableCell key={s} className="text-center">
+                        {subjectTotals[s] || "-"}
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-center bg-secondary text-secondary-foreground">{grandTotal}</TableCell>
+                  </TableRow>
                 </TableBody>
               </Table>
             </div>
@@ -206,7 +220,7 @@ export default function TimetableStatistics() {
                       {ts.dailyCounts.map((c, i) => (
                         <TableCell
                           key={i}
-                          className={`text-center ${c === ts.leastDayCount ? "bg-green-100 dark:bg-green-900/30 font-bold" : ""}`}
+                          className={`text-center ${c === ts.leastDayCount ? "bg-success/15 text-success font-bold" : ""}`}
                         >
                           {c}
                         </TableCell>
@@ -241,7 +255,7 @@ export default function TimetableStatistics() {
                       <p className="text-xs text-muted-foreground text-center">لا يوجد</p>
                     ) : (
                       dl.teachers.map((t, i) => (
-                        <div key={t.teacher.id} className={`text-xs p-1.5 rounded ${i === 0 ? "bg-green-100 dark:bg-green-900/30 font-medium" : "bg-muted"}`}>
+                        <div key={t.teacher.id} className={`text-xs p-1.5 rounded ${i === 0 ? "bg-success/15 text-success font-medium" : "bg-muted"}`}>
                           {t.teacher.name} ({t.count} حصص)
                         </div>
                       ))
