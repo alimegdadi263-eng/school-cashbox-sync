@@ -1277,8 +1277,20 @@ function setupAjyalHandlers(mainWindow) {
         }
       }
 
+      // Confirmation step: navigate back and confirm absence completion
+      if (totalMarked > 0 && nav.confirmSteps) {
+        sendProgress('جاري تأكيد الانتهاء من الغياب...');
+        await updateToolbarStatus('loading', 'جاري تأكيد الانتهاء من الغياب...');
+        for (const step of nav.confirmSteps) {
+          sendProgress(step.message);
+          await ajyalExec(clickByTextJS(step.targets));
+          await ajyalWait(step.wait);
+        }
+        sendProgress('تم تأكيد الانتهاء من الغياب ✓');
+      }
+
       report.totalMarked = totalMarked;
-      const successMsg = '✅ تم تعبئة ' + totalMarked + ' غياب - اضغط حفظ في أجيال';
+      const successMsg = '✅ تم تعبئة ' + totalMarked + ' غياب وتأكيد الانتهاء';
       await updateToolbarStatus('success', successMsg);
       sendProgress(successMsg);
       await showButtonFeedback('btn-submit-absence', totalMarked > 0);
