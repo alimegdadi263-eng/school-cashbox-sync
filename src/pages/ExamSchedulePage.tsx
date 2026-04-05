@@ -344,7 +344,10 @@ export default function ExamSchedulePage() {
               </div>
               <div className="flex items-end gap-2">
                 <Button onClick={generateSchedule} disabled={!selectedClass || !startDate} className="flex-1">
-                  توليد تلقائي من المواد
+                  توليد للصف المحدد
+                </Button>
+                <Button onClick={generateAllSchedules} disabled={!startDate} variant="secondary" className="flex-1">
+                  توليد لجميع الصفوف
                 </Button>
               </div>
             </div>
