@@ -31,6 +31,7 @@ export default function TimetableStatistics() {
   const { teachers, timetable, periodsPerDay, getTeacherSchedule } = useTimetable();
   const { schoolName } = useAuth();
   const school = schoolName || "المدرسة";
+  const [excludedTeacherIds, setExcludedTeacherIds] = useState<string[]>([]);
 
   if (Object.keys(timetable).length === 0) return null;
 
