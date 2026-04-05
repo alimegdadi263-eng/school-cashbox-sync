@@ -80,10 +80,12 @@ export default function TimetableStatistics() {
 
   // --- جدول أشغال يومي ---
   const dailyLeastBusy = DAYS.map((dayName, dayIdx) => {
-    const teacherDayCounts = teachers.map(t => {
-      const count = getTeacherSchedule(t.id).filter(s => s.day === dayIdx).length;
-      return { teacher: t, count };
-    }).filter(x => x.count > 0).sort((a, b) => a.count - b.count);
+    const teacherDayCounts = teachers
+      .filter(t => !excludedTeacherIds.includes(t.id))
+      .map(t => {
+        const count = getTeacherSchedule(t.id).filter(s => s.day === dayIdx).length;
+        return { teacher: t, count };
+      }).filter(x => x.count > 0).sort((a, b) => a.count - b.count);
 
     return {
       day: dayName,
