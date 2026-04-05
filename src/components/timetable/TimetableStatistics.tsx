@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { useTimetable } from "@/context/TimetableContext";
 import { parseClassKey, DAYS } from "@/types/timetable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Download, FileSpreadsheet } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
