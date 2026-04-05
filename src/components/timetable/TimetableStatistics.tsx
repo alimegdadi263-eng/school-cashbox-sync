@@ -238,7 +238,7 @@ export default function TimetableStatistics() {
           </TabsContent>
 
           {/* أشغال يومية */}
-          <TabsContent value="daily">
+          <TabsContent value="daily" className="space-y-4">
             <div className="flex justify-end mb-3">
               <Button
                 size="sm"
@@ -248,6 +248,32 @@ export default function TimetableStatistics() {
                 <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel
               </Button>
             </div>
+
+            {/* Exclusion checkboxes */}
+            <div className="border rounded-lg p-3 space-y-2">
+              <p className="text-sm font-semibold">استثناء معلمين من القائمة:</p>
+              <div className="flex flex-wrap gap-3">
+                {teachers.map(t => (
+                  <label key={t.id} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                    <Checkbox
+                      checked={excludedTeacherIds.includes(t.id)}
+                      onCheckedChange={() =>
+                        setExcludedTeacherIds(prev =>
+                          prev.includes(t.id) ? prev.filter(x => x !== t.id) : [...prev, t.id]
+                        )
+                      }
+                    />
+                    {t.name}
+                  </label>
+                ))}
+              </div>
+              {excludedTeacherIds.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  تم استثناء {excludedTeacherIds.length} معلم من قائمة الأقل حصصاً
+                </p>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
               {dailyLeastBusy.map(dl => (
                 <Card key={dl.dayIdx} className="border">
