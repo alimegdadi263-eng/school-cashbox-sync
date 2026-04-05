@@ -96,7 +96,7 @@ export default function ExamSchedulePage() {
     saveSchedules(userId, updated);
   }, [userId]);
 
-  // Auto-generate schedule from start date
+  // Auto-generate schedule from start date for one class
   const generateSchedule = () => {
     if (!startDate || !selectedClass || classSubjects.length === 0) {
       toast({ title: "اختر الصف وتاريخ البداية أولاً", variant: "destructive" });
@@ -107,7 +107,6 @@ export default function ExamSchedulePage() {
     let currentDate = new Date(startDate);
 
     for (const subject of classSubjects) {
-      // Skip Friday and Saturday
       while (currentDate.getDay() === 5 || currentDate.getDay() === 6) {
         currentDate = addDays(currentDate, 1);
       }
@@ -127,6 +126,58 @@ export default function ExamSchedulePage() {
     newSchedules.push({ classKey: selectedClass, examType: activeExamType, entries });
     updateSchedules(newSchedules);
     toast({ title: "تم توليد جدول الامتحانات" });
+  };
+
+  // Auto-generate for ALL classes and ALL exam types
+  const generateAllSchedules = () => {
+    if (!startDate) {
+      toast({ title: "اختر تاريخ البداية أولاً", variant: "destructive" });
+      return;
+    }
+
+    let newSchedules = [...schedules];
+    let totalGenerated = 0;
+
+    for (const examType of EXAM_TYPES) {
+      for (const classKey of classKeys) {
+        // Get subjects for this class
+        const subs = new Set<string>();
+        teachers.forEach(t => {
+          t.subjects.forEach(s => {
+            const key = `${s.className}-${s.section}`;
+            if (key === classKey) subs.add(s.subjectName);
+          });
+        });
+        const subjects = Array.from(subs);
+        if (subjects.length === 0) continue;
+
+        const entries: ExamEntry[] = [];
+        let currentDate = new Date(startDate);
+
+        for (const subject of subjects) {
+          while (currentDate.getDay() === 5 || currentDate.getDay() === 6) {
+            currentDate = addDays(currentDate, 1);
+          }
+          const dateStr = format(currentDate, "yyyy-MM-dd");
+          entries.push({
+            id: Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
+            subjectName: subject,
+            date: dateStr,
+            dayName: getDayName(dateStr),
+          });
+          currentDate = addDays(currentDate, 1);
+        }
+
+        newSchedules = newSchedules.filter(
+          s => !(s.classKey === classKey && s.examType === examType.id)
+        );
+        newSchedules.push({ classKey, examType: examType.id, entries });
+        totalGenerated++;
+      }
+    }
+
+    updateSchedules(newSchedules);
+    toast({ title: `تم توليد ${totalGenerated} جدول امتحانات لجميع الصفوف والأنواع` });
   };
 
   // Add empty entry
@@ -293,7 +344,10 @@ export default function ExamSchedulePage() {
               </div>
               <div className="flex items-end gap-2">
                 <Button onClick={generateSchedule} disabled={!selectedClass || !startDate} className="flex-1">
-                  توليد تلقائي من المواد
+                  توليد للصف المحدد
+                </Button>
+                <Button onClick={generateAllSchedules} disabled={!startDate} variant="secondary" className="flex-1">
+                  توليد لجميع الصفوف
                 </Button>
               </div>
             </div>

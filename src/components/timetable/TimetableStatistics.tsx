@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { useTimetable } from "@/context/TimetableContext";
 import { parseClassKey, DAYS } from "@/types/timetable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Download, FileSpreadsheet } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,6 +31,7 @@ export default function TimetableStatistics() {
   const { teachers, timetable, periodsPerDay, getTeacherSchedule } = useTimetable();
   const { schoolName } = useAuth();
   const school = schoolName || "المدرسة";
+  const [excludedTeacherIds, setExcludedTeacherIds] = useState<string[]>([]);
 
   if (Object.keys(timetable).length === 0) return null;
 
@@ -77,10 +80,12 @@ export default function TimetableStatistics() {
 
   // --- جدول أشغال يومي ---
   const dailyLeastBusy = DAYS.map((dayName, dayIdx) => {
-    const teacherDayCounts = teachers.map(t => {
-      const count = getTeacherSchedule(t.id).filter(s => s.day === dayIdx).length;
-      return { teacher: t, count };
-    }).filter(x => x.count > 0).sort((a, b) => a.count - b.count);
+    const teacherDayCounts = teachers
+      .filter(t => !excludedTeacherIds.includes(t.id))
+      .map(t => {
+        const count = getTeacherSchedule(t.id).filter(s => s.day === dayIdx).length;
+        return { teacher: t, count };
+      }).filter(x => x.count > 0).sort((a, b) => a.count - b.count);
 
     return {
       day: dayName,
@@ -233,7 +238,7 @@ export default function TimetableStatistics() {
           </TabsContent>
 
           {/* أشغال يومية */}
-          <TabsContent value="daily">
+          <TabsContent value="daily" className="space-y-4">
             <div className="flex justify-end mb-3">
               <Button
                 size="sm"
@@ -243,6 +248,32 @@ export default function TimetableStatistics() {
                 <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel
               </Button>
             </div>
+
+            {/* Exclusion checkboxes */}
+            <div className="border rounded-lg p-3 space-y-2">
+              <p className="text-sm font-semibold">استثناء معلمين من القائمة:</p>
+              <div className="flex flex-wrap gap-3">
+                {teachers.map(t => (
+                  <label key={t.id} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                    <Checkbox
+                      checked={excludedTeacherIds.includes(t.id)}
+                      onCheckedChange={() =>
+                        setExcludedTeacherIds(prev =>
+                          prev.includes(t.id) ? prev.filter(x => x !== t.id) : [...prev, t.id]
+                        )
+                      }
+                    />
+                    {t.name}
+                  </label>
+                ))}
+              </div>
+              {excludedTeacherIds.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  تم استثناء {excludedTeacherIds.length} معلم من قائمة الأقل حصصاً
+                </p>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
               {dailyLeastBusy.map(dl => (
                 <Card key={dl.dayIdx} className="border">
