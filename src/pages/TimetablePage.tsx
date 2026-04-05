@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import AppLayout from "@/components/AppLayout";
 import TeacherManager from "@/components/timetable/TeacherManager";
 import TimetableGrid from "@/components/timetable/TimetableGrid";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Wand2, Trash2, FileSpreadsheet, FileText, Download } from "lucide-react";
+import { Wand2, Trash2, FileSpreadsheet, FileText, Download, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { parseClassKey } from "@/types/timetable";
 import {
@@ -37,6 +37,7 @@ export default function TimetablePage() {
 
   const [exportClassKey, setExportClassKey] = useState("");
   const [exportTeacherId, setExportTeacherId] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   const handleGenerate = () => {
     if (teachers.length === 0) {
@@ -53,6 +54,23 @@ export default function TimetablePage() {
   };
 
   const school = schoolName || "المدرسة";
+
+  const safeExport = useCallback(async (label: string, fn: () => Promise<void> | void) => {
+    if (exporting) return;
+    setExporting(true);
+    toast({ title: `جاري تصدير ${label}...` });
+    try {
+      // Use setTimeout to let UI update before heavy processing
+      await new Promise(resolve => setTimeout(resolve, 50));
+      await fn();
+      toast({ title: `تم تصدير ${label} بنجاح ✅` });
+    } catch (err: any) {
+      console.error("Export error:", err);
+      toast({ title: `فشل التصدير: ${err?.message || "خطأ غير معروف"}`, variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  }, [exporting]);
 
   return (
     <AppLayout>
@@ -101,7 +119,10 @@ export default function TimetablePage() {
         {Object.keys(timetable).length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">تصدير الجداول</CardTitle>
+              <CardTitle className="text-lg flex items-center gap-2">
+                تصدير الجداول
+                {exporting && <Loader2 className="w-4 h-4 animate-spin" />}
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Export single class */}
@@ -120,15 +141,15 @@ export default function TimetablePage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button size="sm" disabled={!exportClassKey} onClick={() => {
+                <Button size="sm" disabled={!exportClassKey || exporting} onClick={() => {
                   if (exportClassKey && timetable[exportClassKey])
-                    exportClassTimetableExcel(exportClassKey, timetable[exportClassKey], periodsPerDay, school);
+                    safeExport("جدول الصف", () => exportClassTimetableExcel(exportClassKey, timetable[exportClassKey], periodsPerDay, school));
                 }}>
                   <FileSpreadsheet className="w-4 h-4 ml-1" /> Excel
                 </Button>
-                <Button size="sm" variant="outline" disabled={!exportClassKey} onClick={() => {
+                <Button size="sm" variant="outline" disabled={!exportClassKey || exporting} onClick={() => {
                   if (exportClassKey && timetable[exportClassKey])
-                    exportClassTimetableDocx(exportClassKey, timetable[exportClassKey], periodsPerDay, school);
+                    safeExport("جدول الصف", () => exportClassTimetableDocx(exportClassKey, timetable[exportClassKey], periodsPerDay, school));
                 }}>
                   <FileText className="w-4 h-4 ml-1" /> Word
                 </Button>
@@ -149,15 +170,15 @@ export default function TimetablePage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button size="sm" disabled={!exportTeacherId} onClick={() => {
+                <Button size="sm" disabled={!exportTeacherId || exporting} onClick={() => {
                   const t = teachers.find(x => x.id === exportTeacherId);
-                  if (t) exportTeacherTimetableExcel(t, timetable, periodsPerDay, school);
+                  if (t) safeExport("جدول المعلم", () => exportTeacherTimetableExcel(t, timetable, periodsPerDay, school));
                 }}>
                   <FileSpreadsheet className="w-4 h-4 ml-1" /> Excel
                 </Button>
-                <Button size="sm" variant="outline" disabled={!exportTeacherId} onClick={() => {
+                <Button size="sm" variant="outline" disabled={!exportTeacherId || exporting} onClick={() => {
                   const t = teachers.find(x => x.id === exportTeacherId);
-                  if (t) exportTeacherTimetableDocx(t, timetable, periodsPerDay, school);
+                  if (t) safeExport("جدول المعلم", () => exportTeacherTimetableDocx(t, timetable, periodsPerDay, school));
                 }}>
                   <FileText className="w-4 h-4 ml-1" /> Word
                 </Button>
@@ -165,11 +186,11 @@ export default function TimetablePage() {
 
               {/* Export full school */}
               <div className="flex flex-wrap gap-3 border-b border-border pb-4">
-                <Button onClick={() => exportFullSchoolTimetableExcel(timetable, periodsPerDay, school)}>
+                <Button disabled={exporting} onClick={() => safeExport("الجدول الكامل", () => exportFullSchoolTimetableExcel(timetable, periodsPerDay, school))}>
                   <Download className="w-4 h-4 ml-2" />
                   تصدير الجدول الكامل (Excel)
                 </Button>
-                <Button variant="outline" onClick={() => exportFullSchoolTimetableDocx(timetable, periodsPerDay, school)}>
+                <Button variant="outline" disabled={exporting} onClick={() => safeExport("الجدول الكامل", () => exportFullSchoolTimetableDocx(timetable, periodsPerDay, school))}>
                   <Download className="w-4 h-4 ml-2" />
                   تصدير الجدول الكامل (Word)
                 </Button>
@@ -177,11 +198,11 @@ export default function TimetablePage() {
 
               {/* Export Malhafa */}
               <div className="flex flex-wrap gap-3 border-b border-border pb-4">
-                <Button className="bg-amber-700 hover:bg-amber-800 text-white" onClick={() => exportMalhafaExcel(timetable, periodsPerDay, school)}>
+                <Button className="bg-amber-700 hover:bg-amber-800 text-white" disabled={exporting} onClick={() => safeExport("الملحفة", () => exportMalhafaExcel(timetable, periodsPerDay, school))}>
                   <FileSpreadsheet className="w-4 h-4 ml-2" />
                   تصدير الملحفة (Excel)
                 </Button>
-                <Button variant="outline" className="border-amber-700 text-amber-700 hover:bg-amber-50" onClick={() => exportMalhafaDocx(timetable, periodsPerDay, school)}>
+                <Button variant="outline" className="border-amber-700 text-amber-700 hover:bg-amber-50" disabled={exporting} onClick={() => safeExport("الملحفة", () => exportMalhafaDocx(timetable, periodsPerDay, school))}>
                   <FileText className="w-4 h-4 ml-2" />
                   تصدير الملحفة (Word)
                 </Button>
@@ -189,11 +210,11 @@ export default function TimetablePage() {
 
               {/* Export Malhafa Transposed */}
               <div className="flex flex-wrap gap-3">
-                <Button className="bg-teal-700 hover:bg-teal-800 text-white" onClick={() => exportMalhafaTransposedExcel(timetable, periodsPerDay, school)}>
+                <Button className="bg-teal-700 hover:bg-teal-800 text-white" disabled={exporting} onClick={() => safeExport("الملحفة المعكوسة", () => exportMalhafaTransposedExcel(timetable, periodsPerDay, school))}>
                   <FileSpreadsheet className="w-4 h-4 ml-2" />
                   ملحفة معكوسة (Excel)
                 </Button>
-                <Button variant="outline" className="border-teal-700 text-teal-700 hover:bg-teal-50" onClick={() => exportMalhafaTransposedDocx(timetable, periodsPerDay, school)}>
+                <Button variant="outline" className="border-teal-700 text-teal-700 hover:bg-teal-50" disabled={exporting} onClick={() => safeExport("الملحفة المعكوسة", () => exportMalhafaTransposedDocx(timetable, periodsPerDay, school))}>
                   <FileText className="w-4 h-4 ml-2" />
                   ملحفة معكوسة (Word)
                 </Button>
@@ -201,7 +222,7 @@ export default function TimetablePage() {
 
               {/* Export Teacher Workload */}
               <div className="flex flex-wrap gap-3">
-                <Button className="bg-indigo-700 hover:bg-indigo-800 text-white" onClick={() => exportTeacherWorkloadExcel(teachers, timetable, periodsPerDay, school)}>
+                <Button className="bg-indigo-700 hover:bg-indigo-800 text-white" disabled={exporting} onClick={() => safeExport("كشف الأنصبة", () => exportTeacherWorkloadExcel(teachers, timetable, periodsPerDay, school))}>
                   <FileSpreadsheet className="w-4 h-4 ml-2" />
                   كشف أنصبة المعلمين (Excel)
                 </Button>
