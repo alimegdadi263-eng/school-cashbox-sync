@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTimetable } from "@/context/TimetableContext";
 import { DAYS, parseClassKey } from "@/types/timetable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,12 +20,31 @@ interface StagingDragItem {
 
 type DragSource = DragItem | StagingDragItem;
 
+// Distinct colors for teachers (HSL-based for good contrast)
+const TEACHER_COLORS = [
+  "hsl(210 80% 90%)", "hsl(340 70% 90%)", "hsl(120 60% 88%)", "hsl(45 80% 88%)",
+  "hsl(270 60% 90%)", "hsl(180 60% 88%)", "hsl(15 80% 90%)", "hsl(200 70% 85%)",
+  "hsl(330 60% 88%)", "hsl(90 60% 85%)", "hsl(60 70% 88%)", "hsl(240 50% 90%)",
+  "hsl(0 70% 90%)", "hsl(160 60% 88%)", "hsl(300 50% 90%)", "hsl(30 70% 88%)",
+  "hsl(220 60% 88%)", "hsl(350 60% 88%)", "hsl(140 50% 88%)", "hsl(50 60% 88%)",
+  "hsl(280 50% 90%)", "hsl(190 60% 85%)", "hsl(10 60% 88%)", "hsl(100 50% 88%)",
+];
+
 export default function MalhafaView() {
-  const { timetable, periodsPerDay, getAllClassKeys, swapCells, unplacedPeriods, placeFromStaging } = useTimetable();
+  const { timetable, periodsPerDay, getAllClassKeys, swapCells, unplacedPeriods, placeFromStaging, teachers } = useTimetable();
   const classKeys = getAllClassKeys();
 
   const [dragSource, setDragSource] = useState<DragSource | null>(null);
   const [dragOver, setDragOver] = useState<{ classKey: string; day: number; period: number } | null>(null);
+
+  // Build teacher→color map
+  const teacherColorMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    teachers.forEach((t, idx) => {
+      map[t.id] = TEACHER_COLORS[idx % TEACHER_COLORS.length];
+    });
+    return map;
+  }, [teachers]);
 
   if (Object.keys(timetable).length === 0) return null;
 
@@ -33,12 +52,10 @@ export default function MalhafaView() {
     if (!dragSource) return;
 
     if (dragSource.type === "staging") {
-      // Place from staging area
       const ok = placeFromStaging(dragSource.stagingIdx, targetClassKey, targetDay, targetPeriod);
       if (ok) toast({ title: "تم وضع الحصة بنجاح!" });
       else toast({ title: "لا يمكن وضع الحصة هنا - تعارض أو خطأ!", variant: "destructive" });
     } else {
-      // Swap within same class & day
       if (dragSource.classKey === targetClassKey && dragSource.day === targetDay) {
         const ok = swapCells(targetClassKey, targetDay, dragSource.period, targetPeriod);
         if (ok) toast({ title: "تم التبديل بنجاح!" });
@@ -93,6 +110,7 @@ export default function MalhafaView() {
                           const cell = days[di]?.[pi];
                           const isDragOverCell = dragOver?.classKey === ck && dragOver?.day === di && dragOver?.period === pi;
                           const isDragSourceCell = dragSource?.type === "cell" && dragSource?.classKey === ck && dragSource?.day === di && dragSource?.period === pi;
+                          const bgColor = cell?.teacherId ? teacherColorMap[cell.teacherId] : undefined;
                           return (
                             <td
                               key={`${di}-${pi}`}
@@ -102,16 +120,17 @@ export default function MalhafaView() {
                               onDragLeave={() => setDragOver(null)}
                               onDrop={(e) => { e.preventDefault(); handleDrop(ck, di, pi); }}
                               onDragEnd={() => { setDragSource(null); setDragOver(null); }}
+                              style={bgColor && !isDragOverCell && !isDragSourceCell ? { backgroundColor: bgColor } : undefined}
                               className={`border border-border p-0.5 text-center cursor-grab min-w-[60px] transition-colors
                                 ${isDragOverCell ? "bg-accent/40 ring-1 ring-accent" : ""}
                                 ${isDragSourceCell ? "opacity-50 bg-primary/10" : ""}
-                                ${!isDragOverCell && !isDragSourceCell ? "hover:bg-accent/10" : ""}
+                                ${!isDragOverCell && !isDragSourceCell && !bgColor ? "hover:bg-accent/10" : ""}
                               `}
                             >
                               {cell ? (
                                 <div className="leading-tight">
                                   <div className="font-semibold truncate">{cell.subjectName}</div>
-                                  <div className="text-muted-foreground text-[8px] truncate">{cell.teacherName}</div>
+                                  <div className="text-[8px] truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{cell.teacherName}</div>
                                 </div>
                               ) : (
                                 <span className="text-muted-foreground/30">-</span>
