@@ -805,10 +805,26 @@ function setupAjyalHandlers(mainWindow) {
     await updateToolbarStatus('idle', 'حدد الصفوف المطلوبة ثم اضغط تنفيذ');
   }
 
-  // Helper: normalize Arabic text
+  // Helper: normalize Arabic text + visual highlight
   const normalizeArabicJS = `
     function normalizeArabic(text) {
       return (text || '').replace(/[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06DC\\u06DF-\\u06E4\\u06E7\\u06E8\\u06EA-\\u06ED]/g, '').replace(/\\s+/g, ' ').trim();
+    }
+    function highlightElement(el) {
+      if (!el) return;
+      var prev = el.style.cssText;
+      el.style.outline = '3px solid #f59e0b';
+      el.style.outlineOffset = '2px';
+      el.style.boxShadow = '0 0 20px rgba(245,158,11,0.5)';
+      el.style.transition = 'all 0.3s ease';
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(function() {
+        el.style.outline = '3px solid #22c55e';
+        el.style.boxShadow = '0 0 20px rgba(34,197,94,0.5)';
+        setTimeout(function() {
+          el.style.cssText = prev;
+        }, 1200);
+      }, 800);
     }
   `;
 
