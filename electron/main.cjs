@@ -1288,7 +1288,8 @@ function setupAjyalHandlers(mainWindow) {
             if (marked) {
               classMarked++;
               totalMarked++;
-              sendProgress('تم تسجيل غياب: ' + record.studentName + ' ✓');
+              sendProgress('✓ تم تسجيل غياب: ' + record.studentName + ' (' + totalMarked + ' إجمالي)');
+              await ajyalWait(600); // Wait so user can see each student being marked
             } else {
               classNotFound.push(record.studentName);
               sendProgress('⚠️ لم يُعثر على: ' + record.studentName);
