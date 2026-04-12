@@ -910,6 +910,7 @@ function setupAjyalHandlers(mainWindow) {
 
   const setSelectValueJS = (selectTexts, value) => `
     (function() {
+      ${normalizeArabicJS}
       const selectors = ${JSON.stringify(selectTexts)};
       const selects = document.querySelectorAll('select');
       for (const sel of selects) {
@@ -918,6 +919,7 @@ function setupAjyalHandlers(mainWindow) {
           if (label.includes(s) || sel.name?.includes(s) || sel.id?.includes(s)) {
             sel.value = '${value}';
             sel.dispatchEvent(new Event('change', { bubbles: true }));
+            highlightElement(sel);
             return { selected: true };
           }
         }
