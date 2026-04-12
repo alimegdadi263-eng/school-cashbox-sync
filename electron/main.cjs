@@ -1021,7 +1021,7 @@ function setupAjyalHandlers(mainWindow) {
           await updateToolbarStatus('loading', statusMsg);
           sendProgress('جاري اختيار الصف: ' + grade.text + '...');
           await ajyalExec(setSelectValueJS(nav.gradeLabels, grade.value));
-          await ajyalWait(1000);
+          await ajyalWait(1500);
 
           const currentSections = await ajyalExec(getSelectOptionsJS(nav.sectionLabels));
 
