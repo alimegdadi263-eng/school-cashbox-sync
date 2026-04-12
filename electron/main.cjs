@@ -805,10 +805,26 @@ function setupAjyalHandlers(mainWindow) {
     await updateToolbarStatus('idle', 'حدد الصفوف المطلوبة ثم اضغط تنفيذ');
   }
 
-  // Helper: normalize Arabic text
+  // Helper: normalize Arabic text + visual highlight
   const normalizeArabicJS = `
     function normalizeArabic(text) {
       return (text || '').replace(/[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06DC\\u06DF-\\u06E4\\u06E7\\u06E8\\u06EA-\\u06ED]/g, '').replace(/\\s+/g, ' ').trim();
+    }
+    function highlightElement(el) {
+      if (!el) return;
+      var prev = el.style.cssText;
+      el.style.outline = '3px solid #f59e0b';
+      el.style.outlineOffset = '2px';
+      el.style.boxShadow = '0 0 20px rgba(245,158,11,0.5)';
+      el.style.transition = 'all 0.3s ease';
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(function() {
+        el.style.outline = '3px solid #22c55e';
+        el.style.boxShadow = '0 0 20px rgba(34,197,94,0.5)';
+        setTimeout(function() {
+          el.style.cssText = prev;
+        }, 1200);
+      }, 800);
     }
   `;
 
@@ -821,6 +837,7 @@ function setupAjyalHandlers(mainWindow) {
         const t = normalizeArabic(el.textContent);
         for (const target of targets) {
           if (t === target || t.includes(target)) {
+            highlightElement(el);
             el.click();
             el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
             return { clicked: true, text: t };
@@ -831,6 +848,7 @@ function setupAjyalHandlers(mainWindow) {
         const t = normalizeArabic(el.textContent);
         for (const target of targets) {
           if (target.length >= 3 && t.includes(target.substring(0, Math.min(target.length, 6)))) {
+            highlightElement(el);
             el.click();
             el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
             return { clicked: true, text: t, partial: true };
@@ -844,7 +862,7 @@ function setupAjyalHandlers(mainWindow) {
         for (const link of links) {
           const href = link.getAttribute('href') || '';
           for (const pattern of patterns) {
-            if (href.includes(pattern)) { link.click(); return { clicked: true, text: link.textContent.trim(), href: true }; }
+            if (href.includes(pattern)) { highlightElement(link); link.click(); return { clicked: true, text: link.textContent.trim(), href: true }; }
           }
         }
       }
@@ -892,6 +910,7 @@ function setupAjyalHandlers(mainWindow) {
 
   const setSelectValueJS = (selectTexts, value) => `
     (function() {
+      ${normalizeArabicJS}
       const selectors = ${JSON.stringify(selectTexts)};
       const selects = document.querySelectorAll('select');
       for (const sel of selects) {
@@ -900,6 +919,7 @@ function setupAjyalHandlers(mainWindow) {
           if (label.includes(s) || sel.name?.includes(s) || sel.id?.includes(s)) {
             sel.value = '${value}';
             sel.dispatchEvent(new Event('change', { bubbles: true }));
+            highlightElement(sel);
             return { selected: true };
           }
         }
@@ -1001,7 +1021,7 @@ function setupAjyalHandlers(mainWindow) {
           await updateToolbarStatus('loading', statusMsg);
           sendProgress('جاري اختيار الصف: ' + grade.text + '...');
           await ajyalExec(setSelectValueJS(nav.gradeLabels, grade.value));
-          await ajyalWait(1000);
+          await ajyalWait(1500);
 
           const currentSections = await ajyalExec(getSelectOptionsJS(nav.sectionLabels));
 
@@ -1232,10 +1252,14 @@ function setupAjyalHandlers(mainWindow) {
               '    if (matchedRows[m].textContent.indexOf(expectedClass) !== -1) { targetRow = matchedRows[m]; break; }' +
               '  }' +
               '}' +
-              'if (!targetRow) return false;' +
-              // First try checkbox (mark student as present for attendance, then we select absence type)
-              'var cb = targetRow.querySelector("input[type=\\"checkbox\\"]");' +
-              'if (cb && !cb.checked) { cb.click(); }' +
+               'if (!targetRow) return false;' +
+               'targetRow.style.outline = "3px solid #f59e0b";' +
+               'targetRow.style.outlineOffset = "2px";' +
+               'targetRow.style.boxShadow = "0 0 15px rgba(245,158,11,0.4)";' +
+               'targetRow.scrollIntoView({ behavior: "smooth", block: "center" });' +
+               'setTimeout(function(){ targetRow.style.outline=""; targetRow.style.boxShadow=""; targetRow.style.outlineOffset=""; }, 2000);' +
+               'var cb = targetRow.querySelector("input[type=\\"checkbox\\"]");' +
+               'if (cb && !cb.checked) { cb.click(); }' +
               // Look for absence type select and set "بدون عذر"
               'var cells = targetRow.querySelectorAll("td");' +
               'for (var j = 0; j < cells.length; j++) {' +
@@ -1264,7 +1288,8 @@ function setupAjyalHandlers(mainWindow) {
             if (marked) {
               classMarked++;
               totalMarked++;
-              sendProgress('تم تسجيل غياب: ' + record.studentName + ' ✓');
+              sendProgress('✓ تم تسجيل غياب: ' + record.studentName + ' (' + totalMarked + ' إجمالي)');
+              await ajyalWait(600); // Wait so user can see each student being marked
             } else {
               classNotFound.push(record.studentName);
               sendProgress('⚠️ لم يُعثر على: ' + record.studentName);
