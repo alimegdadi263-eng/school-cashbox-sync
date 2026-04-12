@@ -1252,10 +1252,14 @@ function setupAjyalHandlers(mainWindow) {
               '    if (matchedRows[m].textContent.indexOf(expectedClass) !== -1) { targetRow = matchedRows[m]; break; }' +
               '  }' +
               '}' +
-              'if (!targetRow) return false;' +
-              // First try checkbox (mark student as present for attendance, then we select absence type)
-              'var cb = targetRow.querySelector("input[type=\\"checkbox\\"]");' +
-              'if (cb && !cb.checked) { cb.click(); }' +
+               'if (!targetRow) return false;' +
+               'targetRow.style.outline = "3px solid #f59e0b";' +
+               'targetRow.style.outlineOffset = "2px";' +
+               'targetRow.style.boxShadow = "0 0 15px rgba(245,158,11,0.4)";' +
+               'targetRow.scrollIntoView({ behavior: "smooth", block: "center" });' +
+               'setTimeout(function(){ targetRow.style.outline=""; targetRow.style.boxShadow=""; targetRow.style.outlineOffset=""; }, 2000);' +
+               'var cb = targetRow.querySelector("input[type=\\"checkbox\\"]");' +
+               'if (cb && !cb.checked) { cb.click(); }' +
               // Look for absence type select and set "بدون عذر"
               'var cells = targetRow.querySelectorAll("td");' +
               'for (var j = 0; j < cells.length; j++) {' +
