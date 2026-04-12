@@ -837,6 +837,7 @@ function setupAjyalHandlers(mainWindow) {
         const t = normalizeArabic(el.textContent);
         for (const target of targets) {
           if (t === target || t.includes(target)) {
+            highlightElement(el);
             el.click();
             el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
             return { clicked: true, text: t };
@@ -847,6 +848,7 @@ function setupAjyalHandlers(mainWindow) {
         const t = normalizeArabic(el.textContent);
         for (const target of targets) {
           if (target.length >= 3 && t.includes(target.substring(0, Math.min(target.length, 6)))) {
+            highlightElement(el);
             el.click();
             el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
             return { clicked: true, text: t, partial: true };
