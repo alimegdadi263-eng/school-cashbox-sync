@@ -481,11 +481,33 @@ export default function StudentManager({ userId, schoolName, directorateName }: 
           <div className="flex gap-2 flex-wrap">
             <Button onClick={addStudent}><Plus className="w-4 h-4 ml-1" /> إضافة</Button>
             <Button variant="outline" size="sm" onClick={() => exportStudentListDocx(students, schoolName || "", directorateName || "", filterClass || undefined)}>
-              <FileText className="w-4 h-4 ml-1" /> تصدير Word
+              <FileText className="w-4 h-4 ml-1" /> {filterClass ? `تصدير Word (${filterClass})` : "تصدير Word (الكل)"}
             </Button>
             <Button variant="outline" size="sm" onClick={() => exportStudentListExcel(students, schoolName || "", filterClass || undefined)}>
-              <FileDown className="w-4 h-4 ml-1" /> تصدير Excel
+              <FileDown className="w-4 h-4 ml-1" /> {filterClass ? `تصدير Excel (${filterClass})` : "تصدير Excel (الكل)"}
             </Button>
+            {uniqueClasses.length > 1 && !filterClass && (
+              <>
+                <Button variant="outline" size="sm" onClick={async () => {
+                  for (const cls of uniqueClasses) {
+                    await exportStudentListDocx(students, schoolName || "", directorateName || "", cls);
+                    await new Promise(r => setTimeout(r, 300));
+                  }
+                  toast({ title: `تم تصدير ${uniqueClasses.length} ملفات Word لكل شعبة` });
+                }}>
+                  <FileText className="w-4 h-4 ml-1" /> تصدير كل شعبة Word
+                </Button>
+                <Button variant="outline" size="sm" onClick={async () => {
+                  for (const cls of uniqueClasses) {
+                    await exportStudentListExcel(students, schoolName || "", cls);
+                    await new Promise(r => setTimeout(r, 300));
+                  }
+                  toast({ title: `تم تصدير ${uniqueClasses.length} ملفات Excel لكل شعبة` });
+                }}>
+                  <FileDown className="w-4 h-4 ml-1" /> تصدير كل شعبة Excel
+                </Button>
+              </>
+            )}
             <label>
               <Button variant="outline" size="sm" asChild><span><Upload className="w-4 h-4 ml-1" /> استيراد CSV</span></Button>
               <input type="file" accept=".csv" className="hidden" onChange={importCSV} />

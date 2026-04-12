@@ -7,12 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { ExternalLink, LogIn, Send, Loader2, CheckCircle2, AlertTriangle, Eye, EyeOff, Info, Download, Users, Trash2, Shield } from "lucide-react";
+import { ExternalLink, LogIn, Send, Loader2, CheckCircle2, AlertTriangle, Eye, EyeOff, Info, Download, Users, Trash2, Shield, Monitor } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { StudentInfo, StudentAbsenceRecord } from "@/types/studentAbsence";
 import { STUDENT_STORAGE_KEY, STUDENTS_LIST_KEY } from "@/types/studentAbsence";
 import { format } from "date-fns";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import AjyalSimulation from "./AjyalSimulation";
 
 const AJYAL_CREDS_KEY = "ajyal_credentials";
 
@@ -298,6 +299,12 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
 
   return (
     <div className="space-y-4" dir="rtl">
+      {/* Visual Simulations */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <AjyalSimulation type="import" />
+        <AjyalSimulation type="absence" />
+      </div>
+
       {/* Instructions */}
       <Alert>
         <Info className="h-4 w-4" />
@@ -309,24 +316,23 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
               <p className="font-bold text-sm mb-2 flex items-center gap-1">📥 خطوات استيراد الطلاب:</p>
               <ol className="list-decimal list-inside space-y-1 mr-1 text-xs">
                 <li>فتح أجيال وتسجيل الدخول</li>
-                <li>من القائمة الرئيسية ← <strong>"إدارة الطلبة"</strong> أو <strong>"الطلبة"</strong></li>
-                <li>الدخول إلى <strong>"بيانات الطلبة"</strong> أو <strong>"قائمة الطلبة"</strong></li>
-                <li>تحديد: العام الدراسي، الصف، الشعبة</li>
-                <li>الضغط على <strong>"بحث"</strong> أو <strong>"عرض"</strong></li>
-                <li>اضغط زر <strong>"📥 استيراد الطلاب"</strong> من الشريط العلوي</li>
-                <li>الطلاب يُحفظون تلقائياً في <strong>إدارة الطلبة</strong> مرتبين حسب الصف</li>
+                <li>من القائمة الرئيسية ← <strong>"شؤون الطلبة"</strong></li>
+                <li>الدخول إلى <strong>"الطلبة"</strong></li>
+                <li>الضغط على <strong>"تصدير"</strong> لتحميل ملف Excel</li>
+                <li>أخذ الملف المُصدّر إلى البرمجية ← <strong>"استيراد Excel (أجيال)"</strong></li>
+                <li>يتم حفظ جميع بيانات الطلبة تلقائياً</li>
               </ol>
             </div>
             <div className="border rounded-lg p-3 bg-muted/30">
               <p className="font-bold text-sm mb-2 flex items-center gap-1">📋 خطوات تعبئة الغياب:</p>
               <ol className="list-decimal list-inside space-y-1 mr-1 text-xs">
                 <li>سجّل الغياب أولاً من تبويب <strong>"الرصد اليومي"</strong> في البرمجية</li>
-                <li>من أجيال ← <strong>"الحضور والغياب"</strong></li>
-                <li>الدخول إلى <strong>"تسجيل الغياب"</strong> أو <strong>"متابعة الغياب"</strong></li>
-                <li>تحديد: التاريخ، الصف، الشعبة</li>
-                <li>الضغط على <strong>"عرض الطلبة"</strong></li>
-                <li>اضغط زر <strong>"📋 تعبئة الغياب"</strong> من الشريط العلوي</li>
-                <li>يتم وضع علامة الغياب تلقائياً ← اضغط <strong>"حفظ"</strong></li>
+                <li>من أجيال ← <strong>"الانضباط المدرسي"</strong></li>
+                <li>← <strong>"إدخال الانضباط المدرسي"</strong></li>
+                <li>← <strong>"الالتزام بالدوام المدرسي"</strong></li>
+                <li>تحديد: الصف والشعبة ← تعبئة الغياب لكل صف</li>
+                <li>الصفوف بدون غياب ← تبويب <strong>"تأكيد الجميع حضور"</strong></li>
+                <li>بعد الانتهاء ← انضباط مدرسي ← <strong>"انتهاء"</strong></li>
               </ol>
             </div>
           </div>
@@ -337,7 +343,7 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>غير متاح</AlertTitle>
-          <AlertDescription>هذه الميزة متاحة فقط في نسخة سطح المكتب (Electron).</AlertDescription>
+          <AlertDescription>ميزة الأتمتة التلقائية متاحة فقط في نسخة سطح المكتب (Electron). يمكنك مشاهدة المحاكاة أعلاه والقيام بالخطوات يدوياً.</AlertDescription>
         </Alert>
       )}
 
