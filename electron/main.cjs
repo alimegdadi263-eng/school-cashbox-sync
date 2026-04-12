@@ -862,7 +862,7 @@ function setupAjyalHandlers(mainWindow) {
         for (const link of links) {
           const href = link.getAttribute('href') || '';
           for (const pattern of patterns) {
-            if (href.includes(pattern)) { link.click(); return { clicked: true, text: link.textContent.trim(), href: true }; }
+            if (href.includes(pattern)) { highlightElement(link); link.click(); return { clicked: true, text: link.textContent.trim(), href: true }; }
           }
         }
       }
