@@ -42,16 +42,38 @@ function dataCell(text: string, width: number, shade?: boolean): TableCell {
   });
 }
 
+const FIELD_LABELS: Record<keyof StudentInfo, string> = {
+  id: "المعرف", name: "الاسم الكامل", className: "الصف", parentPhone: "هاتف ولي الأمر",
+  parentName: "اسم ولي الأمر", nationalId: "الرقم الوطني", firstName: "الاسم الأول",
+  fatherName: "اسم الأب", grandFatherName: "اسم الجد", familyName: "اسم العائلة",
+  firstNameEn: "الاسم الأول (إنجليزي)", fatherNameEn: "اسم الأب (إنجليزي)",
+  grandFatherNameEn: "اسم الجد (إنجليزي)", familyNameEn: "العائلة (إنجليزي)",
+  fullNameEn: "الاسم الكامل (إنجليزي)", username: "اسم المستخدم", authority: "السلطة المشرفة",
+  directorate: "المديرية", school: "المدرسة", grade: "الصف (خام)", branch: "المسار",
+  section: "الشعبة (خام)", userType: "نوع المستخدم", studySystem: "النظام الدراسي",
+  studentPhone: "رقم الطالب", studentStatus: "حالة الطالب", fileStatus: "حالة الملف",
+  email: "البريد الإلكتروني", schoolNationalId: "رقم المدرسة الوطني",
+  nationality: "الجنسية", birthDate: "تاريخ الميلاد", gender: "الجنس", mainPhone: "الهاتف الأساسي",
+};
+
 export async function exportStudentListDocx(
   students: StudentInfo[],
   schoolName: string,
   directorateName: string,
   filterClass?: string,
+  customFields?: (keyof StudentInfo)[],
 ) {
   const filtered = filterClass ? students.filter(s => s.className === filterClass) : students;
   const logo = await getLogoBuffer();
 
-  // Group by class
+  const fields = customFields || ["name", "className", "parentPhone", "parentName"] as (keyof StudentInfo)[];
+  const colHeaders = ["م", ...fields.map(f => FIELD_LABELS[f] || f)];
+  const numWidth = 500;
+  const remainingWidth = 8000;
+  const colWidth = Math.floor(remainingWidth / fields.length);
+  const colWidths = [numWidth, ...fields.map(() => colWidth)];
+  const totalWidth = colWidths.reduce((a, b) => a + b, 0);
+
   const byClass: Record<string, StudentInfo[]> = {};
   for (const s of filtered) {
     if (!byClass[s.className]) byClass[s.className] = [];
@@ -59,15 +81,10 @@ export async function exportStudentListDocx(
   }
   const sortedClasses = Object.keys(byClass).sort();
 
-  const colWidths = [500, 2800, 1600, 1800, 1800];
-  const totalWidth = colWidths.reduce((a, b) => a + b, 0);
-
   const tableChildren: (Paragraph | Table)[] = [];
 
   for (const cls of sortedClasses) {
     const classStudents = byClass[cls];
-
-    // Class title
     tableChildren.push(new Paragraph({
       children: [t(`الصف: ${cls} (${classStudents.length} طالب/ة)`, { bold: true, size: 26 })],
       bidirectional: true,
@@ -80,18 +97,15 @@ export async function exportStudentListDocx(
       visuallyRightToLeft: true,
       rows: [
         new TableRow({
-          children: ["م", "اسم الطالب", "الصف", "رقم ولي الأمر", "اسم ولي الأمر"].map((h, i) =>
-            headerCell(h, colWidths[i])
-          ),
+          children: colHeaders.map((h, i) => headerCell(h, colWidths[i])),
         }),
         ...classStudents.map((s, idx) =>
           new TableRow({
             children: [
               dataCell(String(idx + 1), colWidths[0], idx % 2 === 1),
-              dataCell(s.name, colWidths[1], idx % 2 === 1),
-              dataCell(s.className, colWidths[2], idx % 2 === 1),
-              dataCell(s.parentPhone, colWidths[3], idx % 2 === 1),
-              dataCell(s.parentName || "-", colWidths[4], idx % 2 === 1),
+              ...fields.map((f, fi) =>
+                dataCell(String(s[f] || "-"), colWidths[fi + 1], idx % 2 === 1)
+              ),
             ],
           })
         ),
@@ -151,8 +165,10 @@ export async function exportStudentListExcel(
   students: StudentInfo[],
   schoolName: string,
   filterClass?: string,
+  customFields?: (keyof StudentInfo)[],
 ) {
   const filtered = filterClass ? students.filter(s => s.className === filterClass) : students;
+  const fields = customFields || ["name", "className", "parentPhone", "parentName"] as (keyof StudentInfo)[];
 
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("سجل الطلبة");
@@ -163,13 +179,16 @@ export async function exportStudentListExcel(
   const borderStyle: Partial<ExcelJS.Border> = { style: "thin", color: { argb: "FF999999" } };
   const borders: Partial<ExcelJS.Borders> = { top: borderStyle, bottom: borderStyle, left: borderStyle, right: borderStyle };
 
-  ws.mergeCells("A1:E1");
+  const colCount = fields.length + 1;
+  const lastCol = String.fromCharCode(64 + colCount);
+
+  ws.mergeCells(`A1:${lastCol}1`);
   const titleCell = ws.getCell("A1");
   titleCell.value = schoolName;
   titleCell.font = { name: FONT, size: 16, bold: true, color: { argb: "FF1F4E79" } };
   titleCell.alignment = { horizontal: "center", vertical: "middle" };
 
-  ws.mergeCells("A2:E2");
+  ws.mergeCells(`A2:${lastCol}2`);
   const subCell = ws.getCell("A2");
   subCell.value = filterClass ? `سجل طلبة الصف: ${filterClass}` : `سجل الطلبة (${filtered.length} طالب/ة)`;
   subCell.font = { name: FONT, size: 14, bold: true };
@@ -177,7 +196,7 @@ export async function exportStudentListExcel(
 
   ws.addRow([]);
 
-  const headers = ["م", "اسم الطالب", "الصف", "رقم ولي الأمر", "اسم ولي الأمر"];
+  const headers = ["م", ...fields.map(f => FIELD_LABELS[f] || f)];
   const hRow = ws.addRow(headers);
   hRow.height = 25;
   hRow.eachCell(c => {
@@ -188,7 +207,7 @@ export async function exportStudentListExcel(
   });
 
   filtered.sort((a, b) => a.className.localeCompare(b.className)).forEach((s, idx) => {
-    const row = ws.addRow([idx + 1, s.name, s.className, s.parentPhone, s.parentName || "-"]);
+    const row = ws.addRow([idx + 1, ...fields.map(f => s[f] || "-")]);
     row.eachCell(c => {
       c.font = { name: FONT, size: 11 };
       c.alignment = { horizontal: "center", vertical: "middle" };
@@ -197,7 +216,7 @@ export async function exportStudentListExcel(
     });
   });
 
-  ws.columns = [{ width: 6 }, { width: 30 }, { width: 16 }, { width: 18 }, { width: 20 }];
+  ws.columns = [{ width: 6 }, ...fields.map(() => ({ width: 22 }))];
 
   const buffer = await wb.xlsx.writeBuffer();
   saveAs(new Blob([buffer]), `سجل_الطلبة_${filterClass || "الكل"}.xlsx`);

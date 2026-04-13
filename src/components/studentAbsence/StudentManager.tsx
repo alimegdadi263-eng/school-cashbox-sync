@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Upload, FileText, FileDown, FileSpreadsheet, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Upload, FileText, FileDown, FileSpreadsheet, AlertTriangle, Settings2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import type { StudentInfo } from "@/types/studentAbsence";
 import { CLASS_NAMES, SECONDARY_CLASSES } from "@/types/timetable";
 import { STUDENTS_LIST_KEY } from "@/types/studentAbsence";
 import { exportStudentListDocx, exportStudentListExcel } from "@/lib/exportStudentList";
+import ExportFieldsDialog from "./ExportFieldsDialog";
 
 const AJYAL_GRADE_MAP: Record<string, string> = {
   "الأول": "الأول", "الاول": "الأول",
@@ -91,6 +92,7 @@ export default function StudentManager({ userId, schoolName, directorateName }: 
   const [gender, setGender] = useState("");
   const [filterClass, setFilterClass] = useState("");
   const [showAllFields, setShowAllFields] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
 
   // Extra optional fields
   const [firstName, setFirstName] = useState("");
@@ -480,6 +482,9 @@ export default function StudentManager({ userId, schoolName, directorateName }: 
           {/* Action buttons */}
           <div className="flex gap-2 flex-wrap">
             <Button onClick={addStudent}><Plus className="w-4 h-4 ml-1" /> إضافة</Button>
+            <Button variant="outline" size="sm" onClick={() => setShowExportDialog(true)}>
+              <Settings2 className="w-4 h-4 ml-1" /> تصدير مخصص
+            </Button>
             <Button variant="outline" size="sm" onClick={() => exportStudentListDocx(students, schoolName || "", directorateName || "", filterClass || undefined)}>
               <FileText className="w-4 h-4 ml-1" /> {filterClass ? `تصدير Word (${filterClass})` : "تصدير Word (الكل)"}
             </Button>
@@ -517,6 +522,19 @@ export default function StudentManager({ userId, schoolName, directorateName }: 
               <input type="file" accept=".xls,.xlsx" className="hidden" onChange={importExcel} />
             </label>
           </div>
+
+          <ExportFieldsDialog
+            open={showExportDialog}
+            onOpenChange={setShowExportDialog}
+            onExport={(fields, format) => {
+              if (format === "docx") {
+                exportStudentListDocx(students, schoolName || "", directorateName || "", filterClass || undefined, fields);
+              } else {
+                exportStudentListExcel(students, schoolName || "", filterClass || undefined, fields);
+              }
+              toast({ title: `تم التصدير بنجاح (${fields.length} حقول)` });
+            }}
+          />
         </CardContent>
       </Card>
 

@@ -10,7 +10,7 @@ import { generateCommitteeDocx, CommitteeMember } from "@/lib/generateCommitteeD
 import { Plus, Trash2, FileText, Users } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const ROLE_OPTIONS = ["رئيسا", "نائب الرئيس", "عضوا", "معلم", "مساعد مدير", "مرشد", "سكرتير"];
+const ROLE_OPTIONS = ["رئيسا", "نائب الرئيس", "عضوا", "معلم", "مساعد مدير", "مرشد", "سكرتير", "طالب"];
 
 export default function CommitteesPage() {
   const { toast } = useToast();
