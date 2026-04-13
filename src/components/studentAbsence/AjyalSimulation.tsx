@@ -8,7 +8,7 @@ import { CheckCircle2, Play, RotateCcw, Monitor, MousePointer2, ArrowLeft, Arrow
 interface SimulationStep {
   title: string;
   description: string;
-  ui: "login" | "home" | "menu" | "table" | "export" | "import" | "discipline" | "class-select" | "attendance" | "confirm" | "done" | "loading";
+  ui: "login" | "home" | "menu" | "table" | "export" | "import" | "discipline" | "discipline-form" | "class-select" | "attendance" | "confirm" | "confirm-all" | "save-form" | "final-confirm" | "done" | "loading";
   highlight?: string;
   clickTarget?: string;
   duration: number;
@@ -28,19 +28,23 @@ const IMPORT_STEPS: SimulationStep[] = [
 ];
 
 const ABSENCE_STEPS: SimulationStep[] = [
-  { title: "فتح منصة أجيال", description: "يتم فتح موقع منصة أجيال...", ui: "loading", duration: 1500 },
-  { title: "تسجيل الدخول", description: "إدخال بيانات الدخول", ui: "login", clickTarget: "دخول", duration: 2500 },
+  { title: "فتح منصة أجيال", description: "يتم فتح موقع منصة أجيال الإلكتروني...", ui: "loading", duration: 1500 },
+  { title: "تسجيل الدخول", description: "إدخال اسم المستخدم وكلمة المرور", ui: "login", clickTarget: "دخول", duration: 2500 },
   { title: "الصفحة الرئيسية", description: "تم تسجيل الدخول بنجاح", ui: "home", duration: 1200 },
-  { title: "فتح الانضباط المدرسي", description: "الضغط على 'الانضباط المدرسي'", ui: "menu", highlight: "الانضباط المدرسي", clickTarget: "الانضباط المدرسي", duration: 2000 },
-  { title: "إدخال الانضباط", description: "الضغط على 'إدخال الانضباط المدرسي'", ui: "menu", highlight: "إدخال الانضباط المدرسي", clickTarget: "إدخال الانضباط", duration: 1800 },
-  { title: "الالتزام بالدوام", description: "اختيار 'الالتزام بالدوام المدرسي'", ui: "menu", highlight: "الالتزام بالدوام المدرسي", clickTarget: "الالتزام بالدوام", duration: 1800 },
-  { title: "اختيار الصف الأول أ", description: "تحديد الصف والشعبة", ui: "class-select", clickTarget: "الأول أ", duration: 2000 },
-  { title: "تعبئة الغياب - الأول أ", description: "وضع علامة 'بدون عذر' لكل طالب غائب", ui: "attendance", highlight: "بدون عذر", clickTarget: "بدون عذر", duration: 3000 },
-  { title: "الانتقال للصف التالي", description: "اختيار الصف الثاني أ", ui: "class-select", clickTarget: "الثاني أ", duration: 1800 },
-  { title: "تعبئة الغياب - الثاني أ", description: "تكرار تعبئة الغياب...", ui: "attendance", highlight: "بدون عذر", duration: 2500 },
-  { title: "تأكيد الصفوف بدون غياب", description: "الضغط على 'تأكيد الجميع حضور' للصفوف بدون غياب", ui: "confirm", clickTarget: "تأكيد الجميع حضور", duration: 2500 },
-  { title: "إنهاء العملية", description: "الضغط على 'انتهاء' لحفظ كل شيء", ui: "menu", highlight: "انتهاء", clickTarget: "انتهاء", duration: 2000 },
-  { title: "✅ تم بنجاح!", description: "تم رصد جميع حالات الغياب وتأكيد الحضور", ui: "done", duration: 2500 },
+  { title: "فتح الانضباط المدرسي", description: "من القائمة الجانبية، اختيار 'الانضباط المدرسي'", ui: "menu", highlight: "الانضباط المدرسي", clickTarget: "الانضباط المدرسي", duration: 2000 },
+  { title: "الانضباط والالتزام بالدوام", description: "اختيار 'الانضباط المدرسي والالتزام بالدوام'", ui: "menu", highlight: "الانضباط المدرسي والالتزام بالدوام", clickTarget: "الانضباط المدرسي والالتزام بالدوام", duration: 2000 },
+  { title: "تحديد البيانات", description: "اختيار الصف والشعبة ونوع الرصد 'الالتزام بالدوام المدرسي' ونوع الغياب 'يوم كامل' وتحديد التاريخ", ui: "discipline-form", clickTarget: "بحث", duration: 3000 },
+  { title: "البحث", description: "الضغط على زر 'بحث' لتوليد قائمة الطلاب", ui: "loading", duration: 1500 },
+  { title: "اختيار الصف - الأول أ", description: "عرض طلاب الصف الأول أ", ui: "class-select", clickTarget: "الأول أ", duration: 1800 },
+  { title: "تأكيد حضور الجميع", description: "لا يوجد غياب - الضغط على 'تأكيد حضور جميع الطلاب'", ui: "confirm-all", clickTarget: "تأكيد حضور جميع الطلاب", duration: 2500 },
+  { title: "اختيار الصف - الثاني أ", description: "الانتقال للصف التالي وتحديد الشعبة", ui: "class-select", clickTarget: "الثاني أ", duration: 1800 },
+  { title: "تعبئة الغياب - الثاني أ", description: "وضع علامة ✓ على الطلاب الغائبين واختيار نوع الغياب", ui: "attendance", highlight: "بدون عذر", clickTarget: "✓", duration: 3000 },
+  { title: "الإقرار والحفظ", description: "تفعيل مربع 'أتعهد...' ثم الضغط على زر 'حفظ'", ui: "save-form", clickTarget: "حفظ", duration: 2500 },
+  { title: "اختيار الصف - الثالث أ", description: "الانتقال للصف التالي", ui: "class-select", clickTarget: "الثالث أ", duration: 1800 },
+  { title: "تعبئة الغياب - الثالث أ", description: "تكرار العملية لكل صف...", ui: "attendance", highlight: "بعذر", clickTarget: "✓", duration: 2500 },
+  { title: "الإقرار والحفظ", description: "تفعيل مربع 'أتعهد...' والضغط على 'حفظ'", ui: "save-form", clickTarget: "حفظ", duration: 2000 },
+  { title: "تأكيد الانتهاء من الغياب", description: "الدخول على تبويب 'تأكيد الانتهاء من الغياب اليومي' والتأكيد", ui: "final-confirm", clickTarget: "تأكيد الانتهاء", duration: 3000 },
+  { title: "✅ تم بنجاح!", description: "تم رصد جميع حالات الغياب وتأكيد الانتهاء من الغياب اليومي", ui: "done", duration: 2500 },
 ];
 
 interface Props {
@@ -98,10 +102,10 @@ function HomeScreen() {
 }
 
 function MenuScreen({ highlight, clickTarget }: { highlight?: string; clickTarget?: string }) {
-  const items = ["الرئيسية", "شؤون الطلبة", "الطلبة", "الانضباط المدرسي", "إدخال الانضباط المدرسي", "الالتزام بالدوام المدرسي", "انتهاء"];
+  const items = ["الرئيسية", "شؤون الطلبة", "الطلبة", "الانضباط المدرسي", "الانضباط المدرسي والالتزام بالدوام", "تأكيد الانتهاء من الغياب اليومي"];
   return (
     <div className="w-full max-w-[280px] mx-auto">
-      <div className="bg-blue-700 text-white text-xs px-3 py-2 rounded-t">القائمة الرئيسية</div>
+      <div className="bg-blue-700 text-white text-xs px-3 py-2 rounded-t">القائمة الجانبية</div>
       <div className="border border-t-0 rounded-b divide-y">
         {items.map(item => {
           const isHighlighted = item === highlight || item === clickTarget;
@@ -213,30 +217,131 @@ function AttendanceScreen({ highlight }: { highlight?: string }) {
     { name: "خالد يوسف", absent: true },
     { name: "نور حسين", absent: false },
   ];
+  const absenceType = highlight === "بعذر" ? "بعذر" : "بدون عذر";
   return (
     <div className="w-full space-y-2">
       <div className="text-xs font-bold text-slate-600 text-right">سجل الحضور والغياب:</div>
-      <div className="space-y-1">
-        {students.map((s, i) => (
-          <div key={i} className={`flex items-center justify-between px-2 py-1.5 rounded text-[11px] transition-all duration-500 ${
-            s.absent ? "bg-red-50 border border-red-300" : "bg-green-50 border border-green-200"
-          }`} style={{ animationDelay: `${i * 300}ms` }}>
-            <span className="font-medium">{s.name}</span>
-            <div className="flex items-center gap-2">
-              {s.absent ? (
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
-                  highlight === "بدون عذر"
-                    ? "bg-red-500 text-white scale-110 ring-2 ring-orange-300 animate-pulse"
-                    : "bg-red-100 text-red-700"
+      <table className="w-full text-[10px] border">
+        <thead>
+          <tr className="bg-blue-600 text-white">
+            <th className="p-1 text-center w-8">✓</th>
+            <th className="p-1 text-right">اسم الطالب</th>
+            <th className="p-1 text-center">نوع الغياب</th>
+          </tr>
+        </thead>
+        <tbody>
+          {students.map((s, i) => (
+            <tr key={i} className={`${s.absent ? "bg-red-50" : "bg-white"}`}>
+              <td className="p-1 text-center border">
+                <div className={`w-4 h-4 mx-auto border-2 rounded-sm flex items-center justify-center transition-all ${
+                  s.absent ? "border-red-500 bg-red-100" : "border-slate-300"
                 }`}>
-                  ❌ بدون عذر
-                </span>
-              ) : (
-                <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px]">✅ حاضر</span>
-              )}
-            </div>
-          </div>
-        ))}
+                  {s.absent && <span className="text-red-600 text-[10px] font-bold animate-pulse">✓</span>}
+                </div>
+              </td>
+              <td className="p-1 text-right border font-medium">{s.name}</td>
+              <td className="p-1 text-center border">
+                {s.absent ? (
+                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all ${
+                    highlight ? "bg-red-500 text-white scale-110 ring-2 ring-orange-300 animate-pulse" : "bg-red-100 text-red-700"
+                  }`}>
+                    {absenceType}
+                  </span>
+                ) : (
+                  <span className="text-slate-400">—</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function DisciplineFormScreen({ clickTarget }: { clickTarget?: string }) {
+  return (
+    <div className="w-full max-w-[280px] mx-auto space-y-2">
+      <div className="text-xs font-bold text-slate-600 text-right mb-2">تحديد بيانات الرصد:</div>
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between bg-slate-50 border rounded px-2 py-1.5 text-[11px]">
+          <span className="text-slate-500">الصف:</span>
+          <span className="font-bold bg-blue-100 text-blue-700 px-2 rounded">الأول</span>
+        </div>
+        <div className="flex items-center justify-between bg-slate-50 border rounded px-2 py-1.5 text-[11px]">
+          <span className="text-slate-500">الشعبة:</span>
+          <span className="font-bold bg-blue-100 text-blue-700 px-2 rounded">أ</span>
+        </div>
+        <div className="flex items-center justify-between bg-slate-50 border rounded px-2 py-1.5 text-[11px]">
+          <span className="text-slate-500">نوع الرصد:</span>
+          <span className="font-bold bg-purple-100 text-purple-700 px-2 rounded">الالتزام بالدوام المدرسي</span>
+        </div>
+        <div className="flex items-center justify-between bg-slate-50 border rounded px-2 py-1.5 text-[11px]">
+          <span className="text-slate-500">نوع الغياب:</span>
+          <span className="font-bold bg-orange-100 text-orange-700 px-2 rounded">يوم كامل</span>
+        </div>
+        <div className="flex items-center justify-between bg-slate-50 border rounded px-2 py-1.5 text-[11px]">
+          <span className="text-slate-500">التاريخ:</span>
+          <span className="font-bold bg-green-100 text-green-700 px-2 rounded">📅 {new Date().toLocaleDateString('ar-JO')}</span>
+        </div>
+        <div className={`text-center py-1.5 rounded text-xs font-bold transition-all mt-2 ${
+          clickTarget === "بحث" ? "bg-blue-600 text-white scale-105 shadow-md ring-2 ring-blue-300 animate-pulse" : "bg-blue-500 text-white"
+        }`}>
+          🔍 بحث
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmAllScreen({ clickTarget }: { clickTarget?: string }) {
+  return (
+    <div className="text-center space-y-3">
+      <div className="text-xs font-bold text-slate-600 mb-2">لا يوجد غياب في هذا الصف</div>
+      <div className={`inline-block px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+        clickTarget ? "bg-green-500 text-white scale-105 shadow-lg ring-2 ring-green-300 animate-pulse" : "bg-green-100 text-green-700"
+      }`}>
+        ✅ تأكيد حضور جميع الطلاب ليوم {new Date().toLocaleDateString('ar-JO')}
+      </div>
+      <p className="text-[10px] text-slate-400">الضغط هنا يؤكد حضور جميع طلاب الصف</p>
+    </div>
+  );
+}
+
+function SaveFormScreen({ clickTarget }: { clickTarget?: string }) {
+  return (
+    <div className="w-full max-w-[280px] mx-auto space-y-3">
+      <div className="text-xs font-bold text-slate-600 text-right">الحفظ النهائي:</div>
+      <div className={`flex items-center gap-2 bg-yellow-50 border-2 border-yellow-300 rounded px-3 py-2 text-[11px] transition-all ${
+        clickTarget ? "ring-2 ring-orange-300" : ""
+      }`}>
+        <div className="w-4 h-4 border-2 border-orange-500 bg-orange-100 rounded-sm flex items-center justify-center">
+          <span className="text-orange-600 text-[10px] font-bold animate-pulse">✓</span>
+        </div>
+        <span className="font-medium text-yellow-800">أتعهد بصحة البيانات المدخلة</span>
+      </div>
+      <div className={`text-center py-2 rounded text-xs font-bold transition-all ${
+        clickTarget === "حفظ" ? "bg-green-600 text-white scale-105 shadow-lg ring-2 ring-green-300 animate-pulse" : "bg-green-500 text-white"
+      }`}>
+        💾 حفظ
+      </div>
+    </div>
+  );
+}
+
+function FinalConfirmScreen({ clickTarget }: { clickTarget?: string }) {
+  return (
+    <div className="text-center space-y-3">
+      <div className="bg-blue-700 text-white text-xs px-3 py-2 rounded-t max-w-[280px] mx-auto">
+        تأكيد الانتهاء من الغياب اليومي
+      </div>
+      <div className="max-w-[280px] mx-auto border border-t-0 rounded-b p-3 space-y-2">
+        <p className="text-[11px] text-slate-600">تم الانتهاء من رصد غياب جميع الصفوف</p>
+        <div className={`text-center py-2 rounded text-xs font-bold transition-all ${
+          clickTarget ? "bg-blue-600 text-white scale-105 shadow-lg ring-2 ring-blue-300 animate-pulse" : "bg-blue-500 text-white"
+        }`}>
+          ✅ تأكيد الانتهاء من الغياب اليومي
+        </div>
       </div>
     </div>
   );
@@ -276,6 +381,7 @@ function DoneScreen({ type }: { type: "import" | "absence" }) {
             <p>📋 تم معالجة <strong>12</strong> صف</p>
             <p>❌ تم رصد غياب <strong>8</strong> طلاب</p>
             <p>✅ تم تأكيد حضور <strong>4</strong> صفوف</p>
+            <p>📝 تم تأكيد الانتهاء من الغياب اليومي</p>
           </div>
         )}
       </div>
@@ -301,8 +407,12 @@ function SimulationUI({ step, type }: { step: SimulationStep; type: "import" | "
     case "table": return <TableScreen />;
     case "export": return <ExportScreen />;
     case "import": return <ImportScreen />;
+    case "discipline-form": return <DisciplineFormScreen clickTarget={step.clickTarget} />;
     case "class-select": return <ClassSelectScreen clickTarget={step.clickTarget} />;
     case "attendance": return <AttendanceScreen highlight={step.highlight} />;
+    case "confirm-all": return <ConfirmAllScreen clickTarget={step.clickTarget} />;
+    case "save-form": return <SaveFormScreen clickTarget={step.clickTarget} />;
+    case "final-confirm": return <FinalConfirmScreen clickTarget={step.clickTarget} />;
     case "confirm": return <ConfirmScreen />;
     case "done": return <DoneScreen type={type} />;
     case "loading": return <LoadingScreen />;
