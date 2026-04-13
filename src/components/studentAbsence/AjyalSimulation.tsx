@@ -102,10 +102,10 @@ function HomeScreen() {
 }
 
 function MenuScreen({ highlight, clickTarget }: { highlight?: string; clickTarget?: string }) {
-  const items = ["الرئيسية", "شؤون الطلبة", "الطلبة", "الانضباط المدرسي", "إدخال الانضباط المدرسي", "الالتزام بالدوام المدرسي", "انتهاء"];
+  const items = ["الرئيسية", "شؤون الطلبة", "الطلبة", "الانضباط المدرسي", "الانضباط المدرسي والالتزام بالدوام", "تأكيد الانتهاء من الغياب اليومي"];
   return (
     <div className="w-full max-w-[280px] mx-auto">
-      <div className="bg-blue-700 text-white text-xs px-3 py-2 rounded-t">القائمة الرئيسية</div>
+      <div className="bg-blue-700 text-white text-xs px-3 py-2 rounded-t">القائمة الجانبية</div>
       <div className="border border-t-0 rounded-b divide-y">
         {items.map(item => {
           const isHighlighted = item === highlight || item === clickTarget;
