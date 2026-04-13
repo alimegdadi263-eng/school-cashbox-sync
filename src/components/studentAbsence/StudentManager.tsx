@@ -482,6 +482,9 @@ export default function StudentManager({ userId, schoolName, directorateName }: 
           {/* Action buttons */}
           <div className="flex gap-2 flex-wrap">
             <Button onClick={addStudent}><Plus className="w-4 h-4 ml-1" /> إضافة</Button>
+            <Button variant="outline" size="sm" onClick={() => setShowExportDialog(true)}>
+              <Settings2 className="w-4 h-4 ml-1" /> تصدير مخصص
+            </Button>
             <Button variant="outline" size="sm" onClick={() => exportStudentListDocx(students, schoolName || "", directorateName || "", filterClass || undefined)}>
               <FileText className="w-4 h-4 ml-1" /> {filterClass ? `تصدير Word (${filterClass})` : "تصدير Word (الكل)"}
             </Button>
@@ -519,6 +522,19 @@ export default function StudentManager({ userId, schoolName, directorateName }: 
               <input type="file" accept=".xls,.xlsx" className="hidden" onChange={importExcel} />
             </label>
           </div>
+
+          <ExportFieldsDialog
+            open={showExportDialog}
+            onOpenChange={setShowExportDialog}
+            onExport={(fields, format) => {
+              if (format === "docx") {
+                exportStudentListDocx(students, schoolName || "", directorateName || "", filterClass || undefined, fields);
+              } else {
+                exportStudentListExcel(students, schoolName || "", filterClass || undefined, fields);
+              }
+              toast({ title: `تم التصدير بنجاح (${fields.length} حقول)` });
+            }}
+          />
         </CardContent>
       </Card>
 
