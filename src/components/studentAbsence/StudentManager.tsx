@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Upload, FileText, FileDown, FileSpreadsheet, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Upload, FileText, FileDown, FileSpreadsheet, AlertTriangle, Settings2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import type { StudentInfo } from "@/types/studentAbsence";
 import { CLASS_NAMES, SECONDARY_CLASSES } from "@/types/timetable";
 import { STUDENTS_LIST_KEY } from "@/types/studentAbsence";
 import { exportStudentListDocx, exportStudentListExcel } from "@/lib/exportStudentList";
+import ExportFieldsDialog from "./ExportFieldsDialog";
 
 const AJYAL_GRADE_MAP: Record<string, string> = {
   "الأول": "الأول", "الاول": "الأول",
