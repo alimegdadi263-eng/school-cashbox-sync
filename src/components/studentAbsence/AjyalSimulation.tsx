@@ -8,7 +8,7 @@ import { CheckCircle2, Play, RotateCcw, Monitor, MousePointer2, ArrowLeft, Arrow
 interface SimulationStep {
   title: string;
   description: string;
-  ui: "login" | "home" | "menu" | "table" | "export" | "import" | "discipline" | "class-select" | "attendance" | "confirm" | "done" | "loading";
+  ui: "login" | "home" | "menu" | "table" | "export" | "import" | "discipline" | "discipline-form" | "class-select" | "attendance" | "confirm" | "confirm-all" | "save-form" | "final-confirm" | "done" | "loading";
   highlight?: string;
   clickTarget?: string;
   duration: number;
