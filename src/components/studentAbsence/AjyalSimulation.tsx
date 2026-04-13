@@ -28,19 +28,23 @@ const IMPORT_STEPS: SimulationStep[] = [
 ];
 
 const ABSENCE_STEPS: SimulationStep[] = [
-  { title: "فتح منصة أجيال", description: "يتم فتح موقع منصة أجيال...", ui: "loading", duration: 1500 },
-  { title: "تسجيل الدخول", description: "إدخال بيانات الدخول", ui: "login", clickTarget: "دخول", duration: 2500 },
+  { title: "فتح منصة أجيال", description: "يتم فتح موقع منصة أجيال الإلكتروني...", ui: "loading", duration: 1500 },
+  { title: "تسجيل الدخول", description: "إدخال اسم المستخدم وكلمة المرور", ui: "login", clickTarget: "دخول", duration: 2500 },
   { title: "الصفحة الرئيسية", description: "تم تسجيل الدخول بنجاح", ui: "home", duration: 1200 },
-  { title: "فتح الانضباط المدرسي", description: "الضغط على 'الانضباط المدرسي'", ui: "menu", highlight: "الانضباط المدرسي", clickTarget: "الانضباط المدرسي", duration: 2000 },
-  { title: "إدخال الانضباط", description: "الضغط على 'إدخال الانضباط المدرسي'", ui: "menu", highlight: "إدخال الانضباط المدرسي", clickTarget: "إدخال الانضباط", duration: 1800 },
-  { title: "الالتزام بالدوام", description: "اختيار 'الالتزام بالدوام المدرسي'", ui: "menu", highlight: "الالتزام بالدوام المدرسي", clickTarget: "الالتزام بالدوام", duration: 1800 },
-  { title: "اختيار الصف الأول أ", description: "تحديد الصف والشعبة", ui: "class-select", clickTarget: "الأول أ", duration: 2000 },
-  { title: "تعبئة الغياب - الأول أ", description: "وضع علامة 'بدون عذر' لكل طالب غائب", ui: "attendance", highlight: "بدون عذر", clickTarget: "بدون عذر", duration: 3000 },
-  { title: "الانتقال للصف التالي", description: "اختيار الصف الثاني أ", ui: "class-select", clickTarget: "الثاني أ", duration: 1800 },
-  { title: "تعبئة الغياب - الثاني أ", description: "تكرار تعبئة الغياب...", ui: "attendance", highlight: "بدون عذر", duration: 2500 },
-  { title: "تأكيد الصفوف بدون غياب", description: "الضغط على 'تأكيد الجميع حضور' للصفوف بدون غياب", ui: "confirm", clickTarget: "تأكيد الجميع حضور", duration: 2500 },
-  { title: "إنهاء العملية", description: "الضغط على 'انتهاء' لحفظ كل شيء", ui: "menu", highlight: "انتهاء", clickTarget: "انتهاء", duration: 2000 },
-  { title: "✅ تم بنجاح!", description: "تم رصد جميع حالات الغياب وتأكيد الحضور", ui: "done", duration: 2500 },
+  { title: "فتح الانضباط المدرسي", description: "من القائمة الجانبية، اختيار 'الانضباط المدرسي'", ui: "menu", highlight: "الانضباط المدرسي", clickTarget: "الانضباط المدرسي", duration: 2000 },
+  { title: "الانضباط والالتزام بالدوام", description: "اختيار 'الانضباط المدرسي والالتزام بالدوام'", ui: "menu", highlight: "الانضباط المدرسي والالتزام بالدوام", clickTarget: "الانضباط المدرسي والالتزام بالدوام", duration: 2000 },
+  { title: "تحديد البيانات", description: "اختيار الصف والشعبة ونوع الرصد 'الالتزام بالدوام المدرسي' ونوع الغياب 'يوم كامل' وتحديد التاريخ", ui: "discipline-form", clickTarget: "بحث", duration: 3000 },
+  { title: "البحث", description: "الضغط على زر 'بحث' لتوليد قائمة الطلاب", ui: "loading", duration: 1500 },
+  { title: "اختيار الصف - الأول أ", description: "عرض طلاب الصف الأول أ", ui: "class-select", clickTarget: "الأول أ", duration: 1800 },
+  { title: "تأكيد حضور الجميع", description: "لا يوجد غياب - الضغط على 'تأكيد حضور جميع الطلاب'", ui: "confirm-all", clickTarget: "تأكيد حضور جميع الطلاب", duration: 2500 },
+  { title: "اختيار الصف - الثاني أ", description: "الانتقال للصف التالي وتحديد الشعبة", ui: "class-select", clickTarget: "الثاني أ", duration: 1800 },
+  { title: "تعبئة الغياب - الثاني أ", description: "وضع علامة ✓ على الطلاب الغائبين واختيار نوع الغياب", ui: "attendance", highlight: "بدون عذر", clickTarget: "✓", duration: 3000 },
+  { title: "الإقرار والحفظ", description: "تفعيل مربع 'أتعهد...' ثم الضغط على زر 'حفظ'", ui: "save-form", clickTarget: "حفظ", duration: 2500 },
+  { title: "اختيار الصف - الثالث أ", description: "الانتقال للصف التالي", ui: "class-select", clickTarget: "الثالث أ", duration: 1800 },
+  { title: "تعبئة الغياب - الثالث أ", description: "تكرار العملية لكل صف...", ui: "attendance", highlight: "بعذر", clickTarget: "✓", duration: 2500 },
+  { title: "الإقرار والحفظ", description: "تفعيل مربع 'أتعهد...' والضغط على 'حفظ'", ui: "save-form", clickTarget: "حفظ", duration: 2000 },
+  { title: "تأكيد الانتهاء من الغياب", description: "الدخول على تبويب 'تأكيد الانتهاء من الغياب اليومي' والتأكيد", ui: "final-confirm", clickTarget: "تأكيد الانتهاء", duration: 3000 },
+  { title: "✅ تم بنجاح!", description: "تم رصد جميع حالات الغياب وتأكيد الانتهاء من الغياب اليومي", ui: "done", duration: 2500 },
 ];
 
 interface Props {
