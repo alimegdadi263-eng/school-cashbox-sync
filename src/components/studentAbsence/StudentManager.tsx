@@ -92,6 +92,7 @@ export default function StudentManager({ userId, schoolName, directorateName }: 
   const [gender, setGender] = useState("");
   const [filterClass, setFilterClass] = useState("");
   const [showAllFields, setShowAllFields] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
 
   // Extra optional fields
   const [firstName, setFirstName] = useState("");
