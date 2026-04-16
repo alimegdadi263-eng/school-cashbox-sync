@@ -89,7 +89,12 @@ function loadState(userId: string, month?: string, year?: string): FinanceState 
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id || "anonymous";
-  const [state, setState] = useState<FinanceState>(() => loadState(userId, defaultState.currentMonth, defaultState.currentYear));
+  const [state, setState] = useState<FinanceState>(() => {
+    const lastPeriod = getLastPeriod(userId);
+    const month = lastPeriod?.month || defaultState.currentMonth;
+    const year = lastPeriod?.year || defaultState.currentYear;
+    return loadState(userId, month, year);
+  });
   const syncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Check if in LAN network mode
