@@ -92,11 +92,11 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Load from LAN server
-  const loadFromLan = useCallback(async (uid: string) => {
+  const loadFromLan = useCallback(async (uid: string, month: string, year: string) => {
     const lan = getElectronLan();
     if (!lan) return null;
     try {
-      const result = await lan.getData(`${STORAGE_KEY_PREFIX}-${uid}`);
+      const result = await lan.getData(getStorageKey(uid, month, year));
       if (result?.success && result.data) {
         return result.data as FinanceState;
       }
@@ -111,7 +111,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     const lan = getElectronLan();
     if (!lan) return;
     try {
-      await lan.setData(`${STORAGE_KEY_PREFIX}-${uid}`, data);
+      await lan.setData(getStorageKey(uid, data.currentMonth, data.currentYear), data);
     } catch (err) {
       console.error('LAN save error:', err);
     }
