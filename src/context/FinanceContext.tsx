@@ -117,27 +117,29 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Reload state when user changes
+  // Reload state when user changes or month/year changes
   useEffect(() => {
     if (user?.id) {
       const uid = user.id;
-      // Try LAN first, then localStorage
+      const month = state.currentMonth;
+      const year = state.currentYear;
       (async () => {
         if (await isLanMode()) {
-          const lanData = await loadFromLan(uid);
+          const lanData = await loadFromLan(uid, month, year);
           if (lanData) {
             setState(lanData);
             return;
           }
         }
-        setState(loadState(uid));
+        setState(loadState(uid, month, year));
       })();
     }
-  }, [user?.id, isLanMode, loadFromLan]);
+  }, [user?.id]);
 
-  // Save to localStorage + LAN
+  // Save to localStorage + LAN whenever state changes
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY_PREFIX}-${userId}`, JSON.stringify(state));
+    const key = getStorageKey(userId, state.currentMonth, state.currentYear);
+    localStorage.setItem(key, JSON.stringify(state));
 
     // Also save to LAN if connected
     (async () => {
