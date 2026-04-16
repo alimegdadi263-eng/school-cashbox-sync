@@ -76,7 +76,7 @@ function loadState(userId: string, month?: string, year?: string): FinanceState 
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id || "anonymous";
-  const [state, setState] = useState<FinanceState>(() => loadState(userId));
+  const [state, setState] = useState<FinanceState>(() => loadState(userId, defaultState.currentMonth, defaultState.currentYear));
   const syncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Check if in LAN network mode
