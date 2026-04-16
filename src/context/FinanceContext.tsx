@@ -44,10 +44,31 @@ function getElectronLan() {
   return (window as any)?.electronAPI?.lan;
 }
 
-function loadState(userId: string): FinanceState {
+function getStorageKey(userId: string, month: string, year: string): string {
+  return `${STORAGE_KEY_PREFIX}-${userId}-${month}-${year}`;
+}
+
+function loadState(userId: string, month?: string, year?: string): FinanceState {
+  // Try loading with month/year key first
+  if (month && year) {
+    try {
+      const saved = localStorage.getItem(getStorageKey(userId, month, year));
+      if (saved) return JSON.parse(saved);
+    } catch {}
+  }
+  // Fallback: try old key (migrate existing data)
   try {
-    const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}-${userId}`);
-    if (saved) return JSON.parse(saved);
+    const oldKey = `${STORAGE_KEY_PREFIX}-${userId}`;
+    const saved = localStorage.getItem(oldKey);
+    if (saved) {
+      const parsed = JSON.parse(saved) as FinanceState;
+      // Save under new month-specific key and keep old data
+      if (parsed.currentMonth && parsed.currentYear) {
+        const newKey = getStorageKey(userId, parsed.currentMonth, parsed.currentYear);
+        localStorage.setItem(newKey, JSON.stringify(parsed));
+      }
+      return parsed;
+    }
   } catch {}
   return defaultState;
 }
@@ -55,7 +76,7 @@ function loadState(userId: string): FinanceState {
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id || "anonymous";
-  const [state, setState] = useState<FinanceState>(() => loadState(userId));
+  const [state, setState] = useState<FinanceState>(() => loadState(userId, defaultState.currentMonth, defaultState.currentYear));
   const syncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Check if in LAN network mode
@@ -71,11 +92,11 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Load from LAN server
-  const loadFromLan = useCallback(async (uid: string) => {
+  const loadFromLan = useCallback(async (uid: string, month: string, year: string) => {
     const lan = getElectronLan();
     if (!lan) return null;
     try {
-      const result = await lan.getData(`${STORAGE_KEY_PREFIX}-${uid}`);
+      const result = await lan.getData(getStorageKey(uid, month, year));
       if (result?.success && result.data) {
         return result.data as FinanceState;
       }
@@ -90,33 +111,35 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     const lan = getElectronLan();
     if (!lan) return;
     try {
-      await lan.setData(`${STORAGE_KEY_PREFIX}-${uid}`, data);
+      await lan.setData(getStorageKey(uid, data.currentMonth, data.currentYear), data);
     } catch (err) {
       console.error('LAN save error:', err);
     }
   }, []);
 
-  // Reload state when user changes
+  // Reload state when user changes or month/year changes
   useEffect(() => {
     if (user?.id) {
       const uid = user.id;
-      // Try LAN first, then localStorage
+      const month = state.currentMonth;
+      const year = state.currentYear;
       (async () => {
         if (await isLanMode()) {
-          const lanData = await loadFromLan(uid);
+          const lanData = await loadFromLan(uid, month, year);
           if (lanData) {
             setState(lanData);
             return;
           }
         }
-        setState(loadState(uid));
+        setState(loadState(uid, month, year));
       })();
     }
-  }, [user?.id, isLanMode, loadFromLan]);
+  }, [user?.id]);
 
-  // Save to localStorage + LAN
+  // Save to localStorage + LAN whenever state changes
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY_PREFIX}-${userId}`, JSON.stringify(state));
+    const key = getStorageKey(userId, state.currentMonth, state.currentYear);
+    localStorage.setItem(key, JSON.stringify(state));
 
     // Also save to LAN if connected
     (async () => {
@@ -137,7 +160,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         if (!connResult?.connected) return;
 
         // Both server and client modes should sync from LAN storage
-        const lanData = await loadFromLan(userId);
+        const lanData = await loadFromLan(userId, state.currentMonth, state.currentYear);
         if (lanData) {
           const currentStr = JSON.stringify(state);
           const lanStr = JSON.stringify(lanData);
@@ -179,17 +202,55 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateSettings = useCallback((settings: { schoolName: string; directorateName: string; directorName: string; member1Name: string; member2Name: string; month: string; year: string }) => {
-    setState((s) => ({
-      ...s,
-      schoolName: settings.schoolName,
-      directorateName: settings.directorateName,
-      directorName: settings.directorName,
-      member1Name: settings.member1Name,
-      member2Name: settings.member2Name,
-      currentMonth: settings.month,
-      currentYear: settings.year,
-    }));
-  }, []);
+    setState((s) => {
+      // If month or year changed, save current state first, then load new month's data
+      if (s.currentMonth !== settings.month || s.currentYear !== settings.year) {
+        // Save current month before switching
+        const currentKey = getStorageKey(userId, s.currentMonth, s.currentYear);
+        localStorage.setItem(currentKey, JSON.stringify(s));
+        
+        // Load the target month's data
+        const targetKey = getStorageKey(userId, settings.month, settings.year);
+        try {
+          const saved = localStorage.getItem(targetKey);
+          if (saved) {
+            const parsed = JSON.parse(saved) as FinanceState;
+            return {
+              ...parsed,
+              schoolName: settings.schoolName,
+              directorateName: settings.directorateName,
+              directorName: settings.directorName,
+              member1Name: settings.member1Name,
+              member2Name: settings.member2Name,
+              currentMonth: settings.month,
+              currentYear: settings.year,
+            };
+          }
+        } catch {}
+        
+        // No data for target month - start fresh but keep settings
+        return {
+          ...defaultState,
+          schoolName: settings.schoolName,
+          directorateName: settings.directorateName,
+          directorName: settings.directorName,
+          member1Name: settings.member1Name,
+          member2Name: settings.member2Name,
+          currentMonth: settings.month,
+          currentYear: settings.year,
+        };
+      }
+      
+      return {
+        ...s,
+        schoolName: settings.schoolName,
+        directorateName: settings.directorateName,
+        directorName: settings.directorName,
+        member1Name: settings.member1Name,
+        member2Name: settings.member2Name,
+      };
+    });
+  }, [userId]);
 
   const getColumnBalance = useCallback(
     (colId: AccountColumnId) => {
