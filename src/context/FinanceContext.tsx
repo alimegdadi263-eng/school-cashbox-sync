@@ -44,10 +44,31 @@ function getElectronLan() {
   return (window as any)?.electronAPI?.lan;
 }
 
-function loadState(userId: string): FinanceState {
+function getStorageKey(userId: string, month: string, year: string): string {
+  return `${STORAGE_KEY_PREFIX}-${userId}-${month}-${year}`;
+}
+
+function loadState(userId: string, month?: string, year?: string): FinanceState {
+  // Try loading with month/year key first
+  if (month && year) {
+    try {
+      const saved = localStorage.getItem(getStorageKey(userId, month, year));
+      if (saved) return JSON.parse(saved);
+    } catch {}
+  }
+  // Fallback: try old key (migrate existing data)
   try {
-    const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}-${userId}`);
-    if (saved) return JSON.parse(saved);
+    const oldKey = `${STORAGE_KEY_PREFIX}-${userId}`;
+    const saved = localStorage.getItem(oldKey);
+    if (saved) {
+      const parsed = JSON.parse(saved) as FinanceState;
+      // Save under new month-specific key and keep old data
+      if (parsed.currentMonth && parsed.currentYear) {
+        const newKey = getStorageKey(userId, parsed.currentMonth, parsed.currentYear);
+        localStorage.setItem(newKey, JSON.stringify(parsed));
+      }
+      return parsed;
+    }
   } catch {}
   return defaultState;
 }
