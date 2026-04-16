@@ -37,6 +37,14 @@ function saveLastPeriod(userId: string, month: string, year: string) {
   localStorage.setItem(`${LAST_PERIOD_KEY}-${userId}`, JSON.stringify({ month, year }));
 }
 
+function getPeriodForUser(userId: string): { month: string; year: string } {
+  const lastPeriod = getLastPeriod(userId);
+  return {
+    month: lastPeriod?.month || defaultState.currentMonth,
+    year: lastPeriod?.year || defaultState.currentYear,
+  };
+}
+
 const defaultState: FinanceState = {
   schoolName: "المدرسة",
   directorateName: "",
@@ -87,15 +95,19 @@ function loadState(userId: string, month?: string, year?: string): FinanceState 
 }
 
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const userId = user?.id || "anonymous";
   const [state, setState] = useState<FinanceState>(() => {
-    const lastPeriod = getLastPeriod(userId);
-    const month = lastPeriod?.month || defaultState.currentMonth;
-    const year = lastPeriod?.year || defaultState.currentYear;
+    const { month, year } = getPeriodForUser(userId);
     return loadState(userId, month, year);
   });
   const syncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const latestStateRef = useRef(state);
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    latestStateRef.current = state;
+  }, [state]);
 
   // Check if in LAN network mode
   const isLanMode = useCallback(async () => {
@@ -137,41 +149,62 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   // Reload state when user changes or month/year changes
   useEffect(() => {
-    if (user?.id) {
-      const uid = user.id;
-      const month = state.currentMonth;
-      const year = state.currentYear;
-      (async () => {
-        if (await isLanMode()) {
-          const lanData = await loadFromLan(uid, month, year);
-          if (lanData) {
-            setState(lanData);
-            return;
-          }
-        }
-        setState(loadState(uid, month, year));
-      })();
+    if (loading) return;
+
+    if (!user?.id) {
+      setIsHydrated(false);
+      setState(defaultState);
+      return;
     }
-  }, [user?.id]);
+
+    const uid = user.id;
+    const { month, year } = getPeriodForUser(uid);
+    let cancelled = false;
+
+    setIsHydrated(false);
+
+    (async () => {
+      let nextState: FinanceState | null = null;
+
+      if (await isLanMode()) {
+        nextState = await loadFromLan(uid, month, year);
+      }
+
+      if (!nextState) {
+        nextState = loadState(uid, month, year);
+      }
+
+      if (!cancelled) {
+        setState(nextState);
+        setIsHydrated(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, loading, isLanMode, loadFromLan]);
 
   // Save to localStorage + LAN whenever state changes
   useEffect(() => {
-    const key = getStorageKey(userId, state.currentMonth, state.currentYear);
+    if (loading || !user?.id || !isHydrated) return;
+
+    const key = getStorageKey(user.id, state.currentMonth, state.currentYear);
     localStorage.setItem(key, JSON.stringify(state));
-    saveLastPeriod(userId, state.currentMonth, state.currentYear);
+    saveLastPeriod(user.id, state.currentMonth, state.currentYear);
 
     // Also save to LAN if connected
     (async () => {
       if (await isLanMode()) {
-        await saveToLan(userId, state);
+        await saveToLan(user.id, state);
       }
     })();
-  }, [state, userId, isLanMode, saveToLan]);
+  }, [state, user?.id, loading, isHydrated, isLanMode, saveToLan]);
 
   // Periodic sync: clients pull from server, server pulls from LAN DB (for client changes)
   useEffect(() => {
     const lan = getElectronLan();
-    if (!lan) return;
+    if (!lan || loading || !user?.id || !isHydrated) return;
 
     syncTimerRef.current = setInterval(async () => {
       try {
@@ -179,9 +212,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         if (!connResult?.connected) return;
 
         // Both server and client modes should sync from LAN storage
-        const lanData = await loadFromLan(userId, state.currentMonth, state.currentYear);
+        const currentState = latestStateRef.current;
+        const lanData = await loadFromLan(user.id, currentState.currentMonth, currentState.currentYear);
         if (lanData) {
-          const currentStr = JSON.stringify(state);
+          const currentStr = JSON.stringify(currentState);
           const lanStr = JSON.stringify(lanData);
           if (currentStr !== lanStr) {
             setState(lanData);
@@ -196,7 +230,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         syncTimerRef.current = null;
       }
     };
-  }, [userId, loadFromLan]);
+  }, [user?.id, loading, isHydrated, loadFromLan]);
 
   const addTransaction = useCallback((tx: Transaction) => {
     setState((s) => ({ ...s, transactions: [...s.transactions, tx] }));
