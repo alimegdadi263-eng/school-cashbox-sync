@@ -23,6 +23,19 @@ interface FinanceContextType {
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
 const STORAGE_KEY_PREFIX = "school-finance-data";
+const LAST_PERIOD_KEY = "school-finance-last-period";
+
+function getLastPeriod(userId: string): { month: string; year: string } | null {
+  try {
+    const saved = localStorage.getItem(`${LAST_PERIOD_KEY}-${userId}`);
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return null;
+}
+
+function saveLastPeriod(userId: string, month: string, year: string) {
+  localStorage.setItem(`${LAST_PERIOD_KEY}-${userId}`, JSON.stringify({ month, year }));
+}
 
 const defaultState: FinanceState = {
   schoolName: "المدرسة",
