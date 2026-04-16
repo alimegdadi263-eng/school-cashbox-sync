@@ -202,17 +202,55 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateSettings = useCallback((settings: { schoolName: string; directorateName: string; directorName: string; member1Name: string; member2Name: string; month: string; year: string }) => {
-    setState((s) => ({
-      ...s,
-      schoolName: settings.schoolName,
-      directorateName: settings.directorateName,
-      directorName: settings.directorName,
-      member1Name: settings.member1Name,
-      member2Name: settings.member2Name,
-      currentMonth: settings.month,
-      currentYear: settings.year,
-    }));
-  }, []);
+    setState((s) => {
+      // If month or year changed, save current state first, then load new month's data
+      if (s.currentMonth !== settings.month || s.currentYear !== settings.year) {
+        // Save current month before switching
+        const currentKey = getStorageKey(userId, s.currentMonth, s.currentYear);
+        localStorage.setItem(currentKey, JSON.stringify(s));
+        
+        // Load the target month's data
+        const targetKey = getStorageKey(userId, settings.month, settings.year);
+        try {
+          const saved = localStorage.getItem(targetKey);
+          if (saved) {
+            const parsed = JSON.parse(saved) as FinanceState;
+            return {
+              ...parsed,
+              schoolName: settings.schoolName,
+              directorateName: settings.directorateName,
+              directorName: settings.directorName,
+              member1Name: settings.member1Name,
+              member2Name: settings.member2Name,
+              currentMonth: settings.month,
+              currentYear: settings.year,
+            };
+          }
+        } catch {}
+        
+        // No data for target month - start fresh but keep settings
+        return {
+          ...defaultState,
+          schoolName: settings.schoolName,
+          directorateName: settings.directorateName,
+          directorName: settings.directorName,
+          member1Name: settings.member1Name,
+          member2Name: settings.member2Name,
+          currentMonth: settings.month,
+          currentYear: settings.year,
+        };
+      }
+      
+      return {
+        ...s,
+        schoolName: settings.schoolName,
+        directorateName: settings.directorateName,
+        directorName: settings.directorName,
+        member1Name: settings.member1Name,
+        member2Name: settings.member2Name,
+      };
+    });
+  }, [userId]);
 
   const getColumnBalance = useCallback(
     (colId: AccountColumnId) => {
