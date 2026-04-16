@@ -158,6 +158,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const key = getStorageKey(userId, state.currentMonth, state.currentYear);
     localStorage.setItem(key, JSON.stringify(state));
+    saveLastPeriod(userId, state.currentMonth, state.currentYear);
 
     // Also save to LAN if connected
     (async () => {
