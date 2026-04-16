@@ -23,6 +23,19 @@ interface FinanceContextType {
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
 const STORAGE_KEY_PREFIX = "school-finance-data";
+const LAST_PERIOD_KEY = "school-finance-last-period";
+
+function getLastPeriod(userId: string): { month: string; year: string } | null {
+  try {
+    const saved = localStorage.getItem(`${LAST_PERIOD_KEY}-${userId}`);
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return null;
+}
+
+function saveLastPeriod(userId: string, month: string, year: string) {
+  localStorage.setItem(`${LAST_PERIOD_KEY}-${userId}`, JSON.stringify({ month, year }));
+}
 
 const defaultState: FinanceState = {
   schoolName: "المدرسة",
@@ -76,7 +89,12 @@ function loadState(userId: string, month?: string, year?: string): FinanceState 
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id || "anonymous";
-  const [state, setState] = useState<FinanceState>(() => loadState(userId, defaultState.currentMonth, defaultState.currentYear));
+  const [state, setState] = useState<FinanceState>(() => {
+    const lastPeriod = getLastPeriod(userId);
+    const month = lastPeriod?.month || defaultState.currentMonth;
+    const year = lastPeriod?.year || defaultState.currentYear;
+    return loadState(userId, month, year);
+  });
   const syncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Check if in LAN network mode
@@ -140,6 +158,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const key = getStorageKey(userId, state.currentMonth, state.currentYear);
     localStorage.setItem(key, JSON.stringify(state));
+    saveLastPeriod(userId, state.currentMonth, state.currentYear);
 
     // Also save to LAN if connected
     (async () => {
