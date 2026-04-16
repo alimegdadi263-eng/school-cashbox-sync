@@ -160,7 +160,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         if (!connResult?.connected) return;
 
         // Both server and client modes should sync from LAN storage
-        const lanData = await loadFromLan(userId);
+        const lanData = await loadFromLan(userId, state.currentMonth, state.currentYear);
         if (lanData) {
           const currentStr = JSON.stringify(state);
           const lanStr = JSON.stringify(lanData);
