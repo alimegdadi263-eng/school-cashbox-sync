@@ -910,12 +910,14 @@ function setupAjyalHandlers(mainWindow) {
     (function() {
       ${normalizeArabicJS}
       const targets = ${JSON.stringify(texts)}.map(t => normalizeArabic(t));
+      const originalTargets = ${JSON.stringify(texts)};
       const els = document.querySelectorAll('${tag}');
       for (const el of els) {
         const t = normalizeArabic(el.textContent);
-        for (const target of targets) {
+        for (let ti = 0; ti < targets.length; ti++) {
+          const target = targets[ti];
           if (t === target || t.includes(target)) {
-            highlightElement(el);
+            highlightElement(el, 'الضغط على: ' + originalTargets[ti]);
             el.click();
             el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
             return { clicked: true, text: t };
@@ -924,9 +926,10 @@ function setupAjyalHandlers(mainWindow) {
       }
       for (const el of els) {
         const t = normalizeArabic(el.textContent);
-        for (const target of targets) {
+        for (let ti = 0; ti < targets.length; ti++) {
+          const target = targets[ti];
           if (target.length >= 3 && t.includes(target.substring(0, Math.min(target.length, 6)))) {
-            highlightElement(el);
+            highlightElement(el, 'الضغط على: ' + originalTargets[ti]);
             el.click();
             el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
             return { clicked: true, text: t, partial: true };
@@ -935,12 +938,12 @@ function setupAjyalHandlers(mainWindow) {
       }
       const hrefPatterns = { 'الطلبة': ['/students', '/student'], 'إدارة الطلبة': ['/students', '/student'], 'الحضور والغياب': ['/attendance', '/absence'], 'تسجيل الغياب': ['/absence', '/record-absence'], 'بيانات الطلبة': ['/students/list', '/student-data'] };
       const links = document.querySelectorAll('a[href]');
-      for (const target of ${JSON.stringify(texts)}) {
+      for (const target of originalTargets) {
         const patterns = hrefPatterns[target] || [];
         for (const link of links) {
           const href = link.getAttribute('href') || '';
           for (const pattern of patterns) {
-            if (href.includes(pattern)) { highlightElement(link); link.click(); return { clicked: true, text: link.textContent.trim(), href: true }; }
+            if (href.includes(pattern)) { highlightElement(link, 'الانتقال إلى: ' + target); link.click(); return { clicked: true, text: link.textContent.trim(), href: true }; }
           }
         }
       }
