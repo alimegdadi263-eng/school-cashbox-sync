@@ -221,9 +221,28 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
     }
   };
 
-  const submitAbsences = async () => {
+  // Open class selection dialog before running automation
+  const openClassSelector = () => {
+    if (allStudents.length === 0) {
+      toast({
+        title: "لا يوجد طلاب في النظام",
+        description: "قم باستيراد الطلاب من أجيال أو إضافتهم من تبويب 'إدارة الطلبة' أولاً",
+        variant: "destructive",
+      });
+      return;
+    }
+    setClassDialogOpen(true);
+  };
+
+  const submitAbsences = async (selectedClassNames?: string[]) => {
     const ajyal = getElectronAjyal();
-    if (!ajyal) return;
+    if (!ajyal) {
+      toast({
+        title: "وضع المحاكاة (Preview)",
+        description: `تم اختيار ${selectedClassNames?.length || 0} صف. في تطبيق سطح المكتب سيتم تنفيذها فعلياً على منصة أجيال.`,
+      });
+      return;
+    }
     if (todayAbsences.length === 0) {
       toast({ title: "لا يوجد غياب مسجل لهذا اليوم", variant: "destructive" });
       return;
@@ -231,17 +250,20 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
     setIsSubmitting(true);
     setSubmitProgress({ done: 0, total: todayAbsences.length });
     try {
-      // Send all records at once with navigateFirst flag for auto-navigation
-      const allRecords = todayAbsences.map(r => ({
+      // Filter records by selected classes if provided
+      const recordsToSubmit = selectedClassNames && selectedClassNames.length > 0
+        ? todayAbsences.filter(r => selectedClassNames.includes(r.className))
+        : todayAbsences;
+      const allRecords = recordsToSubmit.map(r => ({
         studentName: r.studentName,
         className: r.className,
         date: r.date,
         navigateFirst: true,
       }));
       const result = await ajyal.submitAbsence(allRecords);
-      setSubmitProgress({ done: todayAbsences.length, total: todayAbsences.length });
+      setSubmitProgress({ done: recordsToSubmit.length, total: recordsToSubmit.length });
       if (result?.success) {
-        toast({ title: `تم تعبئة ${result.marked || todayAbsences.length} غياب في أجيال ✓`, description: "اضغط 'حفظ' في صفحة أجيال لتأكيد البيانات" });
+        toast({ title: `تم تعبئة ${result.marked || recordsToSubmit.length} غياب في أجيال ✓`, description: "اضغط 'حفظ' في صفحة أجيال لتأكيد البيانات" });
       } else {
         toast({ title: "حدث خطأ أثناء التعبئة", description: result?.error, variant: "destructive" });
       }
