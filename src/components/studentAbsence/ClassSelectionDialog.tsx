@@ -1,6 +1,6 @@
 // Class Selection Dialog - Used before triggering Ajyal absence automation
 // Allows user to pick multiple grade/section combinations before processing
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -45,9 +45,10 @@ export default function ClassSelectionDialog({
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   // Initialize selection when dialog opens - default to classes with absences
-  useState(() => {
+  useEffect(() => {
     if (open) setSelected(new Set(todayAbsenceClassNames));
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const toggle = (name: string) => {
     setSelected(prev => {
