@@ -14,6 +14,8 @@ import { STUDENT_STORAGE_KEY, STUDENTS_LIST_KEY } from "@/types/studentAbsence";
 import { format } from "date-fns";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AjyalSimulation from "./AjyalSimulation";
+import ClassSelectionDialog from "./ClassSelectionDialog";
+import { STUDENTS_LIST_KEY as STUDENTS_KEY } from "@/types/studentAbsence";
 
 const AJYAL_CREDS_KEY = "ajyal_credentials";
 
@@ -63,6 +65,18 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
   const [showLog, setShowLog] = useState(false);
   const [importReport, setImportReport] = useState<ImportReport | null>(null);
   const [absenceReport, setAbsenceReport] = useState<AbsenceReport | null>(null);
+  const [allStudents, setAllStudents] = useState<StudentInfo[]>([]);
+  const [classDialogOpen, setClassDialogOpen] = useState(false);
+
+  // Load all students for class dialog
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`${STUDENTS_KEY}_${userId}`);
+      if (saved) setAllStudents(JSON.parse(saved));
+    } catch {}
+  }, [userId, importedStudents]);
+
+  const todayAbsenceClassNames = Array.from(new Set(todayAbsences.map(r => r.className).filter(Boolean)));
 
   const isElectron = !!getElectronAjyal();
 
