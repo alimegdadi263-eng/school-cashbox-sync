@@ -805,12 +805,86 @@ function setupAjyalHandlers(mainWindow) {
     await updateToolbarStatus('idle', 'حدد الصفوف المطلوبة ثم اضغط تنفيذ');
   }
 
-  // Helper: normalize Arabic text + visual highlight
+  // Helper: normalize Arabic text + visual highlight + tooltip popup
   const normalizeArabicJS = `
     function normalizeArabic(text) {
       return (text || '').replace(/[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06DC\\u06DF-\\u06E4\\u06E7\\u06E8\\u06EA-\\u06ED]/g, '').replace(/\\s+/g, ' ').trim();
     }
-    function highlightElement(el) {
+    function showActionTooltip(el, message) {
+      if (!el || !message) return;
+      try {
+        // Remove any existing tooltips first
+        var oldTips = document.querySelectorAll('.ajyal-action-tooltip');
+        for (var i = 0; i < oldTips.length; i++) oldTips[i].remove();
+
+        var rect = el.getBoundingClientRect();
+        var tip = document.createElement('div');
+        tip.className = 'ajyal-action-tooltip';
+        tip.textContent = '👉 ' + message;
+        tip.style.cssText = [
+          'position:fixed',
+          'z-index:2147483647',
+          'background:linear-gradient(135deg,#f59e0b,#d97706)',
+          'color:white',
+          'padding:8px 14px',
+          'border-radius:10px',
+          'font-size:14px',
+          'font-weight:bold',
+          'font-family:"Cairo","Tajawal",Arial,sans-serif',
+          'direction:rtl',
+          'box-shadow:0 6px 20px rgba(245,158,11,0.6),0 0 0 2px white',
+          'pointer-events:none',
+          'white-space:nowrap',
+          'max-width:320px',
+          'overflow:hidden',
+          'text-overflow:ellipsis',
+          'animation:ajyalTipPop 0.3s ease-out',
+          'transition:opacity 0.4s ease'
+        ].join(';');
+
+        // Inject animation style once
+        if (!document.getElementById('ajyal-tip-style')) {
+          var st = document.createElement('style');
+          st.id = 'ajyal-tip-style';
+          st.textContent = '@keyframes ajyalTipPop{0%{transform:scale(0.5) translateY(10px);opacity:0}60%{transform:scale(1.1) translateY(-2px);opacity:1}100%{transform:scale(1) translateY(0);opacity:1}}';
+          document.head.appendChild(st);
+        }
+
+        document.body.appendChild(tip);
+        // Position above the element, centered
+        var tipRect = tip.getBoundingClientRect();
+        var top = rect.top - tipRect.height - 12;
+        var left = rect.left + (rect.width / 2) - (tipRect.width / 2);
+        // If above is off-screen, place below
+        if (top < 8) top = rect.bottom + 12;
+        // Keep within viewport horizontally
+        if (left < 8) left = 8;
+        if (left + tipRect.width > window.innerWidth - 8) left = window.innerWidth - tipRect.width - 8;
+        tip.style.top = top + 'px';
+        tip.style.left = left + 'px';
+
+        // Add a small arrow pointer
+        var arrow = document.createElement('div');
+        var pointDown = (top < rect.top);
+        arrow.style.cssText = [
+          'position:absolute',
+          'left:50%',
+          'transform:translateX(-50%)',
+          (pointDown ? 'bottom:-6px' : 'top:-6px'),
+          'width:0;height:0',
+          'border-left:7px solid transparent',
+          'border-right:7px solid transparent',
+          (pointDown ? 'border-top:8px solid #d97706' : 'border-bottom:8px solid #f59e0b')
+        ].join(';');
+        tip.appendChild(arrow);
+
+        setTimeout(function() {
+          tip.style.opacity = '0';
+          setTimeout(function() { try { tip.remove(); } catch(e) {} }, 400);
+        }, 2200);
+      } catch(e) {}
+    }
+    function highlightElement(el, message) {
       if (!el) return;
       var prev = el.style.cssText;
       el.style.outline = '3px solid #f59e0b';
@@ -818,6 +892,10 @@ function setupAjyalHandlers(mainWindow) {
       el.style.boxShadow = '0 0 20px rgba(245,158,11,0.5)';
       el.style.transition = 'all 0.3s ease';
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Show action tooltip popup with message
+      if (message) {
+        setTimeout(function() { showActionTooltip(el, message); }, 200);
+      }
       setTimeout(function() {
         el.style.outline = '3px solid #22c55e';
         el.style.boxShadow = '0 0 20px rgba(34,197,94,0.5)';
