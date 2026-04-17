@@ -637,11 +637,11 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
                         ))}
                       </div>
                     </div>
-                    <Button onClick={submitAbsences} disabled={isSubmitting} className="w-full" size="lg">
+                    <Button onClick={openClassSelector} disabled={isSubmitting} className="w-full" size="lg">
                       {isSubmitting ? (
                         <><Loader2 className="w-4 h-4 ml-2 animate-spin" />جاري التعبئة... ({submitProgress.done}/{submitProgress.total})</>
                       ) : (
-                        <><Send className="w-4 h-4 ml-2" />تعبئة الغياب تلقائياً ({todayAbsences.length} طالب)</>
+                        <><Send className="w-4 h-4 ml-2" />اختيار الصفوف وتعبئة الغياب ({todayAbsences.length} طالب)</>
                       )}
                     </Button>
                   </>
