@@ -736,6 +736,16 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
           </TabsContent>
         </Tabs>
       )}
+
+      {/* Class Selection Dialog */}
+      <ClassSelectionDialog
+        open={classDialogOpen}
+        onOpenChange={setClassDialogOpen}
+        students={allStudents}
+        todayAbsenceClassNames={todayAbsenceClassNames}
+        onConfirm={(selected) => submitAbsences(selected)}
+        actionLabel="تعبئة الغياب"
+      />
     </div>
   );
 }
