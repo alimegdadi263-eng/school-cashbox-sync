@@ -1000,7 +1000,7 @@ function setupAjyalHandlers(mainWindow) {
           if (label.includes(s) || sel.name?.includes(s) || sel.id?.includes(s)) {
             sel.value = '${value}';
             sel.dispatchEvent(new Event('change', { bubbles: true }));
-            highlightElement(sel);
+            highlightElement(sel, 'تم تحديد: ' + (sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '${value}'));
             return { selected: true };
           }
         }
