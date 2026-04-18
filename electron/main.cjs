@@ -1084,23 +1084,148 @@ function setupAjyalHandlers(mainWindow) {
     })()
   `;
 
-  // ── Import students with progress & report ──
+  // ── Read students from a downloaded Ajyal Excel file ──
+  async function readStudentsFromXlsx(filePath) {
+    try {
+      const ExcelJS = require('exceljs');
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.readFile(filePath);
+      const ws = wb.worksheets[0];
+      if (!ws) return { success: false, error: 'الملف لا يحتوي على ورقة عمل' };
+
+      // Find header row by searching for "اسم"
+      let headerRowIdx = 1;
+      let nameCol = -1, classCol = -1, sectionCol = -1, phoneCol = -1, parentCol = -1;
+      for (let r = 1; r <= Math.min(ws.rowCount, 10); r++) {
+        const row = ws.getRow(r);
+        let foundAny = false;
+        row.eachCell((cell, col) => {
+          const v = String(cell.value || '').replace(/\s+/g, ' ').trim();
+          if (/اسم.*طالب|الاسم|^اسم$|Student\s*Name|Name/i.test(v) && nameCol === -1) { nameCol = col; foundAny = true; }
+          if (/^الصف$|المرحلة|Grade|Class/i.test(v) && classCol === -1) { classCol = col; foundAny = true; }
+          if (/الشعبة|القسم|Section/i.test(v) && sectionCol === -1) { sectionCol = col; foundAny = true; }
+          if (/الهاتف|الجوال|الموبايل|رقم.*ولي|Phone|Mobile/i.test(v) && phoneCol === -1) { phoneCol = col; foundAny = true; }
+          if (/ولي.*أمر|اسم.*ولي|Parent|Guardian/i.test(v) && parentCol === -1) { parentCol = col; foundAny = true; }
+        });
+        if (foundAny && nameCol !== -1) { headerRowIdx = r; break; }
+      }
+      if (nameCol === -1) return { success: false, error: 'لم يُعثر على عمود الاسم في الملف' };
+
+      const students = [];
+      for (let r = headerRowIdx + 1; r <= ws.rowCount; r++) {
+        const row = ws.getRow(r);
+        const name = String(row.getCell(nameCol).value || '').replace(/\s+/g, ' ').trim();
+        if (!name || name.length < 3) continue;
+        const grade = classCol > 0 ? String(row.getCell(classCol).value || '').trim() : '';
+        const section = sectionCol > 0 ? String(row.getCell(sectionCol).value || '').trim() : '';
+        const className = (grade && section) ? (grade + ' ' + section) : (grade || section);
+        const parentPhone = phoneCol > 0 ? String(row.getCell(phoneCol).value || '').trim() : '';
+        const parentName = parentCol > 0 ? String(row.getCell(parentCol).value || '').trim() : '';
+        students.push({ name, className, parentPhone, parentName });
+      }
+      return { success: students.length > 0, students, count: students.length };
+    } catch (err) {
+      return { success: false, error: 'فشل قراءة ملف Excel: ' + err.message };
+    }
+  }
+
+  // ── Import students: navigate → click Export → wait for download → parse ──
   async function runImportStudents(mainWindow, selectedGrades) {
     if (!ajyalView || ajyalView.webContents.isDestroyed()) {
       return { success: false, error: 'View not open' };
     }
     try {
       const nav = AJYAL_NAV_MAP.import;
+      ajyalLastDownloadPath = null;
       await ajyalExec(`(function(){ var btn = document.getElementById('btn-import-students'); if(btn){ btn.textContent = '⏳ جاري الاستيراد...'; btn.dataset.running = 'true'; } })()`);
-      await updateToolbarStatus('loading', 'جاري التنقل إلى قائمة الطلاب...');
+      await updateToolbarStatus('loading', 'جاري التنقل إلى قائمة الطلبة...');
 
-      // Navigate using nav map
+      // Step 1-2: Navigate (شؤون الطلبة → الطلبة) with visible delays
       for (const step of nav.steps) {
         sendProgress(step.message);
+        await updateToolbarStatus('loading', step.message);
         await ajyalExec(clickByTextJS(step.targets));
         await ajyalWait(step.wait);
       }
-      sendProgress('تم فتح قائمة الطلبة ✓');
+      sendProgress('✓ وصلت لصفحة الطلبة');
+      await ajyalWait(1500);
+
+      // Step 3: Click Export button to trigger Excel download
+      sendProgress(nav.exportStep.message);
+      await updateToolbarStatus('loading', nav.exportStep.message);
+      const exportClick = await ajyalExec(clickByTextJS(nav.exportStep.targets));
+      if (!exportClick || !exportClick.clicked) {
+        sendProgress('⚠️ لم يُعثر على زر التصدير - جاري المحاولة عبر طريقة بديلة (قراءة الجدول مباشرة)...');
+        // Fallback: try old scraping flow
+        await ajyalExec(clickByTextJS(nav.searchButtons, nav.searchTag));
+        await ajyalWait(nav.tableWait);
+        const result = await ajyalExec(scrapeStudentsJS);
+        if (result && result.success && result.students && result.students.length > 0) {
+          await updateToolbarStatus('success', '✅ تم استيراد ' + result.students.length + ' طالب');
+          await showButtonFeedback('btn-import-students', true);
+          return { success: true, students: result.students, count: result.students.length, report: { processed: [{ className: 'الصفحة الحالية', count: result.students.length }], failed: [], totalImported: result.students.length, totalDuplicates: 0 } };
+        }
+        await showButtonFeedback('btn-import-students', false, 'لم يُعثر على زر التصدير');
+        return { success: false, error: 'لم يُعثر على زر التصدير في صفحة الطلبة. تأكد من فتح الصفحة الصحيحة.' };
+      }
+
+      // Wait for download to complete (poll up to 20s)
+      sendProgress('⏳ بانتظار اكتمال تنزيل ملف Excel...');
+      await updateToolbarStatus('loading', '⏳ بانتظار تنزيل ملف Excel...');
+      const startedAt = Date.now();
+      while (!ajyalLastDownloadPath && (Date.now() - startedAt) < 20000) {
+        await ajyalWait(500);
+      }
+      if (!ajyalLastDownloadPath) {
+        await showButtonFeedback('btn-import-students', false, 'لم يكتمل التنزيل خلال 20 ثانية');
+        return { success: false, error: 'لم يتم تنزيل ملف Excel من أجيال خلال المهلة المحددة (20 ثانية).' };
+      }
+      sendProgress('✓ اكتمل التنزيل، جاري قراءة الملف...');
+      await updateToolbarStatus('loading', 'جاري قراءة ملف Excel...');
+
+      const parsed = await readStudentsFromXlsx(ajyalLastDownloadPath);
+      // Cleanup downloaded file
+      try { fs.unlinkSync(ajyalLastDownloadPath); } catch {}
+      const downloadedFile = ajyalLastDownloadPath;
+      ajyalLastDownloadPath = null;
+
+      if (!parsed.success) {
+        await showButtonFeedback('btn-import-students', false, parsed.error);
+        return { success: false, error: parsed.error, downloadedFile };
+      }
+
+      // Filter by selected grades (if any)
+      let students = parsed.students;
+      if (selectedGrades && selectedGrades.length > 0) {
+        students = students.filter(s => selectedGrades.some(sg => (s.className || '').includes(sg.text) || sg.text.includes(s.className || '')));
+      }
+
+      // Deduplicate
+      const seen = new Set();
+      const beforeDedup = students.length;
+      students = students.filter(s => { const k = s.name + '||' + s.className; if (seen.has(k)) return false; seen.add(k); return true; });
+
+      // Build report grouped by className
+      const groups = {};
+      for (const s of students) { const c = s.className || 'بدون صف'; groups[c] = (groups[c] || 0) + 1; }
+      const report = {
+        processed: Object.entries(groups).map(([className, count]) => ({ className, count })),
+        failed: [],
+        totalImported: students.length,
+        totalDuplicates: beforeDedup - students.length,
+      };
+
+      const successMsg = '✅ تم استيراد ' + students.length + ' طالب من ملف Excel بنجاح';
+      await updateToolbarStatus('success', successMsg);
+      sendProgress(successMsg);
+      await showButtonFeedback('btn-import-students', students.length > 0);
+
+      return { success: students.length > 0, students, count: students.length, report };
+    } catch (err) {
+      await showButtonFeedback('btn-import-students', false, err.message);
+      return { success: false, error: err.message };
+    }
+  }
 
       await updateToolbarStatus('loading', 'جاري اكتشاف الصفوف والشعب...');
       sendProgress('جاري اكتشاف الصفوف والشعب...');
