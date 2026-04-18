@@ -1114,19 +1114,35 @@ function setupAjyalHandlers(mainWindow) {
         }
 
         const hrefPatterns = { 'الطلبة': ['/students', '/student'], 'إدارة الطلبة': ['/students', '/student'], 'الحضور والغياب': ['/attendance', '/absence'], 'تسجيل الغياب': ['/absence', '/record-absence'], 'بيانات الطلبة': ['/students/list', '/student-data'] };
-        const links = document.querySelectorAll('a[href]');
-        for (const target of originalTargets) {
-          const patterns = hrefPatterns[target] || [];
-          for (const link of links) {
-            const href = link.getAttribute('href') || '';
-            for (const pattern of patterns) {
-              if (href.includes(pattern)) { return await performClick(link, 'الانتقال إلى: ' + target); }
+        for (var dx = 0; dx < allDocs.length; dx++) {
+          try {
+            const links = allDocs[dx].querySelectorAll('a[href]');
+            for (const target of originalTargets) {
+              const patterns = hrefPatterns[target] || [];
+              for (const link of links) {
+                const href = link.getAttribute('href') || '';
+                for (const pattern of patterns) {
+                  if (href.includes(pattern)) { return await performClick(link, 'الانتقال إلى: ' + target); }
+                }
+              }
             }
-          }
+          } catch(e){}
         }
 
-        console.warn('[Ajyal Automation] ✗ No match found for:', originalTargets);
-        return { clicked: false, searchedIn: els.length, wanted: originalTargets };
+        // Fallback: collect available clickable texts to help diagnose mismatch
+        var available = [];
+        try {
+          var seen = {};
+          for (var ai = 0; ai < els.length && available.length < 25; ai++) {
+            var c = resolveClickable(els[ai]);
+            if (!c) continue;
+            var t = normalizeArabic(c.textContent || '').slice(0, 40);
+            if (t && !seen[t] && t.length > 1) { seen[t] = 1; available.push(t); }
+          }
+        } catch(e){}
+        showFailureHint(originalTargets, available);
+        console.warn('[Ajyal Automation] ✗ No match found for:', originalTargets, 'Available:', available);
+        return { clicked: false, searchedIn: els.length, wanted: originalTargets, available: available };
       } catch(err) {
         console.error('[Ajyal Automation] ERROR in clickByText:', err && err.message, err && err.stack);
         return { clicked: false, error: String(err && err.message || err) };
