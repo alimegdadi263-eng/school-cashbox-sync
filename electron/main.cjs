@@ -902,8 +902,8 @@ function setupAjyalHandlers(mainWindow) {
 
         setTimeout(function() {
           tip.style.opacity = '0';
-          setTimeout(function() { try { tip.remove(); } catch(e) {} }, 400);
-        }, 2200);
+          setTimeout(function() { try { tip.remove(); } catch(e) {} }, 500);
+        }, 3500);
       } catch(e) {}
     }
     function highlightElement(el, message) {
