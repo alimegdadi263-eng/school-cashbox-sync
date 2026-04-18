@@ -294,6 +294,8 @@ let ajyalView = null;
 let mainWindowRef = null;
 let ajyalToolbarPollInterval = null;
 let ajyalActionInProgress = false;
+let ajyalDownloadDir = null;
+let ajyalLastDownloadPath = null;
 
 // ── Command #4: Navigation Map ──────────────────────────────────────────────
 const AJYAL_NAV_MAP = {
