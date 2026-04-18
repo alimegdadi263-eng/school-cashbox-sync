@@ -1002,19 +1002,25 @@ function setupAjyalHandlers(mainWindow) {
   `;
 
   const clickByTextJS = (texts, tag = 'a, button, span, li, div, label, [role="menuitem"], [role="button"], .nav-link, .menu-item, .sidebar-link') => `
-    (function() {
+    (async function() {
       ${normalizeArabicJS}
       const targets = ${JSON.stringify(texts)}.map(t => normalizeArabic(t));
       const originalTargets = ${JSON.stringify(texts)};
       const els = document.querySelectorAll('${tag}');
+      async function performClick(el, label) {
+        try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e){}
+        await new Promise(function(r){ setTimeout(r, 350); });
+        await moveCursorTo(el);
+        highlightElement(el, label);
+        el.click();
+        try { el.dispatchEvent(new MouseEvent('click', { bubbles: true })); } catch(e){}
+      }
       for (const el of els) {
         const t = normalizeArabic(el.textContent);
         for (let ti = 0; ti < targets.length; ti++) {
           const target = targets[ti];
           if (t === target || t.includes(target)) {
-            highlightElement(el, 'الضغط على: ' + originalTargets[ti]);
-            el.click();
-            el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            await performClick(el, 'الضغط على: ' + originalTargets[ti]);
             return { clicked: true, text: t };
           }
         }
@@ -1024,9 +1030,7 @@ function setupAjyalHandlers(mainWindow) {
         for (let ti = 0; ti < targets.length; ti++) {
           const target = targets[ti];
           if (target.length >= 3 && t.includes(target.substring(0, Math.min(target.length, 6)))) {
-            highlightElement(el, 'الضغط على: ' + originalTargets[ti]);
-            el.click();
-            el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            await performClick(el, 'الضغط على: ' + originalTargets[ti]);
             return { clicked: true, text: t, partial: true };
           }
         }
@@ -1038,7 +1042,7 @@ function setupAjyalHandlers(mainWindow) {
         for (const link of links) {
           const href = link.getAttribute('href') || '';
           for (const pattern of patterns) {
-            if (href.includes(pattern)) { highlightElement(link, 'الانتقال إلى: ' + target); link.click(); return { clicked: true, text: link.textContent.trim(), href: true }; }
+            if (href.includes(pattern)) { await performClick(link, 'الانتقال إلى: ' + target); return { clicked: true, text: link.textContent.trim(), href: true }; }
           }
         }
       }
