@@ -909,22 +909,23 @@ function setupAjyalHandlers(mainWindow) {
     function highlightElement(el, message) {
       if (!el) return;
       var prev = el.style.cssText;
-      el.style.outline = '3px solid #f59e0b';
-      el.style.outlineOffset = '2px';
-      el.style.boxShadow = '0 0 20px rgba(245,158,11,0.5)';
-      el.style.transition = 'all 0.3s ease';
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.style.outline = '4px solid #f59e0b';
+      el.style.outlineOffset = '3px';
+      el.style.boxShadow = '0 0 30px rgba(245,158,11,0.85), 0 0 0 3px rgba(255,255,255,0.95)';
+      el.style.transition = 'all 0.4s ease';
+      try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e){}
       // Show action tooltip popup with message
       if (message) {
-        setTimeout(function() { showActionTooltip(el, message); }, 200);
+        setTimeout(function() { showActionTooltip(el, message); }, 250);
       }
+      // Hold the highlight longer so the user can clearly see what got clicked
       setTimeout(function() {
-        el.style.outline = '3px solid #22c55e';
-        el.style.boxShadow = '0 0 20px rgba(34,197,94,0.5)';
+        el.style.outline = '4px solid #22c55e';
+        el.style.boxShadow = '0 0 30px rgba(34,197,94,0.85), 0 0 0 3px rgba(255,255,255,0.95)';
         setTimeout(function() {
           el.style.cssText = prev;
-        }, 1200);
-      }, 800);
+        }, 1800);
+      }, 1200);
     }
   `;
 
