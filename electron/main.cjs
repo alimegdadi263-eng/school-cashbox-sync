@@ -848,20 +848,20 @@ function setupAjyalHandlers(mainWindow) {
           'z-index:2147483647',
           'background:linear-gradient(135deg,#f59e0b,#d97706)',
           'color:white',
-          'padding:8px 14px',
-          'border-radius:10px',
-          'font-size:14px',
+          'padding:12px 20px',
+          'border-radius:12px',
+          'font-size:17px',
           'font-weight:bold',
           'font-family:"Cairo","Tajawal",Arial,sans-serif',
           'direction:rtl',
-          'box-shadow:0 6px 20px rgba(245,158,11,0.6),0 0 0 2px white',
+          'box-shadow:0 8px 28px rgba(245,158,11,0.7),0 0 0 3px white',
           'pointer-events:none',
           'white-space:nowrap',
-          'max-width:320px',
+          'max-width:420px',
           'overflow:hidden',
           'text-overflow:ellipsis',
-          'animation:ajyalTipPop 0.3s ease-out',
-          'transition:opacity 0.4s ease'
+          'animation:ajyalTipPop 0.4s ease-out',
+          'transition:opacity 0.5s ease'
         ].join(';');
 
         // Inject animation style once
