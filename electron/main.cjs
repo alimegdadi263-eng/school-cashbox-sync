@@ -509,6 +509,24 @@ function setupAjyalHandlers(mainWindow) {
         },
       });
 
+      // ── Download capture: save Ajyal exports to a temp folder ──
+      ajyalDownloadDir = path.join(app.getPath('temp'), 'ajyal-downloads');
+      try { fs.mkdirSync(ajyalDownloadDir, { recursive: true }); } catch {}
+      ajyalView.webContents.session.on('will-download', (event, item) => {
+        try {
+          const fname = item.getFilename() || ('ajyal-export-' + Date.now() + '.xlsx');
+          const safe = fname.replace(/[^\w.\-]+/g, '_');
+          const savePath = path.join(ajyalDownloadDir, Date.now() + '_' + safe);
+          item.setSavePath(savePath);
+          item.once('done', (_e, state) => {
+            if (state === 'completed') {
+              ajyalLastDownloadPath = savePath;
+              try { mainWindow.webContents.send('ajyal-action', { type: 'progress', message: '📥 تم تنزيل الملف: ' + fname }); } catch {}
+            }
+          });
+        } catch (e) { console.error('Download capture failed:', e.message); }
+      });
+
       mainWindow.addBrowserView(ajyalView);
       const bounds = mainWindow.getContentBounds();
       ajyalView.setBounds({ x: 0, y: 0, width: bounds.width, height: bounds.height });
