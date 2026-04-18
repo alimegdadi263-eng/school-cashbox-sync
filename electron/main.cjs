@@ -908,7 +908,7 @@ function setupAjyalHandlers(mainWindow) {
     }
     function ensureFakeCursor() {
       var c = document.getElementById('ajyal-fake-cursor');
-      if (c) return c;
+      if (c) { try { c.style.display = 'block'; } catch(e){} return c; }
       // Inject animation styles once
       if (!document.getElementById('ajyal-cursor-style')) {
         var st = document.createElement('style');
@@ -917,14 +917,16 @@ function setupAjyalHandlers(mainWindow) {
           '@keyframes ajyalCursorPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.25)}}'
           + '@keyframes ajyalCursorClick{0%{transform:scale(1)}40%{transform:scale(0.7)}100%{transform:scale(1)}}'
           + '@keyframes ajyalRipple{0%{transform:scale(0.3);opacity:0.9}100%{transform:scale(2.5);opacity:0}}';
-        document.head.appendChild(st);
+        (document.head || document.documentElement).appendChild(st);
       }
       c = document.createElement('div');
       c.id = 'ajyal-fake-cursor';
       c.textContent = '👆';
+      var startX = Math.round(window.innerWidth / 2);
+      var startY = Math.round(window.innerHeight / 2);
       c.style.cssText = [
         'position:fixed',
-        'left:50%','top:50%',
+        'left:' + (startX - 24) + 'px','top:' + (startY - 24) + 'px',
         'width:48px','height:48px',
         'font-size:42px','line-height:48px',
         'text-align:center',
@@ -932,10 +934,28 @@ function setupAjyalHandlers(mainWindow) {
         'pointer-events:none',
         'filter:drop-shadow(0 4px 8px rgba(0,0,0,0.5)) drop-shadow(0 0 12px rgba(245,158,11,0.9))',
         'transition:left 0.8s cubic-bezier(0.34,1.56,0.64,1), top 0.8s cubic-bezier(0.34,1.56,0.64,1)',
-        'transform-origin:center'
+        'transform-origin:center',
+        'display:block'
       ].join(';');
-      document.body.appendChild(c);
+      (document.body || document.documentElement).appendChild(c);
+      console.log('[Ajyal Automation] ✓ Fake cursor created at', startX, startY);
       return c;
+    }
+    function fireRealClick(el, x, y) {
+      // Fire a full sequence of pointer/mouse events at the element's coordinates
+      // so SPA frameworks (Angular/Vue/React) that listen on mousedown/pointerdown react.
+      try { el.focus({ preventScroll: true }); } catch(e){}
+      var opts = { bubbles: true, cancelable: true, view: window, button: 0, clientX: x, clientY: y };
+      var evts = ['pointerover','pointerenter','pointermove','mouseover','mouseenter','mousemove','pointerdown','mousedown','pointerup','mouseup','click'];
+      for (var i = 0; i < evts.length; i++) {
+        try {
+          var EvtCtor = (evts[i].indexOf('pointer') === 0) ? (window.PointerEvent || MouseEvent) : MouseEvent;
+          el.dispatchEvent(new EvtCtor(evts[i], opts));
+        } catch(e) {
+          try { el.dispatchEvent(new MouseEvent(evts[i].replace('pointer','mouse'), opts)); } catch(_){}
+        }
+      }
+      try { el.click(); } catch(e){}
     }
     function showClickRipple(x, y) {
       try {
@@ -1003,50 +1023,66 @@ function setupAjyalHandlers(mainWindow) {
 
   const clickByTextJS = (texts, tag = 'a, button, span, li, div, label, [role="menuitem"], [role="button"], .nav-link, .menu-item, .sidebar-link') => `
     (async function() {
-      ${normalizeArabicJS}
-      const targets = ${JSON.stringify(texts)}.map(t => normalizeArabic(t));
-      const originalTargets = ${JSON.stringify(texts)};
-      const els = document.querySelectorAll('${tag}');
-      async function performClick(el, label) {
-        try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e){}
-        await new Promise(function(r){ setTimeout(r, 350); });
-        await moveCursorTo(el);
-        highlightElement(el, label);
-        el.click();
-        try { el.dispatchEvent(new MouseEvent('click', { bubbles: true })); } catch(e){}
-      }
-      for (const el of els) {
-        const t = normalizeArabic(el.textContent);
-        for (let ti = 0; ti < targets.length; ti++) {
-          const target = targets[ti];
-          if (t === target || t.includes(target)) {
-            await performClick(el, 'الضغط على: ' + originalTargets[ti]);
-            return { clicked: true, text: t };
+      try {
+        ${normalizeArabicJS}
+        ensureFakeCursor(); // Show cursor immediately on first call
+        const targets = ${JSON.stringify(texts)}.map(t => normalizeArabic(t));
+        const originalTargets = ${JSON.stringify(texts)};
+        const els = document.querySelectorAll('${tag}');
+        console.log('[Ajyal Automation] Searching for:', originalTargets, 'in', els.length, 'elements');
+        async function performClick(el, label) {
+          try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e){}
+          await new Promise(function(r){ setTimeout(r, 400); });
+          await moveCursorTo(el);
+          highlightElement(el, label);
+          var rect = el.getBoundingClientRect();
+          var cx = rect.left + rect.width / 2;
+          var cy = rect.top + rect.height / 2;
+          console.log('[Ajyal Automation] ✓ Clicking:', label, 'at', Math.round(cx), Math.round(cy));
+          fireRealClick(el, cx, cy);
+          // Also try clicking inner anchor/button if wrapper was matched
+          var inner = el.querySelector && el.querySelector('a[href], button');
+          if (inner && inner !== el) {
+            try { fireRealClick(inner, cx, cy); } catch(e){}
           }
         }
-      }
-      for (const el of els) {
-        const t = normalizeArabic(el.textContent);
-        for (let ti = 0; ti < targets.length; ti++) {
-          const target = targets[ti];
-          if (target.length >= 3 && t.includes(target.substring(0, Math.min(target.length, 6)))) {
-            await performClick(el, 'الضغط على: ' + originalTargets[ti]);
-            return { clicked: true, text: t, partial: true };
+        for (const el of els) {
+          const t = normalizeArabic(el.textContent);
+          for (let ti = 0; ti < targets.length; ti++) {
+            const target = targets[ti];
+            if (t === target || t.includes(target)) {
+              await performClick(el, 'الضغط على: ' + originalTargets[ti]);
+              return { clicked: true, text: t };
+            }
           }
         }
-      }
-      const hrefPatterns = { 'الطلبة': ['/students', '/student'], 'إدارة الطلبة': ['/students', '/student'], 'الحضور والغياب': ['/attendance', '/absence'], 'تسجيل الغياب': ['/absence', '/record-absence'], 'بيانات الطلبة': ['/students/list', '/student-data'] };
-      const links = document.querySelectorAll('a[href]');
-      for (const target of originalTargets) {
-        const patterns = hrefPatterns[target] || [];
-        for (const link of links) {
-          const href = link.getAttribute('href') || '';
-          for (const pattern of patterns) {
-            if (href.includes(pattern)) { await performClick(link, 'الانتقال إلى: ' + target); return { clicked: true, text: link.textContent.trim(), href: true }; }
+        for (const el of els) {
+          const t = normalizeArabic(el.textContent);
+          for (let ti = 0; ti < targets.length; ti++) {
+            const target = targets[ti];
+            if (target.length >= 3 && t.includes(target.substring(0, Math.min(target.length, 6)))) {
+              await performClick(el, 'الضغط على: ' + originalTargets[ti]);
+              return { clicked: true, text: t, partial: true };
+            }
           }
         }
+        const hrefPatterns = { 'الطلبة': ['/students', '/student'], 'إدارة الطلبة': ['/students', '/student'], 'الحضور والغياب': ['/attendance', '/absence'], 'تسجيل الغياب': ['/absence', '/record-absence'], 'بيانات الطلبة': ['/students/list', '/student-data'] };
+        const links = document.querySelectorAll('a[href]');
+        for (const target of originalTargets) {
+          const patterns = hrefPatterns[target] || [];
+          for (const link of links) {
+            const href = link.getAttribute('href') || '';
+            for (const pattern of patterns) {
+              if (href.includes(pattern)) { await performClick(link, 'الانتقال إلى: ' + target); return { clicked: true, text: link.textContent.trim(), href: true }; }
+            }
+          }
+        }
+        console.warn('[Ajyal Automation] ✗ No match found for:', originalTargets);
+        return { clicked: false, searchedIn: els.length };
+      } catch(err) {
+        console.error('[Ajyal Automation] ERROR in clickByText:', err && err.message, err && err.stack);
+        return { clicked: false, error: String(err && err.message || err) };
       }
-      return { clicked: false };
     })()
   `;
 
