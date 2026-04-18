@@ -294,37 +294,41 @@ let ajyalView = null;
 let mainWindowRef = null;
 let ajyalToolbarPollInterval = null;
 let ajyalActionInProgress = false;
+let ajyalDownloadDir = null;
+let ajyalLastDownloadPath = null;
 
 // ── Command #4: Navigation Map ──────────────────────────────────────────────
 const AJYAL_NAV_MAP = {
+  // مسار استيراد الطلبة الفعلي: شؤون الطلبة ← الطلبة ← تصدير Excel
   import: {
     steps: [
-      { action: 'click', targets: ['القوائم والخدمات', 'القوائم', 'الخدمات'], message: 'جاري فتح القوائم والخدمات...', wait: 2000 },
-      { action: 'click', targets: ['شؤون الطلبة', 'شئون الطلبة', 'إدارة الطلبة', 'الطلبة'], message: 'جاري الانتقال إلى شؤون الطلبة...', wait: 2000 },
+      { action: 'click', targets: ['شؤون الطلبة', 'شئون الطلبة'], message: '🔍 الخطوة 1/3: فتح شؤون الطلبة...', wait: 3500 },
+      { action: 'click', targets: ['الطلبة', 'إدارة الطلبة', 'بيانات الطلبة', 'قائمة الطلبة'], message: '🔍 الخطوة 2/3: فتح صفحة الطلبة...', wait: 3500 },
     ],
+    exportStep: { targets: ['تصدير', 'تصدير Excel', 'تصدير إلى Excel', 'Export', 'تنزيل', 'Download', 'تصدير ملف'], message: '📥 الخطوة 3/3: الضغط على تصدير...', wait: 4000 },
     gradeLabels: ['الصف', 'المرحلة', 'الفصل', 'grade', 'class', 'Grade'],
     sectionLabels: ['الشعبة', 'القسم', 'الفرع', 'section', 'Section'],
-    searchButtons: ['بحث', 'عرض', 'Search', 'Show', 'إظهار', 'استعلام', 'تصدير'],
-    exportButtons: ['تصدير', 'Export', 'تنزيل', 'Download'],
+    searchButtons: ['بحث', 'عرض', 'Search', 'Show', 'إظهار', 'استعلام'],
     searchTag: 'button, input[type="submit"], input[type="button"], a.btn, .btn, a',
-    tableWait: 2500,
+    tableWait: 3000,
   },
+  // مسار إدخال الغياب: الانضباط المدرسي ← إدخال الانضباط والالتزام بالدوام ← الصف ← تحديد الغائبين أو تأكيد عدم وجود غياب ← الانضباط المدرسي ← تأكيد الانتهاء
   absence: {
     steps: [
-      { action: 'click', targets: ['القوائم والخدمات', 'القوائم', 'الخدمات'], message: 'جاري فتح القوائم والخدمات...', wait: 2000 },
-      { action: 'click', targets: ['الانضباط المدرسي', 'الغياب', 'الحضور والغياب'], message: 'جاري الانتقال إلى الانضباط المدرسي...', wait: 2000 },
-      { action: 'click', targets: ['ادخال الانضباط المدرسي', 'إدخال الانضباط', 'تسجيل الغياب', 'رصد الغياب'], message: 'جاري فتح إدخال الانضباط المدرسي...', wait: 2000 },
+      { action: 'click', targets: ['الانضباط المدرسي', 'الانضباط', 'الحضور والغياب'], message: '🔍 الخطوة 1/4: فتح الانضباط المدرسي...', wait: 3500 },
+      { action: 'click', targets: ['إدخال الانضباط المدرسي والالتزام بالدوام المدرسي', 'إدخال الانضباط المدرسي', 'إدخال الانضباط', 'ادخال الانضباط المدرسي', 'ادخال الانضباط', 'تسجيل الغياب', 'رصد الغياب'], message: '🔍 الخطوة 2/4: فتح إدخال الانضباط المدرسي...', wait: 3500 },
     ],
+    confirmNoAbsence: ['تأكيد عدم وجود غياب', 'لا يوجد غياب', 'عدم وجود غياب'],
     confirmSteps: [
-      { action: 'click', targets: ['الانضباط المدرسي', 'الغياب'], message: 'جاري العودة إلى الانضباط المدرسي...', wait: 2000 },
-      { action: 'click', targets: ['تأكيد الانتهاء من الغياب', 'تأكيد الانتهاء', 'تأكيد', 'حفظ'], message: 'جاري تأكيد الانتهاء من الغياب...', wait: 2000 },
+      { action: 'click', targets: ['الانضباط المدرسي', 'الانضباط'], message: '🔄 الرجوع إلى الانضباط المدرسي...', wait: 3000 },
+      { action: 'click', targets: ['تأكيد الإنتهاء من الغياب', 'تأكيد الانتهاء من الغياب', 'تأكيد الانتهاء', 'تأكيد الإنتهاء'], message: '✅ تأكيد الإنتهاء من الغياب...', wait: 3000 },
     ],
     absenceType: ['بدون عذر', 'غائب بدون عذر', 'غياب بدون عذر'],
     gradeLabels: ['الصف', 'المرحلة', 'الفصل', 'grade', 'class', 'Grade'],
     sectionLabels: ['الشعبة', 'القسم', 'الفرع', 'section', 'Section'],
     searchButtons: ['عرض الطلبة', 'عرض', 'بحث', 'Show', 'Search', 'إظهار'],
     searchTag: 'button, input[type="submit"], input[type="button"], a.btn, .btn, a',
-    tableWait: 2500,
+    tableWait: 3000,
   },
 };
 
@@ -505,6 +509,24 @@ function setupAjyalHandlers(mainWindow) {
           sandbox: false,
           devTools: isDev,
         },
+      });
+
+      // ── Download capture: save Ajyal exports to a temp folder ──
+      ajyalDownloadDir = path.join(app.getPath('temp'), 'ajyal-downloads');
+      try { fs.mkdirSync(ajyalDownloadDir, { recursive: true }); } catch {}
+      ajyalView.webContents.session.on('will-download', (event, item) => {
+        try {
+          const fname = item.getFilename() || ('ajyal-export-' + Date.now() + '.xlsx');
+          const safe = fname.replace(/[^\w.\-]+/g, '_');
+          const savePath = path.join(ajyalDownloadDir, Date.now() + '_' + safe);
+          item.setSavePath(savePath);
+          item.once('done', (_e, state) => {
+            if (state === 'completed') {
+              ajyalLastDownloadPath = savePath;
+              try { mainWindow.webContents.send('ajyal-action', { type: 'progress', message: '📥 تم تنزيل الملف: ' + fname }); } catch {}
+            }
+          });
+        } catch (e) { console.error('Download capture failed:', e.message); }
       });
 
       mainWindow.addBrowserView(ajyalView);
@@ -826,20 +848,20 @@ function setupAjyalHandlers(mainWindow) {
           'z-index:2147483647',
           'background:linear-gradient(135deg,#f59e0b,#d97706)',
           'color:white',
-          'padding:8px 14px',
-          'border-radius:10px',
-          'font-size:14px',
+          'padding:12px 20px',
+          'border-radius:12px',
+          'font-size:17px',
           'font-weight:bold',
           'font-family:"Cairo","Tajawal",Arial,sans-serif',
           'direction:rtl',
-          'box-shadow:0 6px 20px rgba(245,158,11,0.6),0 0 0 2px white',
+          'box-shadow:0 8px 28px rgba(245,158,11,0.7),0 0 0 3px white',
           'pointer-events:none',
           'white-space:nowrap',
-          'max-width:320px',
+          'max-width:420px',
           'overflow:hidden',
           'text-overflow:ellipsis',
-          'animation:ajyalTipPop 0.3s ease-out',
-          'transition:opacity 0.4s ease'
+          'animation:ajyalTipPop 0.4s ease-out',
+          'transition:opacity 0.5s ease'
         ].join(';');
 
         // Inject animation style once
@@ -880,29 +902,30 @@ function setupAjyalHandlers(mainWindow) {
 
         setTimeout(function() {
           tip.style.opacity = '0';
-          setTimeout(function() { try { tip.remove(); } catch(e) {} }, 400);
-        }, 2200);
+          setTimeout(function() { try { tip.remove(); } catch(e) {} }, 500);
+        }, 3500);
       } catch(e) {}
     }
     function highlightElement(el, message) {
       if (!el) return;
       var prev = el.style.cssText;
-      el.style.outline = '3px solid #f59e0b';
-      el.style.outlineOffset = '2px';
-      el.style.boxShadow = '0 0 20px rgba(245,158,11,0.5)';
-      el.style.transition = 'all 0.3s ease';
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.style.outline = '4px solid #f59e0b';
+      el.style.outlineOffset = '3px';
+      el.style.boxShadow = '0 0 30px rgba(245,158,11,0.85), 0 0 0 3px rgba(255,255,255,0.95)';
+      el.style.transition = 'all 0.4s ease';
+      try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e){}
       // Show action tooltip popup with message
       if (message) {
-        setTimeout(function() { showActionTooltip(el, message); }, 200);
+        setTimeout(function() { showActionTooltip(el, message); }, 250);
       }
+      // Hold the highlight longer so the user can clearly see what got clicked
       setTimeout(function() {
-        el.style.outline = '3px solid #22c55e';
-        el.style.boxShadow = '0 0 20px rgba(34,197,94,0.5)';
+        el.style.outline = '4px solid #22c55e';
+        el.style.boxShadow = '0 0 30px rgba(34,197,94,0.85), 0 0 0 3px rgba(255,255,255,0.95)';
         setTimeout(function() {
           el.style.cssText = prev;
-        }, 1200);
-      }, 800);
+        }, 1800);
+      }, 1200);
     }
   `;
 
@@ -1061,119 +1084,149 @@ function setupAjyalHandlers(mainWindow) {
     })()
   `;
 
-  // ── Import students with progress & report ──
+  // ── Read students from a downloaded Ajyal Excel file ──
+  async function readStudentsFromXlsx(filePath) {
+    try {
+      const ExcelJS = require('exceljs');
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.readFile(filePath);
+      const ws = wb.worksheets[0];
+      if (!ws) return { success: false, error: 'الملف لا يحتوي على ورقة عمل' };
+
+      // Find header row by searching for "اسم"
+      let headerRowIdx = 1;
+      let nameCol = -1, classCol = -1, sectionCol = -1, phoneCol = -1, parentCol = -1;
+      for (let r = 1; r <= Math.min(ws.rowCount, 10); r++) {
+        const row = ws.getRow(r);
+        let foundAny = false;
+        row.eachCell((cell, col) => {
+          const v = String(cell.value || '').replace(/\s+/g, ' ').trim();
+          if (/اسم.*طالب|الاسم|^اسم$|Student\s*Name|Name/i.test(v) && nameCol === -1) { nameCol = col; foundAny = true; }
+          if (/^الصف$|المرحلة|Grade|Class/i.test(v) && classCol === -1) { classCol = col; foundAny = true; }
+          if (/الشعبة|القسم|Section/i.test(v) && sectionCol === -1) { sectionCol = col; foundAny = true; }
+          if (/الهاتف|الجوال|الموبايل|رقم.*ولي|Phone|Mobile/i.test(v) && phoneCol === -1) { phoneCol = col; foundAny = true; }
+          if (/ولي.*أمر|اسم.*ولي|Parent|Guardian/i.test(v) && parentCol === -1) { parentCol = col; foundAny = true; }
+        });
+        if (foundAny && nameCol !== -1) { headerRowIdx = r; break; }
+      }
+      if (nameCol === -1) return { success: false, error: 'لم يُعثر على عمود الاسم في الملف' };
+
+      const students = [];
+      for (let r = headerRowIdx + 1; r <= ws.rowCount; r++) {
+        const row = ws.getRow(r);
+        const name = String(row.getCell(nameCol).value || '').replace(/\s+/g, ' ').trim();
+        if (!name || name.length < 3) continue;
+        const grade = classCol > 0 ? String(row.getCell(classCol).value || '').trim() : '';
+        const section = sectionCol > 0 ? String(row.getCell(sectionCol).value || '').trim() : '';
+        const className = (grade && section) ? (grade + ' ' + section) : (grade || section);
+        const parentPhone = phoneCol > 0 ? String(row.getCell(phoneCol).value || '').trim() : '';
+        const parentName = parentCol > 0 ? String(row.getCell(parentCol).value || '').trim() : '';
+        students.push({ name, className, parentPhone, parentName });
+      }
+      return { success: students.length > 0, students, count: students.length };
+    } catch (err) {
+      return { success: false, error: 'فشل قراءة ملف Excel: ' + err.message };
+    }
+  }
+
+  // ── Import students: navigate → click Export → wait for download → parse ──
   async function runImportStudents(mainWindow, selectedGrades) {
     if (!ajyalView || ajyalView.webContents.isDestroyed()) {
       return { success: false, error: 'View not open' };
     }
     try {
       const nav = AJYAL_NAV_MAP.import;
+      ajyalLastDownloadPath = null;
       await ajyalExec(`(function(){ var btn = document.getElementById('btn-import-students'); if(btn){ btn.textContent = '⏳ جاري الاستيراد...'; btn.dataset.running = 'true'; } })()`);
-      await updateToolbarStatus('loading', 'جاري التنقل إلى قائمة الطلاب...');
+      await updateToolbarStatus('loading', 'جاري التنقل إلى قائمة الطلبة...');
 
-      // Navigate using nav map
+      // Step 1-2: Navigate (شؤون الطلبة → الطلبة) with visible delays
       for (const step of nav.steps) {
         sendProgress(step.message);
+        await updateToolbarStatus('loading', step.message);
         await ajyalExec(clickByTextJS(step.targets));
         await ajyalWait(step.wait);
       }
-      sendProgress('تم فتح قائمة الطلبة ✓');
+      sendProgress('✓ وصلت لصفحة الطلبة');
+      await ajyalWait(1500);
 
-      await updateToolbarStatus('loading', 'جاري اكتشاف الصفوف والشعب...');
-      sendProgress('جاري اكتشاف الصفوف والشعب...');
-      const gradeOptions = await ajyalExec(getSelectOptionsJS(nav.gradeLabels));
-      const sectionOptions = await ajyalExec(getSelectOptionsJS(nav.sectionLabels));
-
-      let allStudents = [];
-      // Command #6: report data
-      const report = { processed: [], failed: [], totalImported: 0, totalDuplicates: 0 };
-
-      if (gradeOptions.length > 0) {
-        for (let gi = 0; gi < gradeOptions.length; gi++) {
-          const grade = gradeOptions[gi];
-          if (!grade.text || grade.text === '--' || grade.text === 'اختر' || grade.text.includes('اختر') || grade.value === '' || grade.value === '0') continue;
-
-          if (selectedGrades && selectedGrades.length > 0) {
-            const isSelected = selectedGrades.some(function(sg) { return sg.value === grade.value || sg.text === grade.text; });
-            if (!isSelected) continue;
-          }
-
-          const statusMsg = 'جاري استيراد: ' + grade.text + ' (' + (gi + 1) + '/' + gradeOptions.length + ')';
-          await updateToolbarStatus('loading', statusMsg);
-          sendProgress('جاري اختيار الصف: ' + grade.text + '...');
-          await ajyalExec(setSelectValueJS(nav.gradeLabels, grade.value));
-          await ajyalWait(1500);
-
-          const currentSections = await ajyalExec(getSelectOptionsJS(nav.sectionLabels));
-
-          if (currentSections.length > 0) {
-            for (const sec of currentSections) {
-              if (!sec.text || sec.text === '--' || sec.text.includes('اختر') || sec.value === '' || sec.value === '0') continue;
-              sendProgress('جاري اختيار الشعبة: ' + sec.text + ' في ' + grade.text + '...');
-              await ajyalExec(setSelectValueJS(nav.sectionLabels, sec.value));
-              await ajyalWait(500);
-              sendProgress('جاري الضغط على بحث...');
-              await ajyalExec(clickByTextJS(nav.searchButtons, nav.searchTag));
-              await ajyalWait(nav.tableWait);
-              const result = await ajyalExec(scrapeStudentsJS);
-              const className = grade.text + ' ' + sec.text;
-              if (result.success && result.students) {
-                const mapped = result.students.map(s => ({ ...s, className: s.className || className }));
-                allStudents.push(...mapped);
-                report.processed.push({ className, count: mapped.length });
-                sendProgress('تم العثور على ' + mapped.length + ' طالب في ' + className + ' ✓');
-              } else {
-                report.failed.push({ className, error: result.error || 'لم يتم العثور على طلاب' });
-                sendProgress('⚠️ لم يتم العثور على طلاب في ' + className);
-              }
-              await updateToolbarStatus('loading', 'تم استيراد ' + allStudents.length + ' طالب حتى الآن...');
-            }
-          } else {
-            sendProgress('جاري الضغط على بحث...');
-            await ajyalExec(clickByTextJS(nav.searchButtons, nav.searchTag));
-            await ajyalWait(nav.tableWait);
-            const result = await ajyalExec(scrapeStudentsJS);
-            if (result.success && result.students) {
-              const mapped = result.students.map(s => ({ ...s, className: s.className || grade.text }));
-              allStudents.push(...mapped);
-              report.processed.push({ className: grade.text, count: mapped.length });
-              sendProgress('تم العثور على ' + mapped.length + ' طالب في ' + grade.text + ' ✓');
-            } else {
-              report.failed.push({ className: grade.text, error: result.error || 'لم يتم العثور على طلاب' });
-              sendProgress('⚠️ لم يتم العثور على طلاب في ' + grade.text);
-            }
-          }
-        }
-      } else {
-        await updateToolbarStatus('loading', 'لم يُعثر على قوائم الصفوف، جاري قراءة الصفحة الحالية...');
-        sendProgress('لم يُعثر على قوائم الصفوف، جاري قراءة الصفحة الحالية...');
+      // Step 3: Click Export button to trigger Excel download
+      sendProgress(nav.exportStep.message);
+      await updateToolbarStatus('loading', nav.exportStep.message);
+      const exportClick = await ajyalExec(clickByTextJS(nav.exportStep.targets));
+      if (!exportClick || !exportClick.clicked) {
+        sendProgress('⚠️ لم يُعثر على زر التصدير - جاري المحاولة عبر طريقة بديلة (قراءة الجدول مباشرة)...');
+        // Fallback: try old scraping flow
         await ajyalExec(clickByTextJS(nav.searchButtons, nav.searchTag));
         await ajyalWait(nav.tableWait);
         const result = await ajyalExec(scrapeStudentsJS);
-        if (result.success && result.students) {
-          allStudents = result.students;
-          report.processed.push({ className: 'الصفحة الحالية', count: result.students.length });
+        if (result && result.success && result.students && result.students.length > 0) {
+          await updateToolbarStatus('success', '✅ تم استيراد ' + result.students.length + ' طالب');
+          await showButtonFeedback('btn-import-students', true);
+          return { success: true, students: result.students, count: result.students.length, report: { processed: [{ className: 'الصفحة الحالية', count: result.students.length }], failed: [], totalImported: result.students.length, totalDuplicates: 0 } };
         }
+        await showButtonFeedback('btn-import-students', false, 'لم يُعثر على زر التصدير');
+        return { success: false, error: 'لم يُعثر على زر التصدير في صفحة الطلبة. تأكد من فتح الصفحة الصحيحة.' };
+      }
+
+      // Wait for download to complete (poll up to 20s)
+      sendProgress('⏳ بانتظار اكتمال تنزيل ملف Excel...');
+      await updateToolbarStatus('loading', '⏳ بانتظار تنزيل ملف Excel...');
+      const startedAt = Date.now();
+      while (!ajyalLastDownloadPath && (Date.now() - startedAt) < 20000) {
+        await ajyalWait(500);
+      }
+      if (!ajyalLastDownloadPath) {
+        await showButtonFeedback('btn-import-students', false, 'لم يكتمل التنزيل خلال 20 ثانية');
+        return { success: false, error: 'لم يتم تنزيل ملف Excel من أجيال خلال المهلة المحددة (20 ثانية).' };
+      }
+      sendProgress('✓ اكتمل التنزيل، جاري قراءة الملف...');
+      await updateToolbarStatus('loading', 'جاري قراءة ملف Excel...');
+
+      const parsed = await readStudentsFromXlsx(ajyalLastDownloadPath);
+      // Cleanup downloaded file
+      try { fs.unlinkSync(ajyalLastDownloadPath); } catch {}
+      const downloadedFile = ajyalLastDownloadPath;
+      ajyalLastDownloadPath = null;
+
+      if (!parsed.success) {
+        await showButtonFeedback('btn-import-students', false, parsed.error);
+        return { success: false, error: parsed.error, downloadedFile };
+      }
+
+      // Filter by selected grades (if any)
+      let students = parsed.students;
+      if (selectedGrades && selectedGrades.length > 0) {
+        students = students.filter(s => selectedGrades.some(sg => (s.className || '').includes(sg.text) || sg.text.includes(s.className || '')));
       }
 
       // Deduplicate
       const seen = new Set();
-      const beforeDedup = allStudents.length;
-      allStudents = allStudents.filter(s => { const k = s.name + '||' + s.className; if (seen.has(k)) return false; seen.add(k); return true; });
-      report.totalDuplicates = beforeDedup - allStudents.length;
-      report.totalImported = allStudents.length;
+      const beforeDedup = students.length;
+      students = students.filter(s => { const k = s.name + '||' + s.className; if (seen.has(k)) return false; seen.add(k); return true; });
 
-      const successMsg = '✅ تم استيراد ' + allStudents.length + ' طالب بنجاح';
+      // Build report grouped by className
+      const groups = {};
+      for (const s of students) { const c = s.className || 'بدون صف'; groups[c] = (groups[c] || 0) + 1; }
+      const report = {
+        processed: Object.entries(groups).map(([className, count]) => ({ className, count })),
+        failed: [],
+        totalImported: students.length,
+        totalDuplicates: beforeDedup - students.length,
+      };
+
+      const successMsg = '✅ تم استيراد ' + students.length + ' طالب من ملف Excel بنجاح';
       await updateToolbarStatus('success', successMsg);
       sendProgress(successMsg);
-      await showButtonFeedback('btn-import-students', allStudents.length > 0);
+      await showButtonFeedback('btn-import-students', students.length > 0);
 
-      return { success: allStudents.length > 0, students: allStudents, count: allStudents.length, report };
+      return { success: students.length > 0, students, count: students.length, report };
     } catch (err) {
       await showButtonFeedback('btn-import-students', false, err.message);
       return { success: false, error: err.message };
     }
   }
+
 
   // ── Submit absence with progress & report ──
   async function runSubmitAbsence(mainWindow, absenceData, selectedGrades) {
@@ -1230,15 +1283,26 @@ function setupAjyalHandlers(mainWindow) {
 
       let totalMarked = 0;
       const classKeys = Object.keys(byClass);
-      const report = { processed: [], notFound: [], totalMarked: 0 };
+      const report = { processed: [], notFound: [], confirmedNoAbsence: [], totalMarked: 0 };
 
+      // Build full work list: classes WITH absences + selected classes WITHOUT absences (for "تأكيد عدم وجود غياب")
+      const workList = []; // { cls, hasAbsences }
+      const matchedSelectedTexts = new Set();
       const filteredClassKeys = (selectedGrades && selectedGrades.length > 0)
         ? classKeys.filter(function(cls) {
             return selectedGrades.some(function(sg) {
-              return cls.includes(sg.text) || sg.text.includes(cls);
+              const m = cls.includes(sg.text) || sg.text.includes(cls);
+              if (m) matchedSelectedTexts.add(sg.text);
+              return m;
             });
           })
         : classKeys;
+      for (const c of filteredClassKeys) workList.push({ cls: c, hasAbsences: true });
+      if (selectedGrades && selectedGrades.length > 0) {
+        for (const sg of selectedGrades) {
+          if (!matchedSelectedTexts.has(sg.text)) workList.push({ cls: sg.text, hasAbsences: false });
+        }
+      }
 
       function parseClassName(cls) {
         const sectionMatch = cls.match(/([أبجدهو])\s*$/);
@@ -1259,11 +1323,13 @@ function setupAjyalHandlers(mainWindow) {
         return { grade, section };
       }
 
-      for (let ci = 0; ci < filteredClassKeys.length; ci++) {
-        const cls = filteredClassKeys[ci];
-        const classRecords = byClass[cls];
+      for (let ci = 0; ci < workList.length; ci++) {
+        const item = workList[ci];
+        const cls = item.cls;
+        const classRecords = byClass[cls] || [];
+        const noAbsenceMode = !item.hasAbsences;
 
-        const statusMsg = 'جاري تعبئة غياب: ' + cls + ' (' + (ci + 1) + '/' + filteredClassKeys.length + ')';
+        const statusMsg = (noAbsenceMode ? '🟦 لا يوجد غياب في: ' : '📝 جاري تعبئة غياب: ') + cls + ' (' + (ci + 1) + '/' + workList.length + ')';
         await updateToolbarStatus('loading', statusMsg);
         sendProgress(statusMsg);
 
@@ -1308,6 +1374,20 @@ function setupAjyalHandlers(mainWindow) {
         sendProgress('جاري الضغط على عرض الطلبة...');
         await ajyalExec(clickByTextJS(nav.searchButtons, nav.searchTag));
         await ajyalWait(nav.tableWait);
+
+        // If this class has no absences, click "تأكيد عدم وجود غياب" and move on
+        if (noAbsenceMode) {
+          sendProgress('🟦 الضغط على "تأكيد عدم وجود غياب" للصف: ' + cls);
+          const confirmRes = await ajyalExec(clickByTextJS(nav.confirmNoAbsence));
+          await ajyalWait(2000);
+          if (confirmRes && confirmRes.clicked) {
+            report.confirmedNoAbsence.push({ className: cls });
+            sendProgress('✓ تم تأكيد عدم وجود غياب في: ' + cls);
+          } else {
+            sendProgress('⚠️ لم يُعثر على زر "تأكيد عدم وجود غياب" في: ' + cls);
+          }
+          continue;
+        }
 
         let classMarked = 0;
         let classNotFound = [];
