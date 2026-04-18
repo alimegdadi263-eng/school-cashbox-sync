@@ -1281,7 +1281,12 @@ function setupAjyalHandlers(mainWindow) {
       for (const step of nav.steps) {
         sendProgress(step.message);
         await updateToolbarStatus('loading', step.message);
-        await ajyalExec(clickByTextJS(step.targets));
+        const clickRes = await ajyalExec(clickByTextJS(step.targets));
+        if (!clickRes || !clickRes.clicked) {
+          const failedText = Array.isArray(step.targets) ? step.targets.join(' / ') : String(step.targets || '');
+          await showButtonFeedback('btn-import-students', false, 'تعذر العثور على: ' + failedText);
+          return { success: false, error: 'تعذر العثور على: ' + failedText, step: failedText };
+        }
         await ajyalWait(step.wait);
       }
       sendProgress('✓ وصلت لصفحة الطلبة');
@@ -1405,7 +1410,13 @@ function setupAjyalHandlers(mainWindow) {
       // Navigate using nav map
       for (const step of nav.steps) {
         sendProgress(step.message);
-        await ajyalExec(clickByTextJS(step.targets));
+        const clickRes = await ajyalExec(clickByTextJS(step.targets));
+        if (!clickRes || !clickRes.clicked) {
+          const failedText = Array.isArray(step.targets) ? step.targets.join(' / ') : String(step.targets || '');
+          await updateToolbarStatus('error', 'تعذر العثور على: ' + failedText);
+          await showButtonFeedback('btn-submit-absence', false, 'تعذر العثور على: ' + failedText);
+          return { success: false, error: 'تعذر العثور على: ' + failedText, step: failedText };
+        }
         await ajyalWait(step.wait);
       }
       sendProgress('تم فتح صفحة تسجيل الغياب ✓');
@@ -1509,7 +1520,12 @@ function setupAjyalHandlers(mainWindow) {
         }
 
         sendProgress('جاري الضغط على عرض الطلبة...');
-        await ajyalExec(clickByTextJS(nav.searchButtons, nav.searchTag));
+        const searchRes = await ajyalExec(clickByTextJS(nav.searchButtons, nav.searchTag));
+        if (!searchRes || !searchRes.clicked) {
+          report.notFound.push({ className: cls, students: classRecords.map(r => r.studentName), reason: 'تعذر العثور على زر عرض الطلبة' });
+          sendProgress('⚠️ تعذر العثور على زر عرض الطلبة في: ' + cls);
+          continue;
+        }
         await ajyalWait(nav.tableWait);
 
         // If this class has no absences, click "تأكيد عدم وجود غياب" and move on
@@ -1606,7 +1622,11 @@ function setupAjyalHandlers(mainWindow) {
         await updateToolbarStatus('loading', 'جاري تأكيد الانتهاء من الغياب...');
         for (const step of nav.confirmSteps) {
           sendProgress(step.message);
-          await ajyalExec(clickByTextJS(step.targets));
+          const clickRes = await ajyalExec(clickByTextJS(step.targets));
+          if (!clickRes || !clickRes.clicked) {
+            await showButtonFeedback('btn-submit-absence', false, 'تعذر العثور على: ' + (Array.isArray(step.targets) ? step.targets.join(' / ') : String(step.targets || '')));
+            return { success: false, error: 'تعذر إكمال تأكيد الانتهاء من الغياب' };
+          }
           await ajyalWait(step.wait);
         }
         sendProgress('تم تأكيد الانتهاء من الغياب ✓');
