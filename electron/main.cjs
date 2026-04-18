@@ -1323,11 +1323,13 @@ function setupAjyalHandlers(mainWindow) {
         return { grade, section };
       }
 
-      for (let ci = 0; ci < filteredClassKeys.length; ci++) {
-        const cls = filteredClassKeys[ci];
-        const classRecords = byClass[cls];
+      for (let ci = 0; ci < workList.length; ci++) {
+        const item = workList[ci];
+        const cls = item.cls;
+        const classRecords = byClass[cls] || [];
+        const noAbsenceMode = !item.hasAbsences;
 
-        const statusMsg = 'جاري تعبئة غياب: ' + cls + ' (' + (ci + 1) + '/' + filteredClassKeys.length + ')';
+        const statusMsg = (noAbsenceMode ? '🟦 لا يوجد غياب في: ' : '📝 جاري تعبئة غياب: ') + cls + ' (' + (ci + 1) + '/' + workList.length + ')';
         await updateToolbarStatus('loading', statusMsg);
         sendProgress(statusMsg);
 
