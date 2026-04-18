@@ -746,10 +746,18 @@ function setupAjyalHandlers(mainWindow) {
     await updateToolbarStatus('loading', 'جاري اكتشاف الصفوف...');
     sendProgress('جاري اكتشاف الصفوف المتاحة...');
 
-    // Navigate using the nav map
-    for (const step of AJYAL_NAV_MAP.import.steps) {
+    // Navigate using the correct nav map for the selected mode
+    for (const step of nav.steps) {
       sendProgress(step.message);
-      await ajyalExec(clickByTextJS(step.targets));
+      const clickRes = await ajyalExec(clickByTextJS(step.targets));
+      if (!clickRes || !clickRes.clicked) {
+        const failedText = Array.isArray(step.targets) ? step.targets.join(' / ') : String(step.targets || '');
+        await updateToolbarStatus('error', 'تعذر العثور على: ' + failedText);
+        sendProgress('✗ تعذر العثور على: ' + failedText);
+        ajyalActionInProgress = false;
+        await resetToolbarUi();
+        return;
+      }
       await ajyalWait(step.wait);
     }
 
@@ -1025,47 +1033,63 @@ function setupAjyalHandlers(mainWindow) {
     (async function() {
       try {
         ${normalizeArabicJS}
-        ensureFakeCursor(); // Show cursor immediately on first call
+        ensureFakeCursor();
         const targets = ${JSON.stringify(texts)}.map(t => normalizeArabic(t));
         const originalTargets = ${JSON.stringify(texts)};
-        const els = document.querySelectorAll('${tag}');
+        const interactiveSelector = 'a[href], button, input[type="button"], input[type="submit"], [role="menuitem"], [role="button"], .btn, .nav-link, .menu-item, .sidebar-link, [onclick]';
+        const els = Array.from(document.querySelectorAll('${tag}'));
         console.log('[Ajyal Automation] Searching for:', originalTargets, 'in', els.length, 'elements');
+
+        function resolveClickable(el) {
+          if (!el) return null;
+          if (el.matches && el.matches(interactiveSelector)) return el;
+          if (el.closest) {
+            const closest = el.closest(interactiveSelector);
+            if (closest) return closest;
+          }
+          const inner = el.querySelector && el.querySelector(interactiveSelector);
+          return inner || el;
+        }
+
+        function scoreMatch(el, target) {
+          const text = normalizeArabic(el.textContent);
+          const clickable = resolveClickable(el);
+          if (!text || !clickable) return -1;
+          if (text === target) return 1000 - Math.min(text.length, 300);
+          if (text.includes(target)) return 700 - Math.min(text.length, 300);
+          if (target.length >= 3 && text.includes(target.substring(0, Math.min(target.length, 6)))) return 400 - Math.min(text.length, 300);
+          return -1;
+        }
+
         async function performClick(el, label) {
-          try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e){}
+          const clickable = resolveClickable(el);
+          if (!clickable) return { clicked: false };
+          try { clickable.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e){}
           await new Promise(function(r){ setTimeout(r, 400); });
-          await moveCursorTo(el);
-          highlightElement(el, label);
-          var rect = el.getBoundingClientRect();
+          await moveCursorTo(clickable);
+          highlightElement(clickable, label);
+          var rect = clickable.getBoundingClientRect();
           var cx = rect.left + rect.width / 2;
           var cy = rect.top + rect.height / 2;
           console.log('[Ajyal Automation] ✓ Clicking:', label, 'at', Math.round(cx), Math.round(cy));
-          fireRealClick(el, cx, cy);
-          // Also try clicking inner anchor/button if wrapper was matched
-          var inner = el.querySelector && el.querySelector('a[href], button');
-          if (inner && inner !== el) {
-            try { fireRealClick(inner, cx, cy); } catch(e){}
-          }
+          fireRealClick(clickable, cx, cy);
+          return { clicked: true, text: normalizeArabic(clickable.textContent || el.textContent || '') };
         }
-        for (const el of els) {
-          const t = normalizeArabic(el.textContent);
-          for (let ti = 0; ti < targets.length; ti++) {
-            const target = targets[ti];
-            if (t === target || t.includes(target)) {
-              await performClick(el, 'الضغط على: ' + originalTargets[ti]);
-              return { clicked: true, text: t };
+
+        let best = null;
+        for (let ti = 0; ti < targets.length; ti++) {
+          const target = targets[ti];
+          for (const el of els) {
+            const score = scoreMatch(el, target);
+            if (score > -1 && (!best || score > best.score)) {
+              best = { el, score, original: originalTargets[ti] };
             }
           }
         }
-        for (const el of els) {
-          const t = normalizeArabic(el.textContent);
-          for (let ti = 0; ti < targets.length; ti++) {
-            const target = targets[ti];
-            if (target.length >= 3 && t.includes(target.substring(0, Math.min(target.length, 6)))) {
-              await performClick(el, 'الضغط على: ' + originalTargets[ti]);
-              return { clicked: true, text: t, partial: true };
-            }
-          }
+        if (best) {
+          return await performClick(best.el, 'الضغط على: ' + best.original);
         }
+
         const hrefPatterns = { 'الطلبة': ['/students', '/student'], 'إدارة الطلبة': ['/students', '/student'], 'الحضور والغياب': ['/attendance', '/absence'], 'تسجيل الغياب': ['/absence', '/record-absence'], 'بيانات الطلبة': ['/students/list', '/student-data'] };
         const links = document.querySelectorAll('a[href]');
         for (const target of originalTargets) {
@@ -1073,12 +1097,13 @@ function setupAjyalHandlers(mainWindow) {
           for (const link of links) {
             const href = link.getAttribute('href') || '';
             for (const pattern of patterns) {
-              if (href.includes(pattern)) { await performClick(link, 'الانتقال إلى: ' + target); return { clicked: true, text: link.textContent.trim(), href: true }; }
+              if (href.includes(pattern)) { return await performClick(link, 'الانتقال إلى: ' + target); }
             }
           }
         }
+
         console.warn('[Ajyal Automation] ✗ No match found for:', originalTargets);
-        return { clicked: false, searchedIn: els.length };
+        return { clicked: false, searchedIn: els.length, wanted: originalTargets };
       } catch(err) {
         console.error('[Ajyal Automation] ERROR in clickByText:', err && err.message, err && err.stack);
         return { clicked: false, error: String(err && err.message || err) };
@@ -1256,7 +1281,12 @@ function setupAjyalHandlers(mainWindow) {
       for (const step of nav.steps) {
         sendProgress(step.message);
         await updateToolbarStatus('loading', step.message);
-        await ajyalExec(clickByTextJS(step.targets));
+        const clickRes = await ajyalExec(clickByTextJS(step.targets));
+        if (!clickRes || !clickRes.clicked) {
+          const failedText = Array.isArray(step.targets) ? step.targets.join(' / ') : String(step.targets || '');
+          await showButtonFeedback('btn-import-students', false, 'تعذر العثور على: ' + failedText);
+          return { success: false, error: 'تعذر العثور على: ' + failedText, step: failedText };
+        }
         await ajyalWait(step.wait);
       }
       sendProgress('✓ وصلت لصفحة الطلبة');
@@ -1380,7 +1410,13 @@ function setupAjyalHandlers(mainWindow) {
       // Navigate using nav map
       for (const step of nav.steps) {
         sendProgress(step.message);
-        await ajyalExec(clickByTextJS(step.targets));
+        const clickRes = await ajyalExec(clickByTextJS(step.targets));
+        if (!clickRes || !clickRes.clicked) {
+          const failedText = Array.isArray(step.targets) ? step.targets.join(' / ') : String(step.targets || '');
+          await updateToolbarStatus('error', 'تعذر العثور على: ' + failedText);
+          await showButtonFeedback('btn-submit-absence', false, 'تعذر العثور على: ' + failedText);
+          return { success: false, error: 'تعذر العثور على: ' + failedText, step: failedText };
+        }
         await ajyalWait(step.wait);
       }
       sendProgress('تم فتح صفحة تسجيل الغياب ✓');
@@ -1484,7 +1520,12 @@ function setupAjyalHandlers(mainWindow) {
         }
 
         sendProgress('جاري الضغط على عرض الطلبة...');
-        await ajyalExec(clickByTextJS(nav.searchButtons, nav.searchTag));
+        const searchRes = await ajyalExec(clickByTextJS(nav.searchButtons, nav.searchTag));
+        if (!searchRes || !searchRes.clicked) {
+          report.notFound.push({ className: cls, students: classRecords.map(r => r.studentName), reason: 'تعذر العثور على زر عرض الطلبة' });
+          sendProgress('⚠️ تعذر العثور على زر عرض الطلبة في: ' + cls);
+          continue;
+        }
         await ajyalWait(nav.tableWait);
 
         // If this class has no absences, click "تأكيد عدم وجود غياب" and move on
@@ -1581,7 +1622,11 @@ function setupAjyalHandlers(mainWindow) {
         await updateToolbarStatus('loading', 'جاري تأكيد الانتهاء من الغياب...');
         for (const step of nav.confirmSteps) {
           sendProgress(step.message);
-          await ajyalExec(clickByTextJS(step.targets));
+          const clickRes = await ajyalExec(clickByTextJS(step.targets));
+          if (!clickRes || !clickRes.clicked) {
+            await showButtonFeedback('btn-submit-absence', false, 'تعذر العثور على: ' + (Array.isArray(step.targets) ? step.targets.join(' / ') : String(step.targets || '')));
+            return { success: false, error: 'تعذر إكمال تأكيد الانتهاء من الغياب' };
+          }
           await ajyalWait(step.wait);
         }
         sendProgress('تم تأكيد الانتهاء من الغياب ✓');
