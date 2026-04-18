@@ -906,6 +906,80 @@ function setupAjyalHandlers(mainWindow) {
         }, 3500);
       } catch(e) {}
     }
+    function ensureFakeCursor() {
+      var c = document.getElementById('ajyal-fake-cursor');
+      if (c) return c;
+      // Inject animation styles once
+      if (!document.getElementById('ajyal-cursor-style')) {
+        var st = document.createElement('style');
+        st.id = 'ajyal-cursor-style';
+        st.textContent =
+          '@keyframes ajyalCursorPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.25)}}'
+          + '@keyframes ajyalCursorClick{0%{transform:scale(1)}40%{transform:scale(0.7)}100%{transform:scale(1)}}'
+          + '@keyframes ajyalRipple{0%{transform:scale(0.3);opacity:0.9}100%{transform:scale(2.5);opacity:0}}';
+        document.head.appendChild(st);
+      }
+      c = document.createElement('div');
+      c.id = 'ajyal-fake-cursor';
+      c.textContent = '👆';
+      c.style.cssText = [
+        'position:fixed',
+        'left:50%','top:50%',
+        'width:48px','height:48px',
+        'font-size:42px','line-height:48px',
+        'text-align:center',
+        'z-index:2147483646',
+        'pointer-events:none',
+        'filter:drop-shadow(0 4px 8px rgba(0,0,0,0.5)) drop-shadow(0 0 12px rgba(245,158,11,0.9))',
+        'transition:left 0.8s cubic-bezier(0.34,1.56,0.64,1), top 0.8s cubic-bezier(0.34,1.56,0.64,1)',
+        'transform-origin:center'
+      ].join(';');
+      document.body.appendChild(c);
+      return c;
+    }
+    function showClickRipple(x, y) {
+      try {
+        var r = document.createElement('div');
+        r.style.cssText = [
+          'position:fixed',
+          'left:' + (x - 30) + 'px',
+          'top:' + (y - 30) + 'px',
+          'width:60px','height:60px',
+          'border-radius:50%',
+          'background:radial-gradient(circle,rgba(245,158,11,0.7) 0%,rgba(245,158,11,0) 70%)',
+          'border:3px solid #f59e0b',
+          'z-index:2147483645',
+          'pointer-events:none',
+          'animation:ajyalRipple 0.8s ease-out forwards'
+        ].join(';');
+        document.body.appendChild(r);
+        setTimeout(function() { try { r.remove(); } catch(e){} }, 850);
+      } catch(e) {}
+    }
+    function moveCursorTo(el) {
+      return new Promise(function(resolve) {
+        try {
+          var rect = el.getBoundingClientRect();
+          var targetX = rect.left + rect.width / 2;
+          var targetY = rect.top + rect.height / 2;
+          var cursor = ensureFakeCursor();
+          // Move (CSS transition handles smoothness)
+          cursor.style.left = (targetX - 24) + 'px';
+          cursor.style.top = (targetY - 24) + 'px';
+          cursor.style.animation = 'ajyalCursorPulse 0.6s ease-in-out infinite';
+          // Wait for the transition to finish (~800ms) + a brief pause
+          setTimeout(function() {
+            // Click animation
+            cursor.style.animation = 'ajyalCursorClick 0.3s ease-out';
+            showClickRipple(targetX, targetY);
+            setTimeout(function() {
+              cursor.style.animation = '';
+              resolve();
+            }, 320);
+          }, 850);
+        } catch(e) { resolve(); }
+      });
+    }
     function highlightElement(el, message) {
       if (!el) return;
       var prev = el.style.cssText;
@@ -914,11 +988,9 @@ function setupAjyalHandlers(mainWindow) {
       el.style.boxShadow = '0 0 30px rgba(245,158,11,0.85), 0 0 0 3px rgba(255,255,255,0.95)';
       el.style.transition = 'all 0.4s ease';
       try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e){}
-      // Show action tooltip popup with message
       if (message) {
         setTimeout(function() { showActionTooltip(el, message); }, 250);
       }
-      // Hold the highlight longer so the user can clearly see what got clicked
       setTimeout(function() {
         el.style.outline = '4px solid #22c55e';
         el.style.boxShadow = '0 0 30px rgba(34,197,94,0.85), 0 0 0 3px rgba(255,255,255,0.95)';
