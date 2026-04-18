@@ -1375,6 +1375,20 @@ function setupAjyalHandlers(mainWindow) {
         await ajyalExec(clickByTextJS(nav.searchButtons, nav.searchTag));
         await ajyalWait(nav.tableWait);
 
+        // If this class has no absences, click "تأكيد عدم وجود غياب" and move on
+        if (noAbsenceMode) {
+          sendProgress('🟦 الضغط على "تأكيد عدم وجود غياب" للصف: ' + cls);
+          const confirmRes = await ajyalExec(clickByTextJS(nav.confirmNoAbsence));
+          await ajyalWait(2000);
+          if (confirmRes && confirmRes.clicked) {
+            report.confirmedNoAbsence.push({ className: cls });
+            sendProgress('✓ تم تأكيد عدم وجود غياب في: ' + cls);
+          } else {
+            sendProgress('⚠️ لم يُعثر على زر "تأكيد عدم وجود غياب" في: ' + cls);
+          }
+          continue;
+        }
+
         let classMarked = 0;
         let classNotFound = [];
         for (const record of classRecords) {
