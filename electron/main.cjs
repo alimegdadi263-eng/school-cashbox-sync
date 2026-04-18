@@ -1026,6 +1026,54 @@ function setupAjyalHandlers(mainWindow) {
           el.style.cssText = prev;
         }, 1800);
       }, 1200);
+    function showCurrentStepCard(targets) {
+      try {
+        var card = document.getElementById('ajyal-step-card');
+        if (!card) {
+          card = document.createElement('div');
+          card.id = 'ajyal-step-card';
+          card.style.cssText = [
+            'position:fixed','top:80px','left:16px','z-index:2147483644',
+            'background:linear-gradient(135deg,#0f172a,#1e293b)',
+            'color:#fde68a','padding:14px 18px','border-radius:14px',
+            'font-family:"Cairo","Tajawal",Arial,sans-serif','direction:rtl',
+            'box-shadow:0 12px 40px rgba(0,0,0,0.45),0 0 0 2px #f59e0b',
+            'min-width:240px','max-width:320px','pointer-events:none',
+            'border:1px solid rgba(245,158,11,0.5)'
+          ].join(';');
+          card.innerHTML = '<div style="font-size:11px;color:#fbbf24;letter-spacing:1px;margin-bottom:4px">🤖 الذكاء الاصطناعي ينفّذ</div><div id="ajyal-step-card-text" style="font-size:15px;font-weight:bold;color:#fff;line-height:1.5"></div><div style="margin-top:8px;height:3px;background:rgba(255,255,255,0.15);border-radius:2px;overflow:hidden"><div id="ajyal-step-card-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#f59e0b,#fbbf24);transition:width 0.6s ease"></div></div>';
+          (document.body || document.documentElement).appendChild(card);
+        }
+        var label = Array.isArray(targets) ? targets[0] : String(targets || '');
+        var t = document.getElementById('ajyal-step-card-text');
+        if (t) t.textContent = '🔍 البحث والنقر على: ' + label;
+        var bar = document.getElementById('ajyal-step-card-bar');
+        if (bar) { bar.style.width = '0%'; setTimeout(function(){ bar.style.width = '85%'; }, 60); }
+      } catch(e){}
+    }
+    function showFailureHint(wanted, available) {
+      try {
+        var hint = document.getElementById('ajyal-fail-hint');
+        if (hint) hint.remove();
+        hint = document.createElement('div');
+        hint.id = 'ajyal-fail-hint';
+        hint.style.cssText = [
+          'position:fixed','top:80px','right:16px','z-index:2147483644',
+          'background:linear-gradient(135deg,#7f1d1d,#991b1b)',
+          'color:#fff','padding:14px 18px','border-radius:14px',
+          'font-family:"Cairo","Tajawal",Arial,sans-serif','direction:rtl',
+          'box-shadow:0 12px 40px rgba(0,0,0,0.45),0 0 0 2px #fca5a5',
+          'max-width:380px','font-size:13px','line-height:1.6'
+        ].join(';');
+        var avList = (available && available.length) ? available.slice(0,12).map(function(x){ return '• ' + x; }).join('<br>') : '(لا يوجد عناصر قابلة للنقر)';
+        hint.innerHTML = '<div style="font-weight:bold;font-size:15px;margin-bottom:6px">⚠️ تعذّر العثور على:</div>' +
+          '<div style="color:#fde68a;margin-bottom:8px">' + (Array.isArray(wanted)?wanted.join(' / '):wanted) + '</div>' +
+          '<div style="font-weight:bold;margin-bottom:4px;font-size:12px;color:#fecaca">العناصر المتاحة في الصفحة:</div>' +
+          '<div style="font-size:12px;max-height:200px;overflow:auto;background:rgba(0,0,0,0.25);padding:6px 10px;border-radius:6px">' + avList + '</div>' +
+          '<div style="margin-top:8px;font-size:11px;color:#fecaca">سيختفي تلقائياً بعد 12 ثانية</div>';
+        (document.body || document.documentElement).appendChild(hint);
+        setTimeout(function(){ try { hint.remove(); } catch(e){} }, 12000);
+      } catch(e){}
     }
   `;
 
