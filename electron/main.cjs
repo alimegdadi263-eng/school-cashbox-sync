@@ -1034,11 +1034,34 @@ function setupAjyalHandlers(mainWindow) {
       try {
         ${normalizeArabicJS}
         ensureFakeCursor();
+        showCurrentStepCard(${JSON.stringify(texts)});
         const targets = ${JSON.stringify(texts)}.map(t => normalizeArabic(t));
         const originalTargets = ${JSON.stringify(texts)};
         const interactiveSelector = 'a[href], button, input[type="button"], input[type="submit"], [role="menuitem"], [role="button"], .btn, .nav-link, .menu-item, .sidebar-link, [onclick]';
-        const els = Array.from(document.querySelectorAll('${tag}'));
-        console.log('[Ajyal Automation] Searching for:', originalTargets, 'in', els.length, 'elements');
+
+        // Collect from main document AND any same-origin iframes (Ajyal sometimes uses iframes)
+        function collectDocs() {
+          var docs = [document];
+          try {
+            var ifrs = document.querySelectorAll('iframe');
+            for (var i = 0; i < ifrs.length; i++) {
+              try {
+                var d = ifrs[i].contentDocument;
+                if (d && d.body) docs.push(d);
+              } catch(e) { /* cross-origin, skip */ }
+            }
+          } catch(e){}
+          return docs;
+        }
+        const allDocs = collectDocs();
+        var els = [];
+        for (var di = 0; di < allDocs.length; di++) {
+          try {
+            var found = allDocs[di].querySelectorAll('${tag}');
+            for (var fi = 0; fi < found.length; fi++) els.push(found[fi]);
+          } catch(e){}
+        }
+        console.log('[Ajyal Automation] Searching for:', originalTargets, 'in', els.length, 'elements across', allDocs.length, 'document(s)');
 
         function resolveClickable(el) {
           if (!el) return null;
