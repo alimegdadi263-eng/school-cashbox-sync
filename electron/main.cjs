@@ -1026,6 +1026,54 @@ function setupAjyalHandlers(mainWindow) {
           el.style.cssText = prev;
         }, 1800);
       }, 1200);
+    function showCurrentStepCard(targets) {
+      try {
+        var card = document.getElementById('ajyal-step-card');
+        if (!card) {
+          card = document.createElement('div');
+          card.id = 'ajyal-step-card';
+          card.style.cssText = [
+            'position:fixed','top:80px','left:16px','z-index:2147483644',
+            'background:linear-gradient(135deg,#0f172a,#1e293b)',
+            'color:#fde68a','padding:14px 18px','border-radius:14px',
+            'font-family:"Cairo","Tajawal",Arial,sans-serif','direction:rtl',
+            'box-shadow:0 12px 40px rgba(0,0,0,0.45),0 0 0 2px #f59e0b',
+            'min-width:240px','max-width:320px','pointer-events:none',
+            'border:1px solid rgba(245,158,11,0.5)'
+          ].join(';');
+          card.innerHTML = '<div style="font-size:11px;color:#fbbf24;letter-spacing:1px;margin-bottom:4px">🤖 الذكاء الاصطناعي ينفّذ</div><div id="ajyal-step-card-text" style="font-size:15px;font-weight:bold;color:#fff;line-height:1.5"></div><div style="margin-top:8px;height:3px;background:rgba(255,255,255,0.15);border-radius:2px;overflow:hidden"><div id="ajyal-step-card-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#f59e0b,#fbbf24);transition:width 0.6s ease"></div></div>';
+          (document.body || document.documentElement).appendChild(card);
+        }
+        var label = Array.isArray(targets) ? targets[0] : String(targets || '');
+        var t = document.getElementById('ajyal-step-card-text');
+        if (t) t.textContent = '🔍 البحث والنقر على: ' + label;
+        var bar = document.getElementById('ajyal-step-card-bar');
+        if (bar) { bar.style.width = '0%'; setTimeout(function(){ bar.style.width = '85%'; }, 60); }
+      } catch(e){}
+    }
+    function showFailureHint(wanted, available) {
+      try {
+        var hint = document.getElementById('ajyal-fail-hint');
+        if (hint) hint.remove();
+        hint = document.createElement('div');
+        hint.id = 'ajyal-fail-hint';
+        hint.style.cssText = [
+          'position:fixed','top:80px','right:16px','z-index:2147483644',
+          'background:linear-gradient(135deg,#7f1d1d,#991b1b)',
+          'color:#fff','padding:14px 18px','border-radius:14px',
+          'font-family:"Cairo","Tajawal",Arial,sans-serif','direction:rtl',
+          'box-shadow:0 12px 40px rgba(0,0,0,0.45),0 0 0 2px #fca5a5',
+          'max-width:380px','font-size:13px','line-height:1.6'
+        ].join(';');
+        var avList = (available && available.length) ? available.slice(0,12).map(function(x){ return '• ' + x; }).join('<br>') : '(لا يوجد عناصر قابلة للنقر)';
+        hint.innerHTML = '<div style="font-weight:bold;font-size:15px;margin-bottom:6px">⚠️ تعذّر العثور على:</div>' +
+          '<div style="color:#fde68a;margin-bottom:8px">' + (Array.isArray(wanted)?wanted.join(' / '):wanted) + '</div>' +
+          '<div style="font-weight:bold;margin-bottom:4px;font-size:12px;color:#fecaca">العناصر المتاحة في الصفحة:</div>' +
+          '<div style="font-size:12px;max-height:200px;overflow:auto;background:rgba(0,0,0,0.25);padding:6px 10px;border-radius:6px">' + avList + '</div>' +
+          '<div style="margin-top:8px;font-size:11px;color:#fecaca">سيختفي تلقائياً بعد 12 ثانية</div>';
+        (document.body || document.documentElement).appendChild(hint);
+        setTimeout(function(){ try { hint.remove(); } catch(e){} }, 12000);
+      } catch(e){}
     }
   `;
 
@@ -1034,11 +1082,34 @@ function setupAjyalHandlers(mainWindow) {
       try {
         ${normalizeArabicJS}
         ensureFakeCursor();
+        showCurrentStepCard(${JSON.stringify(texts)});
         const targets = ${JSON.stringify(texts)}.map(t => normalizeArabic(t));
         const originalTargets = ${JSON.stringify(texts)};
         const interactiveSelector = 'a[href], button, input[type="button"], input[type="submit"], [role="menuitem"], [role="button"], .btn, .nav-link, .menu-item, .sidebar-link, [onclick]';
-        const els = Array.from(document.querySelectorAll('${tag}'));
-        console.log('[Ajyal Automation] Searching for:', originalTargets, 'in', els.length, 'elements');
+
+        // Collect from main document AND any same-origin iframes (Ajyal sometimes uses iframes)
+        function collectDocs() {
+          var docs = [document];
+          try {
+            var ifrs = document.querySelectorAll('iframe');
+            for (var i = 0; i < ifrs.length; i++) {
+              try {
+                var d = ifrs[i].contentDocument;
+                if (d && d.body) docs.push(d);
+              } catch(e) { /* cross-origin, skip */ }
+            }
+          } catch(e){}
+          return docs;
+        }
+        const allDocs = collectDocs();
+        var els = [];
+        for (var di = 0; di < allDocs.length; di++) {
+          try {
+            var found = allDocs[di].querySelectorAll('${tag}');
+            for (var fi = 0; fi < found.length; fi++) els.push(found[fi]);
+          } catch(e){}
+        }
+        console.log('[Ajyal Automation] Searching for:', originalTargets, 'in', els.length, 'elements across', allDocs.length, 'document(s)');
 
         function resolveClickable(el) {
           if (!el) return null;
@@ -1091,19 +1162,35 @@ function setupAjyalHandlers(mainWindow) {
         }
 
         const hrefPatterns = { 'الطلبة': ['/students', '/student'], 'إدارة الطلبة': ['/students', '/student'], 'الحضور والغياب': ['/attendance', '/absence'], 'تسجيل الغياب': ['/absence', '/record-absence'], 'بيانات الطلبة': ['/students/list', '/student-data'] };
-        const links = document.querySelectorAll('a[href]');
-        for (const target of originalTargets) {
-          const patterns = hrefPatterns[target] || [];
-          for (const link of links) {
-            const href = link.getAttribute('href') || '';
-            for (const pattern of patterns) {
-              if (href.includes(pattern)) { return await performClick(link, 'الانتقال إلى: ' + target); }
+        for (var dx = 0; dx < allDocs.length; dx++) {
+          try {
+            const links = allDocs[dx].querySelectorAll('a[href]');
+            for (const target of originalTargets) {
+              const patterns = hrefPatterns[target] || [];
+              for (const link of links) {
+                const href = link.getAttribute('href') || '';
+                for (const pattern of patterns) {
+                  if (href.includes(pattern)) { return await performClick(link, 'الانتقال إلى: ' + target); }
+                }
+              }
             }
-          }
+          } catch(e){}
         }
 
-        console.warn('[Ajyal Automation] ✗ No match found for:', originalTargets);
-        return { clicked: false, searchedIn: els.length, wanted: originalTargets };
+        // Fallback: collect available clickable texts to help diagnose mismatch
+        var available = [];
+        try {
+          var seen = {};
+          for (var ai = 0; ai < els.length && available.length < 25; ai++) {
+            var c = resolveClickable(els[ai]);
+            if (!c) continue;
+            var t = normalizeArabic(c.textContent || '').slice(0, 40);
+            if (t && !seen[t] && t.length > 1) { seen[t] = 1; available.push(t); }
+          }
+        } catch(e){}
+        showFailureHint(originalTargets, available);
+        console.warn('[Ajyal Automation] ✗ No match found for:', originalTargets, 'Available:', available);
+        return { clicked: false, searchedIn: els.length, wanted: originalTargets, available: available };
       } catch(err) {
         console.error('[Ajyal Automation] ERROR in clickByText:', err && err.message, err && err.stack);
         return { clicked: false, error: String(err && err.message || err) };
