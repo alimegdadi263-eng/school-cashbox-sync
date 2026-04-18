@@ -1283,15 +1283,26 @@ function setupAjyalHandlers(mainWindow) {
 
       let totalMarked = 0;
       const classKeys = Object.keys(byClass);
-      const report = { processed: [], notFound: [], totalMarked: 0 };
+      const report = { processed: [], notFound: [], confirmedNoAbsence: [], totalMarked: 0 };
 
+      // Build full work list: classes WITH absences + selected classes WITHOUT absences (for "تأكيد عدم وجود غياب")
+      const workList = []; // { cls, hasAbsences }
+      const matchedSelectedTexts = new Set();
       const filteredClassKeys = (selectedGrades && selectedGrades.length > 0)
         ? classKeys.filter(function(cls) {
             return selectedGrades.some(function(sg) {
-              return cls.includes(sg.text) || sg.text.includes(cls);
+              const m = cls.includes(sg.text) || sg.text.includes(cls);
+              if (m) matchedSelectedTexts.add(sg.text);
+              return m;
             });
           })
         : classKeys;
+      for (const c of filteredClassKeys) workList.push({ cls: c, hasAbsences: true });
+      if (selectedGrades && selectedGrades.length > 0) {
+        for (const sg of selectedGrades) {
+          if (!matchedSelectedTexts.has(sg.text)) workList.push({ cls: sg.text, hasAbsences: false });
+        }
+      }
 
       function parseClassName(cls) {
         const sectionMatch = cls.match(/([أبجدهو])\s*$/);
