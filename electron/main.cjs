@@ -287,16 +287,21 @@ function setupAjyalHandlers(mainWindow) {
   async function ajyalWaitForNavigation(maxMs = 8000) {
     const startUrl = ajyalView.webContents.getURL();
     const start = Date.now();
+    let changed = false;
     while (Date.now() - start < maxMs) {
       await new Promise(r => setTimeout(r, 300));
       try {
         const url = ajyalView.webContents.getURL();
-        if (url !== startUrl) return true;
+        if (url !== startUrl) {
+          sendProgress('🌐 انتقلت الصفحة إلى: ' + url.replace(/^https?:\/\/[^/]+/, ''));
+          changed = true;
+          break;
+        }
       } catch { break; }
     }
-    // Give extra time for page to render after URL change
-    await new Promise(r => setTimeout(r, 1200));
-    return false;
+    // Always give extra time for page to render and let the user see it
+    await new Promise(r => setTimeout(r, 1500));
+    return changed;
   }
 
   // ── Smart wait: waits until a table with rows appears ──
@@ -328,6 +333,18 @@ function setupAjyalHandlers(mainWindow) {
         }
         function fireClick(el) {
           try { el.scrollIntoView({ block: 'center', inline: 'center' }); } catch {}
+          // Visible highlight so the user can SEE which element gets clicked
+          try {
+            var prevOutline = el.style.outline;
+            var prevBg = el.style.backgroundColor;
+            var prevTrans = el.style.transition;
+            el.style.transition = 'all 0.2s ease';
+            el.style.outline = '4px solid #facc15';
+            el.style.backgroundColor = 'rgba(250,204,21,0.35)';
+            setTimeout(function(){
+              try { el.style.outline = prevOutline; el.style.backgroundColor = prevBg; el.style.transition = prevTrans; } catch {}
+            }, 700);
+          } catch {}
           try { el.focus(); } catch {}
           try { el.click(); } catch {}
           try { el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); } catch {}
@@ -436,10 +453,15 @@ function setupAjyalHandlers(mainWindow) {
       }
     }
 
-    // Fallback: JS click (silent but reliable)
+    // Fallback: JS click (silent but reliable) — fireClick already highlights the element
     const result = await ajyalSafeClick(targets);
-    if (result?.clicked) sendProgress('🖱️ تم النقر على: ' + (result.text || targets[0]));
-    else sendProgress('❌ لم يتم العثور على الزر: ' + targets[0]);
+    if (result?.clicked) {
+      sendProgress('🖱️ تم النقر على: ' + (result.text || targets[0]));
+      // Dwell so the user can see the highlight + page transition
+      await new Promise(r => setTimeout(r, 900));
+    } else {
+      sendProgress('❌ لم يتم العثور على الزر: ' + targets[0]);
+    }
     return result;
   }
 
