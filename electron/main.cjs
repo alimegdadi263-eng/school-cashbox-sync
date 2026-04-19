@@ -323,61 +323,47 @@ function setupAjyalHandlers(mainWindow) {
     const result = await ajyalExec(`
       (function() {
         function norm(s) { return (s||'').replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06E8\u06EA-\u06ED]/g,'').replace(/\s+/g,' ').trim(); }
+        function getLabel(el) {
+          return norm(el.innerText || el.textContent || el.value || el.getAttribute('value') || el.getAttribute('title') || el.getAttribute('aria-label') || '');
+        }
+        function fireClick(el) {
+          try { el.scrollIntoView({ block: 'center', inline: 'center' }); } catch {}
+          try { el.focus(); } catch {}
+          try { el.click(); } catch {}
+          try { el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); } catch {}
+          try { el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); } catch {}
+          try { el.dispatchEvent(new MouseEvent('click', { bubbles: true })); } catch {}
+        }
+        function searchIn(doc, mode) {
+          const tag = 'a, button, input[type="button"], input[type="submit"], span, li, div, label, [role="menuitem"], [role="button"], .nav-link, .menu-item, .sidebar-link';
+          const els = doc.querySelectorAll(tag);
+          for (const el of els) {
+            const t = getLabel(el);
+            if (!t) continue;
+            for (const target of targets) {
+              if (mode === 'exact' && t === target) { fireClick(el); return { clicked: true, text: t, method: mode }; }
+              if (mode === 'includes' && t.includes(target)) { fireClick(el); return { clicked: true, text: t, method: mode }; }
+              if (mode === 'partial' && target.length >= 3 && t.includes(target.substring(0, Math.min(target.length, 6)))) { fireClick(el); return { clicked: true, text: t, method: mode }; }
+            }
+          }
+          return null;
+        }
         const targets = ${targetsJson}.map(t => norm(t));
-        const tag = 'a, button, span, li, div, label, [role="menuitem"], [role="button"], .nav-link, .menu-item, .sidebar-link';
-        const els = document.querySelectorAll(tag);
-        // Exact match first
-        for (const el of els) {
-          const t = norm(el.textContent);
-          for (const target of targets) {
-            if (t === target) {
-              el.click();
-              el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-              return { clicked: true, text: el.textContent.trim(), method: 'exact' };
-            }
-          }
-        }
-        // Includes match
-        for (const el of els) {
-          const t = norm(el.textContent);
-          for (const target of targets) {
-            if (t.includes(target)) {
-              el.click();
-              el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-              return { clicked: true, text: el.textContent.trim(), method: 'includes' };
-            }
-          }
-        }
-        // Partial match (first 6 chars)
-        for (const el of els) {
-          const t = norm(el.textContent);
-          for (const target of targets) {
-            if (target.length >= 3 && t.includes(target.substring(0, Math.min(target.length, 6)))) {
-              el.click();
-              el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-              return { clicked: true, text: el.textContent.trim(), method: 'partial' };
-            }
-          }
-        }
-        // Try iframes
+        const exact = searchIn(document, 'exact');
+        if (exact) return exact;
+        const includes = searchIn(document, 'includes');
+        if (includes) return includes;
+        const partial = searchIn(document, 'partial');
+        if (partial) return partial;
         const frames = document.querySelectorAll('iframe');
         for (const frame of frames) {
           try {
             const doc = frame.contentDocument || frame.contentWindow?.document;
             if (!doc) continue;
-            const fels = doc.querySelectorAll(tag);
-            for (const el of fels) {
-              const t = norm(el.textContent);
-              for (const target of targets) {
-                if (t === target || t.includes(target)) {
-                  el.click();
-                  return { clicked: true, text: el.textContent.trim(), method: 'iframe' };
-                }
-              }
-            }
+            const result = searchIn(doc, 'includes') || searchIn(doc, 'exact') || searchIn(doc, 'partial');
+            if (result) return { ...result, method: 'iframe-' + result.method };
           } catch {}
         }
-        // href fallback
         const hrefMap = {
           'الطلبة': ['/students','/student'],
           'إدارة الطلبة': ['/students','/student'],
@@ -391,7 +377,7 @@ function setupAjyalHandlers(mainWindow) {
           for (const link of document.querySelectorAll('a[href]')) {
             const href = link.getAttribute('href') || '';
             for (const p of patterns) {
-              if (href.includes(p)) { link.click(); return { clicked: true, text: link.textContent.trim(), method: 'href' }; }
+              if (href.includes(p)) { fireClick(link); return { clicked: true, text: getLabel(link), method: 'href' }; }
             }
           }
         }
@@ -403,23 +389,26 @@ function setupAjyalHandlers(mainWindow) {
 
   // ── Visible mouse click: moves cursor on screen then clicks ──
   async function ajyalVisibleClick(targets) {
-    // First get element position inside the BrowserView
     const targetsJson = JSON.stringify(targets);
     let rect = null;
     try {
       rect = await ajyalExec(`
         (function() {
           function norm(s) { return (s||'').replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06E8\u06EA-\u06ED]/g,'').replace(/\s+/g,' ').trim(); }
+          function getLabel(el) {
+            return norm(el.innerText || el.textContent || el.value || el.getAttribute('value') || el.getAttribute('title') || el.getAttribute('aria-label') || '');
+          }
           const targets = ${targetsJson}.map(t => norm(t));
-          const tag = 'a, button, span, li, div, label, [role="menuitem"], [role="button"], .nav-link, .menu-item, .sidebar-link';
+          const tag = 'a, button, input[type="button"], input[type="submit"], span, li, div, label, [role="menuitem"], [role="button"], .nav-link, .menu-item, .sidebar-link';
           const els = document.querySelectorAll(tag);
           for (const el of els) {
-            const t = norm(el.textContent);
+            const t = getLabel(el);
+            if (!t) continue;
             for (const target of targets) {
-              if (t === target || t.includes(target)) {
+              if (t === target || t.includes(target) || (target.length >= 3 && t.includes(target.substring(0, Math.min(target.length, 6))))) {
                 const r = el.getBoundingClientRect();
                 if (r.width > 0 && r.height > 0) {
-                  return { x: Math.round(r.left + r.width/2), y: Math.round(r.top + r.height/2), text: el.textContent.trim() };
+                  return { x: Math.round(r.left + r.width/2), y: Math.round(r.top + r.height/2), text: t };
                 }
               }
             }
@@ -450,6 +439,7 @@ function setupAjyalHandlers(mainWindow) {
     // Fallback: JS click (silent but reliable)
     const result = await ajyalSafeClick(targets);
     if (result?.clicked) sendProgress('🖱️ تم النقر على: ' + (result.text || targets[0]));
+    else sendProgress('❌ لم يتم العثور على الزر: ' + targets[0]);
     return result;
   }
 
@@ -709,9 +699,10 @@ function setupAjyalHandlers(mainWindow) {
     await updateToolbarStatus('loading', 'جاري اكتشاف الصفوف...');
     sendProgress('جاري اكتشاف الصفوف المتاحة...');
 
-    for (const step of AJYAL_NAV_MAP.import.steps) {
+    for (const step of nav.steps) {
       sendProgress(step.message);
-      await ajyalVisibleClick(step.targets);
+      const clickResult = await ajyalVisibleClick(step.targets);
+      if (!clickResult?.clicked) throw new Error('تعذر العثور على: ' + step.targets[0]);
       await ajyalWaitForNavigation();
     }
 
