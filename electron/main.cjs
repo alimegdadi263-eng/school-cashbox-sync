@@ -287,16 +287,21 @@ function setupAjyalHandlers(mainWindow) {
   async function ajyalWaitForNavigation(maxMs = 8000) {
     const startUrl = ajyalView.webContents.getURL();
     const start = Date.now();
+    let changed = false;
     while (Date.now() - start < maxMs) {
       await new Promise(r => setTimeout(r, 300));
       try {
         const url = ajyalView.webContents.getURL();
-        if (url !== startUrl) return true;
+        if (url !== startUrl) {
+          sendProgress('🌐 انتقلت الصفحة إلى: ' + url.replace(/^https?:\/\/[^/]+/, ''));
+          changed = true;
+          break;
+        }
       } catch { break; }
     }
-    // Give extra time for page to render after URL change
-    await new Promise(r => setTimeout(r, 1200));
-    return false;
+    // Always give extra time for page to render and let the user see it
+    await new Promise(r => setTimeout(r, 1500));
+    return changed;
   }
 
   // ── Smart wait: waits until a table with rows appears ──
