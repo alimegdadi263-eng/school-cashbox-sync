@@ -333,6 +333,18 @@ function setupAjyalHandlers(mainWindow) {
         }
         function fireClick(el) {
           try { el.scrollIntoView({ block: 'center', inline: 'center' }); } catch {}
+          // Visible highlight so the user can SEE which element gets clicked
+          try {
+            var prevOutline = el.style.outline;
+            var prevBg = el.style.backgroundColor;
+            var prevTrans = el.style.transition;
+            el.style.transition = 'all 0.2s ease';
+            el.style.outline = '4px solid #facc15';
+            el.style.backgroundColor = 'rgba(250,204,21,0.35)';
+            setTimeout(function(){
+              try { el.style.outline = prevOutline; el.style.backgroundColor = prevBg; el.style.transition = prevTrans; } catch {}
+            }, 700);
+          } catch {}
           try { el.focus(); } catch {}
           try { el.click(); } catch {}
           try { el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); } catch {}
