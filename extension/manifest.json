@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "أجيال - الأتمتة المدرسية",
+  "version": "1.0.0",
+  "description": "أتمتة مهام منصة أجيال (تصدير/استيراد الطلبة، الغياب) عبر التحكم من تطبيق الادارة المدرسية",
+  "permissions": ["downloads", "storage", "tabs", "scripting", "activeTab"],
+  "host_permissions": [
+    "https://*.moe.gov.jo/*",
+    "https://eduwave.elm.sa/*",
+    "https://*/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_popup": "popup.html", "default_title": "أجيال - الأتمتة" },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "externally_connectable": {
+    "matches": [
+      "https://*.lovable.app/*",
+      "https://*.lovableproject.com/*",
+      "http://localhost/*"
+    ]
+  },
+  "icons": { "48": "icon.png", "128": "icon.png" },
+  "web_accessible_resources": [
+    { "resources": ["bridge.js"], "matches": ["<all_urls>"] }
+  ]
+}
