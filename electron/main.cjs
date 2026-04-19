@@ -453,10 +453,15 @@ function setupAjyalHandlers(mainWindow) {
       }
     }
 
-    // Fallback: JS click (silent but reliable)
+    // Fallback: JS click (silent but reliable) — fireClick already highlights the element
     const result = await ajyalSafeClick(targets);
-    if (result?.clicked) sendProgress('🖱️ تم النقر على: ' + (result.text || targets[0]));
-    else sendProgress('❌ لم يتم العثور على الزر: ' + targets[0]);
+    if (result?.clicked) {
+      sendProgress('🖱️ تم النقر على: ' + (result.text || targets[0]));
+      // Dwell so the user can see the highlight + page transition
+      await new Promise(r => setTimeout(r, 900));
+    } else {
+      sendProgress('❌ لم يتم العثور على الزر: ' + targets[0]);
+    }
     return result;
   }
 
