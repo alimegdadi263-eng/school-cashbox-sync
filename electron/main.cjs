@@ -228,7 +228,7 @@ let nutMouse = null;
 let nutPoint = null;
 let nutStraightTo = null;
 try {
-  const nut = require('@nut-tree/nut-js');
+  const nut = require('@nut-tree-fork/nut-js');
   nutMouse = nut.mouse;
   nutPoint = nut.Point;
   nutStraightTo = nut.straightTo;
