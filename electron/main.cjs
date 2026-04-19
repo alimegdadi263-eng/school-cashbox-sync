@@ -242,14 +242,14 @@ try {
 const AJYAL_NAV_MAP = {
   import: {
     steps: [
-      { action: 'click', targets: ['القوائم والخدمات', 'القوائم', 'الخدمات'], message: 'جاري فتح القوائم والخدمات...' },
-      { action: 'click', targets: ['شؤون الطلبة', 'شئون الطلبة', 'إدارة الطلبة', 'الطلبة'], message: 'جاري الانتقال إلى شؤون الطلبة...' },
+      { action: 'click', targets: ['شؤون الطلبة', 'شئون الطلبة', 'إدارة الطلبة'], message: 'جاري فتح شؤون الطلبة...' },
+      { action: 'click', targets: ['الطلبة', 'بيانات الطلبة', 'قائمة الطلبة'], message: 'جاري فتح قائمة الطلبة...' },
     ],
+    exportButtons: ['تصدير', 'تصدير إلى Excel', 'تصدير Excel', 'Export', 'Export to Excel', 'تنزيل', 'Download'],
+    importButtons: ['استيراد', 'استيراد من Excel', 'Import', 'Import from Excel', 'رفع', 'Upload'],
+    confirmImport: ['موافق', 'تأكيد', 'استيراد', 'حفظ', 'OK', 'Save', 'Confirm'],
     gradeLabels: ['الصف', 'المرحلة', 'الفصل', 'grade', 'class', 'Grade'],
     sectionLabels: ['الشعبة', 'القسم', 'الفرع', 'section', 'Section'],
-    searchButtons: ['بحث', 'عرض', 'Search', 'Show', 'إظهار', 'استعلام', 'تصدير'],
-    exportButtons: ['تصدير', 'Export', 'تنزيل', 'Download'],
-    searchTag: 'button, input[type="submit"], input[type="button"], a.btn, .btn, a',
   },
   absence: {
     steps: [
@@ -778,107 +778,103 @@ function setupAjyalHandlers(mainWindow) {
     try {
       const nav = AJYAL_NAV_MAP.import;
       await ajyalExec(`(function(){ var btn = document.getElementById('btn-import-students'); if(btn){ btn.textContent = '⏳ جاري الاستيراد...'; btn.dataset.running = 'true'; } })()`);
-      await updateToolbarStatus('loading', 'جاري التنقل إلى قائمة الطلاب...');
+      await updateToolbarStatus('loading', 'جاري الانتقال: شؤون الطلبة ← الطلبة...');
 
-      // Navigate with visible mouse
+      // Step 1: شؤون الطلبة → الطلبة
       for (const step of nav.steps) {
         sendProgress(step.message);
         const clickResult = await ajyalVisibleClick(step.targets);
-        if (!clickResult?.clicked) sendProgress('⚠️ لم يتم العثور على: ' + step.targets[0]);
+        if (!clickResult?.clicked) throw new Error('تعذر العثور على: ' + step.targets[0]);
         await ajyalWaitForNavigation();
       }
-      sendProgress('تم فتح قائمة الطلبة ✓');
+      sendProgress('✓ تم فتح قائمة الطلبة');
 
-      await updateToolbarStatus('loading', 'جاري اكتشاف الصفوف والشعب...');
-      sendProgress('جاري اكتشاف الصفوف والشعب...');
-      const gradeOptions = await ajyalExec(getSelectOptionsJS(nav.gradeLabels));
-      const sectionOptions = await ajyalExec(getSelectOptionsJS(nav.sectionLabels));
+      // Step 2: انتظار وتسجيل تنزيل ملف التصدير
+      await updateToolbarStatus('loading', 'جاري تصدير ملف Excel من أجيال...');
+      sendProgress('جاري الضغط على زر "تصدير"...');
 
-      let allStudents = [];
-      const report = { processed: [], failed: [], totalImported: 0, totalDuplicates: 0 };
+      // Reset/track download
+      let downloadedFilePath = null;
+      const downloadPromise = new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('انتهت مهلة انتظار التنزيل (60 ثانية)')), 60000);
+        const onWillDownload = (_e, item) => {
+          try {
+            const filename = item.getFilename();
+            const savePath = path.join(app.getPath('downloads'), filename);
+            item.setSavePath(savePath);
+            item.once('done', (_evt, state) => {
+              clearTimeout(timer);
+              if (state === 'completed') { downloadedFilePath = savePath; resolve(savePath); }
+              else reject(new Error('فشل التنزيل: ' + state));
+            });
+          } catch (err) { clearTimeout(timer); reject(err); }
+        };
+        ajyalView.webContents.session.once('will-download', onWillDownload);
+      });
 
-      if (gradeOptions.length > 0) {
-        for (let gi = 0; gi < gradeOptions.length; gi++) {
-          const grade = gradeOptions[gi];
-          if (!grade.text || grade.text === '--' || grade.text.includes('اختر') || grade.value === '' || grade.value === '0') continue;
+      const exportClick = await ajyalVisibleClick(nav.exportButtons);
+      if (!exportClick?.clicked) throw new Error('تعذر العثور على زر "تصدير"');
 
-          if (selectedGrades && selectedGrades.length > 0) {
-            const isSelected = selectedGrades.some(sg => sg.value === grade.value || sg.text === grade.text);
-            if (!isSelected) continue;
-          }
+      await downloadPromise;
+      sendProgress('✓ تم تنزيل الملف: ' + path.basename(downloadedFilePath));
 
-          const statusMsg = 'جاري استيراد: ' + grade.text + ' (' + (gi + 1) + '/' + gradeOptions.length + ')';
-          await updateToolbarStatus('loading', statusMsg);
-          sendProgress('جاري اختيار الصف: ' + grade.text + '...');
-          await ajyalExec(setSelectValueJS(nav.gradeLabels, grade.value));
-          await ajyalWait(800);
+      // Step 3: الضغط على زر "استيراد" داخل أجيال
+      await updateToolbarStatus('loading', 'جاري فتح نافذة الاستيراد في أجيال...');
+      sendProgress('جاري الضغط على زر "استيراد"...');
+      const importClick = await ajyalVisibleClick(nav.importButtons);
+      if (!importClick?.clicked) throw new Error('تعذر العثور على زر "استيراد"');
+      await ajyalWait(1500);
 
-          const currentSections = await ajyalExec(getSelectOptionsJS(nav.sectionLabels));
+      // Step 4: حقن الملف في حقل input[type="file"]
+      sendProgress('جاري رفع الملف المُصدَّر إلى أجيال...');
+      const fileBuf = fs.readFileSync(downloadedFilePath);
+      const base64 = fileBuf.toString('base64');
+      const fileName = path.basename(downloadedFilePath);
+      const mimeType = fileName.endsWith('.xlsx')
+        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        : 'application/vnd.ms-excel';
 
-          if (currentSections.length > 0) {
-            for (const sec of currentSections) {
-              if (!sec.text || sec.text === '--' || sec.text.includes('اختر') || sec.value === '' || sec.value === '0') continue;
-              sendProgress('جاري اختيار الشعبة: ' + sec.text + ' في ' + grade.text + '...');
-              await ajyalExec(setSelectValueJS(nav.sectionLabels, sec.value));
-              await ajyalWait(400);
-              sendProgress('جاري الضغط على بحث...');
-              await ajyalVisibleClick(nav.searchButtons);
-              await ajyalWaitForTable();
-              const result = await ajyalExec(scrapeStudentsJS);
-              const className = grade.text + ' ' + sec.text;
-              if (result.success && result.students) {
-                const mapped = result.students.map(s => ({ ...s, className: s.className || className }));
-                allStudents.push(...mapped);
-                report.processed.push({ className, count: mapped.length });
-                sendProgress('تم العثور على ' + mapped.length + ' طالب في ' + className + ' ✓');
-              } else {
-                report.failed.push({ className, error: result.error || 'لم يتم العثور على طلاب' });
-                sendProgress('⚠️ لم يتم العثور على طلاب في ' + className);
-              }
-              await updateToolbarStatus('loading', 'تم استيراد ' + allStudents.length + ' طالب حتى الآن...');
-            }
-          } else {
-            sendProgress('جاري الضغط على بحث...');
-            await ajyalVisibleClick(nav.searchButtons);
-            await ajyalWaitForTable();
-            const result = await ajyalExec(scrapeStudentsJS);
-            if (result.success && result.students) {
-              const mapped = result.students.map(s => ({ ...s, className: s.className || grade.text }));
-              allStudents.push(...mapped);
-              report.processed.push({ className: grade.text, count: mapped.length });
-              sendProgress('تم العثور على ' + mapped.length + ' طالب في ' + grade.text + ' ✓');
-            } else {
-              report.failed.push({ className: grade.text, error: result.error || 'لم يتم العثور على طلاب' });
-              sendProgress('⚠️ لم يتم العثور على طلاب في ' + grade.text);
-            }
-          }
-        }
-      } else {
-        await updateToolbarStatus('loading', 'لم يُعثر على قوائم الصفوف، جاري قراءة الصفحة الحالية...');
-        sendProgress('لم يُعثر على قوائم الصفوف، جاري قراءة الصفحة الحالية...');
-        await ajyalVisibleClick(nav.searchButtons);
-        await ajyalWaitForTable();
-        const result = await ajyalExec(scrapeStudentsJS);
-        if (result.success && result.students) {
-          allStudents = result.students;
-          report.processed.push({ className: 'الصفحة الحالية', count: result.students.length });
-        }
-      }
+      const uploadResult = await ajyalExec(`
+        (async function() {
+          try {
+            var inputs = document.querySelectorAll('input[type="file"]');
+            if (!inputs || inputs.length === 0) return { ok: false, error: 'لا يوجد حقل رفع ملف' };
+            var input = inputs[inputs.length - 1];
+            var byteChars = atob(${JSON.stringify(base64)});
+            var byteNums = new Array(byteChars.length);
+            for (var i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i);
+            var blob = new Blob([new Uint8Array(byteNums)], { type: ${JSON.stringify(mimeType)} });
+            var file = new File([blob], ${JSON.stringify(fileName)}, { type: ${JSON.stringify(mimeType)} });
+            var dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            return { ok: true, name: file.name, size: file.size };
+          } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+        })()
+      `);
 
-      // Deduplicate
-      const seen = new Set();
-      const beforeDedup = allStudents.length;
-      allStudents = allStudents.filter(s => { const k = s.name + '||' + s.className; if (seen.has(k)) return false; seen.add(k); return true; });
-      report.totalDuplicates = beforeDedup - allStudents.length;
-      report.totalImported = allStudents.length;
+      if (!uploadResult || !uploadResult.ok) throw new Error('تعذر رفع الملف: ' + (uploadResult && uploadResult.error));
+      sendProgress('✓ تم رفع الملف (' + uploadResult.name + ')');
 
-      const successMsg = '✅ تم استيراد ' + allStudents.length + ' طالب بنجاح';
+      await ajyalWait(1500);
+
+      // Step 5: تأكيد الاستيراد إن ظهر زر تأكيد/موافق
+      sendProgress('جاري تأكيد الاستيراد...');
+      const confirm = await ajyalVisibleClick(nav.confirmImport);
+      if (confirm?.clicked) sendProgress('✓ تم تأكيد الاستيراد');
+      else sendProgress('ℹ️ لم يظهر زر تأكيد — قد يكون الاستيراد بدأ تلقائياً');
+
+      const successMsg = '✅ تمت عملية الاستيراد (تصدير + رفع نفس الملف)';
       await updateToolbarStatus('success', successMsg);
       sendProgress(successMsg);
-      await showButtonFeedback('btn-import-students', allStudents.length > 0);
+      await showButtonFeedback('btn-import-students', true);
 
-      return { success: allStudents.length > 0, students: allStudents, count: allStudents.length, report };
+      return { success: true, file: downloadedFilePath, message: successMsg };
     } catch (err) {
+      sendProgress('❌ خطأ: ' + err.message);
+      await updateToolbarStatus('error', '✗ ' + err.message);
       await showButtonFeedback('btn-import-students', false, err.message);
       return { success: false, error: err.message };
     }
