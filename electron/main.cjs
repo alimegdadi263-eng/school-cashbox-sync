@@ -404,7 +404,62 @@ function setupAjyalHandlers(mainWindow) {
     return result;
   }
 
-  // ── Visible mouse click: moves cursor on screen then clicks ──
+  // ── Show animated red ripple at coordinates inside Ajyal view ──
+  async function showClickRipple(x, y, label) {
+    try {
+      await ajyalExec(`
+        (function(){
+          var id = '__ajyal_ripple__';
+          var old = document.getElementById(id);
+          if (old) old.remove();
+          var d = document.createElement('div');
+          d.id = id;
+          d.style.cssText = 'position:fixed;left:${x - 25}px;top:${y - 25}px;width:50px;height:50px;border-radius:50%;background:rgba(220,38,38,0.35);border:3px solid #dc2626;box-shadow:0 0 20px rgba(220,38,38,0.8);z-index:2147483647;pointer-events:none;animation:__ajyal_pulse__ 0.6s ease-out infinite;';
+          var lbl = document.createElement('div');
+          lbl.textContent = ${JSON.stringify('🎯 ' + (label || ''))};
+          lbl.style.cssText = 'position:fixed;left:${x + 30}px;top:${y - 12}px;background:#dc2626;color:white;padding:4px 10px;border-radius:6px;font-size:13px;font-weight:bold;font-family:Tahoma,Arial;z-index:2147483647;pointer-events:none;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.3);';
+          lbl.id = '__ajyal_ripple_label__';
+          if (!document.getElementById('__ajyal_ripple_style__')) {
+            var s = document.createElement('style');
+            s.id = '__ajyal_ripple_style__';
+            s.textContent = '@keyframes __ajyal_pulse__ { 0%{transform:scale(0.8);opacity:1;} 100%{transform:scale(1.4);opacity:0.4;} }';
+            document.head.appendChild(s);
+          }
+          document.body.appendChild(d);
+          document.body.appendChild(lbl);
+          setTimeout(function(){ try{ d.remove(); lbl.remove(); }catch(e){} }, 1400);
+        })()
+      `);
+    } catch {}
+  }
+
+  // ── Dump visible clickable elements (for diagnostics on failure) ──
+  async function dumpVisibleClickables(limit = 25) {
+    try {
+      const items = await ajyalExec(`
+        (function(){
+          function norm(s){ return (s||'').replace(/\\s+/g,' ').trim(); }
+          var tag = 'a, button, input[type="button"], input[type="submit"], [role="menuitem"], [role="button"], .nav-link, .menu-item, .sidebar-link';
+          var els = document.querySelectorAll(tag);
+          var out = [];
+          for (var i = 0; i < els.length && out.length < ${limit}; i++) {
+            var el = els[i];
+            var r = el.getBoundingClientRect();
+            if (r.width <= 0 || r.height <= 0) continue;
+            var label = norm(el.innerText || el.textContent || el.value || el.getAttribute('value') || el.getAttribute('title') || el.getAttribute('aria-label') || '');
+            if (!label || label.length > 60) continue;
+            out.push(label);
+          }
+          return out;
+        })()
+      `);
+      if (Array.isArray(items) && items.length) {
+        sendProgress('🔎 الأزرار المتاحة في الصفحة الحالية: ' + items.slice(0, 12).join(' | '));
+      }
+    } catch {}
+  }
+
+  // ── Visible mouse click: shows ripple + clicks ──
   async function ajyalVisibleClick(targets) {
     const targetsJson = JSON.stringify(targets);
     let rect = null;
@@ -423,6 +478,7 @@ function setupAjyalHandlers(mainWindow) {
             if (!t) continue;
             for (const target of targets) {
               if (t === target || t.includes(target) || (target.length >= 3 && t.includes(target.substring(0, Math.min(target.length, 6))))) {
+                try { el.scrollIntoView({ block: 'center', inline: 'center' }); } catch(e) {}
                 const r = el.getBoundingClientRect();
                 if (r.width > 0 && r.height > 0) {
                   return { x: Math.round(r.left + r.width/2), y: Math.round(r.top + r.height/2), text: t };
@@ -435,18 +491,24 @@ function setupAjyalHandlers(mainWindow) {
       `);
     } catch {}
 
+    // Show the red ripple BEFORE clicking so user sees the target
+    if (rect) {
+      await showClickRipple(rect.x, rect.y, rect.text);
+      await new Promise(r => setTimeout(r, 600));
+    }
+
     // If nut-js is available and we found the element, move the real mouse
     if (rect && nutMouse && nutPoint && nutStraightTo) {
       try {
         const viewBounds = ajyalView.getBounds();
         const winPos = mainWindow.getPosition();
-        // +32 accounts for the window title bar height on Windows
         const screenX = winPos[0] + viewBounds.x + rect.x;
         const screenY = winPos[1] + viewBounds.y + rect.y + 32;
         await nutMouse.move(nutStraightTo(new nutPoint(screenX, screenY)));
         await new Promise(r => setTimeout(r, 350));
         await nutMouse.leftClick();
         sendProgress('🖱️ تم النقر على: ' + rect.text);
+        await new Promise(r => setTimeout(r, 700));
         return { clicked: true, text: rect.text };
       } catch (e) {
         console.warn('Mouse move failed, falling back to JS click:', e.message);
@@ -457,10 +519,10 @@ function setupAjyalHandlers(mainWindow) {
     const result = await ajyalSafeClick(targets);
     if (result?.clicked) {
       sendProgress('🖱️ تم النقر على: ' + (result.text || targets[0]));
-      // Dwell so the user can see the highlight + page transition
       await new Promise(r => setTimeout(r, 900));
     } else {
-      sendProgress('❌ لم يتم العثور على الزر: ' + targets[0]);
+      sendProgress('❌ لم يتم العثور على الزر: ' + targets.join(' / '));
+      await dumpVisibleClickables();
     }
     return result;
   }
