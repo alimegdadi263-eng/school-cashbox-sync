@@ -55,6 +55,9 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
   const [showPassword, setShowPassword] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  // وضع الخلفية: بعد تسجيل الدخول نخفي نافذة أجيال ونُبقي الجلسة حية في الخلفية.
+  // كل المهام (استيراد/غياب) تعمل بدون إظهار صفحة أجيال، مع رسائل تقدم حية.
+  const [isHidden, setIsHidden] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitProgress, setSubmitProgress] = useState({ done: 0, total: 0 });
   const [todayAbsences, setTodayAbsences] = useState<StudentAbsenceRecord[]>([]);
