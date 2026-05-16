@@ -355,7 +355,8 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
     const ajyal = getElectronAjyal();
     if (ajyal) await ajyal.closeWindow();
     setIsViewOpen(false);
-    // Keep isLoggedIn - session is preserved for next open
+    setIsHidden(false);
+    setIsLoggedIn(false);
   };
 
   return (
