@@ -488,16 +488,27 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
                     {credentials.loginMethod === "sanad" ? "تأكيد تسجيل الدخول (بعد سند)" : "تأكيد تسجيل الدخول (بعد OTP)"}
                   </Button>
                 )}
-                <Button onClick={closeAjyalWindow} variant="outline">إغلاق نافذة أجيال</Button>
+                {isLoggedIn && (
+                  <Button onClick={toggleAjyalView} variant="outline" size="sm">
+                    {isHidden ? <><Eye className="w-4 h-4 ml-1" />إظهار صفحة أجيال</> : <><EyeOff className="w-4 h-4 ml-1" />إخفاء (وضع الخلفية)</>}
+                  </Button>
+                )}
+                <Button onClick={closeAjyalWindow} variant="outline">إنهاء جلسة أجيال</Button>
               </>
             )}
           </div>
 
           {isViewOpen && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge variant={isLoggedIn ? "default" : "secondary"}>
                 {isLoggedIn ? "✓ متصل بأجيال" : "⏳ بانتظار تسجيل الدخول..."}
               </Badge>
+              {isLoggedIn && isHidden && (
+                <Badge variant="outline" className="gap-1">
+                  <Monitor className="w-3 h-3" />
+                  وضع الخلفية — أجيال يعمل بدون إظهار صفحته
+                </Badge>
+              )}
             </div>
           )}
         </CardContent>
