@@ -1340,6 +1340,36 @@ function setupAjyalHandlers(mainWindow) {
     return { success: true };
   });
 
+  // ─────────────────────────────────────────────────────────────
+  // وضع الخلفية (Headless Mode):
+  // بعد تسجيل الدخول، نخفي نافذة أجيال لكن نُبقي webContents حياً.
+  // المهام (استيراد/غياب) تعمل بالكامل في الخلفية عبر executeJavaScript
+  // والمستخدم يرى فقط رسائل تقدم في واجهة البرمجية.
+  // ─────────────────────────────────────────────────────────────
+  ipcMain.handle('ajyal-hide-view', async () => {
+    try {
+      if (ajyalView && !ajyalView.webContents.isDestroyed()) {
+        // removeBrowserView يخفي النافذة لكن لا يدمّر webContents
+        // يمكن استدعاء addBrowserView لاحقاً لإظهارها مرة أخرى
+        mainWindow.removeBrowserView(ajyalView);
+        stopAjyalToolbarPolling();
+      }
+      return { success: true };
+    } catch (err) { return { success: false, error: err.message }; }
+  });
+
+  ipcMain.handle('ajyal-show-view', async () => {
+    try {
+      if (ajyalView && !ajyalView.webContents.isDestroyed()) {
+        mainWindow.addBrowserView(ajyalView);
+        const bounds = mainWindow.getContentBounds();
+        ajyalView.setBounds({ x: 0, y: 0, width: bounds.width, height: bounds.height });
+        startAjyalToolbarPolling();
+      }
+      return { success: true };
+    } catch (err) { return { success: false, error: err.message }; }
+  });
+
   ipcMain.handle('ajyal-is-open', () => { return { isOpen: !!ajyalView && !ajyalView.webContents.isDestroyed() }; });
 }
 
