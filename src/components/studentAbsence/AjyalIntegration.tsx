@@ -370,31 +370,29 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
       {/* Instructions */}
       <Alert>
         <Info className="h-4 w-4" />
-        <AlertTitle>ربط منصة أجيال</AlertTitle>
+        <AlertTitle>ربط منصة أجيال — وضع الخلفية (Headless)</AlertTitle>
         <AlertDescription className="text-sm space-y-2">
-          <p>سجّل الدخول بحساب المدير لتتمكن من استيراد بيانات الطلاب وتعبئة الغياب تلقائياً.</p>
+          <p className="font-semibold text-primary">
+            🆕 الطريقة الجديدة: تدخل بياناتك مرة واحدة → أجيال يعمل في الخلفية → تستخدم أزرار البرمجية مباشرة دون رؤية صفحة أجيال.
+          </p>
           <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="border rounded-lg p-3 bg-muted/30">
-              <p className="font-bold text-sm mb-2 flex items-center gap-1">📥 خطوات استيراد الطلاب:</p>
+              <p className="font-bold text-sm mb-2 flex items-center gap-1">⚙️ خطوات الإعداد (مرة واحدة):</p>
               <ol className="list-decimal list-inside space-y-1 mr-1 text-xs">
-                <li>فتح أجيال وتسجيل الدخول</li>
-                <li>من القائمة الرئيسية ← <strong>"شؤون الطلبة"</strong></li>
-                <li>الدخول إلى <strong>"الطلبة"</strong></li>
-                <li>الضغط على <strong>"تصدير"</strong> لتحميل ملف Excel</li>
-                <li>أخذ الملف المُصدّر إلى البرمجية ← <strong>"استيراد Excel (أجيال)"</strong></li>
-                <li>يتم حفظ جميع بيانات الطلبة تلقائياً</li>
+                <li>اختر طريقة الدخول (يوزر/باسوورد أو سند)</li>
+                <li>اضغط <strong>"فتح أجيال وتسجيل الدخول"</strong></li>
+                <li>أدخل OTP أو أكمل الدخول عبر سند</li>
+                <li>اضغط <strong>"تأكيد تسجيل الدخول"</strong></li>
+                <li>✅ ستختفي صفحة أجيال تلقائياً وتعمل في الخلفية</li>
               </ol>
             </div>
             <div className="border rounded-lg p-3 bg-muted/30">
-              <p className="font-bold text-sm mb-2 flex items-center gap-1">📋 خطوات تعبئة الغياب:</p>
+              <p className="font-bold text-sm mb-2 flex items-center gap-1">▶️ التشغيل (في كل مرة):</p>
               <ol className="list-decimal list-inside space-y-1 mr-1 text-xs">
-                <li>سجّل الغياب أولاً من تبويب <strong>"الرصد اليومي"</strong> في البرمجية</li>
-                <li>من أجيال ← <strong>"الانضباط المدرسي"</strong></li>
-                <li>← <strong>"إدخال الانضباط المدرسي"</strong></li>
-                <li>← <strong>"الالتزام بالدوام المدرسي"</strong></li>
-                <li>تحديد: الصف والشعبة ← تعبئة الغياب لكل صف</li>
-                <li>الصفوف بدون غياب ← تبويب <strong>"تأكيد الجميع حضور"</strong></li>
-                <li>بعد الانتهاء ← انضباط مدرسي ← <strong>"انتهاء"</strong></li>
+                <li>اضغط <strong>"استيراد الطلاب من أجيال"</strong> — تظهر رسائل تقدم حتى يكتمل ثم رسالة "تم".</li>
+                <li>سجّل الغياب من تبويب <strong>"الرصد اليومي"</strong>.</li>
+                <li>اضغط <strong>"اختيار الصفوف وتعبئة الغياب"</strong> — رسائل تقدم ثم "تم".</li>
+                <li>لو احتجت رؤية صفحة أجيال للحفظ النهائي، اضغط <strong>"إظهار صفحة أجيال"</strong>.</li>
               </ol>
             </div>
           </div>
