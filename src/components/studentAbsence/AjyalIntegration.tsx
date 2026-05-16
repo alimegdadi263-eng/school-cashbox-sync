@@ -55,6 +55,9 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
   const [showPassword, setShowPassword] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  // وضع الخلفية: بعد تسجيل الدخول نخفي نافذة أجيال ونُبقي الجلسة حية في الخلفية.
+  // كل المهام (استيراد/غياب) تعمل بدون إظهار صفحة أجيال، مع رسائل تقدم حية.
+  const [isHidden, setIsHidden] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitProgress, setSubmitProgress] = useState({ done: 0, total: 0 });
   const [todayAbsences, setTodayAbsences] = useState<StudentAbsenceRecord[]>([]);
@@ -190,12 +193,15 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
         setIsViewOpen(true);
         if (result.reused) {
           setIsLoggedIn(true);
-          toast({ title: "تم إعادة فتح أجيال (الجلسة محفوظة) ✓" });
+          // الجلسة موجودة → نخفي فوراً ونعمل في الخلفية
+          await ajyal.hideView?.();
+          setIsHidden(true);
+          toast({ title: "تم استرجاع جلسة أجيال ✓", description: "أجيال يعمل الآن في الخلفية. استخدم أزرار الاستيراد/الغياب أدناه." });
         } else {
           const desc = credentials.loginMethod === "sanad"
-            ? "سيظهر موقع أجيال داخل التطبيق. سجّل الدخول عبر سند ثم استخدم أزرار الشريط العلوي"
-            : "سيظهر موقع أجيال داخل التطبيق. أدخل OTP ثم استخدم أزرار الشريط العلوي للاستيراد أو تعبئة الغياب";
-          toast({ title: "تم فتح أجيال داخل التطبيق", description: desc });
+            ? "أكمل الدخول عبر سند ثم اضغط 'تأكيد تسجيل الدخول' — بعدها سيُخفى أجيال ويعمل في الخلفية"
+            : "أدخل رمز OTP ثم اضغط 'تأكيد تسجيل الدخول' — بعدها سيُخفى أجيال ويعمل في الخلفية";
+          toast({ title: "تم فتح أجيال", description: desc });
         }
       } else {
         toast({ title: "فشل فتح النافذة", description: result?.error, variant: "destructive" });
@@ -212,12 +218,31 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
       const result = await ajyal.checkLogin();
       if (result?.loggedIn) {
         setIsLoggedIn(true);
-        toast({ title: "تم تأكيد تسجيل الدخول بنجاح ✓" });
+        // ─── بعد تأكيد الدخول: نخفي نافذة أجيال ونُبقي webContents حياً ───
+        // كل العمليات اللاحقة (استيراد/غياب) ستتم في الخلفية عبر executeJavaScript
+        await ajyal.hideView?.();
+        setIsHidden(true);
+        toast({ title: "تم تسجيل الدخول ✓", description: "أجيال يعمل الآن في الخلفية. لن تظهر صفحته — فقط رسائل التقدم." });
       } else {
         toast({ title: "لم يتم تسجيل الدخول بعد", description: "أدخل رمز OTP وأكمل تسجيل الدخول أولاً", variant: "destructive" });
       }
     } catch (err: any) {
       toast({ title: "خطأ", description: err.message, variant: "destructive" });
+    }
+  };
+
+  // إظهار/إخفاء نافذة أجيال يدوياً (للحالات النادرة التي تحتاج تفاعلاً مباشراً)
+  const toggleAjyalView = async () => {
+    const ajyal = getElectronAjyal();
+    if (!ajyal) return;
+    if (isHidden) {
+      await ajyal.showView?.();
+      setIsHidden(false);
+      toast({ title: "تم إظهار صفحة أجيال" });
+    } else {
+      await ajyal.hideView?.();
+      setIsHidden(true);
+      toast({ title: "تم إخفاء صفحة أجيال — تعمل في الخلفية" });
     }
   };
 
@@ -330,7 +355,8 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
     const ajyal = getElectronAjyal();
     if (ajyal) await ajyal.closeWindow();
     setIsViewOpen(false);
-    // Keep isLoggedIn - session is preserved for next open
+    setIsHidden(false);
+    setIsLoggedIn(false);
   };
 
   return (
@@ -344,31 +370,29 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
       {/* Instructions */}
       <Alert>
         <Info className="h-4 w-4" />
-        <AlertTitle>ربط منصة أجيال</AlertTitle>
+        <AlertTitle>ربط منصة أجيال — وضع الخلفية (Headless)</AlertTitle>
         <AlertDescription className="text-sm space-y-2">
-          <p>سجّل الدخول بحساب المدير لتتمكن من استيراد بيانات الطلاب وتعبئة الغياب تلقائياً.</p>
+          <p className="font-semibold text-primary">
+            🆕 الطريقة الجديدة: تدخل بياناتك مرة واحدة → أجيال يعمل في الخلفية → تستخدم أزرار البرمجية مباشرة دون رؤية صفحة أجيال.
+          </p>
           <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="border rounded-lg p-3 bg-muted/30">
-              <p className="font-bold text-sm mb-2 flex items-center gap-1">📥 خطوات استيراد الطلاب:</p>
+              <p className="font-bold text-sm mb-2 flex items-center gap-1">⚙️ خطوات الإعداد (مرة واحدة):</p>
               <ol className="list-decimal list-inside space-y-1 mr-1 text-xs">
-                <li>فتح أجيال وتسجيل الدخول</li>
-                <li>من القائمة الرئيسية ← <strong>"شؤون الطلبة"</strong></li>
-                <li>الدخول إلى <strong>"الطلبة"</strong></li>
-                <li>الضغط على <strong>"تصدير"</strong> لتحميل ملف Excel</li>
-                <li>أخذ الملف المُصدّر إلى البرمجية ← <strong>"استيراد Excel (أجيال)"</strong></li>
-                <li>يتم حفظ جميع بيانات الطلبة تلقائياً</li>
+                <li>اختر طريقة الدخول (يوزر/باسوورد أو سند)</li>
+                <li>اضغط <strong>"فتح أجيال وتسجيل الدخول"</strong></li>
+                <li>أدخل OTP أو أكمل الدخول عبر سند</li>
+                <li>اضغط <strong>"تأكيد تسجيل الدخول"</strong></li>
+                <li>✅ ستختفي صفحة أجيال تلقائياً وتعمل في الخلفية</li>
               </ol>
             </div>
             <div className="border rounded-lg p-3 bg-muted/30">
-              <p className="font-bold text-sm mb-2 flex items-center gap-1">📋 خطوات تعبئة الغياب:</p>
+              <p className="font-bold text-sm mb-2 flex items-center gap-1">▶️ التشغيل (في كل مرة):</p>
               <ol className="list-decimal list-inside space-y-1 mr-1 text-xs">
-                <li>سجّل الغياب أولاً من تبويب <strong>"الرصد اليومي"</strong> في البرمجية</li>
-                <li>من أجيال ← <strong>"الانضباط المدرسي"</strong></li>
-                <li>← <strong>"إدخال الانضباط المدرسي"</strong></li>
-                <li>← <strong>"الالتزام بالدوام المدرسي"</strong></li>
-                <li>تحديد: الصف والشعبة ← تعبئة الغياب لكل صف</li>
-                <li>الصفوف بدون غياب ← تبويب <strong>"تأكيد الجميع حضور"</strong></li>
-                <li>بعد الانتهاء ← انضباط مدرسي ← <strong>"انتهاء"</strong></li>
+                <li>اضغط <strong>"استيراد الطلاب من أجيال"</strong> — تظهر رسائل تقدم حتى يكتمل ثم رسالة "تم".</li>
+                <li>سجّل الغياب من تبويب <strong>"الرصد اليومي"</strong>.</li>
+                <li>اضغط <strong>"اختيار الصفوف وتعبئة الغياب"</strong> — رسائل تقدم ثم "تم".</li>
+                <li>لو احتجت رؤية صفحة أجيال للحفظ النهائي، اضغط <strong>"إظهار صفحة أجيال"</strong>.</li>
               </ol>
             </div>
           </div>
@@ -463,16 +487,27 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
                     {credentials.loginMethod === "sanad" ? "تأكيد تسجيل الدخول (بعد سند)" : "تأكيد تسجيل الدخول (بعد OTP)"}
                   </Button>
                 )}
-                <Button onClick={closeAjyalWindow} variant="outline">إغلاق نافذة أجيال</Button>
+                {isLoggedIn && (
+                  <Button onClick={toggleAjyalView} variant="outline" size="sm">
+                    {isHidden ? <><Eye className="w-4 h-4 ml-1" />إظهار صفحة أجيال</> : <><EyeOff className="w-4 h-4 ml-1" />إخفاء (وضع الخلفية)</>}
+                  </Button>
+                )}
+                <Button onClick={closeAjyalWindow} variant="outline">إنهاء جلسة أجيال</Button>
               </>
             )}
           </div>
 
           {isViewOpen && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge variant={isLoggedIn ? "default" : "secondary"}>
                 {isLoggedIn ? "✓ متصل بأجيال" : "⏳ بانتظار تسجيل الدخول..."}
               </Badge>
+              {isLoggedIn && isHidden && (
+                <Badge variant="outline" className="gap-1">
+                  <Monitor className="w-3 h-3" />
+                  وضع الخلفية — أجيال يعمل بدون إظهار صفحته
+                </Badge>
+              )}
             </div>
           )}
         </CardContent>
