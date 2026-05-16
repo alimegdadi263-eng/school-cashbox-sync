@@ -193,12 +193,15 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
         setIsViewOpen(true);
         if (result.reused) {
           setIsLoggedIn(true);
-          toast({ title: "تم إعادة فتح أجيال (الجلسة محفوظة) ✓" });
+          // الجلسة موجودة → نخفي فوراً ونعمل في الخلفية
+          await ajyal.hideView?.();
+          setIsHidden(true);
+          toast({ title: "تم استرجاع جلسة أجيال ✓", description: "أجيال يعمل الآن في الخلفية. استخدم أزرار الاستيراد/الغياب أدناه." });
         } else {
           const desc = credentials.loginMethod === "sanad"
-            ? "سيظهر موقع أجيال داخل التطبيق. سجّل الدخول عبر سند ثم استخدم أزرار الشريط العلوي"
-            : "سيظهر موقع أجيال داخل التطبيق. أدخل OTP ثم استخدم أزرار الشريط العلوي للاستيراد أو تعبئة الغياب";
-          toast({ title: "تم فتح أجيال داخل التطبيق", description: desc });
+            ? "أكمل الدخول عبر سند ثم اضغط 'تأكيد تسجيل الدخول' — بعدها سيُخفى أجيال ويعمل في الخلفية"
+            : "أدخل رمز OTP ثم اضغط 'تأكيد تسجيل الدخول' — بعدها سيُخفى أجيال ويعمل في الخلفية";
+          toast({ title: "تم فتح أجيال", description: desc });
         }
       } else {
         toast({ title: "فشل فتح النافذة", description: result?.error, variant: "destructive" });
@@ -215,12 +218,31 @@ export default function AjyalIntegration({ userId, schoolName }: Props) {
       const result = await ajyal.checkLogin();
       if (result?.loggedIn) {
         setIsLoggedIn(true);
-        toast({ title: "تم تأكيد تسجيل الدخول بنجاح ✓" });
+        // ─── بعد تأكيد الدخول: نخفي نافذة أجيال ونُبقي webContents حياً ───
+        // كل العمليات اللاحقة (استيراد/غياب) ستتم في الخلفية عبر executeJavaScript
+        await ajyal.hideView?.();
+        setIsHidden(true);
+        toast({ title: "تم تسجيل الدخول ✓", description: "أجيال يعمل الآن في الخلفية. لن تظهر صفحته — فقط رسائل التقدم." });
       } else {
         toast({ title: "لم يتم تسجيل الدخول بعد", description: "أدخل رمز OTP وأكمل تسجيل الدخول أولاً", variant: "destructive" });
       }
     } catch (err: any) {
       toast({ title: "خطأ", description: err.message, variant: "destructive" });
+    }
+  };
+
+  // إظهار/إخفاء نافذة أجيال يدوياً (للحالات النادرة التي تحتاج تفاعلاً مباشراً)
+  const toggleAjyalView = async () => {
+    const ajyal = getElectronAjyal();
+    if (!ajyal) return;
+    if (isHidden) {
+      await ajyal.showView?.();
+      setIsHidden(false);
+      toast({ title: "تم إظهار صفحة أجيال" });
+    } else {
+      await ajyal.hideView?.();
+      setIsHidden(true);
+      toast({ title: "تم إخفاء صفحة أجيال — تعمل في الخلفية" });
     }
   };
 
