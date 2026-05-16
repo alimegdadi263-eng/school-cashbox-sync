@@ -55,6 +55,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     importStudents: () => ipcRenderer.invoke('ajyal-import-students'),
     /** Close the Ajyal view */
     closeWindow: () => ipcRenderer.invoke('ajyal-close-window'),
+    /** Hide Ajyal view but keep session alive in background (headless mode) */
+    hideView: () => ipcRenderer.invoke('ajyal-hide-view'),
+    /** Show Ajyal view again (after hideView) */
+    showView: () => ipcRenderer.invoke('ajyal-show-view'),
     /** Check if Ajyal view is open */
     isOpen: () => ipcRenderer.invoke('ajyal-is-open'),
     /** Listen for toolbar actions from Ajyal page */
