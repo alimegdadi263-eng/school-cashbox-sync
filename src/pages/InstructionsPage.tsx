@@ -1,6 +1,22 @@
+import { useMemo, useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Rocket, Settings, ArrowLeftRight, FileCheck2, ClipboardList, CalendarDays,
+  Users, PieChart, GraduationCap, Smartphone, MessageSquare, Link2, BarChart3,
+  RefreshCw, LifeBuoy, Search, BookOpen, Phone,
+} from "lucide-react";
+import guideHero from "@/assets/guide-hero.jpg";
+import guideFinance from "@/assets/guide-finance.jpg";
+import guideTimetable from "@/assets/guide-timetable.jpg";
+import guideAbsence from "@/assets/guide-absence.jpg";
+
+/* ────────────────────────────────────────────────────────────
+   محتوى الدليل المصوّر — كل قسم = بطاقة مستقلة قابلة للبحث
+   ──────────────────────────────────────────────────────────── */
 
 const quickStart = [
   "سجّل الدخول بالحساب المدرسي، ثم تأكد من تعبئة الإعدادات الأساسية (اسم المدرسة، المديرية، المدير، أعضاء اللجنة، تلفون المدرسة).",
@@ -13,56 +29,29 @@ const quickStart = [
   "لرصد غياب الطلبة وإشعار أولياء الأمور، استخدم تبويب (غياب الطلبة).",
 ];
 
+const settingsUsage = [
+  "اسم المدرسة: يظهر في ترويسة جميع النماذج والتقارير المصدرة ونصوص رسائل SMS.",
+  "المركز (اسم المديرية): يظهر في ترويسة كتب اللجان والنماذج الرسمية.",
+  "اسم مدير المدرسة: يُستخدم في توقيعات النماذج وكتب اللجان.",
+  "عضوا اللجنة المالية: يظهران في سندات الصرف والقبض.",
+  "الشهر والسنة: يحددان الفترة المالية الحالية لدفتر الصندوق وخلاصة الحسابات.",
+  "الأرصدة الافتتاحية: أدخل أرصدة بداية الشهر لكل حساب (مدين ودائن) قبل إضافة الحركات.",
+  "وضع الشبكة (LAN): اختر منفرد أو رئيسي أو فرعي لمزامنة البيانات عبر الشبكة المحلية.",
+];
+
 const movementInstructions = [
-  {
-    title: "سند القبض",
-    from: "من الصندوق",
-    to: "إلى الحساب المستهدف (مثل التبرعات)",
-    details: "مثال: إذا كان القبض للتبرعات فالحركة تكون من الصندوق إلى التبرعات.",
-  },
-  {
-    title: "الصرف",
-    from: "من الحساب المصدر (مثل التبرعات)",
-    to: "إلى البنك",
-    details: "مثال: الصرف من التبرعات يكون من التبرعات إلى البنك.",
-  },
-  {
-    title: "القيد",
-    from: "من البنك",
-    to: "إلى الصندوق",
-    details: "حركة تثبيت للقيود المحاسبية.",
-  },
-  {
-    title: "سحب سلفة",
-    from: "من السلفة",
-    to: "إلى البنك",
-    details: "تُسجّل كسحب سلفة في الإدخال وتُعرض كصرف في الدفتر.",
-  },
-  {
-    title: "صرف السلفة",
-    from: "من التبرعات",
-    to: "إلى السلفة",
-    details: "تُسجّل كصرف سلفة في الإدخال وتُعرض كصرف في الدفتر.",
-  },
+  { title: "سند القبض", from: "من الصندوق", to: "إلى الحساب المستهدف (مثل التبرعات)", details: "مثال: إذا كان القبض للتبرعات فالحركة تكون من الصندوق إلى التبرعات." },
+  { title: "الصرف", from: "من الحساب المصدر (مثل التبرعات)", to: "إلى البنك", details: "مثال: الصرف من التبرعات يكون من التبرعات إلى البنك." },
+  { title: "القيد", from: "من البنك", to: "إلى الصندوق", details: "حركة تثبيت للقيود المحاسبية." },
+  { title: "سحب سلفة", from: "من السلفة", to: "إلى البنك", details: "تُسجّل كسحب سلفة في الإدخال وتُعرض كصرف في الدفتر." },
+  { title: "صرف السلفة", from: "من التبرعات", to: "إلى السلفة", details: "تُسجّل كصرف سلفة في الإدخال وتُعرض كصرف في الدفتر." },
 ];
 
 const requiredDocuments = [
-  {
-    transaction: "الصرف",
-    docs: ["مستند صرف", "فاتورة (أو مطالبة مالية + قرار تكليف عند الحاجة)", "مستند إدخال", "طلب مشترى محلي", "إثبات (هوية أو رخصة)"],
-  },
-  {
-    transaction: "القيد",
-    docs: ["مستند قيد", "كتاب المديرية", "الورقة الزهرية من مستند القبض", "كشف حساب للتثبيت (إن أمكن)"],
-  },
-  {
-    transaction: "سحب السلفة",
-    docs: ["مستند صرف فقط"],
-  },
-  {
-    transaction: "صرف السلفة",
-    docs: ["مستند صرف", "كشف تسديد السلفة", "فواتير السلفة كاملة", "طلب مشترى محلي"],
-  },
+  { transaction: "الصرف", docs: ["مستند صرف", "فاتورة (أو مطالبة مالية + قرار تكليف عند الحاجة)", "مستند إدخال", "طلب مشترى محلي", "إثبات (هوية أو رخصة)"] },
+  { transaction: "القيد", docs: ["مستند قيد", "كتاب المديرية", "الورقة الزهرية من مستند القبض", "كشف حساب للتثبيت (إن أمكن)"] },
+  { transaction: "سحب السلفة", docs: ["مستند صرف فقط"] },
+  { transaction: "صرف السلفة", docs: ["مستند صرف", "كشف تسديد السلفة", "فواتير السلفة كاملة", "طلب مشترى محلي"] },
 ];
 
 const secretaryUsage = [
@@ -149,15 +138,13 @@ const ajyalUsage = [
   "افتح تبويب (منصة أجيال) داخل صفحة غياب الطلبة.",
   "اختر طريقة تسجيل الدخول: (اسم مستخدم وكلمة مرور) أو (الدخول عبر سند).",
   "طريقة اسم المستخدم: أدخل رقم الموظف وكلمة المرور، ثم اضغط (فتح أجيال وتسجيل الدخول). سيتم فتح موقع أجيال الرسمي داخل نافذة سطح المكتب وتعبئة البيانات تلقائياً، ثم أدخل رمز OTP يدوياً إن طُلب.",
-  "طريقة سند: اضغط (فتح أجيال) مباشرة بدون إدخال بيانات. سيتم فتح موقع أجيال الرسمي داخل نافذة سطح المكتب، ثم اضغط 'الدخول عبر سند' من صفحة أجيال وأكمل التحقق من تطبيق سند على هاتفك.",
-  "بعد إتمام الدخول بأي طريقة، اضغط (تأكيد تسجيل الدخول) في برمجيتك للتأكد من نجاح الدخول.",
-  "استيراد الطلاب: اضغط زر (📥 استيراد الطلاب) في الشريط العلوي. سيتم اكتشاف الصفوف تلقائياً وعرض لوحة اختيار الصفوف — يمكنك اختيار (الكل) أو تحديد صفوف معينة بوضع علامة ✅ ثم الضغط على (🚀 تنفيذ).",
-  "تعبئة الغياب: اضغط زر (📋 تعبئة الغياب) في الشريط العلوي. ستظهر لوحة اختيار الصفوف — حدد الصفوف التي تريد تعبئة غيابها ثم اضغط (🚀 تنفيذ). سيتم حقن بيانات الغياب المسجلة تلقائياً.",
-  "اختيار صف محدد: أزل علامة ✅ عن (الكل) ثم حدد الصفوف المطلوبة فقط. هذا مفيد عند الحاجة لاستيراد أو تعبئة غياب صف واحد بدون انتظار بقية الصفوف.",
-  "ملاحظة: هذه الميزة متاحة فقط في نسخة سطح المكتب (Electron) لأنها تتطلب فتح نافذة متصفح مضمّنة.",
-  "إذا ظهرت نافذة فارغة، فتأكد أنك تستخدم النسخة المكتبية المحدّثة لأن الربط يعتمد على عنوان أجيال الرسمي الحالي.",
-  "بيانات الدخول تُحفظ محلياً على جهازك ولا تُرسل لأي جهة خارجية.",
-  "زر (✕ رجوع) في الشريط العلوي يعيدك للبرمجية مع بقاء جلسة أجيال مفتوحة — عند العودة لأجيال لن تحتاج لتسجيل الدخول مرة أخرى.",
+  "طريقة سند: اضغط (فتح أجيال) مباشرة بدون إدخال بيانات، ثم اضغط 'الدخول عبر سند' من صفحة أجيال وأكمل التحقق من تطبيق سند على هاتفك.",
+  "بعد إتمام الدخول اضغط (تأكيد تسجيل الدخول) — عندها تختفي نافذة أجيال تلقائياً وتبقى الجلسة حيّة في الخلفية (الوضع الخفي).",
+  "الوضع الخفي: كل المهام تعمل بالخلفية بدون إظهار صفحة أجيال، وتصلك رسائل تقدّم مباشرة ثم رسالة (تمت العملية) عند الانتهاء.",
+  "استيراد الطلاب: اضغط (📥 استيراد الطلاب) — تُكتشف الصفوف تلقائياً، اختر (الكل) أو صفوفاً محددة ثم (🚀 تنفيذ)، وتُخزَّن أسماء الطلبة داخل البرمجية.",
+  "تعبئة الغياب: اضغط (📋 تعبئة الغياب) واختر الصفوف ثم (🚀 تنفيذ) ليتم حقن بيانات الغياب المسجلة في البرمجية تلقائياً.",
+  "زر (إظهار صفحة أجيال) متاح متى أردت متابعة ما يجري بعينك أو التدخل يدوياً.",
+  "ملاحظة: هذه الميزة متاحة فقط في نسخة سطح المكتب (Electron)، وبيانات الدخول تُحفظ محلياً على جهازك فقط.",
 ];
 
 const absenceReportsUsage = [
@@ -172,16 +159,6 @@ const updateInstructions = [
   "عند اكتمال التنزيل ستظهر رسالة إعادة التشغيل لتثبيت النسخة الجديدة مباشرة.",
   "للنشر: رفع رقم الإصدار ثم بناء نسخة Windows ورفع ملفات الإصدار إلى GitHub Releases.",
   "في حال عدم ظهور تحديث: تأكد من اتصال الإنترنت وأن الإصدار الجديد مرفوع بشكل صحيح.",
-];
-
-const settingsUsage = [
-  "اسم المدرسة: يظهر في ترويسة جميع النماذج والتقارير المصدرة ونصوص رسائل SMS.",
-  "المركز (اسم المديرية): يظهر في ترويسة كتب اللجان والنماذج الرسمية.",
-  "اسم مدير المدرسة: يُستخدم في توقيعات النماذج وكتب اللجان.",
-  "عضوا اللجنة المالية: يظهران في سندات الصرف والقبض.",
-  "الشهر والسنة: يحددان الفترة المالية الحالية لدفتر الصندوق وخلاصة الحسابات.",
-  "الأرصدة الافتتاحية: أدخل أرصدة بداية الشهر لكل حساب (مدين ودائن) قبل إضافة الحركات.",
-  "وضع الشبكة (LAN): اختر منفرد أو رئيسي أو فرعي لمزامنة البيانات عبر الشبكة المحلية.",
 ];
 
 const troubleshooting = [
@@ -199,147 +176,177 @@ const troubleshooting = [
   "منصة أجيال لا تفتح: تأكد أنك تستخدم نسخة سطح المكتب (Electron) وليس المتصفح العادي.",
   "فشل تأكيد تسجيل الدخول لأجيال: تأكد أنك أدخلت رمز OTP أو أكملت التحقق عبر سند قبل الضغط على تأكيد.",
   "التعبئة التلقائية لا تعمل: تأكد أنك في صفحة تسجيل الغياب الصحيحة في أجيال، وأن هناك غياب مسجل لهذا اليوم في البرمجية.",
-  "فشل اختبار الاتصال بـ SMS: تأكد أن Cloud server مفعّل في التطبيق وأن الإنترنت يعمل على الهاتف.",
-  "واتساب لا يفتح: تأكد أن رقم ولي الأمر مُدخل بشكل صحيح (مثلاً 0781234567).",
-  "الرسالة لم تصل رغم نجاح الإرسال: تأكد من وجود رصيد كافٍ في شريحة SIM وأن الرقم المُستقبِل صحيح.",
-  "صلاحية SMS باهتة (غير قابلة للتفعيل): اذهب إلى معلومات التطبيق ← ⋮ ← 'السماح بالإعدادات المقيدة' ثم ارجع وفعّل الصلاحية.",
 ];
 
-const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <Card className="shadow-card">
-    <CardHeader>
-      <CardTitle>{title}</CardTitle>
-    </CardHeader>
-    <CardContent>{children}</CardContent>
-  </Card>
-);
+type GuideSection = {
+  id: string;
+  title: string;
+  icon: typeof Rocket;
+  summary: string;
+  ordered?: boolean;
+  steps?: string[];
+  image?: { src: string; alt: string };
+  cards?: { heading: string; lines: string[] }[];
+};
+
+const sections: GuideSection[] = [
+  { id: "quick-start", title: "البدء السريع", icon: Rocket, summary: "أول 8 خطوات لتشغيل البرمجية من الصفر.", ordered: true, steps: quickStart, image: { src: guideHero, alt: "واجهة برمجية الإدارة المدرسية" } },
+  { id: "settings", title: "الإعدادات الأساسية", icon: Settings, summary: "بيانات المدرسة والأرصدة الافتتاحية ووضع الشبكة.", steps: settingsUsage },
+  { id: "movements", title: "تعليمات الحركات (من / إلى)", icon: ArrowLeftRight, summary: "اتجاه كل حركة مالية بالتفصيل مع أمثلة.", image: { src: guideFinance, alt: "دفتر صندوق مالي وآلة حاسبة" }, cards: movementInstructions.map((m) => ({ heading: m.title, lines: [`${m.from} ←→ ${m.to}`, m.details] })) },
+  { id: "documents", title: "المستندات المطلوبة لكل معاملة", icon: FileCheck2, summary: "قائمة المرفقات الرسمية لكل نوع معاملة.", cards: requiredDocuments.map((d) => ({ heading: d.transaction, lines: d.docs })) },
+  { id: "secretary", title: "تبويب السكرتير (الجرد والإتلاف والنماذج)", icon: ClipboardList, summary: "الجرد، الإتلاف، الاستيراد الذكي، والنماذج الإدارية.", steps: secretaryUsage },
+  { id: "timetable", title: "الجدول المدرسي", icon: CalendarDays, summary: "المعلمون، التوليد التلقائي، الملحفة، والجدول اليومي.", steps: timetableUsage, image: { src: guideTimetable, alt: "جدول حصص مدرسي أسبوعي" } },
+  { id: "committees", title: "اللجان المدرسية", icon: Users, summary: "إنشاء كتب تشكيل اللجان وتصديرها رسمياً.", ordered: true, steps: committeesUsage },
+  { id: "exams", title: "جداول الامتحانات", icon: BookOpen, summary: "توليد جداول الشهر الأول والثاني والنهائي.", ordered: true, steps: examUsage },
+  { id: "sdi", title: "تحليل منحة SDI", icon: PieChart, summary: "توزيع الصرف على المجالات ومراقبة النسب.", ordered: true, steps: sdiUsage },
+  { id: "students", title: "غياب الطلبة — إدارة الطلاب والرصد", icon: GraduationCap, summary: "إضافة الطلبة ورصد الغياب اليومي.", steps: studentAbsenceUsage, image: { src: guideAbsence, alt: "رصد غياب الطلبة وإرسال الرسائل" } },
+  { id: "sms", title: "إعداد بوابة SMS (رسائل مجانية من هاتفك)", icon: Smartphone, summary: "تثبيت SMSGate وربطه بالبرمجية خطوة بخطوة.", ordered: true, steps: smsGatewayUsage },
+  { id: "messaging", title: "إرسال الرسائل (SMS وواتساب)", icon: MessageSquare, summary: "الإرسال الفردي والجماعي والنسخ للحافظة.", steps: messagingUsage },
+  { id: "ajyal", title: "ربط منصة أجيال (الوضع الخفي)", icon: Link2, summary: "استيراد الطلبة وتعبئة الغياب تلقائياً بالخلفية.", ordered: true, steps: ajyalUsage },
+  { id: "reports", title: "تقارير وإحصائيات الغياب", icon: BarChart3, summary: "الإنذارات والنسب والتصدير الرسمي.", steps: absenceReportsUsage },
+  { id: "updates", title: "آلية التحديث", icon: RefreshCw, summary: "تحديث النسخة المكتبية بضغطة واحدة.", steps: updateInstructions },
+  { id: "troubleshooting", title: "حل المشاكل الشائعة", icon: LifeBuoy, summary: "أشهر الأعطال وحلولها السريعة.", steps: troubleshooting },
+];
+
+const matches = (s: GuideSection, q: string) => {
+  if (!q) return true;
+  const hay = [s.title, s.summary, ...(s.steps || []), ...(s.cards || []).flatMap((c) => [c.heading, ...c.lines])].join(" ").toLowerCase();
+  return hay.includes(q.toLowerCase());
+};
 
 export default function InstructionsPage() {
+  const [query, setQuery] = useState("");
+  const visible = useMemo(() => sections.filter((s) => matches(s, query)), [query]);
+
   return (
     <AppLayout>
-      <div className="space-y-6 max-w-6xl" dir="rtl">
-        <h1 className="text-2xl font-bold text-foreground">دليل استخدام البرمجية الكامل</h1>
-
-        <Section title="البدء السريع">
-          <ol className="list-decimal pr-5 space-y-2 text-sm text-muted-foreground">
-            {quickStart.map((step) => <li key={step}>{step}</li>)}
-          </ol>
-        </Section>
-
-        <Section title="الإعدادات الأساسية">
-          <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
-            {settingsUsage.map((item) => <li key={item}>{item}</li>)}
-          </ul>
-        </Section>
-
-        <Section title="تعليمات الحركات (من / إلى)">
-          <div className="space-y-4">
-            {movementInstructions.map((item) => (
-              <div key={item.title} className="rounded-lg border border-border bg-card p-4 space-y-2">
-                <h3 className="font-semibold text-foreground">{item.title}</h3>
-                <p className="text-sm text-muted-foreground">{item.from} ←→ {item.to}</p>
-                <p className="text-sm text-muted-foreground">{item.details}</p>
+      <div className="space-y-6" dir="rtl">
+        {/* الترويسة المصوّرة */}
+        <section className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-l from-primary to-primary/80">
+          <div className="grid md:grid-cols-2 items-center gap-4">
+            <div className="p-6 md:p-8 space-y-3">
+              <Badge className="bg-accent text-accent-foreground">دليل مصوّر داخل البرمجية</Badge>
+              <h1 className="text-2xl md:text-3xl font-bold text-primary-foreground">دليل استخدام البرمجية الكامل</h1>
+              <p className="text-sm text-primary-foreground/80 leading-6">
+                شرح مفصّل لكل قسم في البرمجية: المالية، السكرتير، الجدول المدرسي، اللجان، الامتحانات، غياب الطلبة، الرسائل، ومنصة أجيال — مع فهرس جانبي وبحث فوري.
+              </p>
+              <div className="relative max-w-md">
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="ابحث في الدليل… مثال: أجيال، SMS، سلفة"
+                  className="pr-9 bg-background"
+                  aria-label="بحث في دليل الاستخدام"
+                />
               </div>
-            ))}
+            </div>
+            <img src={guideHero} alt="لوحة تحكم برمجية الإدارة المدرسية" width={1280} height={560} className="h-48 md:h-64 w-full object-cover" />
           </div>
-        </Section>
+        </section>
 
-        <Section title="المستندات المطلوبة لكل معاملة">
-          <div className="space-y-4">
-            {requiredDocuments.map((item) => (
-              <div key={item.transaction} className="rounded-lg border border-border bg-card p-4">
-                <h3 className="font-semibold text-foreground mb-2">{item.transaction}</h3>
-                <ul className="list-disc pr-5 space-y-1 text-sm text-muted-foreground">
-                  {item.docs.map((doc) => <li key={doc}>{doc}</li>)}
-                </ul>
-              </div>
+        <div className="grid lg:grid-cols-[260px_1fr] gap-6 items-start">
+          {/* الفهرس الجانبي */}
+          <nav className="hidden lg:block sticky top-4">
+            <Card className="shadow-card">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">فهرس الأقسام</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                {visible.map((s) => (
+                  <a
+                    key={s.id}
+                    href={`#${s.id}`}
+                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  >
+                    <s.icon className="w-4 h-4 text-accent shrink-0" />
+                    <span className="truncate">{s.title}</span>
+                  </a>
+                ))}
+                {visible.length === 0 && <p className="text-xs text-muted-foreground">لا نتائج</p>}
+              </CardContent>
+            </Card>
+          </nav>
+
+          {/* الأقسام */}
+          <div className="space-y-6 min-w-0">
+            {visible.length === 0 && (
+              <Card className="shadow-card">
+                <CardContent className="py-12 text-center text-sm text-muted-foreground">
+                  لا توجد نتائج مطابقة لبحثك.
+                </CardContent>
+              </Card>
+            )}
+
+            {visible.map((s) => (
+              <Card key={s.id} id={s.id} className="shadow-card scroll-mt-4">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-start gap-3">
+                    <span className="rounded-lg bg-accent/15 p-2 text-accent shrink-0">
+                      <s.icon className="w-5 h-5" />
+                    </span>
+                    <span className="space-y-1">
+                      <span className="block text-lg text-foreground">{s.title}</span>
+                      <span className="block text-xs font-normal text-muted-foreground">{s.summary}</span>
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {s.image && (
+                    <img
+                      src={s.image.src}
+                      alt={s.image.alt}
+                      loading="lazy"
+                      width={1024}
+                      height={576}
+                      className="w-full max-h-56 object-cover rounded-lg border border-border bg-muted"
+                    />
+                  )}
+
+                  {s.steps && (
+                    <ol className="space-y-2">
+                      {s.steps.map((step, i) => (
+                        <li key={step} className="flex gap-3 text-sm text-muted-foreground leading-6">
+                          <span className={`shrink-0 h-6 w-6 rounded-full text-xs font-bold flex items-center justify-center ${s.ordered ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
+                            {i + 1}
+                          </span>
+                          <span className="flex-1">{step}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+
+                  {s.cards && (
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {s.cards.map((c) => (
+                        <div key={c.heading} className="rounded-lg border border-border bg-muted/40 p-4 space-y-2">
+                          <h3 className="font-semibold text-foreground">{c.heading}</h3>
+                          <ul className="list-disc pr-5 space-y-1 text-sm text-muted-foreground">
+                            {c.lines.map((l) => <li key={l}>{l}</li>)}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             ))}
+
+            <Card className="shadow-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Phone className="w-5 h-5 text-accent" /> الدعم الفني
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-muted-foreground">
+                <p>الاسم: <span className="font-semibold text-foreground">الأستاذ علي مقدادي</span></p>
+                <p>رقم الهاتف: <a href="tel:0780296130" className="font-semibold text-primary hover:underline" dir="ltr">0780296130</a></p>
+                <Separator />
+                <p>الهدف من البرمجية: <span className="text-foreground">تسهيل إدارة الحركات المالية والجرد والإتلاف والنماذج الرسمية والجدول المدرسي واللجان وغياب الطلبة وإشعار أولياء الأمور بدقة ووقت أقل.</span></p>
+              </CardContent>
+            </Card>
           </div>
-        </Section>
-
-        <Section title="استخدام تبويب السكرتير (الجرد والإتلاف والنماذج)">
-          <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
-            {secretaryUsage.map((item) => <li key={item}>{item}</li>)}
-          </ul>
-        </Section>
-
-        <Section title="الجدول المدرسي">
-          <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
-            {timetableUsage.map((item) => <li key={item}>{item}</li>)}
-          </ul>
-        </Section>
-
-        <Section title="اللجان المدرسية">
-          <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
-            {committeesUsage.map((item) => <li key={item}>{item}</li>)}
-          </ul>
-        </Section>
-
-        <Section title="جداول الامتحانات">
-          <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
-            {examUsage.map((item) => <li key={item}>{item}</li>)}
-          </ul>
-        </Section>
-
-        <Section title="تحليل منحة SDI">
-          <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
-            {sdiUsage.map((item) => <li key={item}>{item}</li>)}
-          </ul>
-        </Section>
-
-        <Section title="📱 غياب الطلبة — إدارة الطلاب ورصد الغياب">
-          <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
-            {studentAbsenceUsage.map((item) => <li key={item}>{item}</li>)}
-          </ul>
-        </Section>
-
-        <Section title="📲 إعداد بوابة SMS (إرسال رسائل مجانية من هاتفك)">
-          <ol className="list-decimal pr-5 space-y-2 text-sm text-muted-foreground">
-            {smsGatewayUsage.map((item) => <li key={item}>{item}</li>)}
-          </ol>
-        </Section>
-
-        <Section title="📨 إرسال الرسائل (SMS وواتساب)">
-          <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
-            {messagingUsage.map((item) => <li key={item}>{item}</li>)}
-          </ul>
-        </Section>
-
-        <Section title="🔗 ربط منصة أجيال (تعبئة تلقائية)">
-          <ol className="list-decimal pr-5 space-y-2 text-sm text-muted-foreground">
-            {ajyalUsage.map((item) => <li key={item}>{item}</li>)}
-          </ol>
-        </Section>
-
-        <Section title="📊 تقارير وإحصائيات الغياب">
-          <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
-            {absenceReportsUsage.map((item) => <li key={item}>{item}</li>)}
-          </ul>
-        </Section>
-
-        <Section title="آلية التحديث">
-          <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
-            {updateInstructions.map((item) => <li key={item}>{item}</li>)}
-          </ul>
-        </Section>
-
-        <Section title="حل المشاكل الشائعة">
-          <ul className="list-disc pr-5 space-y-2 text-sm text-muted-foreground">
-            {troubleshooting.map((item) => <li key={item}>{item}</li>)}
-          </ul>
-        </Section>
-
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>الدعم الفني</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>الاسم: <span className="font-semibold text-foreground">الأستاذ علي مقدادي</span></p>
-            <p>رقم الهاتف: <a href="tel:0780296130" className="font-semibold text-primary hover:underline" dir="ltr">0780296130</a></p>
-            <Separator />
-            <p>الهدف من البرمجية: <span className="text-foreground">تسهيل إدارة الحركات المالية والجرد والإتلاف والنماذج الرسمية والجدول المدرسي واللجان وغياب الطلبة وإشعار أولياء الأمور بدقة ووقت أقل.</span></p>
-          </CardContent>
-        </Card>
+        </div>
       </div>
     </AppLayout>
   );
