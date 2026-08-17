@@ -397,8 +397,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
           // Add small random noise for variety
           score += Math.random() * 15;
 
-          if (period === sixthPeriodIdx) score += 35 + latePeriodCount[assignment.teacherId].sixth * 5;
-          if (period === seventhPeriodIdx) score += 55 + latePeriodCount[assignment.teacherId].seventh * 6;
+          if (period === sixthPeriodIdx) score += 30 + latePeriodCount[assignment.teacherId].sixth * 45;
+          if (period === seventhPeriodIdx) score += 45 + latePeriodCount[assignment.teacherId].seventh * 70;
 
           if (!best || score < best.score) {
             best = { day, period, score };
