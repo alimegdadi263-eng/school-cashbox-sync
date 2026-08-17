@@ -577,10 +577,16 @@ export default function TeacherManager() {
                   <Label className="text-xs">حصص/أسبوع</Label>
                   <Input type="number" min={1} max={35} value={newPeriods} onChange={e => setNewPeriods(Number(e.target.value))} />
                 </div>
-                <Button onClick={addSubjectRow} size="sm" className="self-end">
-                  <Plus className="w-4 h-4" />
-                </Button>
+                <div className="flex gap-1 self-end">
+                  <Button onClick={addSubjectRow} size="sm">
+                    {editingSubjectIdx !== null ? "حفظ" : <Plus className="w-4 h-4" />}
+                  </Button>
+                  {editingSubjectIdx !== null && (
+                    <Button onClick={cancelEditSubject} size="sm" variant="outline">إلغاء</Button>
+                  )}
+                </div>
               </div>
+
 
               {/* إضافة مادة جديدة */}
               <div className="flex gap-2 items-end">
