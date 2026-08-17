@@ -92,19 +92,45 @@ export default function TeacherManager() {
       return;
     }
     const normalized = normalizeSubjectName(newSubject.trim());
-    setSubjects([...subjects, {
+    const row: SubjectAssignment = {
       subjectName: normalized,
       className: newClass,
       section: newSection,
       branch: SECONDARY_CLASSES.includes(newClass) ? newBranch : undefined,
       periodsPerWeek: newPeriods,
-    }]);
+    };
+    if (editingSubjectIdx !== null) {
+      setSubjects(subjects.map((s, i) => (i === editingSubjectIdx ? row : s)));
+      setEditingSubjectIdx(null);
+      toast({ title: "تم تعديل المادة" });
+    } else {
+      setSubjects([...subjects, row]);
+    }
     setNewSubject("");
+  };
+
+  const startEditSubject = (idx: number) => {
+    const s = subjects[idx];
+    setEditingSubjectIdx(idx);
+    setNewSubject(s.subjectName);
+    setNewClass(s.className);
+    setNewSection(s.section);
+    setNewBranch(s.branch || "");
+    setNewPeriods(s.periodsPerWeek);
+  };
+
+  const cancelEditSubject = () => {
+    setEditingSubjectIdx(null);
+    setNewSubject("");
+    setNewBranch("");
+    setNewPeriods(3);
   };
 
   const removeSubjectRow = (idx: number) => {
     setSubjects(subjects.filter((_, i) => i !== idx));
+    if (editingSubjectIdx === idx) cancelEditSubject();
   };
+
 
   const handleSave = () => {
     if (!name.trim()) {
