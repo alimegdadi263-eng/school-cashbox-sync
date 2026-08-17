@@ -24,6 +24,7 @@ export default function TeacherManager() {
   const [subjects, setSubjects] = useState<SubjectAssignment[]>([]);
   const [blockedPeriods, setBlockedPeriods] = useState<BlockedPeriod[]>([]);
   const [newSubject, setNewSubject] = useState("");
+  const [editingSubjectIdx, setEditingSubjectIdx] = useState<number | null>(null);
   const [newClass, setNewClass] = useState(CLASS_NAMES[0]);
   const [newSection, setNewSection] = useState(SECTIONS[0]);
   const [newPeriods, setNewPeriods] = useState(3);
@@ -70,6 +71,7 @@ export default function TeacherManager() {
     setNewClass(CLASS_NAMES[0]);
     setNewSection(SECTIONS[0]);
     setNewPeriods(3);
+    setEditingSubjectIdx(null);
     setEditingTeacher(null);
   };
 
@@ -92,19 +94,45 @@ export default function TeacherManager() {
       return;
     }
     const normalized = normalizeSubjectName(newSubject.trim());
-    setSubjects([...subjects, {
+    const row: SubjectAssignment = {
       subjectName: normalized,
       className: newClass,
       section: newSection,
       branch: SECONDARY_CLASSES.includes(newClass) ? newBranch : undefined,
       periodsPerWeek: newPeriods,
-    }]);
+    };
+    if (editingSubjectIdx !== null) {
+      setSubjects(subjects.map((s, i) => (i === editingSubjectIdx ? row : s)));
+      setEditingSubjectIdx(null);
+      toast({ title: "تم تعديل المادة" });
+    } else {
+      setSubjects([...subjects, row]);
+    }
     setNewSubject("");
+  };
+
+  const startEditSubject = (idx: number) => {
+    const s = subjects[idx];
+    setEditingSubjectIdx(idx);
+    setNewSubject(s.subjectName);
+    setNewClass(s.className);
+    setNewSection(s.section);
+    setNewBranch(s.branch || "");
+    setNewPeriods(s.periodsPerWeek);
+  };
+
+  const cancelEditSubject = () => {
+    setEditingSubjectIdx(null);
+    setNewSubject("");
+    setNewBranch("");
+    setNewPeriods(3);
   };
 
   const removeSubjectRow = (idx: number) => {
     setSubjects(subjects.filter((_, i) => i !== idx));
+    if (editingSubjectIdx === idx) cancelEditSubject();
   };
+
 
   const handleSave = () => {
     if (!name.trim()) {
@@ -549,10 +577,16 @@ export default function TeacherManager() {
                   <Label className="text-xs">حصص/أسبوع</Label>
                   <Input type="number" min={1} max={35} value={newPeriods} onChange={e => setNewPeriods(Number(e.target.value))} />
                 </div>
-                <Button onClick={addSubjectRow} size="sm" className="self-end">
-                  <Plus className="w-4 h-4" />
-                </Button>
+                <div className="flex gap-1 self-end">
+                  <Button onClick={addSubjectRow} size="sm">
+                    {editingSubjectIdx !== null ? "حفظ" : <Plus className="w-4 h-4" />}
+                  </Button>
+                  {editingSubjectIdx !== null && (
+                    <Button onClick={cancelEditSubject} size="sm" variant="outline">إلغاء</Button>
+                  )}
+                </div>
               </div>
+
 
               {/* إضافة مادة جديدة */}
               <div className="flex gap-2 items-end">
@@ -573,13 +607,19 @@ export default function TeacherManager() {
               {subjects.length > 0 && (
                 <div className="space-y-1 mt-2">
                   {subjects.map((s, i) => (
-                    <div key={i} className="flex items-center justify-between bg-muted px-3 py-1.5 rounded text-sm">
+                    <div key={i} className={`flex items-center justify-between px-3 py-1.5 rounded text-sm ${editingSubjectIdx === i ? "bg-primary/10 ring-1 ring-primary" : "bg-muted"}`}>
                       <span>{s.subjectName} - الصف {s.className}{s.branch ? ` ${s.branch}` : ''} / شعبة {s.section} ({s.periodsPerWeek} حصص)</span>
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeSubjectRow(i)}>
-                        <X className="w-3 h-3" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => startEditSubject(i)}>
+                          <Edit className="w-3 h-3" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeSubjectRow(i)}>
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
+
                 </div>
               )}
             </div>

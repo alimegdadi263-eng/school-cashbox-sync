@@ -397,8 +397,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
           // Add small random noise for variety
           score += Math.random() * 15;
 
-          if (period === sixthPeriodIdx) score += 35 + latePeriodCount[assignment.teacherId].sixth * 5;
-          if (period === seventhPeriodIdx) score += 55 + latePeriodCount[assignment.teacherId].seventh * 6;
+          if (period === sixthPeriodIdx) score += 30 + latePeriodCount[assignment.teacherId].sixth * 45;
+          if (period === seventhPeriodIdx) score += 45 + latePeriodCount[assignment.teacherId].seventh * 70;
 
           if (!best || score < best.score) {
             best = { day, period, score };
@@ -561,6 +561,79 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     }
 
     compactTimetable(newTT);
+
+    /**
+     * موازنة الحصص المتأخرة (السادسة والسابعة) بين المعلمين قدر الإمكان.
+     * تعمل عبر تبديل حصة متأخرة لمعلم مُحمَّل بأكثر من نصيبه مع حصة مبكرة
+     * لمعلم أقل تحميلاً داخل نفس الصف ونفس اليوم، مع احترام التعارضات
+     * والحصص الممنوعة لكل معلم.
+     */
+    const balanceLatePeriods = (tt: ClassTimetable) => {
+      const latePeriods = [seventhPeriodIdx, sixthPeriodIdx].filter(p => p >= 0);
+
+      const teacherFreeAt = (teacherId: string, day: number, period: number, exceptClassKey: string) => {
+        for (const [ck, days] of Object.entries(tt)) {
+          if (ck === exceptClassKey) continue;
+          if (days[day]?.[period]?.teacherId === teacherId) return false;
+        }
+        const teacher = teachers.find(t => t.id === teacherId);
+        return !(teacher && isBlocked(teacher, day, period));
+      };
+
+      for (const lateIdx of latePeriods) {
+        for (let pass = 0; pass < 40; pass++) {
+          // عدّ الحصص المتأخرة لكل معلم
+          const counts: Record<string, number> = {};
+          teachers.forEach(t => { counts[t.id] = 0; });
+          for (const days of Object.values(tt)) {
+            for (let day = 0; day < daysCount; day++) {
+              const cell = days[day]?.[lateIdx];
+              if (cell) counts[cell.teacherId] = (counts[cell.teacherId] || 0) + 1;
+            }
+          }
+
+          let swapped = false;
+          const slots: { ck: string; day: number }[] = [];
+          for (const ck of Object.keys(tt)) {
+            for (let day = 0; day < daysCount; day++) slots.push({ ck, day });
+          }
+          // الأثقل أولاً
+          slots.sort((a, b) => {
+            const ca = tt[a.ck][a.day][lateIdx];
+            const cb = tt[b.ck][b.day][lateIdx];
+            return (cb ? counts[cb.teacherId] || 0 : -1) - (ca ? counts[ca.teacherId] || 0 : -1);
+          });
+
+          for (const { ck, day } of slots) {
+            const lateCell = tt[ck][day][lateIdx];
+            if (!lateCell) continue;
+            const heavy = counts[lateCell.teacherId] || 0;
+
+            for (let q = 0; q < lateIdx; q++) {
+              const earlyCell = tt[ck][day][q];
+              if (!earlyCell) continue;
+              if (earlyCell.teacherId === lateCell.teacherId) continue;
+              const light = counts[earlyCell.teacherId] || 0;
+              if (heavy <= light + 1) continue;
+              if (!teacherFreeAt(lateCell.teacherId, day, q, ck)) continue;
+              if (!teacherFreeAt(earlyCell.teacherId, day, lateIdx, ck)) continue;
+
+              tt[ck][day][lateIdx] = earlyCell;
+              tt[ck][day][q] = lateCell;
+              counts[lateCell.teacherId] = heavy - 1;
+              counts[earlyCell.teacherId] = light + 1;
+              swapped = true;
+              break;
+            }
+          }
+
+          if (!swapped) break;
+        }
+      }
+    };
+
+    balanceLatePeriods(newTT);
+
 
     // Collect unplaced periods
     const newUnplaced: UnplacedPeriod[] = [];
