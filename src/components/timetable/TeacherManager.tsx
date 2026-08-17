@@ -71,6 +71,7 @@ export default function TeacherManager() {
     setNewClass(CLASS_NAMES[0]);
     setNewSection(SECTIONS[0]);
     setNewPeriods(3);
+    setEditingSubjectIdx(null);
     setEditingTeacher(null);
   };
 
