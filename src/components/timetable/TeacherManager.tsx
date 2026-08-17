@@ -24,6 +24,7 @@ export default function TeacherManager() {
   const [subjects, setSubjects] = useState<SubjectAssignment[]>([]);
   const [blockedPeriods, setBlockedPeriods] = useState<BlockedPeriod[]>([]);
   const [newSubject, setNewSubject] = useState("");
+  const [editingSubjectIdx, setEditingSubjectIdx] = useState<number | null>(null);
   const [newClass, setNewClass] = useState(CLASS_NAMES[0]);
   const [newSection, setNewSection] = useState(SECTIONS[0]);
   const [newPeriods, setNewPeriods] = useState(3);
