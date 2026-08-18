@@ -22,6 +22,8 @@ interface TimetableContextType {
   setTimetable: (tt: ClassTimetable) => void;
   updateCell: (classKey: string, day: number, period: number, cell: TimetableCell | null) => void;
   swapCells: (classKey: string, day: number, period: number, periodA: number) => boolean;
+  moveCell: (classKey: string, fromDay: number, fromPeriod: number, toDay: number, toPeriod: number) => boolean;
+
   placeFromStaging: (stagingIdx: number, classKey: string, day: number, period: number) => boolean;
   generateTimetable: () => void;
   getTeacherSchedule: (teacherId: string) => { classKey: string; day: number; period: number; subjectName: string }[];
