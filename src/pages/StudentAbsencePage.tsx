@@ -8,8 +8,7 @@ import AbsenceReports from "@/components/studentAbsence/AbsenceReports";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AbsenceStatistics from "@/components/studentAbsence/AbsenceStatistics";
 import SmsGatewaySettings from "@/components/studentAbsence/SmsGatewaySettings";
-import AjyalIntegration from "@/components/studentAbsence/AjyalIntegration";
-import { Users, ClipboardCheck, FileBarChart, BarChart3, Smartphone, GraduationCap } from "lucide-react";
+import { Users, ClipboardCheck, FileBarChart, BarChart3, Smartphone } from "lucide-react";
 
 export default function StudentAbsencePage() {
   const { user, schoolName } = useAuth();
@@ -25,7 +24,7 @@ export default function StudentAbsencePage() {
         </h1>
 
         <Tabs defaultValue="daily" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="daily" className="flex items-center gap-1">
               <ClipboardCheck className="w-4 h-4" />
               الرصد اليومي
@@ -45,10 +44,6 @@ export default function StudentAbsencePage() {
             <TabsTrigger value="sms" className="flex items-center gap-1">
               <Smartphone className="w-4 h-4" />
               إعدادات SMS
-            </TabsTrigger>
-            <TabsTrigger value="ajyal" className="flex items-center gap-1">
-              <GraduationCap className="w-4 h-4" />
-              منصة أجيال
             </TabsTrigger>
           </TabsList>
 
@@ -76,9 +71,6 @@ export default function StudentAbsencePage() {
           </TabsContent>
           <TabsContent value="sms">
             <SmsGatewaySettings />
-          </TabsContent>
-          <TabsContent value="ajyal">
-            <AjyalIntegration userId={userId} schoolName={schoolName || ""} />
           </TabsContent>
         </Tabs>
       </div>

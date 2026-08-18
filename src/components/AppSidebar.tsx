@@ -23,6 +23,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useFinance } from "@/context/FinanceContext";
 import { useNetwork } from "@/context/NetworkContext";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -47,7 +48,9 @@ function isGroup(entry: SidebarEntry): entry is NavGroup {
 
 export default function AppSidebar() {
   const location = useLocation();
-  const { isAdmin, schoolName, signOut } = useAuth();
+  const { isAdmin, signOut } = useAuth();
+  const { state: financeState } = useFinance();
+  const schoolName = financeState.schoolName;
   const { state: networkState } = useNetwork();
 
   const clientRole = networkState.clientRole;
