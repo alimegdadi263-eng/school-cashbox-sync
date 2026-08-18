@@ -810,7 +810,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     <TimetableContext.Provider value={{
       teachers, timetable, unplacedPeriods, periodsPerDay, setPeriodsPerDay,
       addTeacher, updateTeacher, removeTeacher,
-      setTimetable, updateCell, swapCells, placeFromStaging, generateTimetable,
+      setTimetable, updateCell, swapCells, moveCell, placeFromStaging, generateTimetable,
       getTeacherSchedule, getAllClassKeys, clearTimetable,
       generateDailySchedule,
     }}>
