@@ -49,7 +49,7 @@ const TEACHER_COLORS = [
 ];
 
 export default function MalhafaView() {
-  const { timetable, periodsPerDay, getAllClassKeys, swapCells, unplacedPeriods, placeFromStaging, teachers } = useTimetable();
+  const { timetable, periodsPerDay, getAllClassKeys, swapCells, moveCell, unplacedPeriods, placeFromStaging, teachers } = useTimetable();
   const classKeys = getAllClassKeys();
 
   const [dragSource, setDragSource] = useState<DragSource | null>(null);
