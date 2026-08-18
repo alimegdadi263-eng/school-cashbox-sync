@@ -213,7 +213,41 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     setTimetableState(newTT);
     save(teachers, newTT, periodsPerDay);
     return true;
+
+  /**
+   * نقل حصة من مكانها إلى خانة فارغة (يمكن أن تكون في يوم آخر داخل نفس الصف).
+   * يتحقق من خلو الخانة الهدف ومن عدم تعارض المعلم وعدم كونها حصة ممنوعة له.
+   */
+  const moveCell = (classKey: string, fromDay: number, fromPeriod: number, toDay: number, toPeriod: number): boolean => {
+    const days = timetable[classKey];
+    if (!days) return false;
+    const cell = days[fromDay]?.[fromPeriod];
+    if (!cell) return false;
+    if (fromDay === toDay && fromPeriod === toPeriod) return false;
+    if (days[toDay]?.[toPeriod]) return false; // الهدف ليس فارغاً
+
+    // تعارض المعلم في نفس التوقيت داخل صف آخر
+    for (const [ck, d] of Object.entries(timetable)) {
+      if (ck === classKey) continue;
+      if (d[toDay]?.[toPeriod]?.teacherId === cell.teacherId) return false;
+    }
+    // حصة ممنوعة للمعلم
+    const teacher = teachers.find(t => t.id === cell.teacherId);
+    if (teacher && (teacher.blockedPeriods || []).some(bp => bp.day === toDay && bp.period === toPeriod)) return false;
+
+    const newTT = { ...timetable };
+    newTT[classKey] = days.map((d, di) =>
+      d.map((p, pi) => {
+        if (di === fromDay && pi === fromPeriod) return null;
+        if (di === toDay && pi === toPeriod) return cell;
+        return p;
+      })
+    );
+    setTimetableState(newTT);
+    save(teachers, newTT, periodsPerDay);
+    return true;
   };
+
 
   // Place a period from the unplaced staging area into the timetable
   const placeFromStaging = (stagingIdx: number, classKey: string, day: number, period: number): boolean => {
