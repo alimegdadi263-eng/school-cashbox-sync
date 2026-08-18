@@ -213,6 +213,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     setTimetableState(newTT);
     save(teachers, newTT, periodsPerDay);
     return true;
+  };
+
 
   /**
    * نقل حصة من مكانها إلى خانة فارغة (يمكن أن تكون في يوم آخر داخل نفس الصف).
