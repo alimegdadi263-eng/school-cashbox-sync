@@ -24,6 +24,7 @@ interface TimetableContextType {
   swapCells: (classKey: string, day: number, period: number, periodA: number) => boolean;
   moveCell: (classKey: string, fromDay: number, fromPeriod: number, toDay: number, toPeriod: number) => boolean;
 
+  moveToStaging: (classKey: string, day: number, period: number) => boolean;
   placeFromStaging: (stagingIdx: number, classKey: string, day: number, period: number) => boolean;
   generateTimetable: () => void;
   getTeacherSchedule: (teacherId: string) => { classKey: string; day: number; period: number; subjectName: string }[];
@@ -290,6 +291,38 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       newUnplaced[stagingIdx] = { ...item, count: item.count - 1 };
     }
     setUnplacedPeriods(newUnplaced);
+    return true;
+  };
+
+  // Move a placed period from the timetable back to the unplaced staging area
+  const moveToStaging = (classKey: string, day: number, period: number): boolean => {
+    const cell = timetable[classKey]?.[day]?.[period];
+    if (!cell) return false;
+
+    const newTT = { ...timetable };
+    newTT[classKey] = newTT[classKey].map((d, di) =>
+      di === day ? d.map((p, pi) => (pi === period ? null : p)) : d
+    );
+    setTimetableState(newTT);
+    save(teachers, newTT, periodsPerDay);
+
+    setUnplacedPeriods(prev => {
+      const idx = prev.findIndex(
+        u => u.classKey === classKey && u.teacherId === cell.teacherId && u.subjectName === cell.subjectName
+      );
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], count: next[idx].count + 1 };
+        return next;
+      }
+      return [...prev, {
+        teacherId: cell.teacherId,
+        teacherName: cell.teacherName,
+        subjectName: cell.subjectName,
+        classKey,
+        count: 1,
+      }];
+    });
     return true;
   };
 
@@ -810,7 +843,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     <TimetableContext.Provider value={{
       teachers, timetable, unplacedPeriods, periodsPerDay, setPeriodsPerDay,
       addTeacher, updateTeacher, removeTeacher,
-      setTimetable, updateCell, swapCells, moveCell, placeFromStaging, generateTimetable,
+      setTimetable, updateCell, swapCells, moveCell, placeFromStaging, moveToStaging, generateTimetable,
       getTeacherSchedule, getAllClassKeys, clearTimetable,
       generateDailySchedule,
     }}>
