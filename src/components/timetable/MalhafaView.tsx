@@ -49,11 +49,22 @@ const TEACHER_COLORS = [
 ];
 
 export default function MalhafaView() {
-  const { timetable, periodsPerDay, getAllClassKeys, swapCells, moveCell, unplacedPeriods, placeFromStaging, teachers } = useTimetable();
+  const { timetable, periodsPerDay, getAllClassKeys, swapCells, moveCell, unplacedPeriods, placeFromStaging, moveToStaging, teachers } = useTimetable();
   const classKeys = getAllClassKeys();
 
   const [dragSource, setDragSource] = useState<DragSource | null>(null);
   const [dragOver, setDragOver] = useState<{ classKey: string; day: number; period: number } | null>(null);
+  const [stagingDragOver, setStagingDragOver] = useState(false);
+
+  const handleDropToStaging = () => {
+    if (!dragSource || dragSource.type !== "cell") { setStagingDragOver(false); return; }
+    const ok = moveToStaging(dragSource.classKey, dragSource.day, dragSource.period);
+    if (ok) toast({ title: "تم نقل الحصة إلى المنطقة الفارغة" });
+    else toast({ title: "لا توجد حصة لنقلها", variant: "destructive" });
+    setDragSource(null);
+    setDragOver(null);
+    setStagingDragOver(false);
+  };
 
   // Build teacher→color map
   const teacherColorMap = useMemo(() => {
@@ -180,18 +191,27 @@ export default function MalhafaView() {
       </Card>
 
       {/* Unplaced periods staging area */}
-      {unplacedPeriods.length > 0 && (
-        <Card className="border-destructive/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2 text-destructive">
-              <AlertTriangle className="w-5 h-5" />
-              حصص لم يتم توزيعها ({unplacedPeriods.reduce((s, u) => s + u.count, 0)} حصة)
-            </CardTitle>
-            <p className="text-muted-foreground text-xs">
-              اسحب أي حصة من هنا وأفلتها في خانة فارغة مناسبة في الملحفة أعلاه
-            </p>
-          </CardHeader>
-          <CardContent>
+      <Card
+        className={`transition-colors ${stagingDragOver ? "border-accent ring-2 ring-accent" : "border-destructive/50"}`}
+        onDragOver={(e) => { e.preventDefault(); setStagingDragOver(true); }}
+        onDragLeave={() => setStagingDragOver(false)}
+        onDrop={(e) => { e.preventDefault(); handleDropToStaging(); }}
+      >
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2 text-destructive">
+            <AlertTriangle className="w-5 h-5" />
+            المنطقة الفارغة - حصص غير موزّعة ({unplacedPeriods.reduce((s, u) => s + u.count, 0)} حصة)
+          </CardTitle>
+          <p className="text-muted-foreground text-xs">
+            اسحب أي حصة من الملحفة وأفلتها هنا لإزالتها من الجدول، أو اسحب من هنا إلى خانة فارغة لوضعها
+          </p>
+        </CardHeader>
+        <CardContent>
+          {unplacedPeriods.length === 0 ? (
+            <div className="text-center text-muted-foreground text-xs py-6 border border-dashed rounded-lg">
+              أفلت أي حصة هنا لإخراجها من الجدول
+            </div>
+          ) : (
             <div className="flex flex-wrap gap-2">
               {unplacedPeriods.map((item, idx) => {
                 const { className, section } = parseClassKey(item.classKey);
@@ -201,7 +221,7 @@ export default function MalhafaView() {
                     key={`${item.teacherId}-${item.classKey}-${item.subjectName}-${idx}`}
                     draggable
                     onDragStart={() => setDragSource({ type: "staging", stagingIdx: idx, classKey: item.classKey })}
-                    onDragEnd={() => { setDragSource(null); setDragOver(null); }}
+                    onDragEnd={() => { setDragSource(null); setDragOver(null); setStagingDragOver(false); }}
                     className={`border border-destructive/30 bg-destructive/5 rounded-lg p-2 cursor-grab select-none text-xs leading-tight min-w-[120px]
                       ${isStagingDrag ? "opacity-50 ring-2 ring-destructive" : "hover:bg-destructive/10"}
                     `}
@@ -214,9 +234,10 @@ export default function MalhafaView() {
                 );
               })}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
+
     </div>
   );
 }
