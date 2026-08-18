@@ -634,6 +634,97 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
     balanceLatePeriods(newTT);
 
+    /**
+     * محاذاة أيام التأخير: نحاول جعل الحصة السادسة للمعلم في نفس اليوم الذي
+     * لديه فيه حصة سابعة، حتى تتركّز أيام التأخير في أقل عدد ممكن من الأيام
+     * ويستطيع المعلم المغادرة مبكراً في باقي الأيام.
+     * الآلية: تبديل خانة الحصة السادسة بين يومين داخل نفس الصف (نفس رقم الحصة)
+     * مع التحقق من التعارضات والحصص الممنوعة، وعدم الإضرار بالمعلم الآخر.
+     */
+    const alignLateDays = (tt: ClassTimetable) => {
+      if (sixthPeriodIdx < 0 || seventhPeriodIdx < 0) return;
+
+      const freeAt = (teacherId: string, day: number, period: number, exceptClassKey: string) => {
+        for (const [ck, days] of Object.entries(tt)) {
+          if (ck === exceptClassKey) continue;
+          if (days[day]?.[period]?.teacherId === teacherId) return false;
+        }
+        const teacher = teachers.find(t => t.id === teacherId);
+        return !(teacher && isBlocked(teacher, day, period));
+      };
+
+      // عدد الأيام التي يتأخر فيها المعلم (لديه حصة سادسة أو سابعة)
+      const lateDays = (teacherId: string) => {
+        const set = new Set<number>();
+        for (const days of Object.values(tt)) {
+          for (let d = 0; d < daysCount; d++) {
+            const c6 = days[d]?.[sixthPeriodIdx];
+            const c7 = days[d]?.[seventhPeriodIdx];
+            if (c6?.teacherId === teacherId || c7?.teacherId === teacherId) set.add(d);
+          }
+        }
+        return set;
+      };
+
+      const hasAt = (teacherId: string, day: number, periodIdx: number) => {
+        for (const days of Object.values(tt)) {
+          if (days[day]?.[periodIdx]?.teacherId === teacherId) return true;
+        }
+        return false;
+      };
+
+      for (let pass = 0; pass < 30; pass++) {
+        let moved = false;
+
+        for (const ck of Object.keys(tt)) {
+          for (let dayA = 0; dayA < daysCount; dayA++) {
+            const cellA = tt[ck][dayA]?.[sixthPeriodIdx];
+            if (!cellA) continue;
+            const tA = cellA.teacherId;
+            // المعلم متأخر أصلاً في هذا اليوم بحصة سابعة؟ لا حاجة للنقل
+            if (hasAt(tA, dayA, seventhPeriodIdx)) continue;
+
+            for (let dayB = 0; dayB < daysCount; dayB++) {
+              if (dayB === dayA) continue;
+              // نريد يوماً لدى المعلم فيه حصة سابعة ولا يملك حصة سادسة
+              if (!hasAt(tA, dayB, seventhPeriodIdx)) continue;
+              if (hasAt(tA, dayB, sixthPeriodIdx)) continue;
+
+              const cellB = tt[ck][dayB]?.[sixthPeriodIdx] ?? null;
+              const tB = cellB?.teacherId;
+              if (tB === tA) continue;
+
+              if (!freeAt(tA, dayB, sixthPeriodIdx, ck)) continue;
+              if (cellB && !freeAt(tB!, dayA, sixthPeriodIdx, ck)) continue;
+
+              const beforeA = lateDays(tA).size;
+              const beforeB = tB ? lateDays(tB).size : 0;
+
+              tt[ck][dayA][sixthPeriodIdx] = cellB;
+              tt[ck][dayB][sixthPeriodIdx] = cellA;
+
+              const afterA = lateDays(tA).size;
+              const afterB = tB ? lateDays(tB).size : 0;
+
+              if (afterA < beforeA && afterB <= beforeB) {
+                moved = true;
+                break;
+              }
+              // تراجع عن التبديل إن لم يكن مفيداً
+              tt[ck][dayA][sixthPeriodIdx] = cellA;
+              tt[ck][dayB][sixthPeriodIdx] = cellB;
+            }
+          }
+        }
+
+        if (!moved) break;
+      }
+    };
+
+    alignLateDays(newTT);
+
+
+
 
     // Collect unplaced periods
     const newUnplaced: UnplacedPeriod[] = [];
