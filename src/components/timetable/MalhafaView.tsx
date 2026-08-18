@@ -49,7 +49,7 @@ const TEACHER_COLORS = [
 ];
 
 export default function MalhafaView() {
-  const { timetable, periodsPerDay, getAllClassKeys, swapCells, unplacedPeriods, placeFromStaging, teachers } = useTimetable();
+  const { timetable, periodsPerDay, getAllClassKeys, swapCells, moveCell, unplacedPeriods, placeFromStaging, teachers } = useTimetable();
   const classKeys = getAllClassKeys();
 
   const [dragSource, setDragSource] = useState<DragSource | null>(null);
@@ -73,18 +73,27 @@ export default function MalhafaView() {
       const ok = placeFromStaging(dragSource.stagingIdx, targetClassKey, targetDay, targetPeriod);
       if (ok) toast({ title: "تم وضع الحصة بنجاح!" });
       else toast({ title: "لا يمكن وضع الحصة هنا - تعارض أو خطأ!", variant: "destructive" });
+    } else if (dragSource.classKey !== targetClassKey) {
+      toast({ title: "يمكن النقل داخل نفس الصف فقط", variant: "destructive" });
     } else {
-      if (dragSource.classKey === targetClassKey && dragSource.day === targetDay) {
+      const targetCell = timetable[targetClassKey]?.[targetDay]?.[targetPeriod];
+      if (!targetCell) {
+        // نقل إلى خانة فارغة (حتى في يوم آخر من نفس الصف)
+        const ok = moveCell(targetClassKey, dragSource.day, dragSource.period, targetDay, targetPeriod);
+        if (ok) toast({ title: "تم نقل الحصة بنجاح!" });
+        else toast({ title: "لا يمكن نقل الحصة هنا - تعارض للمعلم أو حصة ممنوعة!", variant: "destructive" });
+      } else if (dragSource.day === targetDay) {
         const ok = swapCells(targetClassKey, targetDay, dragSource.period, targetPeriod);
         if (ok) toast({ title: "تم التبديل بنجاح!" });
         else toast({ title: "لا يمكن التبديل - يوجد تعارض!", variant: "destructive" });
       } else {
-        toast({ title: "يجب التبديل في نفس الصف ونفس اليوم", variant: "destructive" });
+        toast({ title: "التبديل بين حصتين ممتلئتين يكون في نفس اليوم فقط", variant: "destructive" });
       }
     }
     setDragSource(null);
     setDragOver(null);
   };
+
 
   return (
     <div className="space-y-4">
@@ -164,8 +173,9 @@ export default function MalhafaView() {
             </table>
           </div>
           <p className="text-muted-foreground text-xs mt-2">
-            اسحب أي حصة وأفلتها على حصة أخرى في نفس الصف ونفس اليوم للتبديل، أو اسحب من الحصص المتبقية أدناه لوضعها في خانة فارغة
+            اسحب أي حصة وأفلتها على خانة فارغة (في أي يوم من نفس الصف) لنقلها، أو على حصة أخرى في نفس اليوم للتبديل، أو اسحب من الحصص المتبقية أدناه لوضعها في خانة فارغة
           </p>
+
         </CardContent>
       </Card>
 
