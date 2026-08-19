@@ -6,6 +6,7 @@ export interface BlockedPeriod {
 export interface Teacher {
   id: string;
   name: string;
+  phone?: string; // رقم هاتف المعلم لإرسال رسائل تعديل الجدول
   subjects: SubjectAssignment[];
   blockedPeriods?: BlockedPeriod[]; // periods where teacher must be free
 }
