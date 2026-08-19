@@ -94,9 +94,15 @@ export default function TimetablePage() {
               <Select value={String(periodsPerDay)} onValueChange={v => setPeriodsPerDay(Number(v))}>
                 <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {[5, 6, 7].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+                  {[5, 6, 7, 8].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5">
+              <Switch id="double-periods" checked={pairDoubleSubjects} onCheckedChange={setPairDoubleSubjects} />
+              <Label htmlFor="double-periods" className="text-sm cursor-pointer">
+                حصتان متتاليتان (المهارات الرقمية / المهني)
+              </Label>
             </div>
             <Button onClick={handleGenerate}>
               <Wand2 className="w-4 h-4 ml-2" /> توليد الجدول
