@@ -21,6 +21,7 @@ export default function TeacherManager() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [subjects, setSubjects] = useState<SubjectAssignment[]>([]);
   const [blockedPeriods, setBlockedPeriods] = useState<BlockedPeriod[]>([]);
   const [newSubject, setNewSubject] = useState("");
