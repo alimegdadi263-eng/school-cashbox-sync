@@ -1400,6 +1400,43 @@ app.whenReady().then(() => {
     }
 
     ipcMain.handle('get-app-version', () => app.getVersion());
+
+    // ── SMS: raw HTTP request to Traccar SMS Gateway (Android, LAN) ──
+    // Runs in the main process so there is no CORS restriction.
+    ipcMain.handle('sms-http-request', async (_e, options = {}) => {
+      const http = require('http');
+      try {
+        const target = new URL(options.url);
+        const payload = options.body || '';
+        return await new Promise((resolve) => {
+          const req = http.request(
+            {
+              hostname: target.hostname,
+              port: target.port || 80,
+              path: target.pathname + target.search,
+              method: options.method || 'POST',
+              headers: {
+                ...(options.headers || {}),
+                'Content-Length': Buffer.byteLength(payload),
+              },
+              timeout: 20000,
+            },
+            (res) => {
+              let data = '';
+              res.on('data', (c) => (data += c));
+              res.on('end', () => resolve({ status: res.statusCode, body: data }));
+            }
+          );
+          req.on('timeout', () => { req.destroy(new Error('انتهت مهلة الاتصال بالهاتف')); });
+          req.on('error', (err) => resolve({ error: err.message }));
+          if (payload) req.write(payload);
+          req.end();
+        });
+      } catch (err) {
+        return { error: err.message };
+      }
+    });
+
     ipcMain.on('check-for-updates', () => {
       if (isDev) { dialog.showMessageBox(mainWindow, { type: 'info', title: 'التحديث', message: 'التحديث التلقائي غير متوفر في وضع التطوير.', buttons: ['حسناً'] }); return; }
       checkForUpdates();

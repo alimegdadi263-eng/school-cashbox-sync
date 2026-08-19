@@ -68,4 +68,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
       return () => ipcRenderer.removeListener('ajyal-action', listener);
     },
   },
+
+  // ── SMS (Traccar SMS Gateway) ──
+  // Executes the HTTP request from the main process to avoid browser CORS
+  // restrictions when contacting the Android phone on the local network.
+  sms: {
+    request: (options) => ipcRenderer.invoke('sms-http-request', options),
+  },
 });
+
