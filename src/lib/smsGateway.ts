@@ -176,8 +176,10 @@ export async function sendSmsViaGateway(
   phone: string,
   message: string
 ): Promise<{ success: boolean; error?: string }> {
+  if (isMaster(config)) return sendViaMaster(config, phone, message);
   try {
     const auth = getAuthToken(config);
+
 
     const res = await fetch(PROXY_URL, {
       method: "POST",
