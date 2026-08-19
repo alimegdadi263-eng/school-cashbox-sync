@@ -21,6 +21,17 @@ export interface CommitteeData {
 
 const FONT = "Traditional Arabic";
 
+/**
+ * صياغة اسم اللجنة بشكل مناسب للقارئ عند التصدير:
+ * لا نضيف كلمة "لجنة" إذا كان الاسم يبدأ أصلاً بـ لجنة/اللجنة/تشكيل/مجلس/منصة/الكشافة...
+ */
+export function formatCommitteeTitle(name: string): string {
+  const n = name.trim();
+  const skipPrefixes = ["لجنة", "اللجنة", "تشكيل", "مجلس", "منصة", "الكشافة", "كشافة", "الصيانة", "صيانة"];
+  if (skipPrefixes.some(p => n.startsWith(p))) return n;
+  return `لجنة ${n}`;
+}
+
 function rtlParagraph(text: string, opts: { bold?: boolean; size?: number; alignment?: (typeof AlignmentType)[keyof typeof AlignmentType]; spacing?: { before?: number; after?: number } } = {}) {
   return new Paragraph({
     alignment: opts.alignment ?? AlignmentType.LEFT,
@@ -51,6 +62,7 @@ async function loadLogo(): Promise<ArrayBuffer | null> {
 
 export async function generateCommitteeDocx(data: CommitteeData) {
   const logo = await loadLogo();
+  const title = formatCommitteeTitle(data.committeeName);
   const children: Paragraph[] = [];
 
   // Logo
@@ -87,7 +99,7 @@ export async function generateCommitteeDocx(data: CommitteeData) {
 
   // Subject
   children.push(
-    rtlParagraph(`الموضوع / لجنة ${data.committeeName}`, { bold: true, size: 28, alignment: AlignmentType.CENTER, spacing: { after: 300 } }),
+    rtlParagraph(`الموضوع / ${title}`, { bold: true, size: 28, alignment: AlignmentType.CENTER, spacing: { after: 300 } }),
   );
 
   // Greeting
@@ -98,7 +110,7 @@ export async function generateCommitteeDocx(data: CommitteeData) {
   // Body
   children.push(
     rtlParagraph(
-      `أرجو أن أحيطكم علماً بأنه تم تشكيل لجنة ${data.committeeName} للعام الدراسي ${data.academicYear}م في المدرسة وهم كالآتي:`,
+      `أرجو أن أحيطكم علماً بأنه تم تشكيل ${title} للعام الدراسي ${data.academicYear}م في المدرسة وهم كالآتي:`,
       { size: 28, alignment: AlignmentType.LEFT, spacing: { after: 250 } }
     ),
   );
@@ -157,5 +169,5 @@ export async function generateCommitteeDocx(data: CommitteeData) {
   });
 
   const buffer = await Packer.toBlob(doc);
-  saveAs(buffer, `لجنة_${data.committeeName}.docx`);
+  saveAs(buffer, `${title.replace(/\s+/g, "_")}.docx`);
 }

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import type { Teacher, ClassTimetable, TimetableCell } from "@/types/timetable";
-import { getClassKey, DAYS, MAX_PERIODS } from "@/types/timetable";
+import { getClassKey, DAYS, MAX_PERIODS, DOUBLE_PERIOD_SUBJECTS } from "@/types/timetable";
 
 export interface UnplacedPeriod {
   teacherId: string;
@@ -16,6 +16,9 @@ interface TimetableContextType {
   unplacedPeriods: UnplacedPeriod[];
   periodsPerDay: number;
   setPeriodsPerDay: (n: number) => void;
+  /** تفعيل جعل حصص المهارات الرقمية والتربية المهنية حصتين متتاليتين */
+  pairDoubleSubjects: boolean;
+  setPairDoubleSubjects: (v: boolean) => void;
   addTeacher: (teacher: Teacher) => void;
   updateTeacher: (teacher: Teacher) => void;
   removeTeacher: (id: string) => void;
@@ -36,6 +39,7 @@ interface TimetableContextType {
 const TimetableContext = createContext<TimetableContextType | null>(null);
 
 const STORAGE_KEY = "school_timetable_data";
+const DOUBLE_KEY = "school_timetable_pair_double";
 
 function getElectronLanHelper() {
   return (window as any)?.electronAPI?.lan;
@@ -68,6 +72,14 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
   const [timetable, setTimetableState] = useState<ClassTimetable>({});
   const [periodsPerDay, setPeriodsPerDayState] = useState(7);
   const [unplacedPeriods, setUnplacedPeriods] = useState<UnplacedPeriod[]>([]);
+  const [pairDoubleSubjects, setPairDoubleSubjectsState] = useState<boolean>(() => {
+    try { return localStorage.getItem(DOUBLE_KEY) === "1"; } catch { return false; }
+  });
+
+  const setPairDoubleSubjects = (v: boolean) => {
+    setPairDoubleSubjectsState(v);
+    try { localStorage.setItem(DOUBLE_KEY, v ? "1" : "0"); } catch {}
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -794,6 +806,73 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
     alignLateDays(newTT);
 
+    /**
+     * جعل حصص المواد المحددة (المهارات الرقمية / التربية المهنية) حصتين متتاليتين
+     * داخل نفس اليوم لنفس الصف — يعمل فقط عند تفعيل الخيار من إعدادات الجدول.
+     * الآلية: البحث عن حصتين لنفس المادة في أيام مختلفة، ثم تبديل إحداهما مع
+     * الحصة المجاورة للأخرى، مع التحقق من تعارضات المعلمين والحصص الممنوعة.
+     */
+    const pairDoublePeriodSubjects = (tt: ClassTimetable) => {
+      const freeAt = (teacherId: string, day: number, period: number, exceptClassKey: string) => {
+        for (const [ck, days] of Object.entries(tt)) {
+          if (ck === exceptClassKey) continue;
+          if (days[day]?.[period]?.teacherId === teacherId) return false;
+        }
+        const teacher = teachers.find(t => t.id === teacherId);
+        return !(teacher && isBlocked(teacher, day, period));
+      };
+
+
+      for (const ck of Object.keys(tt)) {
+        for (const subject of DOUBLE_PERIOD_SUBJECTS) {
+          for (let pass = 0; pass < 10; pass++) {
+            // مواقع المادة داخل هذا الصف
+            const spots: { day: number; period: number }[] = [];
+            for (let d = 0; d < daysCount; d++) {
+              for (let p = 0; p < periodsPerDay; p++) {
+                if (tt[ck][d]?.[p]?.subjectName === subject) spots.push({ day: d, period: p });
+              }
+            }
+            if (spots.length < 2) break;
+
+            // الحصص غير المقترنة (لا يوجد بجانبها نفس المادة)
+
+
+            const lonely = spots.filter(s => !(
+              tt[ck][s.day]?.[s.period - 1]?.subjectName === subject ||
+              tt[ck][s.day]?.[s.period + 1]?.subjectName === subject
+            ));
+            if (lonely.length < 2) break;
+
+            const anchor = lonely[0];
+            let done = false;
+
+            for (const neighbor of [anchor.period + 1, anchor.period - 1]) {
+              if (neighbor < 0 || neighbor >= periodsPerDay) continue;
+              const target = tt[ck][anchor.day][neighbor];
+
+              for (const other of lonely.slice(1)) {
+                if (other.day === anchor.day) continue;
+                const otherCell = tt[ck][other.day][other.period]!;
+                if (!freeAt(otherCell.teacherId, anchor.day, neighbor, ck)) continue;
+                if (target && !freeAt(target.teacherId, other.day, other.period, ck)) continue;
+
+                tt[ck][anchor.day][neighbor] = otherCell;
+                tt[ck][other.day][other.period] = target;
+                done = true;
+                break;
+              }
+              if (done) break;
+            }
+
+            if (!done) break;
+          }
+        }
+      }
+    };
+
+    if (pairDoubleSubjects) pairDoublePeriodSubjects(newTT);
+
 
 
 
@@ -842,6 +921,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
   return (
     <TimetableContext.Provider value={{
       teachers, timetable, unplacedPeriods, periodsPerDay, setPeriodsPerDay,
+      pairDoubleSubjects, setPairDoubleSubjects,
       addTeacher, updateTeacher, removeTeacher,
       setTimetable, updateCell, swapCells, moveCell, placeFromStaging, moveToStaging, generateTimetable,
       getTeacherSchedule, getAllClassKeys, clearTimetable,

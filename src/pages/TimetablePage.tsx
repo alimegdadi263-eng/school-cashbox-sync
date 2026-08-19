@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Wand2, Trash2, FileSpreadsheet, FileText, Download, Loader2,
   Users, CalendarDays, LayoutGrid, BarChart3, CalendarClock, FileDown,
@@ -35,7 +36,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 
 export default function TimetablePage() {
-  const { teachers, timetable, periodsPerDay, setPeriodsPerDay, generateTimetable, getAllClassKeys, clearTimetable } = useTimetable();
+  const { teachers, timetable, periodsPerDay, setPeriodsPerDay, pairDoubleSubjects, setPairDoubleSubjects, generateTimetable, getAllClassKeys, clearTimetable } = useTimetable();
   const { schoolName } = useAuth();
   const classKeys = getAllClassKeys();
 
@@ -94,9 +95,15 @@ export default function TimetablePage() {
               <Select value={String(periodsPerDay)} onValueChange={v => setPeriodsPerDay(Number(v))}>
                 <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {[5, 6, 7].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+                  {[5, 6, 7, 8].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5">
+              <Switch id="double-periods" checked={pairDoubleSubjects} onCheckedChange={setPairDoubleSubjects} />
+              <Label htmlFor="double-periods" className="text-sm cursor-pointer">
+                حصتان متتاليتان (المهارات الرقمية / المهني)
+              </Label>
             </div>
             <Button onClick={handleGenerate}>
               <Wand2 className="w-4 h-4 ml-2" /> توليد الجدول
