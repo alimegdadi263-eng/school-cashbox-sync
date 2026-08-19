@@ -1407,8 +1407,12 @@ app.whenReady().then(() => {
       const http = require('http');
       try {
         const target = new URL(options.url);
-        const payload = options.body || '';
+        // ترميز UTF-8 صراحةً حتى تصل النصوص العربية سليمة إلى الهاتف
+        const payload = Buffer.from(options.body || '', 'utf8');
         return await new Promise((resolve) => {
+          const headers = { ...(options.headers || {}) };
+          const ctKey = Object.keys(headers).find((h) => h.toLowerCase() === 'content-type');
+          if (ctKey && !/charset/i.test(headers[ctKey])) headers[ctKey] += '; charset=utf-8';
           const req = http.request(
             {
               hostname: target.hostname,
@@ -1416,12 +1420,13 @@ app.whenReady().then(() => {
               path: target.pathname + target.search,
               method: options.method || 'POST',
               headers: {
-                ...(options.headers || {}),
-                'Content-Length': Buffer.byteLength(payload),
+                ...headers,
+                'Content-Length': payload.length,
               },
               timeout: 20000,
             },
             (res) => {
+              res.setEncoding('utf8');
               let data = '';
               res.on('data', (c) => (data += c));
               res.on('end', () => resolve({ status: res.statusCode, body: data }));
