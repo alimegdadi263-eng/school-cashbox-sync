@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import type { Teacher, ClassTimetable, TimetableCell } from "@/types/timetable";
-import { getClassKey, DAYS, MAX_PERIODS, DOUBLE_PERIOD_SUBJECTS } from "@/types/timetable";
+import { getClassKey, parseClassKey, DAYS, MAX_PERIODS, DOUBLE_PERIOD_SUBJECTS, ACTIVITY_TEACHER_ID, ACTIVITY_SUBJECT, ACTIVITY_PERIODS, getActivityDay, isActivityCell } from "@/types/timetable";
 
 export interface UnplacedPeriod {
   teacherId: string;
@@ -19,6 +19,9 @@ interface TimetableContextType {
   /** تفعيل جعل حصص المهارات الرقمية والتربية المهنية حصتين متتاليتين */
   pairDoubleSubjects: boolean;
   setPairDoubleSubjects: (v: boolean) => void;
+  /** تفعيل حجز حصص النشاط (الثانية والثالثة) حسب الصف واليوم */
+  activityPeriods: boolean;
+  setActivityPeriods: (v: boolean) => void;
   addTeacher: (teacher: Teacher) => void;
   updateTeacher: (teacher: Teacher) => void;
   removeTeacher: (id: string) => void;
@@ -40,6 +43,7 @@ const TimetableContext = createContext<TimetableContextType | null>(null);
 
 const STORAGE_KEY = "school_timetable_data";
 const DOUBLE_KEY = "school_timetable_pair_double";
+const ACTIVITY_KEY = "school_timetable_activity_periods";
 
 function getElectronLanHelper() {
   return (window as any)?.electronAPI?.lan;
@@ -75,6 +79,15 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
   const [pairDoubleSubjects, setPairDoubleSubjectsState] = useState<boolean>(() => {
     try { return localStorage.getItem(DOUBLE_KEY) === "1"; } catch { return false; }
   });
+
+  const [activityPeriods, setActivityPeriodsState] = useState<boolean>(() => {
+    try { return localStorage.getItem(ACTIVITY_KEY) === "1"; } catch { return false; }
+  });
+
+  const setActivityPeriods = (v: boolean) => {
+    setActivityPeriodsState(v);
+    try { localStorage.setItem(ACTIVITY_KEY, v ? "1" : "0"); } catch {}
+  };
 
   const setPairDoubleSubjects = (v: boolean) => {
     setPairDoubleSubjectsState(v);
@@ -377,6 +390,24 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       newTT[key] = Array.from({ length: daysCount }, () => Array(periodsPerDay).fill(null));
     });
 
+    // حجز حصص النشاط (الثانية والثالثة) حسب اليوم المخصص لكل صف
+    if (activityPeriods) {
+      classKeys.forEach(key => {
+        const { className } = parseClassKey(key);
+        const day = getActivityDay(className);
+        if (day === undefined || day >= daysCount) return;
+        ACTIVITY_PERIODS.forEach(p => {
+          if (p < periodsPerDay) {
+            newTT[key][day][p] = {
+              teacherId: ACTIVITY_TEACHER_ID,
+              teacherName: "",
+              subjectName: ACTIVITY_SUBJECT,
+            };
+          }
+        });
+      });
+    }
+
     const latePeriodCount: Record<string, { sixth: number; seventh: number }> = {};
     teachers.forEach(t => { latePeriodCount[t.id] = { sixth: 0, seventh: 0 }; });
 
@@ -532,6 +563,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
               for (let np = p + 1; np < periodsPerDay; np++) {
                 if (periods[np] === null) continue;
                 const cell = periods[np]!;
+                if (isActivityCell(cell)) continue;
                 let conflict = false;
                 for (const [otherKey, otherDays] of Object.entries(tt)) {
                   if (otherKey === ck) continue;
@@ -568,6 +600,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
               for (let np = p + 1; np < periodsPerDay; np++) {
                 if (periods[np] === null) continue;
                 const cellToMove = periods[np]!;
+                if (isActivityCell(cellToMove)) continue;
                 let conflictingClassKey = "";
                 for (const [otherKey, otherDays] of Object.entries(tt)) {
                   if (otherKey === ck) continue;
@@ -617,11 +650,11 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       for (let day = 0; day < daysCount; day++) {
         if (sixthPeriodIdx >= 0) {
           const sixthCell = days[day]?.[sixthPeriodIdx];
-          if (sixthCell) latePeriodCount[sixthCell.teacherId].sixth += 1;
+          if (sixthCell && !isActivityCell(sixthCell)) latePeriodCount[sixthCell.teacherId].sixth += 1;
         }
         if (seventhPeriodIdx >= 0) {
           const seventhCell = days[day]?.[seventhPeriodIdx];
-          if (seventhCell) latePeriodCount[seventhCell.teacherId].seventh += 1;
+          if (seventhCell && !isActivityCell(seventhCell)) latePeriodCount[seventhCell.teacherId].seventh += 1;
         }
       }
     }
@@ -689,12 +722,12 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
           for (const { ck, day } of slots) {
             const lateCell = tt[ck][day][lateIdx];
-            if (!lateCell) continue;
+            if (!lateCell || isActivityCell(lateCell)) continue;
             const heavy = counts[lateCell.teacherId] || 0;
 
             for (let q = 0; q < lateIdx; q++) {
               const earlyCell = tt[ck][day][q];
-              if (!earlyCell) continue;
+              if (!earlyCell || isActivityCell(earlyCell)) continue;
               if (earlyCell.teacherId === lateCell.teacherId) continue;
               const light = counts[earlyCell.teacherId] || 0;
               if (heavy <= light + 1) continue;
@@ -762,7 +795,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         for (const ck of Object.keys(tt)) {
           for (let dayA = 0; dayA < daysCount; dayA++) {
             const cellA = tt[ck][dayA]?.[sixthPeriodIdx];
-            if (!cellA) continue;
+            if (!cellA || isActivityCell(cellA)) continue;
             const tA = cellA.teacherId;
             // المعلم متأخر أصلاً في هذا اليوم بحصة سابعة؟ لا حاجة للنقل
             if (hasAt(tA, dayA, seventhPeriodIdx)) continue;
@@ -774,6 +807,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
               if (hasAt(tA, dayB, sixthPeriodIdx)) continue;
 
               const cellB = tt[ck][dayB]?.[sixthPeriodIdx] ?? null;
+              if (isActivityCell(cellB)) continue;
               const tB = cellB?.teacherId;
               if (tB === tA) continue;
 
@@ -850,6 +884,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
             for (const neighbor of [anchor.period + 1, anchor.period - 1]) {
               if (neighbor < 0 || neighbor >= periodsPerDay) continue;
               const target = tt[ck][anchor.day][neighbor];
+              if (isActivityCell(target)) continue;
 
               for (const other of lonely.slice(1)) {
                 if (other.day === anchor.day) continue;
@@ -922,6 +957,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     <TimetableContext.Provider value={{
       teachers, timetable, unplacedPeriods, periodsPerDay, setPeriodsPerDay,
       pairDoubleSubjects, setPairDoubleSubjects,
+      activityPeriods, setActivityPeriods,
       addTeacher, updateTeacher, removeTeacher,
       setTimetable, updateCell, swapCells, moveCell, placeFromStaging, moveToStaging, generateTimetable,
       getTeacherSchedule, getAllClassKeys, clearTimetable,

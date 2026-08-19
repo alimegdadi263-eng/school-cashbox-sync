@@ -36,7 +36,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 
 export default function TimetablePage() {
-  const { teachers, timetable, periodsPerDay, setPeriodsPerDay, pairDoubleSubjects, setPairDoubleSubjects, generateTimetable, getAllClassKeys, clearTimetable } = useTimetable();
+  const { teachers, timetable, periodsPerDay, setPeriodsPerDay, pairDoubleSubjects, setPairDoubleSubjects, activityPeriods, setActivityPeriods, generateTimetable, getAllClassKeys, clearTimetable } = useTimetable();
   const { schoolName } = useAuth();
   const classKeys = getAllClassKeys();
 
@@ -103,6 +103,12 @@ export default function TimetablePage() {
               <Switch id="double-periods" checked={pairDoubleSubjects} onCheckedChange={setPairDoubleSubjects} />
               <Label htmlFor="double-periods" className="text-sm cursor-pointer">
                 حصتان متتاليتان (المهارات الرقمية / المهني)
+              </Label>
+            </div>
+            <div className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5">
+              <Switch id="activity-periods" checked={activityPeriods} onCheckedChange={setActivityPeriods} />
+              <Label htmlFor="activity-periods" className="text-sm cursor-pointer">
+                حصص النشاط (الثانية والثالثة)
               </Label>
             </div>
             <Button onClick={handleGenerate}>
