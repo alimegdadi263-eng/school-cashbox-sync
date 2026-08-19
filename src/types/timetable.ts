@@ -46,7 +46,7 @@ export const CLASS_NAMES = [
   "الحادي عشر", "الثاني عشر"
 ];
 
-export const SECTIONS = ["أ", "ب", "ج", "د", "هـ"];
+export const SECTIONS = ["أ", "ب", "ج", "د", "هـ", "و", "ز", "ح", "ط", "ي", "ك"];
 
 /** قائمة المواد الافتراضية (يمكن للمستخدم إضافة مواد جديدة) */
 export const DEFAULT_SUBJECTS = [
