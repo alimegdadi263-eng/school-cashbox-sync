@@ -45,28 +45,30 @@ function SmsInstructions() {
             </ol>
           </div>
           <div className="rounded-lg border bg-background p-3 space-y-2">
-            <p className="font-bold text-primary">الخطوة 2: تشغيل الخدمة ونسخ البيانات</p>
+            <p className="font-bold text-primary">الخطوة 2: تشغيل الخدمة ونسخ الـ Token</p>
             <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-              <li>افتح التطبيق وفعّل الخدمة (Service)</li>
-              <li>سيعرض التطبيق عنوان الهاتف والمنفذ مثل <code dir="ltr">192.168.1.5:8082</code></li>
-              <li>انسخ <strong>مفتاح API (API Key / Token)</strong> الظاهر داخل التطبيق</li>
+              <li>افتح التطبيق وفعّل الخدمة المحلية (Local Service)</li>
+              <li>سيعرض التطبيق عنوان الهاتف والمنفذ مثل <code dir="ltr">192.168.8.102:8082</code></li>
+              <li>انسخ <strong>Local Service → Token</strong> (وليس Cloud Service Token)</li>
               <li>تأكد أن الهاتف والحاسوب على <strong>نفس شبكة الواي فاي</strong></li>
             </ol>
           </div>
           <div className="rounded-lg border bg-background p-3 space-y-2">
             <p className="font-bold text-primary">الخطوة 3: إدخال البيانات هنا</p>
             <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-              <li>اضغط <strong>"+ إضافة هاتف"</strong> ثم أدخل عنوان الهاتف (IP) والمنفذ ومفتاح API</li>
+              <li>اضغط <strong>"+ إضافة هاتف"</strong> ثم أدخل عنوان الهاتف (IP) والمنفذ و Local Service Token</li>
               <li>اضغط <strong>اختبار الاتصال</strong> ثم <strong>حفظ الكل</strong></li>
               <li>جرّب <strong>إرسال رسالة اختبار</strong> إلى رقمك الشخصي</li>
             </ol>
           </div>
           <div className="rounded-lg border bg-background p-3 space-y-1 text-muted-foreground">
             <p className="font-bold text-primary">ملاحظات</p>
+            <p>• الإرسال يتم عبر <code dir="ltr">POST http://IP:PORT/</code> بجسم <code dir="ltr">{`{"to":"...","message":"..."}`}</code>.</p>
             <p>• الرسائل تخرج فعليًا من شريحة الهاتف، ولا توجد أي تكلفة على خدمة خارجية.</p>
             <p>• Traccar لا يوفر رسميًا خيار اختيار الشريحة (SIM) عبر الـ API، لذلك يتم الإرسال من الشريحة الافتراضية في إعدادات الهاتف.</p>
             <p>• يمكن إضافة أكثر من هاتف ليتم توزيع الرسائل بينهم بالتناوب.</p>
           </div>
+
         </CardContent>
       )}
     </Card>
