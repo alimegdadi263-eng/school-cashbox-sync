@@ -38,7 +38,10 @@ export interface TimetableData {
 }
 
 export const DAYS = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس"];
-export const MAX_PERIODS = 7;
+export const MAX_PERIODS = 8;
+
+/** المواد التي يمكن جعل حصصها متتالية (حصتين ورا بعض) عند تفعيل الخيار */
+export const DOUBLE_PERIOD_SUBJECTS = ["المهارات الرقمية", "تربية مهنية"];
 
 export const CLASS_NAMES = [
   "الأول", "الثاني", "الثالث", "الرابع", "الخامس",
