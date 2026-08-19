@@ -149,7 +149,8 @@ async function httpPostAuth(config: SmsGatewayConfig, payload: unknown): Promise
   let last: HttpResult = { ok: false, status: 0, body: "", networkError: "فشل الاتصال" };
   for (const auth of variants) {
     const res = await rawRequest(url, "POST", {
-      "Content-Type": "application/json",
+      // charset=utf-8 ضروري حتى تصل الرسائل العربية سليمة وليست رموزًا غريبة
+      "Content-Type": "application/json; charset=utf-8",
       Authorization: auth,
     }, body);
     if (res.networkError) return res; // phone unreachable — no point retrying
