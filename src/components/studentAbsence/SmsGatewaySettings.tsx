@@ -114,9 +114,12 @@ function GatewayProfileCard({
   onDelete: () => void;
   onTest: () => void;
 }) {
+  const isMasterProfile = (profile.provider || "smsgate") === "master";
   const [testing, setTesting] = useState(false);
   const [connected, setConnected] = useState<boolean | null>(null);
-  const [editing, setEditing] = useState(!profile.login); // auto-open if new
+  const [advanced, setAdvanced] = useState(false);
+  const [editing, setEditing] = useState(isMasterProfile ? !profile.apiKey : !profile.login); // auto-open if new
+
 
   const handleTest = async () => {
     setTesting(true);
