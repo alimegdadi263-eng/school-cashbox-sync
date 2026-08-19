@@ -111,3 +111,23 @@ export function parseClassKey(key: string): { className: string; section: string
   const parts = key.split("-");
   return { className: parts[0], section: parts[1] };
 }
+
+/** ===== حصص النشاط ===== */
+export const ACTIVITY_TEACHER_ID = "__activity__";
+export const ACTIVITY_SUBJECT = "نشاط";
+/** الحصص المخصصة للنشاط: الثانية والثالثة (فهرس 1 و 2) */
+export const ACTIVITY_PERIODS = [1, 2];
+/** توزيع أيام النشاط حسب الصف: الأول-الرابع الأحد، الخامس-السابع الاثنين، الثامن-العاشر الثلاثاء */
+export const ACTIVITY_DAY_BY_CLASS: Record<string, number> = {
+  "الأول": 0, "الثاني": 0, "الثالث": 0, "الرابع": 0,
+  "الخامس": 1, "السادس": 1, "السابع": 1,
+  "الثامن": 2, "التاسع": 2, "العاشر": 2,
+};
+
+export function getActivityDay(className: string): number | undefined {
+  return ACTIVITY_DAY_BY_CLASS[className.trim()];
+}
+
+export function isActivityCell(cell: { teacherId?: string } | null | undefined): boolean {
+  return !!cell && cell.teacherId === ACTIVITY_TEACHER_ID;
+}
