@@ -226,7 +226,7 @@ const sections: GuideSection[] = [
   { id: "exams", title: "جداول الامتحانات", icon: BookOpen, summary: "توليد جداول الشهر الأول والثاني والنهائي.", ordered: true, steps: examUsage },
   { id: "sdi", title: "تحليل منحة SDI", icon: PieChart, summary: "توزيع الصرف على المجالات ومراقبة النسب.", ordered: true, steps: sdiUsage },
   { id: "students", title: "غياب الطلبة — إدارة الطلاب والرصد", icon: GraduationCap, summary: "إضافة الطلبة ورصد الغياب اليومي.", steps: studentAbsenceUsage, image: { src: guideAbsence, alt: "رصد غياب الطلبة وإرسال الرسائل" } },
-  { id: "sms", title: "إعداد بوابة SMS (رسائل مجانية من هاتفك)", icon: Smartphone, summary: "تثبيت SMSGate وربطه بالبرمجية خطوة بخطوة.", ordered: true, steps: smsGatewayUsage },
+  { id: "sms", title: "إعداد بوابة SMS (رسائل مجانية من هاتفك)", icon: Smartphone, summary: "تثبيت Traccar SMS Gateway وربطه بالبرمجية خطوة بخطوة.", ordered: true, steps: smsGatewayUsage },
   { id: "messaging", title: "إرسال الرسائل (SMS وواتساب)", icon: MessageSquare, summary: "الإرسال الفردي والجماعي والنسخ للحافظة.", steps: messagingUsage },
   { id: "ajyal", title: "ربط منصة أجيال (الوضع الخفي)", icon: Link2, summary: "استيراد الطلبة وتعبئة الغياب تلقائياً بالخلفية.", ordered: true, steps: ajyalUsage },
   { id: "reports", title: "تقارير وإحصائيات الغياب", icon: BarChart3, summary: "الإنذارات والنسب والتصدير الرسمي.", steps: absenceReportsUsage },
