@@ -158,47 +158,137 @@ function GatewayProfileCard({
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-sm font-medium">وضع الاتصال</Label>
+            <Label className="text-sm font-medium">نوع البوابة</Label>
             <RadioGroup
-              value={profile.mode}
-              onValueChange={(v) => onUpdate({ ...profile, mode: v as GatewayMode })}
-              className="flex gap-4"
+              value={profile.provider || "smsgate"}
+              onValueChange={(v) =>
+                onUpdate({
+                  ...profile,
+                  provider: v as GatewayProvider,
+                  ...(v === "master" ? { mode: "local" as GatewayMode } : {}),
+                })
+              }
+              className="flex flex-wrap gap-4"
             >
               <label className="flex items-center gap-2 cursor-pointer">
-                <RadioGroupItem value="cloud" />
-                <span className="text-sm flex items-center gap-1"><Globe className="h-3 w-3" /> سحابي</span>
+                <RadioGroupItem value="master" />
+                <span className="text-sm">SMS Gateway Master (مفتاح API)</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
-                <RadioGroupItem value="local" />
-                <span className="text-sm flex items-center gap-1"><Router className="h-3 w-3" /> محلي</span>
+                <RadioGroupItem value="smsgate" />
+                <span className="text-sm">SMSGate (قديم)</span>
               </label>
             </RadioGroup>
           </div>
-          {profile.mode === "local" && (
-            <div className="space-y-1">
-              <Label>عنوان السيرفر</Label>
-              <Input dir="ltr" placeholder="http://192.168.1.5:8080" value={profile.serverUrl}
-                onChange={(e) => onUpdate({ ...profile, serverUrl: e.target.value })} />
-            </div>
-          )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label>Username</Label>
-              <Input dir="ltr" placeholder="من تطبيق SMSGate" value={profile.login}
-                onChange={(e) => onUpdate({ ...profile, login: e.target.value })} />
-            </div>
-            <div className="space-y-1">
-              <Label>Password</Label>
-              <Input dir="ltr" type="password" placeholder="من تطبيق SMSGate" value={profile.password}
-                onChange={(e) => onUpdate({ ...profile, password: e.target.value })} />
-            </div>
-          </div>
-          {profile.mode === "cloud" && (
-            <div className="space-y-1">
-              <Label>Device ID</Label>
-              <Input dir="ltr" placeholder="من تطبيق SMSGate" value={profile.deviceId}
-                onChange={(e) => onUpdate({ ...profile, deviceId: e.target.value })} />
-            </div>
+
+          {isMasterProfile ? (
+            <>
+              <div className="space-y-1">
+                <Label>عنوان السيرفر (من التطبيق)</Label>
+                <Input dir="ltr" placeholder="http://192.168.1.5:8080" value={profile.serverUrl}
+                  onChange={(e) => onUpdate({ ...profile, serverUrl: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <Label>مفتاح API</Label>
+                <Input dir="ltr" placeholder="API Key من التطبيق" value={profile.apiKey || ""}
+                  onChange={(e) => onUpdate({ ...profile, apiKey: e.target.value })} />
+              </div>
+              <div>
+                <Button variant="ghost" size="sm" onClick={() => setAdvanced(!advanced)}>
+                  {advanced ? "إخفاء الإعدادات المتقدمة" : "⚙️ إعدادات متقدمة"}
+                </Button>
+              </div>
+              {advanced && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 rounded-lg border p-3">
+                  <div className="space-y-1">
+                    <Label>مسار الإرسال</Label>
+                    <Input dir="ltr" placeholder={MASTER_DEFAULTS.sendPath} value={profile.sendPath || ""}
+                      onChange={(e) => onUpdate({ ...profile, sendPath: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>طريقة الطلب</Label>
+                    <RadioGroup
+                      value={profile.httpMethod || MASTER_DEFAULTS.httpMethod}
+                      onValueChange={(v) => onUpdate({ ...profile, httpMethod: v as "GET" | "POST" })}
+                      className="flex gap-4 pt-2"
+                    >
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <RadioGroupItem value="GET" /><span className="text-sm">GET</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <RadioGroupItem value="POST" /><span className="text-sm">POST</span>
+                      </label>
+                    </RadioGroup>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>اسم حقل المفتاح</Label>
+                    <Input dir="ltr" placeholder={MASTER_DEFAULTS.apiKeyParam} value={profile.apiKeyParam || ""}
+                      onChange={(e) => onUpdate({ ...profile, apiKeyParam: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>اسم حقل الرقم</Label>
+                    <Input dir="ltr" placeholder={MASTER_DEFAULTS.phoneParam} value={profile.phoneParam || ""}
+                      onChange={(e) => onUpdate({ ...profile, phoneParam: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>اسم حقل الرسالة</Label>
+                    <Input dir="ltr" placeholder={MASTER_DEFAULTS.messageParam} value={profile.messageParam || ""}
+                      onChange={(e) => onUpdate({ ...profile, messageParam: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>اسم حقل الشريحة</Label>
+                    <Input dir="ltr" placeholder={MASTER_DEFAULTS.simParam} value={profile.simParam || ""}
+                      onChange={(e) => onUpdate({ ...profile, simParam: e.target.value })} />
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">وضع الاتصال</Label>
+                <RadioGroup
+                  value={profile.mode}
+                  onValueChange={(v) => onUpdate({ ...profile, mode: v as GatewayMode })}
+                  className="flex gap-4"
+                >
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <RadioGroupItem value="cloud" />
+                    <span className="text-sm flex items-center gap-1"><Globe className="h-3 w-3" /> سحابي</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <RadioGroupItem value="local" />
+                    <span className="text-sm flex items-center gap-1"><Router className="h-3 w-3" /> محلي</span>
+                  </label>
+                </RadioGroup>
+              </div>
+              {profile.mode === "local" && (
+                <div className="space-y-1">
+                  <Label>عنوان السيرفر</Label>
+                  <Input dir="ltr" placeholder="http://192.168.1.5:8080" value={profile.serverUrl}
+                    onChange={(e) => onUpdate({ ...profile, serverUrl: e.target.value })} />
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Username</Label>
+                  <Input dir="ltr" placeholder="من تطبيق SMSGate" value={profile.login}
+                    onChange={(e) => onUpdate({ ...profile, login: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Password</Label>
+                  <Input dir="ltr" type="password" placeholder="من تطبيق SMSGate" value={profile.password}
+                    onChange={(e) => onUpdate({ ...profile, password: e.target.value })} />
+                </div>
+              </div>
+              {profile.mode === "cloud" && (
+                <div className="space-y-1">
+                  <Label>Device ID</Label>
+                  <Input dir="ltr" placeholder="من تطبيق SMSGate" value={profile.deviceId}
+                    onChange={(e) => onUpdate({ ...profile, deviceId: e.target.value })} />
+                </div>
+              )}
+            </>
           )}
           <div className="space-y-1">
             <Label>شريحة SIM</Label>
@@ -221,9 +311,15 @@ function GatewayProfileCard({
               </label>
             </RadioGroup>
           </div>
-          <Button variant="outline" size="sm" onClick={handleTest} disabled={testing || !profile.login || !profile.password}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleTest}
+            disabled={testing || (isMasterProfile ? !profile.serverUrl || !profile.apiKey : !profile.login || !profile.password)}
+          >
             {testing ? "جاري الاختبار..." : "🔌 اختبار الاتصال"}
           </Button>
+
         </CardContent>
       )}
     </Card>
