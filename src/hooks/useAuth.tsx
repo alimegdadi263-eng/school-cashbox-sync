@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
+import { useSessionPresence, clearSessionPresence } from "./useSessionPresence";
 
 interface AuthContextType {
   user: User | null;
@@ -105,7 +106,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // نبضة الجلسة: تسجيل هذا الجهاز كجلسة نشطة للحساب الحالي
+  useSessionPresence(user?.id ?? null);
+
   const signOut = async () => {
+    if (user?.id) await clearSessionPresence(user.id);
     await supabase.auth.signOut();
   };
 
