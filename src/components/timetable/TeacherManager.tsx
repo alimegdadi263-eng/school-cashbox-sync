@@ -66,6 +66,7 @@ export default function TeacherManager() {
 
   const resetForm = () => {
     setName("");
+    setPhone("");
     setSubjects([]);
     setBlockedPeriods([]);
     setNewSubject("");
@@ -84,6 +85,7 @@ export default function TeacherManager() {
   const openEdit = (t: Teacher) => {
     setEditingTeacher(t);
     setName(t.name);
+    setPhone(t.phone || "");
     setSubjects([...t.subjects]);
     setBlockedPeriods([...(t.blockedPeriods || [])]);
     setDialogOpen(true);
@@ -146,10 +148,10 @@ export default function TeacherManager() {
     }
 
     if (editingTeacher) {
-      updateTeacher({ ...editingTeacher, name: name.trim(), subjects, blockedPeriods });
+      updateTeacher({ ...editingTeacher, name: name.trim(), phone: phone.trim(), subjects, blockedPeriods });
       toast({ title: "تم تحديث المعلم بنجاح" });
     } else {
-      addTeacher({ id: crypto.randomUUID(), name: name.trim(), subjects, blockedPeriods });
+      addTeacher({ id: crypto.randomUUID(), name: name.trim(), phone: phone.trim(), subjects, blockedPeriods });
       toast({ title: "تم إضافة المعلم بنجاح" });
     }
     setDialogOpen(false);
@@ -469,6 +471,7 @@ export default function TeacherManager() {
             <TableHeader>
               <TableRow>
                 <TableHead className="text-right">المعلم</TableHead>
+                <TableHead className="text-right">الهاتف</TableHead>
                 <TableHead className="text-right">المواد والصفوف</TableHead>
                 <TableHead className="text-right">إجمالي الحصص</TableHead>
                 <TableHead className="text-right">إجراءات</TableHead>
@@ -478,6 +481,7 @@ export default function TeacherManager() {
               {teachers.map(t => (
                 <TableRow key={t.id}>
                   <TableCell className="font-medium">{t.name}</TableCell>
+                  <TableCell dir="ltr" className="text-right text-xs">{t.phone || "—"}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
                       {t.subjects.map((s, i) => (
