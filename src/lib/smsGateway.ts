@@ -213,8 +213,19 @@ export async function sendSmsViaGateway(
 export async function testGatewayConnection(
   config: SmsGatewayConfig
 ): Promise<boolean> {
+  if (isMaster(config)) {
+    try {
+      if (!config.serverUrl || !config.apiKey) return false;
+      const res = await fetch(masterUrl(config), { method: "GET", headers: { "X-API-KEY": config.apiKey } });
+      // any HTTP answer means the phone server is reachable and the key was accepted/rejected
+      return res.status !== 401 && res.status !== 403;
+    } catch {
+      return false;
+    }
+  }
   try {
     const auth = getAuthToken(config);
+
 
     const res = await fetch(PROXY_URL, {
       method: "GET",
