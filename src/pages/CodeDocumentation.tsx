@@ -61,7 +61,7 @@ const sections: DocSection[] = [
       { file: "supabase/functions/create-school-user", description: "إنشاء حساب مدرسة: يتحقق أن الطالب أدمن (has_role)، ينشئ حساب عبر admin.createUser مع email_confirm: true، يضيف دور 'school'، يحفظ credentials، ويحدّث subscription_expires_at." },
       { file: "supabase/functions/delete-school-user", description: "حذف حساب مدرسة: يتحقق من صلاحية الأدمن ويمنع حذف حسابات الأدمن. يحذف من auth.users (الباقي يُحذف cascade)." },
       { file: "supabase/functions/change-password", description: "تغيير كلمة المرور: يقبل userId + newPassword. يتحقق أن المستخدم هو نفسه أو أدمن، يستخدم admin.updateUserById، ويحدّث password_plain في school_credentials." },
-      { file: "supabase/functions/sms-proxy", description: "وسيط SMS: يمرر طلبات SMS من المتصفح إلى API تطبيق SMSGate (سحابي أو محلي) لتجاوز قيود CORS. يدعم GET (اختبار) و POST (إرسال). يقرأ بيانات المصادقة من headers مخصصة (x-sms-auth, x-sms-mode, x-sms-server)." },
+      
     ],
   },
   {
@@ -296,7 +296,7 @@ export default function CodeDocumentation() {
             <div className="text-sm text-muted-foreground space-y-2">
               <p>📱 <strong>المتصفح/Electron</strong> → React Components → Context/Hooks → localStorage (بيانات مالية + طلاب + جدول)</p>
               <p>☁️ <strong>المصادقة</strong> → Supabase Auth → Edge Functions → Database (profiles + roles + credentials)</p>
-              <p>📨 <strong>SMS</strong> → smsGateway.ts → sms-proxy Edge Function → SMSGate Cloud API → هاتف المستخدم → رسالة SMS</p>
+              <p>📨 <strong>SMS</strong> → smsGateway.ts → Electron IPC → تطبيق Traccar SMS Gateway على الهاتف → شريحة SIM → رسالة SMS</p>
               <p>🔗 <strong>أجيال</strong> → AjyalIntegration.tsx → IPC → Electron BrowserWindow → executeJavaScript → صفحة أجيال (تعبئة تلقائية)</p>
               <p>💬 <strong>واتساب</strong> → wa.me links مباشرة (بدون وسيط) مع تحويل تلقائي للأرقام</p>
               <p>📄 <strong>التصدير</strong> → مكتبات (docx + exceljs + pptxgenjs) → Blob → تحميل ملف</p>
