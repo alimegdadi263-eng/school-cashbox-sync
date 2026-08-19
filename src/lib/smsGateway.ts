@@ -95,23 +95,40 @@ interface HttpResult {
   networkError?: string;
 }
 
-async function httpPost(url: string, apiKey: string, payload: unknown): Promise<HttpResult> {
-  const bridge = (window as any)?.electronAPI?.sms?.request;
-  const headers = { "Content-Type": "application/json", Authorization: apiKey };
-  const body = JSON.stringify(payload);
+/** Traccar SMS Gateway builds differ in how the Local Service Token must be
+ *  sent. We try the documented variants in order and remember the one that
+ *  the phone accepted, so later messages go out with a single request. */
+function authVariants(token: string): string[] {
+  const t = (token || "").trim();
+  if (!t) return [""];
+  const basic = typeof btoa === "function" ? btoa(`:${t}`) : "";
+  return [t, `Bearer ${t}`, basic ? `Basic ${basic}` : t];
+}
 
+const acceptedAuth = new Map<string, string>();
+
+function authCacheKey(c: SmsGatewayConfig) {
+  return `${gatewayUrl(c)}|${c.apiKey}`;
+}
+
+async function rawRequest(
+  url: string,
+  method: string,
+  headers: Record<string, string>,
+  body?: string
+): Promise<HttpResult> {
+  const bridge = (window as any)?.electronAPI?.sms?.request;
   if (bridge) {
     try {
-      const r = await bridge({ url, method: "POST", headers, body });
+      const r = await bridge({ url, method, headers, body: body || "" });
       if (r?.error) return { ok: false, status: 0, body: "", networkError: r.error };
       return { ok: r.status >= 200 && r.status < 300, status: r.status, body: r.body || "" };
     } catch (e: any) {
       return { ok: false, status: 0, body: "", networkError: e?.message || "فشل الاتصال" };
     }
   }
-
   try {
-    const res = await fetch(url, { method: "POST", headers, body });
+    const res = await fetch(url, { method, headers, body });
     const text = await res.text().catch(() => "");
     return { ok: res.ok, status: res.status, body: text };
   } catch (e: any) {
@@ -119,14 +136,41 @@ async function httpPost(url: string, apiKey: string, payload: unknown): Promise<
   }
 }
 
+/** POST the Traccar payload, trying each auth style until one is accepted. */
+async function httpPostAuth(config: SmsGatewayConfig, payload: unknown): Promise<HttpResult> {
+  const url = gatewayUrl(config);
+  const body = JSON.stringify(payload);
+  const key = authCacheKey(config);
+  const cached = acceptedAuth.get(key);
+  const variants = cached
+    ? [cached, ...authVariants(config.apiKey).filter((v) => v !== cached)]
+    : authVariants(config.apiKey);
+
+  let last: HttpResult = { ok: false, status: 0, body: "", networkError: "فشل الاتصال" };
+  for (const auth of variants) {
+    const res = await rawRequest(url, "POST", {
+      "Content-Type": "application/json",
+      Authorization: auth,
+    }, body);
+    if (res.networkError) return res; // phone unreachable — no point retrying
+    if (res.ok) {
+      acceptedAuth.set(key, auth);
+      return res;
+    }
+    last = res;
+    if (res.status !== 401 && res.status !== 403) return res; // real error, not auth
+  }
+  return last;
+}
+
 function friendlyError(res: HttpResult): string {
   if (res.networkError) {
-    return "تعذر الاتصال بتطبيق Traccar SMS Gateway. تأكد من تشغيل التطبيق واتصال الهاتف بالشبكة، ومن صحة العنوان والمنفذ.";
+    return "تعذر الاتصال بالهاتف — تأكد أن تطبيق Traccar SMS Gateway يعمل وأن الهاتف على نفس الشبكة، ومن صحة العنوان والمنفذ.";
   }
   switch (res.status) {
     case 401:
     case 403:
-      return "مفتاح API غير صحيح (Authorization) — انسخه من داخل تطبيق Traccar.";
+      return "فشل المصادقة — Token غير صحيح. انسخ Local Service → Token من داخل تطبيق Traccar (وليس Cloud Token).";
     case 404:
       return "المسار غير صحيح — تأكد من رقم المنفذ (Port) الظاهر في التطبيق.";
     case 400:
@@ -141,7 +185,7 @@ function friendlyError(res: HttpResult): string {
 function validate(config: SmsGatewayConfig): string | null {
   if (!config?.host) return "عنوان الهاتف (IP) غير محدد";
   if (!config?.port) return "المنفذ (Port) غير محدد";
-  if (!config?.apiKey) return "مفتاح API غير محدد";
+  if (!config?.apiKey) return "Local Service Token غير محدد";
   return null;
 }
 
@@ -155,25 +199,29 @@ export async function sendSmsViaGateway(
   const invalid = validate(config);
   if (invalid) return { success: false, error: invalid };
 
-  const res = await httpPost(gatewayUrl(config), config.apiKey, { to: phone, message });
+  const res = await httpPostAuth(config, { to: phone, message });
   if (res.ok) return { success: true };
   return { success: false, error: friendlyError(res) };
 }
 
-/** Connection test: the app answers 401 for a bad key and 400 for an empty
- *  payload, both of which prove it is reachable. */
+/** Connection test: first check the phone answers at all (GET / returns the
+ *  Traccar info page), then verify the token with an empty payload POST. */
 export async function testGatewayConnection(
   config: SmsGatewayConfig
 ): Promise<{ success: boolean; error?: string }> {
   const invalid = validate(config);
   if (invalid) return { success: false, error: invalid };
 
-  const res = await httpPost(gatewayUrl(config), config.apiKey, { to: "", message: "" });
+  const reach = await rawRequest(gatewayUrl(config), "GET", {});
+  if (reach.networkError) return { success: false, error: friendlyError(reach) };
+
+  const res = await httpPostAuth(config, { to: "", message: "" });
   if (res.networkError) return { success: false, error: friendlyError(res) };
   if (res.status === 401 || res.status === 403) return { success: false, error: friendlyError(res) };
   if (res.status === 404) return { success: false, error: friendlyError(res) };
   return { success: true };
 }
+
 
 export async function sendBulkSmsViaGateway(
   config: SmsGatewayConfig,
