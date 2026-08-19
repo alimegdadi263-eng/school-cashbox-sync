@@ -1,132 +1,59 @@
-// Android SMS Gateway integration via backend proxy
-// Supports both Local (LAN) and Cloud modes
-// Supports multiple gateway profiles for load distribution
+// ==============================================================
+//  Traccar SMS Gateway integration (Android)
+// --------------------------------------------------------------
+//  Official API of the "Traccar SMS Gateway" Android app:
+//    POST http://<phone-ip>:<port>/
+//    Headers: Authorization: <API key shown in the app>
+//             Content-Type: application/json
+//    Body:    { "to": "<phone>", "message": "<text>" }
+//
+//  The app answers 200 on success, 401 when the key is wrong.
+//  There is NO official endpoint for listing devices and NO
+//  official parameter for choosing a SIM card, so neither is
+//  implemented here (no invented endpoints / parameters).
+//
+//  In the Electron desktop build the request is executed by the
+//  main process (no CORS restrictions). In the browser preview it
+//  falls back to a normal fetch.
+// ==============================================================
 
 const SMS_GATEWAY_KEY = "sms_gateway_config";
 const SMS_GATEWAYS_KEY = "sms_gateway_profiles";
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-const PROXY_URL = `${SUPABASE_URL}/functions/v1/sms-proxy`;
 
-export type GatewayMode = "local" | "cloud";
-export type GatewayProvider = "smsgate" | "master";
+export const TRACCAR_DEFAULT_PORT = 8082;
 
 export interface SmsGatewayConfig {
   id?: string;
-  name?: string; // e.g. "هاتف أحمد", "هاتف محمد"
-  provider?: GatewayProvider; // default "smsgate" (legacy)
-  mode: GatewayMode;
-  serverUrl: string;
-  login: string;
-  password: string;
-  deviceId: string;
-  simNumber?: number;
-  // --- SMS Gateway Master (API key) ---
-  apiKey?: string;
-  sendPath?: string; // default "/sendsms"
-  httpMethod?: "GET" | "POST"; // default "GET"
-  apiKeyParam?: string; // default "apikey"
-  phoneParam?: string; // default "number"
-  messageParam?: string; // default "message"
-  simParam?: string; // default "sim"
+  name?: string; // e.g. "هاتف المدرسة"
+  host: string; // IP or hostname of the Android phone, e.g. 192.168.1.5
+  port: number; // default 8082
+  apiKey: string; // Authorization header value (from the app)
 }
 
-export const MASTER_DEFAULTS = {
-  sendPath: "/sendsms",
-  httpMethod: "GET" as const,
-  apiKeyParam: "apikey",
-  phoneParam: "number",
-  messageParam: "message",
-  simParam: "sim",
-};
+// ---------------- storage ----------------
 
-export function isMaster(c: SmsGatewayConfig) {
-  return c.provider === "master";
+function generateProfileId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
-function masterUrl(config: SmsGatewayConfig, phone?: string, message?: string) {
-  const base = (config.serverUrl || "").replace(/\/$/, "");
-  const path = config.sendPath || MASTER_DEFAULTS.sendPath;
-  const url = new URL(`${base}${path.startsWith("/") ? path : `/${path}`}`);
-  url.searchParams.set(config.apiKeyParam || MASTER_DEFAULTS.apiKeyParam, config.apiKey || "");
-  if (phone !== undefined) url.searchParams.set(config.phoneParam || MASTER_DEFAULTS.phoneParam, phone);
-  if (message !== undefined) url.searchParams.set(config.messageParam || MASTER_DEFAULTS.messageParam, message);
-  if (config.simNumber) url.searchParams.set(config.simParam || MASTER_DEFAULTS.simParam, String(config.simNumber));
-  return url.toString();
+function normalizeProfile(p: any): SmsGatewayConfig {
+  return {
+    id: p?.id || generateProfileId(),
+    name: p?.name || "هاتف الإرسال",
+    host: (p?.host ?? p?.serverUrl ?? "").toString().replace(/^https?:\/\//, "").replace(/[/:].*$/, ""),
+    port: Number(p?.port) > 0 ? Number(p.port) : TRACCAR_DEFAULT_PORT,
+    apiKey: p?.apiKey || "",
+  };
 }
-
-// Send through SMS Gateway Master (direct HTTP call to the phone / server, API key auth)
-async function sendViaMaster(
-  config: SmsGatewayConfig,
-  phone: string,
-  message: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    if (!config.serverUrl) return { success: false, error: "عنوان السيرفر مفقود" };
-    if (!config.apiKey) return { success: false, error: "مفتاح API مفقود" };
-
-    const method = config.httpMethod || MASTER_DEFAULTS.httpMethod;
-    let res: Response;
-
-    if (method === "POST") {
-      const base = (config.serverUrl || "").replace(/\/$/, "");
-      const path = config.sendPath || MASTER_DEFAULTS.sendPath;
-      res = await fetch(`${base}${path.startsWith("/") ? path : `/${path}`}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-KEY": config.apiKey,
-          Authorization: `Bearer ${config.apiKey}`,
-        },
-        body: JSON.stringify({
-          [config.apiKeyParam || MASTER_DEFAULTS.apiKeyParam]: config.apiKey,
-          [config.phoneParam || MASTER_DEFAULTS.phoneParam]: phone,
-          [config.messageParam || MASTER_DEFAULTS.messageParam]: message,
-          ...(config.simNumber ? { [config.simParam || MASTER_DEFAULTS.simParam]: config.simNumber } : {}),
-        }),
-      });
-    } else {
-      res = await fetch(masterUrl(config, phone, message), {
-        method: "GET",
-        headers: { "X-API-KEY": config.apiKey },
-      });
-    }
-
-    if (!res.ok) {
-      const text = await res.text();
-      return { success: false, error: `HTTP ${res.status}: ${text.slice(0, 200)}` };
-    }
-    const text = await res.text();
-    if (/"?(success|status)"?\s*[:=]\s*"?(false|error|failed)"?/i.test(text)) {
-      return { success: false, error: text.slice(0, 200) };
-    }
-    return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err?.message || "فشل الاتصال بالبوابة" };
-  }
-}
-
-
-// --- Multi-profile management ---
 
 export function loadGatewayProfiles(): SmsGatewayConfig[] {
   try {
     const raw = localStorage.getItem(SMS_GATEWAYS_KEY);
-    if (raw) {
-      const profiles = JSON.parse(raw) as SmsGatewayConfig[];
-      return profiles.map(p => ({
-        ...p,
-        id: p.id || generateProfileId(),
-        mode: p.mode || "cloud",
-        deviceId: p.deviceId || "",
-      }));
-    }
-    // Migrate from single config
+    if (raw) return (JSON.parse(raw) as any[]).map(normalizeProfile);
     const single = loadGatewayConfig();
-    if (single) {
-      const profile = { ...single, id: generateProfileId(), name: "الهاتف الأساسي" };
-      saveGatewayProfiles([profile]);
-      return [profile];
+    if (single && single.host) {
+      saveGatewayProfiles([single]);
+      return [single];
     }
     return [];
   } catch {
@@ -136,26 +63,14 @@ export function loadGatewayProfiles(): SmsGatewayConfig[] {
 
 export function saveGatewayProfiles(profiles: SmsGatewayConfig[]) {
   localStorage.setItem(SMS_GATEWAYS_KEY, JSON.stringify(profiles));
-  // Also keep first profile as legacy config for backward compat
-  if (profiles.length > 0) {
-    saveGatewayConfig(profiles[0]);
-  }
+  if (profiles.length > 0) saveGatewayConfig(profiles[0]);
 }
-
-function generateProfileId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-}
-
-// --- Legacy single config (backward compat) ---
 
 export function loadGatewayConfig(): SmsGatewayConfig | null {
   try {
     const raw = localStorage.getItem(SMS_GATEWAY_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed.mode) parsed.mode = "local";
-    if (!parsed.deviceId) parsed.deviceId = "";
-    return parsed;
+    return normalizeProfile(JSON.parse(raw));
   } catch {
     return null;
   }
@@ -165,86 +80,101 @@ export function saveGatewayConfig(config: SmsGatewayConfig) {
   localStorage.setItem(SMS_GATEWAY_KEY, JSON.stringify(config));
 }
 
-// --- API calls ---
+// ---------------- transport ----------------
 
-function getAuthToken(config: SmsGatewayConfig): string {
-  return btoa(`${config.login}:${config.password}`);
+export function gatewayUrl(config: SmsGatewayConfig): string {
+  const host = (config.host || "").trim().replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  const port = config.port || TRACCAR_DEFAULT_PORT;
+  return `http://${host}:${port}/`;
 }
+
+interface HttpResult {
+  ok: boolean;
+  status: number;
+  body: string;
+  networkError?: string;
+}
+
+async function httpPost(url: string, apiKey: string, payload: unknown): Promise<HttpResult> {
+  const bridge = (window as any)?.electronAPI?.sms?.request;
+  const headers = { "Content-Type": "application/json", Authorization: apiKey };
+  const body = JSON.stringify(payload);
+
+  if (bridge) {
+    try {
+      const r = await bridge({ url, method: "POST", headers, body });
+      if (r?.error) return { ok: false, status: 0, body: "", networkError: r.error };
+      return { ok: r.status >= 200 && r.status < 300, status: r.status, body: r.body || "" };
+    } catch (e: any) {
+      return { ok: false, status: 0, body: "", networkError: e?.message || "فشل الاتصال" };
+    }
+  }
+
+  try {
+    const res = await fetch(url, { method: "POST", headers, body });
+    const text = await res.text().catch(() => "");
+    return { ok: res.ok, status: res.status, body: text };
+  } catch (e: any) {
+    return { ok: false, status: 0, body: "", networkError: e?.message || "فشل الاتصال" };
+  }
+}
+
+function friendlyError(res: HttpResult): string {
+  if (res.networkError) {
+    return "تعذر الاتصال بتطبيق Traccar SMS Gateway. تأكد من تشغيل التطبيق واتصال الهاتف بالشبكة، ومن صحة العنوان والمنفذ.";
+  }
+  switch (res.status) {
+    case 401:
+    case 403:
+      return "مفتاح API غير صحيح (Authorization) — انسخه من داخل تطبيق Traccar.";
+    case 404:
+      return "المسار غير صحيح — تأكد من رقم المنفذ (Port) الظاهر في التطبيق.";
+    case 400:
+      return `طلب غير صالح: ${res.body.slice(0, 150) || "تحقق من رقم الهاتف ونص الرسالة"}`;
+    case 500:
+      return "فشل إرسال الرسالة من الهاتف — تأكد من وجود شريحة SIM ومن منح التطبيق صلاحية إرسال الرسائل.";
+    default:
+      return `فشل الإرسال (HTTP ${res.status}) ${res.body.slice(0, 150)}`.trim();
+  }
+}
+
+function validate(config: SmsGatewayConfig): string | null {
+  if (!config?.host) return "عنوان الهاتف (IP) غير محدد";
+  if (!config?.port) return "المنفذ (Port) غير محدد";
+  if (!config?.apiKey) return "مفتاح API غير محدد";
+  return null;
+}
+
+// ---------------- public API ----------------
 
 export async function sendSmsViaGateway(
   config: SmsGatewayConfig,
   phone: string,
   message: string
 ): Promise<{ success: boolean; error?: string }> {
-  if (isMaster(config)) return sendViaMaster(config, phone, message);
-  try {
-    const auth = getAuthToken(config);
+  const invalid = validate(config);
+  if (invalid) return { success: false, error: invalid };
 
-
-    const res = await fetch(PROXY_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        "x-sms-auth": auth,
-        "x-sms-mode": config.mode,
-        "x-sms-server": config.serverUrl || "",
-        "x-sms-action": "send",
-      },
-      body: JSON.stringify({
-        deviceId: config.deviceId,
-        phoneNumbers: [phone],
-        message: message,
-        ...(config.simNumber ? { simNumber: config.simNumber } : {}),
-      }),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      return { success: false, error: `HTTP ${res.status}: ${text}` };
-    }
-
-    return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err.message || "فشل الاتصال بالبوابة" };
-  }
+  const res = await httpPost(gatewayUrl(config), config.apiKey, { to: phone, message });
+  if (res.ok) return { success: true };
+  return { success: false, error: friendlyError(res) };
 }
 
+/** Connection test: the app answers 401 for a bad key and 400 for an empty
+ *  payload, both of which prove it is reachable. */
 export async function testGatewayConnection(
   config: SmsGatewayConfig
-): Promise<boolean> {
-  if (isMaster(config)) {
-    try {
-      if (!config.serverUrl || !config.apiKey) return false;
-      const res = await fetch(masterUrl(config), { method: "GET", headers: { "X-API-KEY": config.apiKey } });
-      // any HTTP answer means the phone server is reachable and the key was accepted/rejected
-      return res.status !== 401 && res.status !== 403;
-    } catch {
-      return false;
-    }
-  }
-  try {
-    const auth = getAuthToken(config);
+): Promise<{ success: boolean; error?: string }> {
+  const invalid = validate(config);
+  if (invalid) return { success: false, error: invalid };
 
-
-    const res = await fetch(PROXY_URL, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        "x-sms-auth": auth,
-        "x-sms-mode": config.mode,
-        "x-sms-server": config.serverUrl || "",
-        "x-sms-action": "test",
-      },
-    });
-
-    return res.ok;
-  } catch {
-    return false;
-  }
+  const res = await httpPost(gatewayUrl(config), config.apiKey, { to: "", message: "" });
+  if (res.networkError) return { success: false, error: friendlyError(res) };
+  if (res.status === 401 || res.status === 403) return { success: false, error: friendlyError(res) };
+  if (res.status === 404) return { success: false, error: friendlyError(res) };
+  return { success: true };
 }
 
-// Send bulk SMS with round-robin across multiple profiles
 export async function sendBulkSmsViaGateway(
   config: SmsGatewayConfig,
   messages: { phone: string; text: string }[],
@@ -255,11 +185,8 @@ export async function sendBulkSmsViaGateway(
 
   for (const msg of messages) {
     const result = await sendSmsViaGateway(config, msg.phone, msg.text);
-    if (result.success) {
-      sent++;
-    } else {
-      failed.push({ phone: msg.phone, error: result.error || "خطأ غير معروف" });
-    }
+    if (result.success) sent++;
+    else failed.push({ phone: msg.phone, error: result.error || "خطأ غير معروف" });
     onProgress?.(sent, messages.length, failed.map((f) => f.phone));
     await new Promise((r) => setTimeout(r, 300));
   }
@@ -267,31 +194,27 @@ export async function sendBulkSmsViaGateway(
   return { sent, failed };
 }
 
-// Send bulk SMS distributed across multiple gateway profiles (round-robin)
+/** Distribute messages across several phones (round-robin). Each message is
+ *  sent exactly once — a failure is recorded and the loop continues. */
 export async function sendBulkSmsMultiGateway(
   profiles: SmsGatewayConfig[],
   messages: { phone: string; text: string }[],
   onProgress?: (sent: number, total: number, failed: string[]) => void
 ): Promise<{ sent: number; failed: { phone: string; error: string }[] }> {
   if (profiles.length === 0) {
-    return { sent: 0, failed: messages.map(m => ({ phone: m.phone, error: "لا توجد بوابات" })) };
+    return { sent: 0, failed: messages.map((m) => ({ phone: m.phone, error: "لا توجد بوابات" })) };
   }
-  if (profiles.length === 1) {
-    return sendBulkSmsViaGateway(profiles[0], messages, onProgress);
-  }
+  if (profiles.length === 1) return sendBulkSmsViaGateway(profiles[0], messages, onProgress);
 
   const failed: { phone: string; error: string }[] = [];
   let sent = 0;
 
   for (let i = 0; i < messages.length; i++) {
-    const profile = profiles[i % profiles.length]; // round-robin
+    const profile = profiles[i % profiles.length];
     const msg = messages[i];
     const result = await sendSmsViaGateway(profile, msg.phone, msg.text);
-    if (result.success) {
-      sent++;
-    } else {
-      failed.push({ phone: msg.phone, error: result.error || "خطأ غير معروف" });
-    }
+    if (result.success) sent++;
+    else failed.push({ phone: msg.phone, error: result.error || "خطأ غير معروف" });
     onProgress?.(sent, messages.length, failed.map((f) => f.phone));
     await new Promise((r) => setTimeout(r, 200));
   }
