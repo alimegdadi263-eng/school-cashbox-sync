@@ -21,6 +21,17 @@ export interface CommitteeData {
 
 const FONT = "Traditional Arabic";
 
+/**
+ * صياغة اسم اللجنة بشكل مناسب للقارئ عند التصدير:
+ * لا نضيف كلمة "لجنة" إذا كان الاسم يبدأ أصلاً بـ لجنة/اللجنة/تشكيل/مجلس/منصة/الكشافة...
+ */
+export function formatCommitteeTitle(name: string): string {
+  const n = name.trim();
+  const skipPrefixes = ["لجنة", "اللجنة", "تشكيل", "مجلس", "منصة", "الكشافة", "كشافة", "الصيانة", "صيانة"];
+  if (skipPrefixes.some(p => n.startsWith(p))) return n;
+  return `لجنة ${n}`;
+}
+
 function rtlParagraph(text: string, opts: { bold?: boolean; size?: number; alignment?: (typeof AlignmentType)[keyof typeof AlignmentType]; spacing?: { before?: number; after?: number } } = {}) {
   return new Paragraph({
     alignment: opts.alignment ?? AlignmentType.LEFT,
