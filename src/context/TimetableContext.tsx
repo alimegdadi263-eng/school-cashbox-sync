@@ -836,10 +836,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
             }
             if (spots.length < 2) break;
 
-            // هل توجد حصة غير مقترنة؟
-            const isPaired = (s: { day: number; period: number }) =>
-              isTarget(tt[ck][s.day]?.[s.period - 1]?.subjectName === subject ? subject : undefined) ||
-              tt[ck][s.day]?.[s.period + 1]?.subjectName === subject;
+            // الحصص غير المقترنة (لا يوجد بجانبها نفس المادة)
+
 
             const lonely = spots.filter(s => !(
               tt[ck][s.day]?.[s.period - 1]?.subjectName === subject ||
