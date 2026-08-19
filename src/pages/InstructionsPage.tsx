@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Rocket, Settings, ArrowLeftRight, FileCheck2, ClipboardList, CalendarDays,
   Users, PieChart, GraduationCap, Smartphone, MessageSquare, Link2, BarChart3,
-  RefreshCw, LifeBuoy, Search, BookOpen, Phone,
+  RefreshCw, LifeBuoy, Search, BookOpen, Phone, Sparkles,
 } from "lucide-react";
 import guideHero from "@/assets/guide-hero.jpg";
 import guideFinance from "@/assets/guide-finance.jpg";
