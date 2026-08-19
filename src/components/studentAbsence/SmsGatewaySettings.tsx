@@ -195,7 +195,7 @@ export default function SmsGatewaySettings() {
                     dir="ltr"
                     value={p.host}
                     onChange={(e) => update(p.id!, { host: e.target.value })}
-                    placeholder="192.168.1.5"
+                    placeholder="192.168.8.102"
                   />
                 </div>
                 <div className="space-y-1">
@@ -209,7 +209,7 @@ export default function SmsGatewaySettings() {
                   />
                 </div>
                 <div className="space-y-1 md:col-span-3">
-                  <Label>مفتاح API (من داخل التطبيق)</Label>
+                  <Label>Local Service Token (من داخل التطبيق)</Label>
                   <Input
                     dir="ltr"
                     type="password"
