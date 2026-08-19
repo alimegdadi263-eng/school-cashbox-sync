@@ -29,6 +29,8 @@ export default function DailyScheduleManager() {
   const [dailyResult, setDailyResult] = useState<ClassTimetable | null>(null);
   const [dutyTeachers, setDutyTeachers] = useState<DutyTeacher[]>([]);
   const [sending, setSending] = useState(false);
+  /** الخانة المحدّدة للتبديل اليدوي (اضغط خانة ثم خانة أخرى للتبديل) */
+  const [selectedCell, setSelectedCell] = useState<{ classKey: string; period: number } | null>(null);
 
   const toggleAbsent = (id: string) => {
     setAbsentTeacherIds(prev =>
@@ -39,6 +41,74 @@ export default function DailyScheduleManager() {
   const handleGenerate = () => {
     const result = generateDailySchedule(selectedDay, absentTeacherIds);
     setDailyResult(result);
+  };
+
+  /**
+   * التبديل اليدوي بين خانتين في الجدول اليومي بعد إصداره.
+   * يمنع النظام أي تعارض:
+   * 1. لا يجوز أن يكون المعلم في صفّين في نفس الحصة.
+   * 2. لا يجوز إسناد حصة لمعلم غائب.
+   */
+  const handleCellClick = (classKey: string, period: number) => {
+    if (!dailyResult) return;
+    if (!selectedCell) {
+      setSelectedCell({ classKey, period });
+      return;
+    }
+    if (selectedCell.classKey === classKey && selectedCell.period === period) {
+      setSelectedCell(null);
+      return;
+    }
+
+    const a = selectedCell;
+    const b = { classKey, period };
+    const cellA = dailyResult[a.classKey]?.[0]?.[a.period] || null;
+    const cellB = dailyResult[b.classKey]?.[0]?.[b.period] || null;
+
+    if (!cellA && !cellB) {
+      setSelectedCell(null);
+      return;
+    }
+
+    // منع إسناد حصة لمعلم غائب
+    const absent = (cell: typeof cellA) => cell && absentTeacherIds.includes(cell.teacherId);
+    if (absent(cellA) || absent(cellB)) {
+      toast({ title: "تعذّر التبديل", description: "لا يمكن إسناد حصة لمعلم غائب", variant: "destructive" });
+      setSelectedCell(null);
+      return;
+    }
+
+    // فحص تعارض المعلم في نفس الحصة داخل صفوف أخرى
+    const isTeacherBusy = (teacherId: string, targetPeriod: number, ignore: { classKey: string; period: number }[]) =>
+      Object.entries(dailyResult).some(([ck, days]) => {
+        const cell = days[0]?.[targetPeriod];
+        if (!cell) return false;
+        if (ignore.some(ig => ig.classKey === ck && ig.period === targetPeriod)) return false;
+        return cell.teacherId === teacherId;
+      });
+
+    if (cellA && isTeacherBusy(cellA.teacherId, b.period, [a, b])) {
+      toast({ title: "تعارض", description: `${cellA.teacherName} لديه حصة أخرى في الحصة ${b.period + 1}`, variant: "destructive" });
+      setSelectedCell(null);
+      return;
+    }
+    if (cellB && isTeacherBusy(cellB.teacherId, a.period, [a, b])) {
+      toast({ title: "تعارض", description: `${cellB.teacherName} لديه حصة أخرى في الحصة ${a.period + 1}`, variant: "destructive" });
+      setSelectedCell(null);
+      return;
+    }
+
+    // تنفيذ التبديل على نسخة جديدة
+    const next: ClassTimetable = JSON.parse(JSON.stringify(dailyResult));
+    const rowA = next[a.classKey][0];
+    const rowB = next[b.classKey][0];
+    const tmp = rowA[a.period] ?? null;
+    rowA[a.period] = rowB[b.period] ?? null;
+    rowB[b.period] = tmp;
+
+    setDailyResult(next);
+    setSelectedCell(null);
+    toast({ title: "تم التبديل بنجاح" });
   };
 
   const addDutyTeacher = () => {
@@ -219,7 +289,13 @@ export default function DailyScheduleManager() {
         {/* Result */}
         {dailyResult && (
           <div className="space-y-3">
-            <h3 className="font-semibold text-sm">جدول يوم {DAYS[selectedDay]}:</h3>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-semibold text-sm">جدول يوم {DAYS[selectedDay]}:</h3>
+              <p className="text-xs text-muted-foreground">
+                التبديل اليدوي: اضغط على الحصة الأولى ثم على الحصة الثانية لتبديلهما (مع منع التعارض)
+                {selectedCell && " — تم تحديد خانة، اختر الخانة الثانية"}
+              </p>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-sm">
                 <thead>
@@ -240,7 +316,16 @@ export default function DailyScheduleManager() {
                         {Array.from({ length: periodsPerDay }, (_, pi) => {
                           const cell = periods[pi];
                           return (
-                            <td key={pi} className="border border-border p-1 text-center min-w-[90px]">
+                            <td
+                              key={pi}
+                              onClick={() => handleCellClick(classKey, pi)}
+                              title="اضغط للتبديل اليدوي"
+                              className={`border border-border p-1 text-center min-w-[90px] cursor-pointer transition-colors ${
+                                selectedCell?.classKey === classKey && selectedCell?.period === pi
+                                  ? "ring-2 ring-primary bg-primary/10"
+                                  : "hover:bg-accent/20"
+                              }`}
+                            >
                               {cell ? (
                                 <div>
                                   <div className="font-medium text-xs">{cell.subjectName}</div>

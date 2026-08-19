@@ -17,10 +17,22 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { UserPlus, Users, ShieldCheck, ShieldOff, Trash2, Eye, EyeOff, Clock, Search, Download } from "lucide-react";
+import { UserPlus, Users, ShieldCheck, ShieldOff, Trash2, Eye, EyeOff, Clock, Search, Download, MonitorSmartphone, AlertTriangle, RefreshCw } from "lucide-react";
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
+
+/** جلسة نشطة لجهاز يستخدم أحد الحسابات */
+interface ActiveSession {
+  id: string;
+  user_id: string;
+  device_id: string;
+  device_label: string;
+  last_seen_at: string;
+}
+
+/** المدة التي تُعتبر خلالها الجلسة "نشطة الآن" (5 دقائق) */
+const ONLINE_WINDOW_MS = 5 * 60 * 1000;
 
 interface SchoolUser {
   id: string;
@@ -41,6 +53,7 @@ export default function AdminUsers() {
   const [users, setUsers] = useState<SchoolUser[]>([]);
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [sessions, setSessions] = useState<ActiveSession[]>([]);
 
   const fetchUsers = async () => {
     const [profilesRes, rolesRes, credsRes] = await Promise.all([
@@ -68,9 +81,34 @@ export default function AdminUsers() {
     setUsers(userList);
   };
 
+  /** جلب الجلسات النشطة خلال آخر 5 دقائق لكشف استخدام نفس الحساب من أكثر من جهاز */
+  const fetchSessions = async () => {
+    const since = new Date(Date.now() - ONLINE_WINDOW_MS).toISOString();
+    const { data } = await supabase
+      .from("active_sessions")
+      .select("id, user_id, device_id, device_label, last_seen_at")
+      .gte("last_seen_at", since)
+      .order("last_seen_at", { ascending: false });
+    setSessions((data as ActiveSession[]) || []);
+  };
+
   useEffect(() => {
     fetchUsers();
+    fetchSessions();
+    const timer = setInterval(fetchSessions, 60_000);
+    return () => clearInterval(timer);
   }, []);
+
+  /** فصل جميع أجهزة حساب معيّن (حذف جلساته) */
+  const disconnectSessions = async (userId: string) => {
+    const { error } = await supabase.from("active_sessions").delete().eq("user_id", userId);
+    if (error) {
+      toast({ title: "خطأ", description: "فشل في فصل الأجهزة", variant: "destructive" });
+      return;
+    }
+    toast({ title: "تم", description: "تم فصل الأجهزة، وسيُعاد تسجيلها عند نشاط المستخدم مجدداً" });
+    fetchSessions();
+  };
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -289,6 +327,72 @@ export default function AdminUsers() {
                 {loading ? "جاري الإنشاء..." : "إنشاء حساب"}
               </Button>
             </form>
+          </CardContent>
+        </Card>
+
+        {/* Multi-device monitor */}
+        <Card className="shadow-card">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <MonitorSmartphone className="w-5 h-5" />
+                مراقبة الأجهزة النشطة
+              </CardTitle>
+              <Button size="sm" variant="outline" onClick={fetchSessions} className="text-xs gap-1">
+                <RefreshCw className="w-4 h-4" /> تحديث
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              يعرض الحسابات المفتوحة حالياً (آخر 5 دقائق). إذا ظهر حساب على أكثر من جهاز فهذا يعني مشاركة نفس اسم المستخدم وكلمة المرور.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {sessions.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">لا توجد أجهزة نشطة حالياً</p>
+            ) : (
+              <div className="space-y-3">
+                {Array.from(new Set(sessions.map((s) => s.user_id))).map((uid) => {
+                  const userSessions = sessions.filter((s) => s.user_id === uid);
+                  const info = users.find((u) => u.id === uid);
+                  const shared = userSessions.length > 1;
+                  return (
+                    <div
+                      key={uid}
+                      className={`rounded-lg border p-3 ${shared ? "border-destructive bg-destructive/5" : "border-border"}`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          {shared && <AlertTriangle className="w-4 h-4 text-destructive" />}
+                          <span className="font-semibold">{info?.school_name || uid}</span>
+                          <span className="text-xs text-muted-foreground">{info?.email}</span>
+                          <span className={`text-xs rounded px-2 py-0.5 ${shared ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>
+                            {userSessions.length} جهاز
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" className="text-xs" onClick={() => disconnectSessions(uid)}>
+                            فصل الأجهزة
+                          </Button>
+                          {info?.is_active && (
+                            <Button size="sm" variant="destructive" className="text-xs" onClick={() => toggleUserActive(uid, true)}>
+                              إيقاف الحساب
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                        {userSessions.map((s) => (
+                          <li key={s.id} className="flex justify-between gap-2">
+                            <span>{s.device_label || "جهاز غير معروف"}</span>
+                            <span>آخر نشاط: {new Date(s.last_seen_at).toLocaleString("ar-EG")}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
 
