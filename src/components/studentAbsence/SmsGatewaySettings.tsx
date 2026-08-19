@@ -4,17 +4,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Smartphone, Save, Wifi, WifiOff, Globe, Router, Download, BookOpen, ChevronDown, ChevronUp, Plus, Trash2, Edit2, Check } from "lucide-react";
+import {
+  Smartphone, Save, Wifi, WifiOff, BookOpen, ChevronDown, ChevronUp,
+  Plus, Trash2, Send, Loader2,
+} from "lucide-react";
 import {
   loadGatewayProfiles,
   saveGatewayProfiles,
   testGatewayConnection,
-  MASTER_DEFAULTS,
+  sendSmsViaGateway,
+  gatewayUrl,
+  TRACCAR_DEFAULT_PORT,
   type SmsGatewayConfig,
-  type GatewayMode,
-  type GatewayProvider,
 } from "@/lib/smsGateway";
 
 function SmsInstructions() {
@@ -26,7 +29,7 @@ function SmsInstructions() {
         <CardTitle className="flex items-center justify-between text-base">
           <span className="flex items-center gap-2">
             <BookOpen className="h-5 w-5" />
-            📖 دليل الربط مع تطبيق SMS Gateway Master (خطوة بخطوة)
+            📖 دليل الربط مع تطبيق Traccar SMS Gateway (خطوة بخطوة)
           </span>
           {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </CardTitle>
@@ -34,295 +37,36 @@ function SmsInstructions() {
       {open && (
         <CardContent className="space-y-4 text-sm">
           <div className="rounded-lg border bg-background p-3 space-y-2">
-            <p className="font-bold text-primary">الخطوة 1: تثبيت التطبيق</p>
+            <p className="font-bold text-primary">الخطوة 1: تثبيت التطبيق على الهاتف</p>
             <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-              <li>ثبّت تطبيق <strong>SMS Gateway Master</strong> على هاتف أندرويد يحتوي شريحة فعّالة</li>
-              <li>امنح التطبيق صلاحية <strong>الرسائل SMS</strong> من إعدادات الهاتف ← التطبيقات ← الأذونات</li>
+              <li>ثبّت تطبيق <strong>Traccar SMS Gateway</strong> على هاتف أندرويد يحتوي شريحة فعّالة</li>
+              <li>امنح التطبيق صلاحية <strong>إرسال الرسائل SMS</strong> عند طلبها</li>
               <li>عطّل <strong>توفير البطارية</strong> للتطبيق ليبقى يعمل في الخلفية</li>
             </ol>
           </div>
           <div className="rounded-lg border bg-background p-3 space-y-2">
-            <p className="font-bold text-primary">الخطوة 2: تشغيل السيرفر ونسخ مفتاح API</p>
+            <p className="font-bold text-primary">الخطوة 2: تشغيل الخدمة ونسخ البيانات</p>
             <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-              <li>افتح التطبيق واضغط <strong>Start / تشغيل السيرفر</strong></li>
-              <li>سيظهر عنوان مثل <code dir="ltr">http://192.168.1.5:8080</code> — انسخه</li>
-              <li>من شاشة الإعدادات انسخ <strong>API Key</strong> (مفتاح الـ API)</li>
+              <li>افتح التطبيق وفعّل الخدمة (Service)</li>
+              <li>سيعرض التطبيق عنوان الهاتف والمنفذ مثل <code dir="ltr">192.168.1.5:8082</code></li>
+              <li>انسخ <strong>مفتاح API (API Key / Token)</strong> الظاهر داخل التطبيق</li>
               <li>تأكد أن الهاتف والحاسوب على <strong>نفس شبكة الواي فاي</strong></li>
             </ol>
           </div>
           <div className="rounded-lg border bg-background p-3 space-y-2">
             <p className="font-bold text-primary">الخطوة 3: إدخال البيانات هنا</p>
             <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-              <li>اضغط <strong>"+ إضافة هاتف جديد"</strong> واختر نوع البوابة <strong>SMS Gateway Master</strong></li>
-              <li>ألصق <strong>عنوان السيرفر</strong> و <strong>مفتاح API</strong></li>
-              <li>اختر شريحة SIM إن كان الهاتف يحوي شريحتين</li>
+              <li>اضغط <strong>"+ إضافة هاتف"</strong> ثم أدخل عنوان الهاتف (IP) والمنفذ ومفتاح API</li>
               <li>اضغط <strong>اختبار الاتصال</strong> ثم <strong>حفظ الكل</strong></li>
+              <li>جرّب <strong>إرسال رسالة اختبار</strong> إلى رقمك الشخصي</li>
             </ol>
           </div>
-          <div className="rounded-lg border bg-background p-3 space-y-2">
-            <p className="font-bold text-primary">الخطوة 4 (اختياري): إعدادات متقدمة</p>
-            <p className="text-muted-foreground">
-              إذا كان إصدار التطبيق يستخدم مساراً أو أسماء حقول مختلفة، افتح <strong>إعدادات متقدمة</strong> داخل بطاقة الهاتف
-              وعدّل المسار (<code dir="ltr">/sendsms</code>) وأسماء الحقول (<code dir="ltr">apikey / number / message / sim</code>)
-              أو غيّر الطريقة إلى <code dir="ltr">POST</code> حسب ما هو مكتوب في شاشة API داخل التطبيق.
-            </p>
+          <div className="rounded-lg border bg-background p-3 space-y-1 text-muted-foreground">
+            <p className="font-bold text-primary">ملاحظات</p>
+            <p>• الرسائل تخرج فعليًا من شريحة الهاتف، ولا توجد أي تكلفة على خدمة خارجية.</p>
+            <p>• Traccar لا يوفر رسميًا خيار اختيار الشريحة (SIM) عبر الـ API، لذلك يتم الإرسال من الشريحة الافتراضية في إعدادات الهاتف.</p>
+            <p>• يمكن إضافة أكثر من هاتف ليتم توزيع الرسائل بينهم بالتناوب.</p>
           </div>
-          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1">
-            <p className="font-bold text-destructive">⚠️ ملاحظات مهمة:</p>
-            <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
-              <li>يجب أن يكون سيرفر التطبيق <strong>مشغّلاً</strong> على الهاتف أثناء الإرسال</li>
-              <li>الربط المحلي يعمل عبر نسخة سطح المكتب أو على نفس الشبكة (عنوان <code dir="ltr">http://</code>)</li>
-              <li>تأكد من وجود <strong>رصيد كافٍ</strong> في شريحة SIM</li>
-              <li>عند إضافة عدة هواتف، يتم <strong>توزيع الرسائل تلقائياً</strong> بالتناوب</li>
-            </ul>
-          </div>
-        </CardContent>
-      )}
-    </Card>
-  );
-}
-
-const emptyProfile = (): SmsGatewayConfig => ({
-  id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-  name: "",
-  provider: "master",
-  mode: "local",
-  serverUrl: "",
-  login: "",
-  password: "",
-  deviceId: "",
-  apiKey: "",
-  sendPath: MASTER_DEFAULTS.sendPath,
-  httpMethod: MASTER_DEFAULTS.httpMethod,
-  apiKeyParam: MASTER_DEFAULTS.apiKeyParam,
-  phoneParam: MASTER_DEFAULTS.phoneParam,
-  messageParam: MASTER_DEFAULTS.messageParam,
-  simParam: MASTER_DEFAULTS.simParam,
-});
-
-
-function GatewayProfileCard({
-  profile,
-  index,
-  onUpdate,
-  onDelete,
-  onTest,
-}: {
-  profile: SmsGatewayConfig;
-  index: number;
-  onUpdate: (p: SmsGatewayConfig) => void;
-  onDelete: () => void;
-  onTest: () => void;
-}) {
-  const isMasterProfile = (profile.provider || "smsgate") === "master";
-  const [testing, setTesting] = useState(false);
-  const [connected, setConnected] = useState<boolean | null>(null);
-  const [advanced, setAdvanced] = useState(false);
-  const [editing, setEditing] = useState(isMasterProfile ? !profile.apiKey : !profile.login); // auto-open if new
-
-
-  const handleTest = async () => {
-    setTesting(true);
-    setConnected(null);
-    const ok = await testGatewayConnection(profile);
-    setConnected(ok);
-    setTesting(false);
-    onTest();
-  };
-
-  return (
-    <Card className="border-border">
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center justify-between text-base">
-          <div className="flex items-center gap-2">
-            <Smartphone className="h-4 w-4" />
-            <span>{profile.name || `هاتف ${index + 1}`}</span>
-            {connected === true && <Badge variant="default" className="gap-1 text-xs"><Wifi className="h-3 w-3" /> متصل</Badge>}
-            {connected === false && <Badge variant="destructive" className="gap-1 text-xs"><WifiOff className="h-3 w-3" /> غير متصل</Badge>}
-          </div>
-          <div className="flex gap-1">
-            <Button size="icon" variant="ghost" onClick={() => setEditing(!editing)}>
-              {editing ? <Check className="h-4 w-4" /> : <Edit2 className="h-4 w-4" />}
-            </Button>
-            <Button size="icon" variant="ghost" onClick={onDelete} className="text-destructive hover:text-destructive">
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardTitle>
-      </CardHeader>
-      {editing && (
-        <CardContent className="space-y-3 pt-0">
-          <div className="space-y-1">
-            <Label>اسم الهاتف (للتمييز)</Label>
-            <Input
-              placeholder="مثال: هاتف أحمد"
-              value={profile.name || ""}
-              onChange={(e) => onUpdate({ ...profile, name: e.target.value })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">نوع البوابة</Label>
-            <RadioGroup
-              value={profile.provider || "smsgate"}
-              onValueChange={(v) =>
-                onUpdate({
-                  ...profile,
-                  provider: v as GatewayProvider,
-                  ...(v === "master" ? { mode: "local" as GatewayMode } : {}),
-                })
-              }
-              className="flex flex-wrap gap-4"
-            >
-              <label className="flex items-center gap-2 cursor-pointer">
-                <RadioGroupItem value="master" />
-                <span className="text-sm">SMS Gateway Master (مفتاح API)</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <RadioGroupItem value="smsgate" />
-                <span className="text-sm">SMSGate (قديم)</span>
-              </label>
-            </RadioGroup>
-          </div>
-
-          {isMasterProfile ? (
-            <>
-              <div className="space-y-1">
-                <Label>عنوان السيرفر (من التطبيق)</Label>
-                <Input dir="ltr" placeholder="http://192.168.1.5:8080" value={profile.serverUrl}
-                  onChange={(e) => onUpdate({ ...profile, serverUrl: e.target.value })} />
-              </div>
-              <div className="space-y-1">
-                <Label>مفتاح API</Label>
-                <Input dir="ltr" placeholder="API Key من التطبيق" value={profile.apiKey || ""}
-                  onChange={(e) => onUpdate({ ...profile, apiKey: e.target.value })} />
-              </div>
-              <div>
-                <Button variant="ghost" size="sm" onClick={() => setAdvanced(!advanced)}>
-                  {advanced ? "إخفاء الإعدادات المتقدمة" : "⚙️ إعدادات متقدمة"}
-                </Button>
-              </div>
-              {advanced && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 rounded-lg border p-3">
-                  <div className="space-y-1">
-                    <Label>مسار الإرسال</Label>
-                    <Input dir="ltr" placeholder={MASTER_DEFAULTS.sendPath} value={profile.sendPath || ""}
-                      onChange={(e) => onUpdate({ ...profile, sendPath: e.target.value })} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>طريقة الطلب</Label>
-                    <RadioGroup
-                      value={profile.httpMethod || MASTER_DEFAULTS.httpMethod}
-                      onValueChange={(v) => onUpdate({ ...profile, httpMethod: v as "GET" | "POST" })}
-                      className="flex gap-4 pt-2"
-                    >
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <RadioGroupItem value="GET" /><span className="text-sm">GET</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <RadioGroupItem value="POST" /><span className="text-sm">POST</span>
-                      </label>
-                    </RadioGroup>
-                  </div>
-                  <div className="space-y-1">
-                    <Label>اسم حقل المفتاح</Label>
-                    <Input dir="ltr" placeholder={MASTER_DEFAULTS.apiKeyParam} value={profile.apiKeyParam || ""}
-                      onChange={(e) => onUpdate({ ...profile, apiKeyParam: e.target.value })} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>اسم حقل الرقم</Label>
-                    <Input dir="ltr" placeholder={MASTER_DEFAULTS.phoneParam} value={profile.phoneParam || ""}
-                      onChange={(e) => onUpdate({ ...profile, phoneParam: e.target.value })} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>اسم حقل الرسالة</Label>
-                    <Input dir="ltr" placeholder={MASTER_DEFAULTS.messageParam} value={profile.messageParam || ""}
-                      onChange={(e) => onUpdate({ ...profile, messageParam: e.target.value })} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>اسم حقل الشريحة</Label>
-                    <Input dir="ltr" placeholder={MASTER_DEFAULTS.simParam} value={profile.simParam || ""}
-                      onChange={(e) => onUpdate({ ...profile, simParam: e.target.value })} />
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">وضع الاتصال</Label>
-                <RadioGroup
-                  value={profile.mode}
-                  onValueChange={(v) => onUpdate({ ...profile, mode: v as GatewayMode })}
-                  className="flex gap-4"
-                >
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <RadioGroupItem value="cloud" />
-                    <span className="text-sm flex items-center gap-1"><Globe className="h-3 w-3" /> سحابي</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <RadioGroupItem value="local" />
-                    <span className="text-sm flex items-center gap-1"><Router className="h-3 w-3" /> محلي</span>
-                  </label>
-                </RadioGroup>
-              </div>
-              {profile.mode === "local" && (
-                <div className="space-y-1">
-                  <Label>عنوان السيرفر</Label>
-                  <Input dir="ltr" placeholder="http://192.168.1.5:8080" value={profile.serverUrl}
-                    onChange={(e) => onUpdate({ ...profile, serverUrl: e.target.value })} />
-                </div>
-              )}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Username</Label>
-                  <Input dir="ltr" placeholder="من تطبيق SMSGate" value={profile.login}
-                    onChange={(e) => onUpdate({ ...profile, login: e.target.value })} />
-                </div>
-                <div className="space-y-1">
-                  <Label>Password</Label>
-                  <Input dir="ltr" type="password" placeholder="من تطبيق SMSGate" value={profile.password}
-                    onChange={(e) => onUpdate({ ...profile, password: e.target.value })} />
-                </div>
-              </div>
-              {profile.mode === "cloud" && (
-                <div className="space-y-1">
-                  <Label>Device ID</Label>
-                  <Input dir="ltr" placeholder="من تطبيق SMSGate" value={profile.deviceId}
-                    onChange={(e) => onUpdate({ ...profile, deviceId: e.target.value })} />
-                </div>
-              )}
-            </>
-          )}
-          <div className="space-y-1">
-            <Label>شريحة SIM</Label>
-            <RadioGroup
-              value={String(profile.simNumber || 0)}
-              onValueChange={(v) => onUpdate({ ...profile, simNumber: Number(v) || undefined })}
-              className="flex gap-4"
-            >
-              <label className="flex items-center gap-2 cursor-pointer">
-                <RadioGroupItem value="0" />
-                <span className="text-sm">تلقائي</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <RadioGroupItem value="1" />
-                <span className="text-sm">SIM 1</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <RadioGroupItem value="2" />
-                <span className="text-sm">SIM 2</span>
-              </label>
-            </RadioGroup>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleTest}
-            disabled={testing || (isMasterProfile ? !profile.serverUrl || !profile.apiKey : !profile.login || !profile.password)}
-          >
-            {testing ? "جاري الاختبار..." : "🔌 اختبار الاتصال"}
-          </Button>
-
         </CardContent>
       )}
     </Card>
@@ -332,120 +76,185 @@ function GatewayProfileCard({
 export default function SmsGatewaySettings() {
   const { toast } = useToast();
   const [profiles, setProfiles] = useState<SmsGatewayConfig[]>([]);
+  const [testing, setTesting] = useState<string | null>(null);
+  const [status, setStatus] = useState<Record<string, boolean | null>>({});
+  const [testPhone, setTestPhone] = useState("");
+  const [testText, setTestText] = useState("رسالة اختبار من برمجية الإدارة المدرسية");
+  const [sendingTest, setSendingTest] = useState(false);
 
   useEffect(() => {
     setProfiles(loadGatewayProfiles());
   }, []);
 
-  const handleAddProfile = () => {
-    setProfiles(prev => [...prev, emptyProfile()]);
+  const update = (id: string, patch: Partial<SmsGatewayConfig>) => {
+    setProfiles((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+    setStatus((s) => ({ ...s, [id]: null }));
   };
 
-  const handleUpdateProfile = (index: number, updated: SmsGatewayConfig) => {
-    setProfiles(prev => prev.map((p, i) => i === index ? updated : p));
+  const addProfile = () => {
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    setProfiles((prev) => [
+      ...prev,
+      { id, name: `هاتف ${prev.length + 1}`, host: "", port: TRACCAR_DEFAULT_PORT, apiKey: "" },
+    ]);
   };
 
-  const handleDeleteProfile = (index: number) => {
-    setProfiles(prev => {
-      const next = prev.filter((_, i) => i !== index);
-      saveGatewayProfiles(next);
-      return next;
-    });
-    toast({ title: "تم حذف الهاتف" });
+  const removeProfile = (id: string) => {
+    setProfiles((prev) => prev.filter((p) => p.id !== id));
   };
 
-  const handleSaveAll = () => {
-    const masterInvalid = profiles.find(p => (p.provider || "smsgate") === "master" && (!p.serverUrl || !p.apiKey));
-    if (masterInvalid) {
-      toast({ title: `يرجى إدخال عنوان السيرفر ومفتاح API للهاتف "${masterInvalid.name || "بدون اسم"}"`, variant: "destructive" });
-      return;
-    }
-    const invalid = profiles.find(p => (p.provider || "smsgate") !== "master" && (!p.login || !p.password));
-    if (invalid) {
-      toast({ title: "يرجى تعبئة بيانات جميع الهواتف", variant: "destructive" });
-      return;
-    }
-    const cloudInvalid = profiles.find(p => (p.provider || "smsgate") !== "master" && p.mode === "cloud" && !p.deviceId);
-    if (cloudInvalid) {
-      toast({ title: `يرجى إدخال Device ID للهاتف "${cloudInvalid.name || "بدون اسم"}"`, variant: "destructive" });
-      return;
-    }
+  const saveAll = () => {
     saveGatewayProfiles(profiles);
-    toast({ title: `تم حفظ ${profiles.length} هاتف/هواتف بنجاح ✅` });
+    toast({ title: "تم الحفظ", description: `تم حفظ ${profiles.length} هاتف` });
+  };
+
+  const handleTest = async (p: SmsGatewayConfig) => {
+    setTesting(p.id!);
+    const res = await testGatewayConnection(p);
+    setStatus((s) => ({ ...s, [p.id!]: res.success }));
+    setTesting(null);
+    if (res.success) {
+      toast({ title: "تم الاتصال بنجاح", description: gatewayUrl(p) });
+    } else {
+      toast({ variant: "destructive", title: "فشل الاتصال", description: res.error });
+    }
+  };
+
+  const sendTestMessage = async () => {
+    if (profiles.length === 0) {
+      toast({ variant: "destructive", title: "لا توجد بوابة", description: "أضف هاتفًا أولًا" });
+      return;
+    }
+    if (!testPhone.trim()) {
+      toast({ variant: "destructive", title: "رقم الهاتف مطلوب" });
+      return;
+    }
+    if (!testText.trim()) {
+      toast({ variant: "destructive", title: "نص الرسالة مطلوب" });
+      return;
+    }
+    setSendingTest(true);
+    const res = await sendSmsViaGateway(profiles[0], testPhone.trim(), testText.trim());
+    setSendingTest(false);
+    if (res.success) {
+      toast({ title: "تم إرسال الرسالة بنجاح", description: `إلى ${testPhone}` });
+    } else {
+      toast({ variant: "destructive", title: "فشل إرسال الرسالة", description: res.error });
+    }
   };
 
   return (
-    <div className="space-y-4">
-      {/* Download */}
+    <div className="space-y-4" dir="rtl">
+      <SmsInstructions />
+
       <Card>
-        <CardContent className="py-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="font-bold text-base">📲 تطبيق SMS Gateway Master (مطلوب)</h3>
-              <p className="text-sm text-muted-foreground">
-                ثبّت التطبيق على هاتف أندرويد، شغّل السيرفر، وانسخ عنوان السيرفر ومفتاح API ثم ألصقهما هنا.
-              </p>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center justify-between text-base">
+            <span className="flex items-center gap-2">
+              <Smartphone className="h-5 w-5" />
+              هواتف الإرسال (Traccar SMS Gateway)
+            </span>
+            <Button size="sm" variant="outline" onClick={addProfile} className="gap-1">
+              <Plus className="h-4 w-4" /> إضافة هاتف
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {profiles.length === 0 && (
+            <p className="text-sm text-muted-foreground">لم تتم إضافة أي هاتف بعد. اضغط "إضافة هاتف" للبدء.</p>
+          )}
+
+          {profiles.map((p) => (
+            <div key={p.id} className="rounded-lg border p-3 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <Input
+                  className="max-w-[220px]"
+                  value={p.name || ""}
+                  onChange={(e) => update(p.id!, { name: e.target.value })}
+                  placeholder="اسم الهاتف"
+                />
+                <div className="flex items-center gap-2">
+                  {status[p.id!] === true && (
+                    <Badge className="gap-1 bg-emerald-600"><Wifi className="h-3 w-3" /> متصل</Badge>
+                  )}
+                  {status[p.id!] === false && (
+                    <Badge variant="destructive" className="gap-1"><WifiOff className="h-3 w-3" /> غير متصل</Badge>
+                  )}
+                  <Button size="icon" variant="ghost" onClick={() => removeProfile(p.id!)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="space-y-1 md:col-span-2">
+                  <Label>عنوان الهاتف (IP)</Label>
+                  <Input
+                    dir="ltr"
+                    value={p.host}
+                    onChange={(e) => update(p.id!, { host: e.target.value })}
+                    placeholder="192.168.1.5"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>المنفذ (Port)</Label>
+                  <Input
+                    dir="ltr"
+                    type="number"
+                    value={p.port}
+                    onChange={(e) => update(p.id!, { port: Number(e.target.value) || TRACCAR_DEFAULT_PORT })}
+                    placeholder={String(TRACCAR_DEFAULT_PORT)}
+                  />
+                </div>
+                <div className="space-y-1 md:col-span-3">
+                  <Label>مفتاح API (من داخل التطبيق)</Label>
+                  <Input
+                    dir="ltr"
+                    type="password"
+                    autoComplete="off"
+                    value={p.apiKey}
+                    onChange={(e) => update(p.id!, { apiKey: e.target.value })}
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground" dir="ltr">
+                  {p.host ? gatewayUrl(p) : "—"}
+                </span>
+                <Button size="sm" variant="secondary" disabled={testing === p.id} onClick={() => handleTest(p)}>
+                  {testing === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "اختبار الاتصال"}
+                </Button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <a href="https://play.google.com/store/search?q=SMS%20Gateway%20Master&c=apps" target="_blank" rel="noopener noreferrer">
-                <Button className="gap-2"><Download className="h-4 w-4" /> Google Play</Button>
-              </a>
-            </div>
-          </div>
+          ))}
+
+          <Button onClick={saveAll} className="gap-1">
+            <Save className="h-4 w-4" /> حفظ الكل
+          </Button>
         </CardContent>
       </Card>
 
-
-      <SmsInstructions />
-
-      {/* Profiles */}
-      <div className="flex items-center justify-between">
-        <h3 className="font-bold text-lg flex items-center gap-2">
-          📱 الهواتف المربوطة ({profiles.length})
-        </h3>
-        <div className="flex gap-2">
-          <Button onClick={handleAddProfile} variant="outline" className="gap-1">
-            <Plus className="h-4 w-4" /> إضافة هاتف جديد
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">إرسال رسالة اختبار</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1">
+            <Label>رقم الهاتف</Label>
+            <Input dir="ltr" value={testPhone} onChange={(e) => setTestPhone(e.target.value)} placeholder="07XXXXXXXX" />
+          </div>
+          <div className="space-y-1">
+            <Label>نص الرسالة</Label>
+            <Textarea rows={3} value={testText} onChange={(e) => setTestText(e.target.value)} />
+          </div>
+          <Button onClick={sendTestMessage} disabled={sendingTest} className="gap-1">
+            {sendingTest ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            إرسال رسالة اختبار
           </Button>
-          {profiles.length > 0 && (
-            <Button onClick={handleSaveAll} className="gap-1">
-              <Save className="h-4 w-4" /> حفظ الكل
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {profiles.length === 0 && (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            <Smartphone className="h-10 w-10 mx-auto mb-3 opacity-50" />
-            <p className="text-lg mb-1">لا توجد هواتف مربوطة</p>
-            <p className="text-sm mb-3">اضغط "إضافة هاتف جديد" لربط أول هاتف</p>
-            <Button onClick={handleAddProfile} className="gap-1">
-              <Plus className="h-4 w-4" /> إضافة هاتف جديد
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {profiles.length > 1 && (
-        <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
-          💡 عند إرسال رسائل جماعية، سيتم <strong>توزيع الرسائل تلقائياً بالتناوب</strong> على جميع الهواتف لتسريع الإرسال وتجنب الحظر.
-        </div>
-      )}
-
-      <div className="space-y-3">
-        {profiles.map((profile, index) => (
-          <GatewayProfileCard
-            key={profile.id || index}
-            profile={profile}
-            index={index}
-            onUpdate={(p) => handleUpdateProfile(index, p)}
-            onDelete={() => handleDeleteProfile(index)}
-            onTest={() => {}}
-          />
-        ))}
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
