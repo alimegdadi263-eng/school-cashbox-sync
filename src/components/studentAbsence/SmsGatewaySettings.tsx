@@ -11,8 +11,10 @@ import {
   loadGatewayProfiles,
   saveGatewayProfiles,
   testGatewayConnection,
+  MASTER_DEFAULTS,
   type SmsGatewayConfig,
   type GatewayMode,
+  type GatewayProvider,
 } from "@/lib/smsGateway";
 
 function SmsInstructions() {
@@ -24,7 +26,7 @@ function SmsInstructions() {
         <CardTitle className="flex items-center justify-between text-base">
           <span className="flex items-center gap-2">
             <BookOpen className="h-5 w-5" />
-            📖 دليل الإعداد الكامل (خطوة بخطوة)
+            📖 دليل الربط مع تطبيق SMS Gateway Master (خطوة بخطوة)
           </span>
           {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </CardTitle>
@@ -32,41 +34,44 @@ function SmsInstructions() {
       {open && (
         <CardContent className="space-y-4 text-sm">
           <div className="rounded-lg border bg-background p-3 space-y-2">
-            <p className="font-bold text-primary">الخطوة 1: تحميل تطبيق SMSGate على هاتفك</p>
+            <p className="font-bold text-primary">الخطوة 1: تثبيت التطبيق</p>
             <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-              <li>اضغط على زر <strong>"تحميل التطبيق"</strong> أدناه</li>
-              <li>أو ابحث عن <strong>"SMS Gate"</strong> في متجر Google Play</li>
-              <li>ثبّت التطبيق على هاتفك الأندرويد</li>
+              <li>ثبّت تطبيق <strong>SMS Gateway Master</strong> على هاتف أندرويد يحتوي شريحة فعّالة</li>
+              <li>امنح التطبيق صلاحية <strong>الرسائل SMS</strong> من إعدادات الهاتف ← التطبيقات ← الأذونات</li>
+              <li>عطّل <strong>توفير البطارية</strong> للتطبيق ليبقى يعمل في الخلفية</li>
             </ol>
           </div>
           <div className="rounded-lg border bg-background p-3 space-y-2">
-            <p className="font-bold text-primary">الخطوة 2: إعطاء الصلاحيات</p>
+            <p className="font-bold text-primary">الخطوة 2: تشغيل السيرفر ونسخ مفتاح API</p>
             <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-              <li>إعدادات الهاتف ← التطبيقات ← SMSGate</li>
-              <li>⋮ (ثلاث نقاط) ← <strong>"السماح بالإعدادات المقيدة"</strong></li>
-              <li>الأذونات ← فعّل صلاحية <strong>SMS</strong></li>
-            </ol>
-            <p className="text-xs text-destructive">⚠️ بدون هذه الخطوة لن يستطيع التطبيق إرسال الرسائل!</p>
-          </div>
-          <div className="rounded-lg border bg-background p-3 space-y-2">
-            <p className="font-bold text-primary">الخطوة 3: تفعيل Cloud Server</p>
-            <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-              <li>افتح SMSGate ← Settings ← فعّل <strong>Cloud server</strong></li>
-              <li>سجّل حساب وانسخ: <strong>Username</strong> و <strong>Password</strong> و <strong>Device ID</strong></li>
+              <li>افتح التطبيق واضغط <strong>Start / تشغيل السيرفر</strong></li>
+              <li>سيظهر عنوان مثل <code dir="ltr">http://192.168.1.5:8080</code> — انسخه</li>
+              <li>من شاشة الإعدادات انسخ <strong>API Key</strong> (مفتاح الـ API)</li>
+              <li>تأكد أن الهاتف والحاسوب على <strong>نفس شبكة الواي فاي</strong></li>
             </ol>
           </div>
           <div className="rounded-lg border bg-background p-3 space-y-2">
-            <p className="font-bold text-primary">الخطوة 4: إدخال البيانات هنا</p>
+            <p className="font-bold text-primary">الخطوة 3: إدخال البيانات هنا</p>
             <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-              <li>اضغط <strong>"+ إضافة هاتف جديد"</strong></li>
-              <li>أدخل البيانات واضغط حفظ ثم اختبر الاتصال</li>
-              <li>يمكنك إضافة <strong>عدة هواتف</strong> لتوزيع الرسائل عليها!</li>
+              <li>اضغط <strong>"+ إضافة هاتف جديد"</strong> واختر نوع البوابة <strong>SMS Gateway Master</strong></li>
+              <li>ألصق <strong>عنوان السيرفر</strong> و <strong>مفتاح API</strong></li>
+              <li>اختر شريحة SIM إن كان الهاتف يحوي شريحتين</li>
+              <li>اضغط <strong>اختبار الاتصال</strong> ثم <strong>حفظ الكل</strong></li>
             </ol>
+          </div>
+          <div className="rounded-lg border bg-background p-3 space-y-2">
+            <p className="font-bold text-primary">الخطوة 4 (اختياري): إعدادات متقدمة</p>
+            <p className="text-muted-foreground">
+              إذا كان إصدار التطبيق يستخدم مساراً أو أسماء حقول مختلفة، افتح <strong>إعدادات متقدمة</strong> داخل بطاقة الهاتف
+              وعدّل المسار (<code dir="ltr">/sendsms</code>) وأسماء الحقول (<code dir="ltr">apikey / number / message / sim</code>)
+              أو غيّر الطريقة إلى <code dir="ltr">POST</code> حسب ما هو مكتوب في شاشة API داخل التطبيق.
+            </p>
           </div>
           <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1">
             <p className="font-bold text-destructive">⚠️ ملاحظات مهمة:</p>
             <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
-              <li>يجب أن يكون تطبيق SMSGate <strong>مفتوحاً</strong> على الهاتف أثناء الإرسال</li>
+              <li>يجب أن يكون سيرفر التطبيق <strong>مشغّلاً</strong> على الهاتف أثناء الإرسال</li>
+              <li>الربط المحلي يعمل عبر نسخة سطح المكتب أو على نفس الشبكة (عنوان <code dir="ltr">http://</code>)</li>
               <li>تأكد من وجود <strong>رصيد كافٍ</strong> في شريحة SIM</li>
               <li>عند إضافة عدة هواتف، يتم <strong>توزيع الرسائل تلقائياً</strong> بالتناوب</li>
             </ul>
@@ -80,12 +85,21 @@ function SmsInstructions() {
 const emptyProfile = (): SmsGatewayConfig => ({
   id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
   name: "",
-  mode: "cloud",
+  provider: "master",
+  mode: "local",
   serverUrl: "",
   login: "",
   password: "",
   deviceId: "",
+  apiKey: "",
+  sendPath: MASTER_DEFAULTS.sendPath,
+  httpMethod: MASTER_DEFAULTS.httpMethod,
+  apiKeyParam: MASTER_DEFAULTS.apiKeyParam,
+  phoneParam: MASTER_DEFAULTS.phoneParam,
+  messageParam: MASTER_DEFAULTS.messageParam,
+  simParam: MASTER_DEFAULTS.simParam,
 });
+
 
 function GatewayProfileCard({
   profile,
