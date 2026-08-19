@@ -822,7 +822,6 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         return !(teacher && isBlocked(teacher, day, period));
       };
 
-      const isTarget = (name?: string) => !!name && DOUBLE_PERIOD_SUBJECTS.includes(name);
 
       for (const ck of Object.keys(tt)) {
         for (const subject of DOUBLE_PERIOD_SUBJECTS) {
