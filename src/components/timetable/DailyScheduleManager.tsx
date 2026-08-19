@@ -11,6 +11,9 @@ import { Label } from "@/components/ui/label";
 import { CalendarDays, UserX, Plus, Trash2, FileSpreadsheet, FileText } from "lucide-react";
 import { exportDailyScheduleExcel, exportDailyScheduleDocx, exportDailyScheduleExcelInverted, exportDailyScheduleDocxInverted } from "@/lib/exportDailySchedule";
 import { useAuth } from "@/hooks/useAuth";
+import { loadGatewayProfiles, sendBulkSmsMultiGateway } from "@/lib/smsGateway";
+import { toast } from "@/hooks/use-toast";
+import { MessageSquare, Loader2 } from "lucide-react";
 
 interface DutyTeacher {
   id: string;
@@ -25,6 +28,7 @@ export default function DailyScheduleManager() {
   const [absentTeacherIds, setAbsentTeacherIds] = useState<string[]>([]);
   const [dailyResult, setDailyResult] = useState<ClassTimetable | null>(null);
   const [dutyTeachers, setDutyTeachers] = useState<DutyTeacher[]>([]);
+  const [sending, setSending] = useState(false);
 
   const toggleAbsent = (id: string) => {
     setAbsentTeacherIds(prev =>
@@ -47,6 +51,78 @@ export default function DailyScheduleManager() {
 
   const removeDutyTeacher = (id: string) => {
     setDutyTeachers(prev => prev.filter(dt => dt.id !== id));
+  };
+
+  /**
+   * إرسال رسائل نصية للمعلمين المتأثرين بتعديل الجدول اليومي
+   * (بسبب غياب معلم أو مغادرته) عبر نفس بوابة الرسائل المستخدمة في غياب الطلبة.
+   */
+  const buildAffectedMessages = () => {
+    if (!dailyResult) return [] as { teacherId: string; phone: string; text: string }[];
+    const absentNames = teachers.filter(t => absentTeacherIds.includes(t.id)).map(t => t.name);
+    // المعلمون الذين تغيّرت حصصهم مقارنة بالجدول الأصلي لذلك اليوم
+    const changed = new Map<string, { period: number; className: string; subjectName: string }[]>();
+
+    Object.entries(dailyResult).forEach(([classKey, days]) => {
+      const { className, section } = parseClassKey(classKey);
+      const original = timetable[classKey]?.[selectedDay] || [];
+      const updated = days[0] || [];
+      for (let p = 0; p < periodsPerDay; p++) {
+        const before = original[p];
+        const after = updated[p];
+        const sameCell = before?.teacherId === after?.teacherId && before?.subjectName === after?.subjectName;
+        if (sameCell) continue;
+        if (after) {
+          const list = changed.get(after.teacherId) || [];
+          list.push({ period: p + 1, className: `${className}/${section}`, subjectName: after.subjectName });
+          changed.set(after.teacherId, list);
+        }
+      }
+    });
+
+    const msgs: { teacherId: string; phone: string; text: string }[] = [];
+    changed.forEach((periods, teacherId) => {
+      const teacher = teachers.find(t => t.id === teacherId);
+      if (!teacher || !teacher.phone?.trim()) return;
+      const lines = periods
+        .sort((a, b) => a.period - b.period)
+        .map(x => `الحصة ${x.period}: ${x.subjectName} - ${x.className}`)
+        .join("\n");
+      const reason = absentNames.length > 0 ? `بسبب غياب/مغادرة: ${absentNames.join("، ")}` : "بسبب تعديل الجدول";
+      msgs.push({
+        teacherId,
+        phone: teacher.phone.trim(),
+        text: `${schoolName || "المدرسة"}\nالأستاذ/ة ${teacher.name}\nتم تعديل جدول يوم ${DAYS[selectedDay]} ${reason}.\nحصصك الجديدة:\n${lines}`,
+      });
+    });
+    return msgs;
+  };
+
+  const handleSendSms = async () => {
+    const msgs = buildAffectedMessages();
+    if (msgs.length === 0) {
+      toast({ title: "لا توجد رسائل للإرسال", description: "تأكد من إدخال أرقام هواتف المعلمين المتأثرين بالتعديل", variant: "destructive" });
+      return;
+    }
+    const profiles = loadGatewayProfiles();
+    if (profiles.length === 0) {
+      toast({ title: "لا توجد بوابة رسائل", description: "أضف بوابة الرسائل من إعدادات غياب الطلبة أولاً", variant: "destructive" });
+      return;
+    }
+    setSending(true);
+    try {
+      const { sent, failed } = await sendBulkSmsMultiGateway(
+        profiles,
+        msgs.map(m => ({ phone: m.phone, text: m.text }))
+      );
+      toast({
+        title: `تم إرسال ${sent} رسالة`,
+        description: failed.length > 0 ? `فشل إرسال ${failed.length} رسالة` : "تم إشعار جميع المعلمين المتأثرين",
+        variant: failed.length > 0 ? "destructive" : "default",
+      });
+    } finally {
+      setSending(false);
+    }
   };
 
   if (Object.keys(timetable).length === 0) return null;
@@ -231,6 +307,17 @@ export default function DailyScheduleManager() {
               }}>
                 <FileText className="w-4 h-4 ml-1" /> Word معكوس
               </Button>
+            </div>
+
+            {/* إشعار المعلمين برسائل نصية */}
+            <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+              <Button size="sm" variant="default" onClick={handleSendSms} disabled={sending}>
+                {sending ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <MessageSquare className="w-4 h-4 ml-1" />}
+                إرسال رسائل للمعلمين المتأثرين
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                {buildAffectedMessages().length} معلم لديه رقم هاتف وتغيّر جدوله
+              </span>
             </div>
           </div>
         )}

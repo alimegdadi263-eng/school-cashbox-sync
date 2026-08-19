@@ -21,6 +21,7 @@ export default function TeacherManager() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [subjects, setSubjects] = useState<SubjectAssignment[]>([]);
   const [blockedPeriods, setBlockedPeriods] = useState<BlockedPeriod[]>([]);
   const [newSubject, setNewSubject] = useState("");
@@ -65,6 +66,7 @@ export default function TeacherManager() {
 
   const resetForm = () => {
     setName("");
+    setPhone("");
     setSubjects([]);
     setBlockedPeriods([]);
     setNewSubject("");
@@ -83,6 +85,7 @@ export default function TeacherManager() {
   const openEdit = (t: Teacher) => {
     setEditingTeacher(t);
     setName(t.name);
+    setPhone(t.phone || "");
     setSubjects([...t.subjects]);
     setBlockedPeriods([...(t.blockedPeriods || [])]);
     setDialogOpen(true);
@@ -145,10 +148,10 @@ export default function TeacherManager() {
     }
 
     if (editingTeacher) {
-      updateTeacher({ ...editingTeacher, name: name.trim(), subjects, blockedPeriods });
+      updateTeacher({ ...editingTeacher, name: name.trim(), phone: phone.trim(), subjects, blockedPeriods });
       toast({ title: "تم تحديث المعلم بنجاح" });
     } else {
-      addTeacher({ id: crypto.randomUUID(), name: name.trim(), subjects, blockedPeriods });
+      addTeacher({ id: crypto.randomUUID(), name: name.trim(), phone: phone.trim(), subjects, blockedPeriods });
       toast({ title: "تم إضافة المعلم بنجاح" });
     }
     setDialogOpen(false);
@@ -468,6 +471,7 @@ export default function TeacherManager() {
             <TableHeader>
               <TableRow>
                 <TableHead className="text-right">المعلم</TableHead>
+                <TableHead className="text-right">الهاتف</TableHead>
                 <TableHead className="text-right">المواد والصفوف</TableHead>
                 <TableHead className="text-right">إجمالي الحصص</TableHead>
                 <TableHead className="text-right">إجراءات</TableHead>
@@ -477,6 +481,7 @@ export default function TeacherManager() {
               {teachers.map(t => (
                 <TableRow key={t.id}>
                   <TableCell className="font-medium">{t.name}</TableCell>
+                  <TableCell dir="ltr" className="text-right text-xs">{t.phone || "—"}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
                       {t.subjects.map((s, i) => (
@@ -512,9 +517,21 @@ export default function TeacherManager() {
           </DialogHeader>
 
           <div className="space-y-4">
-            <div>
-              <Label>اسم المعلم</Label>
-              <Input value={name} onChange={e => setName(e.target.value)} placeholder="اسم المعلم" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label>اسم المعلم</Label>
+                <Input value={name} onChange={e => setName(e.target.value)} placeholder="اسم المعلم" />
+              </div>
+              <div>
+                <Label>رقم الهاتف (اختياري)</Label>
+                <Input
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  placeholder="مثال: 0790000000"
+                  inputMode="tel"
+                  dir="ltr"
+                />
+              </div>
             </div>
 
             <div className="border rounded-lg p-4 space-y-3">
