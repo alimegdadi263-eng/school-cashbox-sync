@@ -512,9 +512,21 @@ export default function TeacherManager() {
           </DialogHeader>
 
           <div className="space-y-4">
-            <div>
-              <Label>اسم المعلم</Label>
-              <Input value={name} onChange={e => setName(e.target.value)} placeholder="اسم المعلم" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label>اسم المعلم</Label>
+                <Input value={name} onChange={e => setName(e.target.value)} placeholder="اسم المعلم" />
+              </div>
+              <div>
+                <Label>رقم الهاتف (اختياري)</Label>
+                <Input
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  placeholder="مثال: 0790000000"
+                  inputMode="tel"
+                  dir="ltr"
+                />
+              </div>
             </div>
 
             <div className="border rounded-lg p-4 space-y-3">
