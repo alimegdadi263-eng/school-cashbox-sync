@@ -355,12 +355,17 @@ export default function SmsGatewaySettings() {
   };
 
   const handleSaveAll = () => {
-    const invalid = profiles.find(p => !p.login || !p.password);
+    const masterInvalid = profiles.find(p => (p.provider || "smsgate") === "master" && (!p.serverUrl || !p.apiKey));
+    if (masterInvalid) {
+      toast({ title: `يرجى إدخال عنوان السيرفر ومفتاح API للهاتف "${masterInvalid.name || "بدون اسم"}"`, variant: "destructive" });
+      return;
+    }
+    const invalid = profiles.find(p => (p.provider || "smsgate") !== "master" && (!p.login || !p.password));
     if (invalid) {
       toast({ title: "يرجى تعبئة بيانات جميع الهواتف", variant: "destructive" });
       return;
     }
-    const cloudInvalid = profiles.find(p => p.mode === "cloud" && !p.deviceId);
+    const cloudInvalid = profiles.find(p => (p.provider || "smsgate") !== "master" && p.mode === "cloud" && !p.deviceId);
     if (cloudInvalid) {
       toast({ title: `يرجى إدخال Device ID للهاتف "${cloudInvalid.name || "بدون اسم"}"`, variant: "destructive" });
       return;
@@ -376,20 +381,20 @@ export default function SmsGatewaySettings() {
         <CardContent className="py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="font-bold text-base">📲 تطبيق SMSGate (مطلوب)</h3>
-              <p className="text-sm text-muted-foreground">حمّل التطبيق على هاتفك الأندرويد لإرسال SMS مجاناً</p>
+              <h3 className="font-bold text-base">📲 تطبيق SMS Gateway Master (مطلوب)</h3>
+              <p className="text-sm text-muted-foreground">
+                ثبّت التطبيق على هاتف أندرويد، شغّل السيرفر، وانسخ عنوان السيرفر ومفتاح API ثم ألصقهما هنا.
+              </p>
             </div>
             <div className="flex gap-2">
-              <a href="https://play.google.com/store/apps/details?id=me.capcom.smsgateway" target="_blank" rel="noopener noreferrer">
+              <a href="https://play.google.com/store/search?q=SMS%20Gateway%20Master&c=apps" target="_blank" rel="noopener noreferrer">
                 <Button className="gap-2"><Download className="h-4 w-4" /> Google Play</Button>
-              </a>
-              <a href="/downloads/SMSGate.apk" download="SMSGate.apk">
-                <Button variant="outline" className="gap-2"><Download className="h-4 w-4" /> تحميل APK مباشر</Button>
               </a>
             </div>
           </div>
         </CardContent>
       </Card>
+
 
       <SmsInstructions />
 
