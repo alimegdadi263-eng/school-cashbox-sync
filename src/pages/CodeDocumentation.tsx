@@ -83,14 +83,15 @@ const sections: DocSection[] = [
     icon: Smartphone,
     color: "text-emerald-500",
     items: [
-      { file: "src/lib/smsGateway.ts", description: "المكتبة الأساسية لـ SMS: تدعم عدة بوابات (Multi-Gateway Profiles) مع توزيع Round-Robin. تحفظ الإعدادات في localStorage. تدعم وضعين: سحابي (Cloud عبر api.sms-gate.app) ومحلي (LAN عبر IP مباشر). جميع الطلبات تمر عبر Edge Function (sms-proxy)." },
-      { file: "loadGatewayProfiles()", description: "يحمّل جميع بوابات SMS المحفوظة. يدعم الترقية التلقائية من الإعداد القديم (single config) إلى النظام الجديد (multi-profile)." },
-      { file: "sendSmsViaGateway()", description: "إرسال رسالة واحدة: يبني طلب POST مع headers مخصصة (x-sms-auth للمصادقة Base64، x-sms-mode، x-sms-server) ويرسلها عبر sms-proxy Edge Function. يدعم تحديد simNumber للهواتف ذات الشريحتين." },
-      { file: "sendBulkSmsMultiGateway()", description: "الإرسال الجماعي: يوزع الرسائل بالتناوب (Round-Robin) على جميع البوابات المتاحة. مثال: 30 رسالة + 3 هواتف = 10 رسائل لكل هاتف. يدعم onProgress callback لإظهار تقدم الإرسال." },
-      { file: "testGatewayConnection()", description: "اختبار الاتصال: يرسل طلب GET عبر sms-proxy مع x-sms-action: test للتحقق من أن البوابة تعمل." },
-      { file: "src/components/studentAbsence/SmsGatewaySettings.tsx", description: "واجهة إعدادات SMS: تدعم إضافة/تعديل/حذف عدة هواتف (GatewayProfileCard). كل بوابة لها اسم ووضع اتصال وبيانات مصادقة وخيار SIM. تتضمن دليل إعداد كامل (SmsInstructions) وأزرار تحميل التطبيق." },
+      { file: "src/lib/smsGateway.ts", description: "المكتبة الأساسية لـ SMS: مبنية على واجهة Traccar SMS Gateway الرسمية (POST http://IP:PORT/ مع ترويسة Authorization = مفتاح API وجسم JSON {to, message}). تدعم عدة هواتف (Multi-Gateway Profiles) مع توزيع Round-Robin وتحفظ الإعدادات في localStorage." },
+      { file: "loadGatewayProfiles()", description: "يحمّل جميع الهواتف المحفوظة ويرقّي الإعداد القديم تلقائياً إلى الحقول الجديدة (host, port, apiKey)." },
+      { file: "sendSmsViaGateway()", description: "إرسال رسالة واحدة إلى Traccar: يرسل POST بجسم {to, message}. في نسخة سطح المكتب يمر الطلب عبر Electron IPC (sms-http-request) لتفادي قيود CORS، ويحوّل أخطاء HTTP إلى رسائل عربية واضحة." },
+      { file: "sendBulkSmsMultiGateway()", description: "الإرسال الجماعي: يوزع الرسائل بالتناوب (Round-Robin) على جميع الهواتف المتاحة، ويرسل كل رسالة مرة واحدة فقط، ويسجّل الفشل دون إيقاف باقي الرسائل مع onProgress لعرض التقدم." },
+      { file: "testGatewayConnection()", description: "اختبار الاتصال: يتحقق من وصول الحاسوب إلى تطبيق Traccar على الهاتف ومن قبول مفتاح API، ويعيد سبب الفشل بوضوح." },
+      { file: "src/components/studentAbsence/SmsGatewaySettings.tsx", description: "واجهة إعدادات SMS: إضافة/حذف هواتف (اسم، IP، Port، مفتاح API)، زر اختبار الاتصال، وبطاقة إرسال رسالة اختبار، إضافة إلى دليل الربط خطوة بخطوة." },
       { file: "وضع واتساب الآمن", description: "في DailyAbsenceTracker: يفتح محادثات واتساب واحدة تلو الأخرى عبر wa.me links مع تحويل تلقائي للأرقام الأردنية (07xx → 962xx). يمنع الحظر من واتساب مقارنة بالفتح الجماعي." },
-      { file: "supabase/functions/sms-proxy", description: "Edge Function وسيطة: تتجاوز CORS عن طريق استقبال الطلبات من المتصفح وتمريرها إلى SMSGate API. في الوضع السحابي ترسل إلى https://api.sms-gate.app/3rdparty/v1، وفي المحلي ترسل إلى عنوان IP المحلي." },
+      { file: "electron/main.cjs — sms-http-request", description: "معالج IPC في العملية الرئيسية ينفّذ طلب HTTP مباشر إلى الهاتف على الشبكة المحلية (بدون CORS) مع مهلة 20 ثانية وإرجاع رسائل خطأ الشبكة." },
+
     ],
   },
   {
