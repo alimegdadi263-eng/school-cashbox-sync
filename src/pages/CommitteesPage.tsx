@@ -7,8 +7,28 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useFinance } from "@/context/FinanceContext";
 import { generateCommitteeDocx, CommitteeMember } from "@/lib/generateCommitteeDocx";
-import { Plus, Trash2, FileText, Users } from "lucide-react";
+import { Plus, Trash2, FileText, Users, Pencil } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const DEFAULT_COMMITTEE_NAMES = [
+  "الكشافة الخاصة بالمدرسة",
+  "لجنة الدفاع المدني",
+  "اللجنة الخاصة بجائزة الملك عبدالله للياقة البدنية",
+  "لجنة الإذاعة المدرسية",
+  "لجنة المقصف المدرسي",
+  "تشكيل اللجنة المالية",
+  "لجنة الصحة المدرسية",
+  "منصة أجيال",
+  "مجلس البيئة المدرسة الآمنة",
+  "اللجنة الاجتماعية",
+  "لجنة النظافة",
+  "الصيانة المدرسية",
+  "لجنة التغذية المدرسية",
+  "اللجنة المشرفة على غرفة المصادر",
+  "تشكيل الانضباط الطلابي",
+];
+
+const COMMITTEE_NAMES_KEY = "school-committee-names";
 
 const ROLE_OPTIONS = ["رئيسا", "نائب الرئيس", "عضوا", "معلم", "مساعد مدير", "مرشد", "سكرتير", "طالب"];
 
@@ -17,6 +37,43 @@ export default function CommitteesPage() {
   const { state } = useFinance();
 
   const [committeeName, setCommitteeName] = useState("");
+  const [committeeNames, setCommitteeNames] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(COMMITTEE_NAMES_KEY);
+      const parsed = saved ? JSON.parse(saved) : null;
+      return Array.isArray(parsed) && parsed.length ? parsed : DEFAULT_COMMITTEE_NAMES;
+    } catch { return DEFAULT_COMMITTEE_NAMES; }
+  });
+  const [newName, setNewName] = useState("");
+  const [editingName, setEditingName] = useState(false);
+  const [editedName, setEditedName] = useState("");
+
+  const persistNames = (list: string[]) => {
+    setCommitteeNames(list);
+    localStorage.setItem(COMMITTEE_NAMES_KEY, JSON.stringify(list));
+  };
+
+  const addCommitteeName = () => {
+    const n = newName.trim();
+    if (!n) return;
+    if (committeeNames.includes(n)) {
+      toast({ title: "اللجنة موجودة مسبقاً", variant: "destructive" });
+      return;
+    }
+    persistNames([...committeeNames, n]);
+    setCommitteeName(n);
+    setNewName("");
+    toast({ title: "تمت إضافة اللجنة للقائمة" });
+  };
+
+  const saveEditedName = () => {
+    const n = editedName.trim();
+    if (!n || !committeeName) return;
+    persistNames(committeeNames.map(c => (c === committeeName ? n : c)));
+    setCommitteeName(n);
+    setEditingName(false);
+    toast({ title: "تم تعديل اسم اللجنة" });
+  };
   const [academicYear, setAcademicYear] = useState("2025/2026");
   const [directorName, setDirectorName] = useState(state.directorName || "");
   const [schoolPhone, setSchoolPhone] = useState("");
@@ -132,13 +189,49 @@ export default function CommitteesPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
+              <div className="space-y-2 md:col-span-2">
                 <Label>اسم اللجنة</Label>
-                <Input
-                  value={committeeName}
-                  onChange={e => setCommitteeName(e.target.value)}
-                  placeholder='مثال: مبادرة "مقدام" و الأفكار الريادية'
-                />
+                {editingName ? (
+                  <div className="flex gap-2">
+                    <Input value={editedName} onChange={e => setEditedName(e.target.value)} placeholder="اسم اللجنة" />
+                    <Button size="sm" onClick={saveEditedName}>حفظ</Button>
+                    <Button size="sm" variant="outline" onClick={() => setEditingName(false)}>إلغاء</Button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Select value={committeeName || undefined} onValueChange={setCommitteeName}>
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="اختر اللجنة" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {committeeNames.map(n => (
+                          <SelectItem key={n} value={n}>{n}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      title="تعديل اسم اللجنة"
+                      disabled={!committeeName}
+                      onClick={() => { setEditedName(committeeName); setEditingName(true); }}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+                <div className="flex gap-2 pt-1">
+                  <Input
+                    value={newName}
+                    onChange={e => setNewName(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCommitteeName(); } }}
+                    placeholder="إضافة لجنة غير موجودة في القائمة"
+                    className="h-9"
+                  />
+                  <Button size="sm" variant="outline" onClick={addCommitteeName}>
+                    <Plus className="w-4 h-4 ml-1" /> إضافة
+                  </Button>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>العام الدراسي</Label>
