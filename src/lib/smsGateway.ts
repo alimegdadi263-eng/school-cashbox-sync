@@ -9,17 +9,103 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const PROXY_URL = `${SUPABASE_URL}/functions/v1/sms-proxy`;
 
 export type GatewayMode = "local" | "cloud";
+export type GatewayProvider = "smsgate" | "master";
 
 export interface SmsGatewayConfig {
   id?: string;
   name?: string; // e.g. "هاتف أحمد", "هاتف محمد"
+  provider?: GatewayProvider; // default "smsgate" (legacy)
   mode: GatewayMode;
   serverUrl: string;
   login: string;
   password: string;
   deviceId: string;
   simNumber?: number;
+  // --- SMS Gateway Master (API key) ---
+  apiKey?: string;
+  sendPath?: string; // default "/sendsms"
+  httpMethod?: "GET" | "POST"; // default "GET"
+  apiKeyParam?: string; // default "apikey"
+  phoneParam?: string; // default "number"
+  messageParam?: string; // default "message"
+  simParam?: string; // default "sim"
 }
+
+export const MASTER_DEFAULTS = {
+  sendPath: "/sendsms",
+  httpMethod: "GET" as const,
+  apiKeyParam: "apikey",
+  phoneParam: "number",
+  messageParam: "message",
+  simParam: "sim",
+};
+
+export function isMaster(c: SmsGatewayConfig) {
+  return c.provider === "master";
+}
+
+function masterUrl(config: SmsGatewayConfig, phone?: string, message?: string) {
+  const base = (config.serverUrl || "").replace(/\/$/, "");
+  const path = config.sendPath || MASTER_DEFAULTS.sendPath;
+  const url = new URL(`${base}${path.startsWith("/") ? path : `/${path}`}`);
+  url.searchParams.set(config.apiKeyParam || MASTER_DEFAULTS.apiKeyParam, config.apiKey || "");
+  if (phone !== undefined) url.searchParams.set(config.phoneParam || MASTER_DEFAULTS.phoneParam, phone);
+  if (message !== undefined) url.searchParams.set(config.messageParam || MASTER_DEFAULTS.messageParam, message);
+  if (config.simNumber) url.searchParams.set(config.simParam || MASTER_DEFAULTS.simParam, String(config.simNumber));
+  return url.toString();
+}
+
+// Send through SMS Gateway Master (direct HTTP call to the phone / server, API key auth)
+async function sendViaMaster(
+  config: SmsGatewayConfig,
+  phone: string,
+  message: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!config.serverUrl) return { success: false, error: "عنوان السيرفر مفقود" };
+    if (!config.apiKey) return { success: false, error: "مفتاح API مفقود" };
+
+    const method = config.httpMethod || MASTER_DEFAULTS.httpMethod;
+    let res: Response;
+
+    if (method === "POST") {
+      const base = (config.serverUrl || "").replace(/\/$/, "");
+      const path = config.sendPath || MASTER_DEFAULTS.sendPath;
+      res = await fetch(`${base}${path.startsWith("/") ? path : `/${path}`}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-KEY": config.apiKey,
+          Authorization: `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify({
+          [config.apiKeyParam || MASTER_DEFAULTS.apiKeyParam]: config.apiKey,
+          [config.phoneParam || MASTER_DEFAULTS.phoneParam]: phone,
+          [config.messageParam || MASTER_DEFAULTS.messageParam]: message,
+          ...(config.simNumber ? { [config.simParam || MASTER_DEFAULTS.simParam]: config.simNumber } : {}),
+        }),
+      });
+    } else {
+      res = await fetch(masterUrl(config, phone, message), {
+        method: "GET",
+        headers: { "X-API-KEY": config.apiKey },
+      });
+    }
+
+    if (!res.ok) {
+      const text = await res.text();
+      return { success: false, error: `HTTP ${res.status}: ${text.slice(0, 200)}` };
+    }
+    const text = await res.text();
+    if (/"?(success|status)"?\s*[:=]\s*"?(false|error|failed)"?/i.test(text)) {
+      return { success: false, error: text.slice(0, 200) };
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "فشل الاتصال بالبوابة" };
+  }
+}
+
 
 // --- Multi-profile management ---
 
@@ -90,8 +176,10 @@ export async function sendSmsViaGateway(
   phone: string,
   message: string
 ): Promise<{ success: boolean; error?: string }> {
+  if (isMaster(config)) return sendViaMaster(config, phone, message);
   try {
     const auth = getAuthToken(config);
+
 
     const res = await fetch(PROXY_URL, {
       method: "POST",
@@ -125,8 +213,19 @@ export async function sendSmsViaGateway(
 export async function testGatewayConnection(
   config: SmsGatewayConfig
 ): Promise<boolean> {
+  if (isMaster(config)) {
+    try {
+      if (!config.serverUrl || !config.apiKey) return false;
+      const res = await fetch(masterUrl(config), { method: "GET", headers: { "X-API-KEY": config.apiKey } });
+      // any HTTP answer means the phone server is reachable and the key was accepted/rejected
+      return res.status !== 401 && res.status !== 403;
+    } catch {
+      return false;
+    }
+  }
   try {
     const auth = getAuthToken(config);
+
 
     const res = await fetch(PROXY_URL, {
       method: "GET",
