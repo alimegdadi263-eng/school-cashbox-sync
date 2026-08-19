@@ -254,15 +254,19 @@ export default function InstructionsPage() {
               </CardHeader>
               <CardContent className="space-y-1">
                 {visible.map((s) => (
-                  <a
+                  <button
                     key={s.id}
-                    href={`#${s.id}`}
-                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    type="button"
+                    onClick={() => {
+                      document.getElementById(s.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                    className="w-full text-right flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                   >
                     <s.icon className="w-4 h-4 text-accent shrink-0" />
                     <span className="truncate">{s.title}</span>
-                  </a>
+                  </button>
                 ))}
+
                 {visible.length === 0 && <p className="text-xs text-muted-foreground">لا نتائج</p>}
               </CardContent>
             </Card>
