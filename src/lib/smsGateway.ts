@@ -224,49 +224,68 @@ export async function testGatewayConnection(
 }
 
 
+/** Try every configured phone until one of them accepts the message.
+ *  Useful when phones belong to different Wi-Fi networks: the unreachable
+ *  ones simply fail fast and the next one takes over. */
+export async function sendSmsAnyGateway(
+  profiles: SmsGatewayConfig[],
+  phone: string,
+  message: string,
+  startIndex = 0
+): Promise<{ success: boolean; error?: string; usedIndex?: number }> {
+  const usable = profiles.filter((p) => !validate(p));
+  if (usable.length === 0) {
+    return { success: false, error: "لا توجد بوابة إرسال مكتملة الإعدادات" };
+  }
+  let lastError = "";
+  for (let i = 0; i < usable.length; i++) {
+    const idx = (startIndex + i) % usable.length;
+    const res = await sendSmsViaGateway(usable[idx], phone, message);
+    if (res.success) return { success: true, usedIndex: idx };
+    lastError = `${usable[idx].name || "هاتف"}: ${res.error}`;
+  }
+  return { success: false, error: lastError };
+}
+
 export async function sendBulkSmsViaGateway(
   config: SmsGatewayConfig,
   messages: { phone: string; text: string }[],
   onProgress?: (sent: number, total: number, failed: string[]) => void
 ): Promise<{ sent: number; failed: { phone: string; error: string }[] }> {
-  const failed: { phone: string; error: string }[] = [];
-  let sent = 0;
-
-  for (const msg of messages) {
-    const result = await sendSmsViaGateway(config, msg.phone, msg.text);
-    if (result.success) sent++;
-    else failed.push({ phone: msg.phone, error: result.error || "خطأ غير معروف" });
-    onProgress?.(sent, messages.length, failed.map((f) => f.phone));
-    await new Promise((r) => setTimeout(r, 300));
-  }
-
-  return { sent, failed };
+  return sendBulkSmsMultiGateway([config], messages, onProgress);
 }
 
-/** Distribute messages across several phones (round-robin). Each message is
- *  sent exactly once — a failure is recorded and the loop continues. */
+/** Distribute messages across several phones (round-robin) with automatic
+ *  failover: if the chosen phone is unreachable the message is retried on the
+ *  other phones before being marked as failed. */
 export async function sendBulkSmsMultiGateway(
   profiles: SmsGatewayConfig[],
   messages: { phone: string; text: string }[],
   onProgress?: (sent: number, total: number, failed: string[]) => void
 ): Promise<{ sent: number; failed: { phone: string; error: string }[] }> {
-  if (profiles.length === 0) {
+  const usable = profiles.filter((p) => !validate(p));
+  if (usable.length === 0) {
     return { sent: 0, failed: messages.map((m) => ({ phone: m.phone, error: "لا توجد بوابات" })) };
   }
-  if (profiles.length === 1) return sendBulkSmsViaGateway(profiles[0], messages, onProgress);
 
   const failed: { phone: string; error: string }[] = [];
   let sent = 0;
+  let cursor = 0;
 
   for (let i = 0; i < messages.length; i++) {
-    const profile = profiles[i % profiles.length];
     const msg = messages[i];
-    const result = await sendSmsViaGateway(profile, msg.phone, msg.text);
-    if (result.success) sent++;
-    else failed.push({ phone: msg.phone, error: result.error || "خطأ غير معروف" });
+    const result = await sendSmsAnyGateway(usable, msg.phone, msg.text, cursor);
+    if (result.success) {
+      sent++;
+      // keep rotating from the phone that worked
+      cursor = ((result.usedIndex ?? cursor) + 1) % usable.length;
+    } else {
+      failed.push({ phone: msg.phone, error: result.error || "خطأ غير معروف" });
+    }
     onProgress?.(sent, messages.length, failed.map((f) => f.phone));
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 250));
   }
 
   return { sent, failed };
 }
+

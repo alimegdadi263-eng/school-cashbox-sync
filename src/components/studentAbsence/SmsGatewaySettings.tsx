@@ -14,7 +14,7 @@ import {
   loadGatewayProfiles,
   saveGatewayProfiles,
   testGatewayConnection,
-  sendSmsViaGateway,
+  sendSmsAnyGateway,
   gatewayUrl,
   TRACCAR_DEFAULT_PORT,
   type SmsGatewayConfig,
@@ -136,10 +136,11 @@ export default function SmsGatewaySettings() {
       return;
     }
     setSendingTest(true);
-    const res = await sendSmsViaGateway(profiles[0], testPhone.trim(), testText.trim());
+    const res = await sendSmsAnyGateway(profiles, testPhone.trim(), testText.trim());
     setSendingTest(false);
     if (res.success) {
-      toast({ title: "تم إرسال الرسالة بنجاح", description: `إلى ${testPhone}` });
+      const used = profiles.filter((p) => p.host && p.apiKey)[res.usedIndex ?? 0];
+      toast({ title: "تم إرسال الرسالة بنجاح", description: `إلى ${testPhone} عبر ${used?.name || "الهاتف"}` });
     } else {
       toast({ variant: "destructive", title: "فشل إرسال الرسالة", description: res.error });
     }
