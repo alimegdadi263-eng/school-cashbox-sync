@@ -14,7 +14,7 @@ import {
   loadGatewayProfiles,
   saveGatewayProfiles,
   testGatewayConnection,
-  sendSmsViaGateway,
+  sendSmsAnyGateway,
   gatewayUrl,
   TRACCAR_DEFAULT_PORT,
   type SmsGatewayConfig,
@@ -66,7 +66,8 @@ function SmsInstructions() {
             <p>• الإرسال يتم عبر <code dir="ltr">POST http://IP:PORT/</code> بجسم <code dir="ltr">{`{"to":"...","message":"..."}`}</code>.</p>
             <p>• الرسائل تخرج فعليًا من شريحة الهاتف، ولا توجد أي تكلفة على خدمة خارجية.</p>
             <p>• Traccar لا يوفر رسميًا خيار اختيار الشريحة (SIM) عبر الـ API، لذلك يتم الإرسال من الشريحة الافتراضية في إعدادات الهاتف.</p>
-            <p>• يمكن إضافة أكثر من هاتف ليتم توزيع الرسائل بينهم بالتناوب.</p>
+            <p>• يمكن إضافة أكثر من هاتف: البرمجية تجرّب الهواتف واحدًا تلو الآخر تلقائيًا، فإذا كان أحدها على شبكة أخرى أو مطفأ يتم الإرسال من الهاتف المتاح.</p>
+            <p>• عند تغيير الشبكة يتغيّر عنوان IP للهاتف عادةً — حدّث العنوان في بطاقة الهاتف أو أضف بطاقة جديدة، وكلاهما سيعمل.</p>
           </div>
 
         </CardContent>
@@ -136,10 +137,11 @@ export default function SmsGatewaySettings() {
       return;
     }
     setSendingTest(true);
-    const res = await sendSmsViaGateway(profiles[0], testPhone.trim(), testText.trim());
+    const res = await sendSmsAnyGateway(profiles, testPhone.trim(), testText.trim());
     setSendingTest(false);
     if (res.success) {
-      toast({ title: "تم إرسال الرسالة بنجاح", description: `إلى ${testPhone}` });
+      const used = profiles.filter((p) => p.host && p.apiKey)[res.usedIndex ?? 0];
+      toast({ title: "تم إرسال الرسالة بنجاح", description: `إلى ${testPhone} عبر ${used?.name || "الهاتف"}` });
     } else {
       toast({ variant: "destructive", title: "فشل إرسال الرسالة", description: res.error });
     }

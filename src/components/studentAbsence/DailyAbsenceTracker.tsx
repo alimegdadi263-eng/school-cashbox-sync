@@ -14,7 +14,7 @@ import { CalendarIcon, Save, MessageSquare, Phone, Send, Copy, Smartphone, Loade
 import { cn } from "@/lib/utils";
 import type { StudentInfo, StudentAbsenceRecord } from "@/types/studentAbsence";
 import { STUDENTS_LIST_KEY, STUDENT_STORAGE_KEY } from "@/types/studentAbsence";
-import { loadGatewayConfig, loadGatewayProfiles, sendBulkSmsMultiGateway, sendSmsViaGateway } from "@/lib/smsGateway";
+import { loadGatewayConfig, loadGatewayProfiles, sendBulkSmsMultiGateway, sendSmsAnyGateway } from "@/lib/smsGateway";
 
 const DAYS_AR = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 
@@ -127,9 +127,9 @@ export default function DailyAbsenceTracker({ userId, schoolName }: Props) {
       toast({ title: "يرجى إعداد بوابة SMS أولاً من تبويب 'إعدادات SMS'", variant: "destructive" });
       return;
     }
-    const config = profiles[0];
     setSendingIndividual(rec.id);
-    const result = await sendSmsViaGateway(config, rec.parentPhone, buildMessage(rec));
+    const result = await sendSmsAnyGateway(profiles, rec.parentPhone, buildMessage(rec));
+
     setSendingIndividual(null);
     if (result.success) {
       toast({ title: `✅ تم إرسال SMS لولي أمر ${rec.studentName}` });
