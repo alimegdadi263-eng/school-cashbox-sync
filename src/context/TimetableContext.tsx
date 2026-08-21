@@ -848,6 +848,36 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         return !(teacher && isBlocked(teacher, day, period));
       };
 
+      /**
+       * محاولة تفريغ المعلم في توقيت معيّن بنقل حصته المتعارضة (في صف آخر)
+       * إلى خانة فارغة مناسبة داخل صفّها، دون تعارض ودون المساس بخانات النشاط.
+       */
+      const freeUpTeacher = (teacherId: string, day: number, period: number, exceptClassKey: string) => {
+        const teacher = teachers.find(t => t.id === teacherId);
+        if (teacher && isBlocked(teacher, day, period)) return false;
+        for (const [ck2, days] of Object.entries(tt)) {
+          if (ck2 === exceptClassKey) continue;
+          const cell = days[day]?.[period];
+          if (!cell || cell.teacherId !== teacherId) continue;
+          if (isLocked(ck2, day, period)) return false;
+          for (let d2 = 0; d2 < daysCount; d2++) {
+            for (let p2 = 0; p2 < periodsPerDay; p2++) {
+              if (d2 === day && p2 === period) continue;
+              if (tt[ck2][d2][p2] !== null) continue;
+              if (isLocked(ck2, d2, p2)) continue;
+              if (!freeAt(teacherId, d2, p2, ck2)) continue;
+              tt[ck2][d2][p2] = cell;
+              tt[ck2][day][period] = null;
+              return true;
+            }
+          }
+          return false;
+        }
+        return false;
+      };
+
+
+
 
       for (const ck of Object.keys(tt)) {
         for (const subject of DOUBLE_PERIOD_SUBJECTS) {
@@ -883,8 +913,9 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                   if (isLocked(ck, other.day, other.period)) continue;
                   const otherCell = tt[ck][other.day][other.period]!;
                   if (!otherCell) continue;
-                  if (!freeAt(otherCell.teacherId, anchor.day, neighbor, ck)) continue;
-                  if (target && !freeAt(target.teacherId, other.day, other.period, ck)) continue;
+                  if (!freeAt(otherCell.teacherId, anchor.day, neighbor, ck) && !freeUpTeacher(otherCell.teacherId, anchor.day, neighbor, ck)) continue;
+                  if (target && !freeAt(target.teacherId, other.day, other.period, ck) && !freeUpTeacher(target.teacherId, other.day, other.period, ck)) continue;
+
 
                   tt[ck][anchor.day][neighbor] = otherCell;
                   tt[ck][other.day][other.period] = target;
@@ -981,9 +1012,18 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
           return !!c && c.teacherId === g.teacherId && c.subjectName === g.subjectName;
         };
 
+        // إن كانت الخانتان مضبوطتين أصلاً (نفس المعلم والمادة) فثبّتهما وانتقل
+        const cA = tt[ck][day][pA];
+        const cB = tt[ck][day][pB];
+        if (cA && cB && cA.teacherId === cB.teacherId && cA.subjectName === cB.subjectName) {
+          activityLocked.add(lockKey(ck, day, pA));
+          activityLocked.add(lockKey(ck, day, pB));
+          continue;
+        }
         // ألغِ أي قفل سابق لهذا الصف قبل إعادة الضبط
         activityLocked.delete(lockKey(ck, day, pA));
         activityLocked.delete(lockKey(ck, day, pB));
+
 
         for (const g of candidates) {
           // نسخة احتياطية للتراجع في حال فشل ملء الخانتين
@@ -1107,11 +1147,14 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       forcePlaceRemaining(newTT);
       compactTimetable(newTT);
     }
+    for (let r = 0; r < 3; r++) {
+      if (activityPeriods) alignActivityDouble(newTT);
+      forcePlaceRemaining(newTT);
+      if (pairDoubleSubjects) pairDoublePeriodSubjects(newTT);
+    }
     if (activityPeriods) alignActivityDouble(newTT);
     forcePlaceRemaining(newTT);
-    if (pairDoubleSubjects) pairDoublePeriodSubjects(newTT);
-    if (activityPeriods) alignActivityDouble(newTT);
-    forcePlaceRemaining(newTT);
+
 
 
 
