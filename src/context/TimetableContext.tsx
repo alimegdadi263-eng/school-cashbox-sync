@@ -1144,7 +1144,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     };
 
     // ترتيب الجولات: ملء ورصّ ← تثبيت حصص النشاط (الثانية والثالثة متتاليتين في يوم الصف)
-    // ← إقران المهارات الرقمية/المهني (بأي يوم) دون المساس بخانات النشاط المقفلة ← ملء أخير.
+    // ← إقران المهارات الرقمية/المهني (بأي يوم، دائماً) دون المساس بخانات النشاط المقفلة ← ملء أخير.
     for (let i = 0; i < 3; i++) {
       forcePlaceRemaining(newTT);
       compactTimetable(newTT);
@@ -1152,10 +1152,12 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     for (let r = 0; r < 3; r++) {
       if (activityPeriods) alignActivityDouble(newTT);
       forcePlaceRemaining(newTT);
-      if (pairDoubleSubjects) pairDoublePeriodSubjects(newTT);
+      pairDoublePeriodSubjects(newTT);
     }
     if (activityPeriods) alignActivityDouble(newTT);
+    pairDoublePeriodSubjects(newTT);
     forcePlaceRemaining(newTT);
+
 
 
 
