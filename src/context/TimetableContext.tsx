@@ -999,13 +999,15 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         candidates.sort((a, b) => {
           const score = (g: typeof a) => {
             let s = 0;
-            if (DOUBLE_PERIOD_SUBJECTS.includes(g.subjectName)) s -= 100;
+            // نُبعد المهارات الرقمية/المهني عن خانة النشاط لأنها تُقرن في أي يوم آخر
+            if (DOUBLE_PERIOD_SUBJECTS.includes(g.subjectName)) s += 200;
             if (cur && g.teacherId === cur.teacherId && g.subjectName === cur.subjectName) s -= 50;
             s -= g.spots.length; // الأكثر حصصاً أسهل في التحريك
             return s;
           };
           return score(a) - score(b);
         });
+
 
         const isMatch = (d: number, p: number, g: { teacherId: string; subjectName: string }) => {
           const c = tt[ck][d][p];
