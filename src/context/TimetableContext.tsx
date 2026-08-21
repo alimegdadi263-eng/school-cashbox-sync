@@ -896,14 +896,11 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     if (pairDoubleSubjects) pairDoublePeriodSubjects(newTT);
 
     /**
-     * حصص النشاط: بدل حجز خانات فارغة باسم "نشاط"، نجعل الحصتين الثانية والثالثة
-     * في يوم النشاط الخاص بالصف متتاليتين لنفس المعلم ونفس المادة (حصة مزدوجة)،
-     * فتظهر في الملحفة كباقي الحصص باسم المعلم والمادة.
+     * أدوات مشتركة للتبديل الآمن داخل نفس الصف.
+     * تبدّل محتوى خانتين في نفس الصف بشرط عدم حدوث تعارض للمعلمين
+     * وعدم وقوع أي حصة في حصة ممنوعة لمعلمها.
      */
-    const alignActivityDouble = (tt: ClassTimetable) => {
-      const [pA, pB] = ACTIVITY_PERIODS;
-      if (pB >= periodsPerDay) return;
-
+    const makeSwapper = (tt: ClassTimetable) => {
       const freeAt = (teacherId: string, day: number, period: number, exceptClassKey: string) => {
         for (const [ck, days] of Object.entries(tt)) {
           if (ck === exceptClassKey) continue;
@@ -913,40 +910,99 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         return !(teacher && isBlocked(teacher, day, period));
       };
 
+      const trySwap = (ck: string, d1: number, p1: number, d2: number, p2: number) => {
+        if (d1 === d2 && p1 === p2) return false;
+        const a = tt[ck][d1][p1];
+        const b = tt[ck][d2][p2];
+        if (!a && !b) return false;
+        if (a && !freeAt(a.teacherId, d2, p2, ck)) return false;
+        if (b && !freeAt(b.teacherId, d1, p1, ck)) return false;
+        tt[ck][d1][p1] = b;
+        tt[ck][d2][p2] = a;
+        return true;
+      };
+
+      return { freeAt, trySwap };
+    };
+
+    /**
+     * حصص النشاط: لكل صف له يوم نشاط محدّد (الأول–الرابع الأحد، الخامس–السابع الاثنين،
+     * الثامن–العاشر الثلاثاء) نجعل الحصتين الثانية والثالثة في ذلك اليوم متتاليتين
+     * لنفس المعلم ونفس المادة، بحيث تظهران في الملحفة كحصص عادية باسم المعلم والمادة.
+     * نُفضّل مادة من مواد الحصص المزدوجة (المهارات الرقمية / التربية المهنية) إن وُجدت.
+     */
+    const alignActivityDouble = (tt: ClassTimetable) => {
+      const [pA, pB] = ACTIVITY_PERIODS;
+      if (pB >= periodsPerDay) return;
+      const { trySwap } = makeSwapper(tt);
+
       for (const ck of Object.keys(tt)) {
         const { className } = parseClassKey(ck);
         const day = getActivityDay(className);
         if (day === undefined || day >= daysCount) continue;
 
-        const anchor = tt[ck][day][pA];
-        if (!anchor) continue;
-        const partner = tt[ck][day][pB];
-        if (partner && partner.teacherId === anchor.teacherId && partner.subjectName === anchor.subjectName) continue;
-
-        // ابحث عن حصة أخرى لنفس المعلم/المادة داخل نفس الصف في يوم آخر وبدّلها مع خانة النشاط الثانية
-        let done = false;
-        for (let d2 = 0; d2 < daysCount && !done; d2++) {
-          if (d2 === day) continue;
-          for (let p2 = 0; p2 < periodsPerDay; p2++) {
-            const c = tt[ck][d2][p2];
-            if (!c || c.teacherId !== anchor.teacherId || c.subjectName !== anchor.subjectName) continue;
-            if (!freeAt(anchor.teacherId, day, pB, ck)) break;
-            if (partner && !freeAt(partner.teacherId, d2, p2, ck)) continue;
-            tt[ck][day][pB] = c;
-            tt[ck][d2][p2] = partner;
-            done = true;
-            break;
+        // اجمع كل حصص الصف مجمّعة حسب (المعلم + المادة)
+        const groups: Record<string, { teacherId: string; subjectName: string; spots: { day: number; period: number }[] }> = {};
+        for (let d = 0; d < daysCount; d++) {
+          for (let p = 0; p < periodsPerDay; p++) {
+            const c = tt[ck][d][p];
+            if (!c) continue;
+            const k = `${c.teacherId}|${c.subjectName}`;
+            if (!groups[k]) groups[k] = { teacherId: c.teacherId, subjectName: c.subjectName, spots: [] };
+            groups[k].spots.push({ day: d, period: p });
           }
+        }
+
+        const candidates = Object.values(groups).filter(g => g.spots.length >= 2);
+        if (candidates.length === 0) continue;
+
+        const cur = tt[ck][day][pA] || tt[ck][day][pB];
+        candidates.sort((a, b) => {
+          const score = (g: typeof a) => {
+            let s = 0;
+            if (DOUBLE_PERIOD_SUBJECTS.includes(g.subjectName)) s -= 100;
+            if (cur && g.teacherId === cur.teacherId && g.subjectName === cur.subjectName) s -= 50;
+            s -= g.spots.length; // الأكثر حصصاً أسهل في التحريك
+            return s;
+          };
+          return score(a) - score(b);
+        });
+
+        const isMatch = (d: number, p: number, g: { teacherId: string; subjectName: string }) => {
+          const c = tt[ck][d][p];
+          return !!c && c.teacherId === g.teacherId && c.subjectName === g.subjectName;
+        };
+
+        for (const g of candidates) {
+          // نسخة احتياطية للتراجع في حال فشل ملء الخانتين
+          const backup = tt[ck].map(row => row.slice());
+          let ok = true;
+
+          for (const targetP of [pA, pB]) {
+            if (isMatch(day, targetP, g)) continue;
+            let filled = false;
+            // ابحث عن حصة لنفس المعلم/المادة في مكان آخر وبدّلها مع خانة الهدف
+            for (let d2 = 0; d2 < daysCount && !filled; d2++) {
+              for (let p2 = 0; p2 < periodsPerDay && !filled; p2++) {
+                if (d2 === day && (p2 === pA || p2 === pB)) continue;
+                if (!isMatch(d2, p2, g)) continue;
+                if (trySwap(ck, day, targetP, d2, p2)) filled = true;
+              }
+            }
+            if (!filled) { ok = false; break; }
+          }
+
+          if (ok && isMatch(day, pA, g) && isMatch(day, pB, g)) break;
+          tt[ck] = backup; // تراجع وجرّب مرشحاً آخر
         }
       }
     };
-
-    if (activityPeriods) alignActivityDouble(newTT);
 
     /**
      * محاولة أخيرة لتقليل الحصص غير الموزّعة: لكل حصة متبقية نبحث عن خانة فارغة
      * في صفّها، وإن كان المعلم مشغولاً في ذلك التوقيت نحاول نقل الحصة المتعارضة
      * إلى خانة فارغة أخرى في صفّها (بدون أي تعارض) ثم نضع الحصة المتبقية.
+     * إن لم ينفع ذلك نحاول سلسلة إزاحة من مستويين (تبديل داخل الصف المتعارض).
      */
     const forcePlaceRemaining = (tt: ClassTimetable) => {
       const busyElsewhere = (teacherId: string, day: number, period: number, exceptClassKey: string) => {
@@ -962,8 +1018,9 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         const teacher = teachers.find(t => t.id === teacherId);
         return !(teacher && isBlocked(teacher, day, period));
       };
+      const { trySwap } = makeSwapper(tt);
 
-      for (let round = 0; round < 6; round++) {
+      for (let round = 0; round < 12; round++) {
         let placed = false;
         for (const a of assignments) {
           while (a.remaining > 0) {
@@ -980,7 +1037,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                   didPlace = true;
                   break;
                 }
-                // حاول إزاحة الحصة المتعارضة إلى خانة فارغة أخرى في صفّها
+                // (1) حاول إزاحة الحصة المتعارضة إلى خانة فارغة أخرى في صفّها
                 const conflictCell = tt[conflictKey][day][period]!;
                 let moved = false;
                 for (let d2 = 0; d2 < daysCount && !moved; d2++) {
@@ -990,6 +1047,20 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                     tt[conflictKey][d2][p2] = conflictCell;
                     tt[conflictKey][day][period] = null;
                     moved = true;
+                  }
+                }
+                // (2) وإلا جرّب تبديلها مع حصة أخرى داخل صفّها (سلسلة من مستويين)
+                if (!moved) {
+                  for (let d2 = 0; d2 < daysCount && !moved; d2++) {
+                    for (let p2 = 0; p2 < periodsPerDay && !moved; p2++) {
+                      if (d2 === day && p2 === period) continue;
+                      if (tt[conflictKey][d2][p2] === null) continue;
+                      if (trySwap(conflictKey, day, period, d2, p2)) {
+                        // بعد التبديل قد يصبح المعلم متفرغاً
+                        if (!busyElsewhere(a.teacherId, day, period, a.classKey)) moved = true;
+                        else trySwap(conflictKey, day, period, d2, p2); // تراجع
+                      }
+                    }
                   }
                 }
                 if (moved) {
@@ -1006,9 +1077,15 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    forcePlaceRemaining(newTT);
-    compactTimetable(newTT);
+    // جولات متتابعة: ملء أقصى ما يمكن ← رصّ ← ضبط حصص النشاط
+    for (let i = 0; i < 3; i++) {
+      forcePlaceRemaining(newTT);
+      compactTimetable(newTT);
+    }
     if (activityPeriods) alignActivityDouble(newTT);
+    forcePlaceRemaining(newTT);
+    if (activityPeriods) alignActivityDouble(newTT);
+
 
 
 
