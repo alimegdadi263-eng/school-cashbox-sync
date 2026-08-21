@@ -435,6 +435,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     teachers.forEach(t => {
       t.subjects.forEach(s => {
         const key = getClassKey(s.className, s.section);
+        // مادة "نشاط" لا تُوزَّع كباقي المواد: خاناتها محجوزة مسبقاً (ح2 + ح3) في يوم الصف
+        if (activityPeriods && s.subjectName.trim() === ACTIVITY_SUBJECT) return;
         assignments.push({
           teacherId: t.id,
           teacherName: t.name,
@@ -1015,10 +1017,19 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         if (!isActivityCell(cA) || !isActivityCell(cB)) continue;
 
         // معلمو هذا الصف مرتّبون حسب أقل نصيب نشاط
+        // أولاً: المعلمون المُسنَد لهم مادة "نشاط" لهذا الصف تحديداً
+        const activityTeachers = teachers.filter(t =>
+          t.subjects.some(s =>
+            getClassKey(s.className, s.section) === ck &&
+            s.subjectName.trim() === ACTIVITY_SUBJECT
+          )
+        );
         const classTeachers = teachers.filter(t =>
           t.subjects.some(s => getClassKey(s.className, s.section) === ck)
         );
-        const pool = classTeachers.length ? classTeachers : teachers;
+        const pool = activityTeachers.length
+          ? activityTeachers
+          : (classTeachers.length ? classTeachers : teachers);
         const sorted = [...pool].sort(
           (a, b) => (activityLoad[a.id] || 0) - (activityLoad[b.id] || 0)
         );
