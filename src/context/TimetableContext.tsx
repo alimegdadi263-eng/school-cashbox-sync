@@ -1014,7 +1014,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       };
       const canHost = (teacherId: string, ck: string, day: number, period: number) => {
         if (tt[ck][day][period] !== null) return false;
-        if (busyElsewhere(teacherId, ck === undefined ? day : day, period, ck)) return false;
+        if (busyElsewhere(teacherId, day, period, ck)) return false;
         const teacher = teachers.find(t => t.id === teacherId);
         return !(teacher && isBlocked(teacher, day, period));
       };
