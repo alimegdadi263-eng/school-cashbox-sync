@@ -967,9 +967,12 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
       const trySwap = (ck: string, d1: number, p1: number, d2: number, p2: number) => {
         if (d1 === d2 && p1 === p2) return false;
+        if (isLocked(ck, d1, p1) || isLocked(ck, d2, p2)) return false;
         const a = tt[ck][d1][p1];
         const b = tt[ck][d2][p2];
+        if (isActivityCell(a) || isActivityCell(b)) return false;
         if (!a && !b) return false;
+
         if (a && !freeAt(a.teacherId, d2, p2, ck)) return false;
         if (b && !freeAt(b.teacherId, d1, p1, ck)) return false;
         tt[ck][d1][p1] = b;
