@@ -390,23 +390,10 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       newTT[key] = Array.from({ length: daysCount }, () => Array(periodsPerDay).fill(null));
     });
 
-    // حجز حصص النشاط (الثانية والثالثة) حسب اليوم المخصص لكل صف
-    if (activityPeriods) {
-      classKeys.forEach(key => {
-        const { className } = parseClassKey(key);
-        const day = getActivityDay(className);
-        if (day === undefined || day >= daysCount) return;
-        ACTIVITY_PERIODS.forEach(p => {
-          if (p < periodsPerDay) {
-            newTT[key][day][p] = {
-              teacherId: ACTIVITY_TEACHER_ID,
-              teacherName: "",
-              subjectName: ACTIVITY_SUBJECT,
-            };
-          }
-        });
-      });
-    }
+    // ملاحظة: حصص النشاط لم تعد تُحجز بخانات فارغة باسم "نشاط"،
+    // بل تُوزَّع حصص المعلمين كالمعتاد ثم نجعل الحصتين الثانية والثالثة
+    // في يوم النشاط لنفس الصف متتاليتين لنفس المعلم والمادة (انظر alignActivityDouble).
+
 
     const latePeriodCount: Record<string, { sixth: number; seventh: number }> = {};
     teachers.forEach(t => { latePeriodCount[t.id] = { sixth: 0, seventh: 0 }; });
