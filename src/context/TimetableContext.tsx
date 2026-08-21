@@ -1008,6 +1008,42 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
       const activityLoad: Record<string, number> = {};
 
+      /**
+       * محاولة تفريغ المعلم في توقيت معيّن: ننقل حصصه المتعارضة (في صفوف أخرى)
+       * إلى خانات فارغة مناسبة داخل صفوفها دون تعارض ودون المساس بخانات النشاط.
+       */
+      const relocateTeacherLesson = (teacherId: string, day: number, period: number): boolean => {
+        for (const [ck2, days] of Object.entries(tt)) {
+          const cell = days[day]?.[period];
+          if (!cell || cell.teacherId !== teacherId) continue;
+          let moved = false;
+          for (let d2 = 0; d2 < daysCount && !moved; d2++) {
+            for (let p2 = 0; p2 < periodsPerDay && !moved; p2++) {
+              if (d2 === day && p2 === period) continue;
+              if (tt[ck2][d2]?.[p2] !== null) continue;
+              // لا نضع حصة داخل خانة نشاط محجوزة لهذا الصف
+              const { className: cn2 } = parseClassKey(ck2);
+              const aDay2 = getActivityDay(cn2);
+              if (aDay2 === d2 && ACTIVITY_PERIODS.includes(p2)) continue;
+              const t = teachers.find(x => x.id === teacherId);
+              if (t && isBlocked(t, d2, p2)) continue;
+              // المعلم حرّ في التوقيت الجديد؟
+              let free = true;
+              for (const [ck3, dd] of Object.entries(tt)) {
+                if (ck3 === ck2) continue;
+                if (dd[d2]?.[p2]?.teacherId === teacherId) { free = false; break; }
+              }
+              if (!free) continue;
+              tt[ck2][d2][p2] = cell;
+              tt[ck2][day][period] = null;
+              moved = true;
+            }
+          }
+          if (!moved) return false;
+        }
+        return true;
+      };
+
       for (const ck of Object.keys(tt)) {
         const { className } = parseClassKey(ck);
         const day = getActivityDay(className);
@@ -1034,16 +1070,46 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
           (a, b) => (activityLoad[a.id] || 0) - (activityLoad[b.id] || 0)
         );
 
-        const chosen = sorted.find(t =>
+        let chosen = sorted.find(t =>
           !isBlocked(t, day, pA) && !isBlocked(t, day, pB) &&
           !busy(t.name, t.id, day, pA) && !busy(t.name, t.id, day, pB)
         );
+
+        // لا يوجد معلم حرّ: نحاول إزاحة حصص المعلم المتعارضة إلى خانات فارغة
+        if (!chosen) {
+          for (const t of sorted) {
+            if (isBlocked(t, day, pA) || isBlocked(t, day, pB)) continue;
+            // تعارض مع نشاط صف آخر لنفس الاسم لا يمكن إزاحته
+            const nameClash = [pA, pB].some(p =>
+              Object.values(tt).some(days => {
+                const c = days[day]?.[p];
+                return c && isActivityCell(c) && c.teacherName === t.name;
+              })
+            );
+            if (nameClash) continue;
+            if (relocateTeacherLesson(t.id, day, pA) && relocateTeacherLesson(t.id, day, pB)) {
+              chosen = t;
+              break;
+            }
+          }
+        }
+
+        // آخر حل: نُسند أقل المعلمين نصيباً حتى لا تبقى الخانة بلا اسم
+        if (!chosen) {
+          chosen = sorted.find(t => ![pA, pB].some(p =>
+            Object.values(tt).some(days => {
+              const c = days[day]?.[p];
+              return c && isActivityCell(c) && c.teacherName === t.name;
+            })
+          )) || sorted[0];
+        }
         if (!chosen) continue;
 
         activityLoad[chosen.id] = (activityLoad[chosen.id] || 0) + 1;
         tt[ck][day][pA] = { teacherId: ACTIVITY_TEACHER_ID, teacherName: chosen.name, subjectName: ACTIVITY_SUBJECT };
         tt[ck][day][pB] = { teacherId: ACTIVITY_TEACHER_ID, teacherName: chosen.name, subjectName: ACTIVITY_SUBJECT };
       }
+
     };
 
 
