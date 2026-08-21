@@ -1087,8 +1087,21 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                 if (trySwap(ck, day, targetP, d2, p2)) filled = true;
               }
             }
+            // فشل التبديل غالباً بسبب انشغال المعلم في صف آخر: فرّغه ثم أعد المحاولة
+            if (!filled && freeTeacherAt(g.teacherId, day, targetP, ck)) {
+              for (let d2 = 0; d2 < daysCount && !filled; d2++) {
+                for (let p2 = 0; p2 < periodsPerDay && !filled; p2++) {
+                  if (d2 === day && (p2 === pA || p2 === pB)) continue;
+                  if (!isMatch(d2, p2, g)) continue;
+                  const occupant = tt[ck][day][targetP];
+                  if (occupant && !freeAt(occupant.teacherId, d2, p2, ck)) freeTeacherAt(occupant.teacherId, d2, p2, ck);
+                  if (trySwap(ck, day, targetP, d2, p2)) filled = true;
+                }
+              }
+            }
             if (!filled) { ok = false; break; }
           }
+
 
           if (ok && isMatch(day, pA, g) && isMatch(day, pB, g)) {
             activityLocked.add(lockKey(ck, day, pA));
