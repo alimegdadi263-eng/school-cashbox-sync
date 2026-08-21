@@ -981,6 +981,10 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
           return !!c && c.teacherId === g.teacherId && c.subjectName === g.subjectName;
         };
 
+        // ألغِ أي قفل سابق لهذا الصف قبل إعادة الضبط
+        activityLocked.delete(lockKey(ck, day, pA));
+        activityLocked.delete(lockKey(ck, day, pB));
+
         for (const g of candidates) {
           // نسخة احتياطية للتراجع في حال فشل ملء الخانتين
           const backup = tt[ck].map(row => row.slice());
@@ -1000,11 +1004,16 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
             if (!filled) { ok = false; break; }
           }
 
-          if (ok && isMatch(day, pA, g) && isMatch(day, pB, g)) break;
+          if (ok && isMatch(day, pA, g) && isMatch(day, pB, g)) {
+            activityLocked.add(lockKey(ck, day, pA));
+            activityLocked.add(lockKey(ck, day, pB));
+            break;
+          }
           tt[ck] = backup; // تراجع وجرّب مرشحاً آخر
         }
       }
     };
+
 
     /**
      * محاولة أخيرة لتقليل الحصص غير الموزّعة: لكل حصة متبقية نبحث عن خانة فارغة
