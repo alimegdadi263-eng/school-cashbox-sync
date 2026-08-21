@@ -390,9 +390,27 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       newTT[key] = Array.from({ length: daysCount }, () => Array(periodsPerDay).fill(null));
     });
 
-    // ملاحظة: حصص النشاط لم تعد تُحجز بخانات فارغة باسم "نشاط"،
-    // بل تُوزَّع حصص المعلمين كالمعتاد ثم نجعل الحصتين الثانية والثالثة
-    // في يوم النشاط لنفس الصف متتاليتين لنفس المعلم والمادة (انظر alignActivityDouble).
+    /**
+     * حجز حصص النشاط قبل التوزيع: الحصتان الثانية والثالثة (فهرس 1 و 2) في يوم
+     * الصف المحدّد تُملأ بخانة "نشاط" مقفلة، فلا يضع فيها المولّد أي مادة ولا
+     * تُحرَّك في جولات الرصّ أو التبديل. يُسند لها معلم في نهاية التوليد.
+     */
+    const activityLocked = new Set<string>();
+    const lockKey = (ck: string, d: number, p: number) => `${ck}|${d}|${p}`;
+    const isLocked = (ck: string, d: number, p: number) => activityLocked.has(lockKey(ck, d, p));
+
+    if (activityPeriods && ACTIVITY_PERIODS[1] < periodsPerDay) {
+      classKeys.forEach(ck => {
+        const { className } = parseClassKey(ck);
+        const day = getActivityDay(className);
+        if (day === undefined || day >= daysCount) return;
+        ACTIVITY_PERIODS.forEach(p => {
+          newTT[ck][day][p] = { teacherId: ACTIVITY_TEACHER_ID, teacherName: "", subjectName: ACTIVITY_SUBJECT };
+          activityLocked.add(lockKey(ck, day, p));
+        });
+      });
+    }
+
 
 
     const latePeriodCount: Record<string, { sixth: number; seventh: number }> = {};
