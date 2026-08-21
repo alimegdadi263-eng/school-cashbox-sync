@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+
 import { CalendarDays, UserX, Plus, Trash2, FileSpreadsheet, FileText } from "lucide-react";
 import { exportDailyScheduleExcel, exportDailyScheduleDocx, exportDailyScheduleExcelInverted, exportDailyScheduleDocxInverted } from "@/lib/exportDailySchedule";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,6 +33,37 @@ export default function DailyScheduleManager() {
   const [sending, setSending] = useState(false);
   /** الخانة المحدّدة للتبديل اليدوي (اضغط خانة ثم خانة أخرى للتبديل) */
   const [selectedCell, setSelectedCell] = useState<{ classKey: string; period: number } | null>(null);
+  /** خانة فارغة يتم إسناد حصة إشغال يدوية لها */
+  const [occupyCell, setOccupyCell] = useState<{ classKey: string; period: number } | null>(null);
+  const [occupyTeacherId, setOccupyTeacherId] = useState("");
+  const [occupyLabel, setOccupyLabel] = useState("إشغال");
+
+  /** المعلمون المتاحون (غير غائبين وليس لديهم حصة في نفس الحصة) لإسناد إشغال */
+  const availableTeachers = (period: number) => {
+    if (!dailyResult) return teachers;
+    return teachers.filter(t => {
+      if (absentTeacherIds.includes(t.id)) return false;
+      return !Object.values(dailyResult).some(days => days[0]?.[period]?.teacherId === t.id);
+    });
+  };
+
+  const applyOccupy = () => {
+    if (!dailyResult || !occupyCell || !occupyTeacherId) return;
+    const teacher = teachers.find(t => t.id === occupyTeacherId);
+    if (!teacher) return;
+    const next: ClassTimetable = JSON.parse(JSON.stringify(dailyResult));
+    next[occupyCell.classKey][0][occupyCell.period] = {
+      teacherId: teacher.id,
+      teacherName: teacher.name,
+      subjectName: occupyLabel.trim() || "إشغال",
+    };
+    setDailyResult(next);
+    setOccupyCell(null);
+    setOccupyTeacherId("");
+    setOccupyLabel("إشغال");
+    toast({ title: "تم إسناد حصة الإشغال" });
+  };
+
 
   const toggleAbsent = (id: string) => {
     setAbsentTeacherIds(prev =>
@@ -332,8 +365,20 @@ export default function DailyScheduleManager() {
                                   <div className="text-muted-foreground text-[10px]">{cell.teacherName}</div>
                                 </div>
                               ) : (
-                                <span className="text-muted-foreground/40 text-xs">—</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOccupyCell({ classKey, period: pi });
+                                    setOccupyTeacherId("");
+                                    setOccupyLabel("إشغال");
+                                  }}
+                                  className="text-[10px] text-muted-foreground hover:text-primary underline-offset-2 hover:underline"
+                                >
+                                  + إشغال
+                                </button>
                               )}
+
                             </td>
                           );
                         })}
@@ -406,7 +451,45 @@ export default function DailyScheduleManager() {
             </div>
           </div>
         )}
+
+        {/* إسناد حصة إشغال يدوياً لخانة فارغة */}
+        <Dialog open={!!occupyCell} onOpenChange={(o) => { if (!o) setOccupyCell(null); }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>إسناد حصة إشغال</DialogTitle>
+              <DialogDescription>
+                {occupyCell && `${parseClassKey(occupyCell.classKey).className}/${parseClassKey(occupyCell.classKey).section} - الحصة ${occupyCell.period + 1}`}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-sm">المعلم</Label>
+                <Select value={occupyTeacherId} onValueChange={setOccupyTeacherId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر معلماً متاحاً" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {occupyCell && availableTeachers(occupyCell.period).map(t => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {occupyCell && availableTeachers(occupyCell.period).length === 0 && (
+                  <p className="text-xs text-destructive mt-1">لا يوجد معلم متاح في هذه الحصة</p>
+                )}
+              </div>
+              <div>
+                <Label className="text-sm">الوصف</Label>
+                <Input value={occupyLabel} onChange={e => setOccupyLabel(e.target.value)} placeholder="إشغال" />
+              </div>
+              <Button onClick={applyOccupy} disabled={!occupyTeacherId} className="w-full">
+                إسناد
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
+
   );
 }
