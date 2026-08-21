@@ -848,6 +848,36 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         return !(teacher && isBlocked(teacher, day, period));
       };
 
+      /**
+       * محاولة تفريغ المعلم في توقيت معيّن بنقل حصته المتعارضة (في صف آخر)
+       * إلى خانة فارغة مناسبة داخل صفّها، دون تعارض ودون المساس بخانات النشاط.
+       */
+      const freeUpTeacher = (teacherId: string, day: number, period: number, exceptClassKey: string) => {
+        const teacher = teachers.find(t => t.id === teacherId);
+        if (teacher && isBlocked(teacher, day, period)) return false;
+        for (const [ck2, days] of Object.entries(tt)) {
+          if (ck2 === exceptClassKey) continue;
+          const cell = days[day]?.[period];
+          if (!cell || cell.teacherId !== teacherId) continue;
+          if (isLocked(ck2, day, period)) return false;
+          for (let d2 = 0; d2 < daysCount; d2++) {
+            for (let p2 = 0; p2 < periodsPerDay; p2++) {
+              if (d2 === day && p2 === period) continue;
+              if (tt[ck2][d2][p2] !== null) continue;
+              if (isLocked(ck2, d2, p2)) continue;
+              if (!freeAt(teacherId, d2, p2, ck2)) continue;
+              tt[ck2][d2][p2] = cell;
+              tt[ck2][day][period] = null;
+              return true;
+            }
+          }
+          return false;
+        }
+        return false;
+      };
+
+
+
 
       for (const ck of Object.keys(tt)) {
         for (const subject of DOUBLE_PERIOD_SUBJECTS) {
