@@ -833,6 +833,11 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
      * الآلية: البحث عن حصتين لنفس المادة في أيام مختلفة، ثم تبديل إحداهما مع
      * الحصة المجاورة للأخرى، مع التحقق من تعارضات المعلمين والحصص الممنوعة.
      */
+    /** خانات محجوزة لحصص النشاط (الصف → مفاتيح "يوم-حصة") لا يجوز تحريكها لاحقاً */
+    const activityLocked = new Set<string>();
+    const lockKey = (ck: string, d: number, p: number) => `${ck}|${d}|${p}`;
+    const isLocked = (ck: string, d: number, p: number) => activityLocked.has(lockKey(ck, d, p));
+
     const pairDoublePeriodSubjects = (tt: ClassTimetable) => {
       const freeAt = (teacherId: string, day: number, period: number, exceptClassKey: string) => {
         for (const [ck, days] of Object.entries(tt)) {
@@ -846,7 +851,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
       for (const ck of Object.keys(tt)) {
         for (const subject of DOUBLE_PERIOD_SUBJECTS) {
-          for (let pass = 0; pass < 10; pass++) {
+          for (let pass = 0; pass < 12; pass++) {
             // مواقع المادة داخل هذا الصف
             const spots: { day: number; period: number }[] = [];
             for (let d = 0; d < daysCount; d++) {
@@ -857,32 +862,36 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
             if (spots.length < 2) break;
 
             // الحصص غير المقترنة (لا يوجد بجانبها نفس المادة)
-
-
             const lonely = spots.filter(s => !(
               tt[ck][s.day]?.[s.period - 1]?.subjectName === subject ||
               tt[ck][s.day]?.[s.period + 1]?.subjectName === subject
             ));
             if (lonely.length < 2) break;
 
-            const anchor = lonely[0];
             let done = false;
+            for (const anchor of lonely) {
+              if (isLocked(ck, anchor.day, anchor.period)) continue;
+              for (const neighbor of [anchor.period + 1, anchor.period - 1]) {
+                if (neighbor < 0 || neighbor >= periodsPerDay) continue;
+                if (isLocked(ck, anchor.day, neighbor)) continue;
+                const target = tt[ck][anchor.day][neighbor];
+                if (isActivityCell(target)) continue;
 
-            for (const neighbor of [anchor.period + 1, anchor.period - 1]) {
-              if (neighbor < 0 || neighbor >= periodsPerDay) continue;
-              const target = tt[ck][anchor.day][neighbor];
-              if (isActivityCell(target)) continue;
+                for (const other of lonely) {
+                  if (other.day === anchor.day && other.period === anchor.period) continue;
+                  if (other.day === anchor.day && other.period === neighbor) continue;
+                  if (isLocked(ck, other.day, other.period)) continue;
+                  const otherCell = tt[ck][other.day][other.period]!;
+                  if (!otherCell) continue;
+                  if (!freeAt(otherCell.teacherId, anchor.day, neighbor, ck)) continue;
+                  if (target && !freeAt(target.teacherId, other.day, other.period, ck)) continue;
 
-              for (const other of lonely.slice(1)) {
-                if (other.day === anchor.day) continue;
-                const otherCell = tt[ck][other.day][other.period]!;
-                if (!freeAt(otherCell.teacherId, anchor.day, neighbor, ck)) continue;
-                if (target && !freeAt(target.teacherId, other.day, other.period, ck)) continue;
-
-                tt[ck][anchor.day][neighbor] = otherCell;
-                tt[ck][other.day][other.period] = target;
-                done = true;
-                break;
+                  tt[ck][anchor.day][neighbor] = otherCell;
+                  tt[ck][other.day][other.period] = target;
+                  done = true;
+                  break;
+                }
+                if (done) break;
               }
               if (done) break;
             }
@@ -893,7 +902,6 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    if (pairDoubleSubjects) pairDoublePeriodSubjects(newTT);
 
     /**
      * أدوات مشتركة للتبديل الآمن داخل نفس الصف.
