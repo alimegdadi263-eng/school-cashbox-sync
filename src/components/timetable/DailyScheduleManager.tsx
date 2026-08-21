@@ -449,7 +449,45 @@ export default function DailyScheduleManager() {
             </div>
           </div>
         )}
+
+        {/* إسناد حصة إشغال يدوياً لخانة فارغة */}
+        <Dialog open={!!occupyCell} onOpenChange={(o) => { if (!o) setOccupyCell(null); }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>إسناد حصة إشغال</DialogTitle>
+              <DialogDescription>
+                {occupyCell && `${parseClassKey(occupyCell.classKey).className}/${parseClassKey(occupyCell.classKey).section} - الحصة ${occupyCell.period + 1}`}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-sm">المعلم</Label>
+                <Select value={occupyTeacherId} onValueChange={setOccupyTeacherId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر معلماً متاحاً" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {occupyCell && availableTeachers(occupyCell.period).map(t => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {occupyCell && availableTeachers(occupyCell.period).length === 0 && (
+                  <p className="text-xs text-destructive mt-1">لا يوجد معلم متاح في هذه الحصة</p>
+                )}
+              </div>
+              <div>
+                <Label className="text-sm">الوصف</Label>
+                <Input value={occupyLabel} onChange={e => setOccupyLabel(e.target.value)} placeholder="إشغال" />
+              </div>
+              <Button onClick={applyOccupy} disabled={!occupyTeacherId} className="w-full">
+                إسناد
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
+
   );
 }
