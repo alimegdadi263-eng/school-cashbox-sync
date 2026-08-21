@@ -973,7 +973,51 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     const alignActivityDouble = (tt: ClassTimetable) => {
       const [pA, pB] = ACTIVITY_PERIODS;
       if (pB >= periodsPerDay) return;
-      const { trySwap } = makeSwapper(tt);
+      const { trySwap, freeAt } = makeSwapper(tt);
+
+      /**
+       * تفريغ المعلم في توقيت معيّن: ننقل حصصه المتعارضة في صفوف أخرى إلى خانات
+       * فارغة مناسبة داخل صفوفها (بدون تعارض ودون المساس بخانات النشاط المقفلة).
+       */
+      const freeTeacherAt = (teacherId: string, day: number, period: number, exceptCk: string) => {
+        const teacher = teachers.find(t => t.id === teacherId);
+        if (teacher && isBlocked(teacher, day, period)) return false;
+        for (const [ck2, days] of Object.entries(tt)) {
+          if (ck2 === exceptCk) continue;
+          const cell = days[day]?.[period];
+          if (!cell || cell.teacherId !== teacherId) continue;
+          if (isLocked(ck2, day, period)) return false;
+          let moved = false;
+          for (let d2 = 0; d2 < daysCount && !moved; d2++) {
+            for (let p2 = 0; p2 < periodsPerDay && !moved; p2++) {
+              if (d2 === day && p2 === period) continue;
+              if (tt[ck2][d2][p2] !== null) continue;
+              if (isLocked(ck2, d2, p2)) continue;
+              if (!freeAt(teacherId, d2, p2, ck2)) continue;
+              tt[ck2][d2][p2] = cell;
+              tt[ck2][day][period] = null;
+              moved = true;
+            }
+          }
+          // وإلا: بدّل الحصة المتعارضة مع حصة أخرى داخل صفّها
+          if (!moved) {
+            for (let d2 = 0; d2 < daysCount && !moved; d2++) {
+              for (let p2 = 0; p2 < periodsPerDay && !moved; p2++) {
+                if (d2 === day && p2 === period) continue;
+                if (isLocked(ck2, d2, p2)) continue;
+                if (tt[ck2][d2][p2] === null) continue;
+                if (trySwap(ck2, day, period, d2, p2)) {
+                  if (tt[ck2][day][period]?.teacherId === teacherId) trySwap(ck2, day, period, d2, p2);
+                  else moved = true;
+                }
+              }
+            }
+          }
+          if (!moved) return false;
+        }
+        return true;
+      };
+
 
       for (const ck of Object.keys(tt)) {
         const { className } = parseClassKey(ck);
