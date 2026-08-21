@@ -363,8 +363,20 @@ export default function DailyScheduleManager() {
                                   <div className="text-muted-foreground text-[10px]">{cell.teacherName}</div>
                                 </div>
                               ) : (
-                                <span className="text-muted-foreground/40 text-xs">—</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOccupyCell({ classKey, period: pi });
+                                    setOccupyTeacherId("");
+                                    setOccupyLabel("إشغال");
+                                  }}
+                                  className="text-[10px] text-muted-foreground hover:text-primary underline-offset-2 hover:underline"
+                                >
+                                  + إشغال
+                                </button>
                               )}
+
                             </td>
                           );
                         })}
