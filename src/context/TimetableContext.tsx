@@ -973,7 +973,51 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     const alignActivityDouble = (tt: ClassTimetable) => {
       const [pA, pB] = ACTIVITY_PERIODS;
       if (pB >= periodsPerDay) return;
-      const { trySwap } = makeSwapper(tt);
+      const { trySwap, freeAt } = makeSwapper(tt);
+
+      /**
+       * تفريغ المعلم في توقيت معيّن: ننقل حصصه المتعارضة في صفوف أخرى إلى خانات
+       * فارغة مناسبة داخل صفوفها (بدون تعارض ودون المساس بخانات النشاط المقفلة).
+       */
+      const freeTeacherAt = (teacherId: string, day: number, period: number, exceptCk: string) => {
+        const teacher = teachers.find(t => t.id === teacherId);
+        if (teacher && isBlocked(teacher, day, period)) return false;
+        for (const [ck2, days] of Object.entries(tt)) {
+          if (ck2 === exceptCk) continue;
+          const cell = days[day]?.[period];
+          if (!cell || cell.teacherId !== teacherId) continue;
+          if (isLocked(ck2, day, period)) return false;
+          let moved = false;
+          for (let d2 = 0; d2 < daysCount && !moved; d2++) {
+            for (let p2 = 0; p2 < periodsPerDay && !moved; p2++) {
+              if (d2 === day && p2 === period) continue;
+              if (tt[ck2][d2][p2] !== null) continue;
+              if (isLocked(ck2, d2, p2)) continue;
+              if (!freeAt(teacherId, d2, p2, ck2)) continue;
+              tt[ck2][d2][p2] = cell;
+              tt[ck2][day][period] = null;
+              moved = true;
+            }
+          }
+          // وإلا: بدّل الحصة المتعارضة مع حصة أخرى داخل صفّها
+          if (!moved) {
+            for (let d2 = 0; d2 < daysCount && !moved; d2++) {
+              for (let p2 = 0; p2 < periodsPerDay && !moved; p2++) {
+                if (d2 === day && p2 === period) continue;
+                if (isLocked(ck2, d2, p2)) continue;
+                if (tt[ck2][d2][p2] === null) continue;
+                if (trySwap(ck2, day, period, d2, p2)) {
+                  if (tt[ck2][day][period]?.teacherId === teacherId) trySwap(ck2, day, period, d2, p2);
+                  else moved = true;
+                }
+              }
+            }
+          }
+          if (!moved) return false;
+        }
+        return true;
+      };
+
 
       for (const ck of Object.keys(tt)) {
         const { className } = parseClassKey(ck);
@@ -1043,8 +1087,21 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                 if (trySwap(ck, day, targetP, d2, p2)) filled = true;
               }
             }
+            // فشل التبديل غالباً بسبب انشغال المعلم في صف آخر: فرّغه ثم أعد المحاولة
+            if (!filled && freeTeacherAt(g.teacherId, day, targetP, ck)) {
+              for (let d2 = 0; d2 < daysCount && !filled; d2++) {
+                for (let p2 = 0; p2 < periodsPerDay && !filled; p2++) {
+                  if (d2 === day && (p2 === pA || p2 === pB)) continue;
+                  if (!isMatch(d2, p2, g)) continue;
+                  const occupant = tt[ck][day][targetP];
+                  if (occupant && !freeAt(occupant.teacherId, d2, p2, ck)) freeTeacherAt(occupant.teacherId, d2, p2, ck);
+                  if (trySwap(ck, day, targetP, d2, p2)) filled = true;
+                }
+              }
+            }
             if (!filled) { ok = false; break; }
           }
+
 
           if (ok && isMatch(day, pA, g) && isMatch(day, pB, g)) {
             activityLocked.add(lockKey(ck, day, pA));
