@@ -1047,6 +1047,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
             for (let day = 0; day < daysCount && !didPlace; day++) {
               for (let period = 0; period < periodsPerDay && !didPlace; period++) {
                 if (tt[a.classKey][day][period] !== null) continue;
+                if (isLocked(a.classKey, day, period)) continue;
                 const teacher = teachers.find(t => t.id === a.teacherId);
                 if (teacher && isBlocked(teacher, day, period)) continue;
 
@@ -1056,6 +1057,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                   didPlace = true;
                   break;
                 }
+                // لا نحرّك حصص النشاط المثبّتة
+                if (isLocked(conflictKey, day, period)) continue;
                 // (1) حاول إزاحة الحصة المتعارضة إلى خانة فارغة أخرى في صفّها
                 const conflictCell = tt[conflictKey][day][period]!;
                 let moved = false;
@@ -1073,6 +1076,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                   for (let d2 = 0; d2 < daysCount && !moved; d2++) {
                     for (let p2 = 0; p2 < periodsPerDay && !moved; p2++) {
                       if (d2 === day && p2 === period) continue;
+                      if (isLocked(conflictKey, d2, p2)) continue;
                       if (tt[conflictKey][d2][p2] === null) continue;
                       if (trySwap(conflictKey, day, period, d2, p2)) {
                         // بعد التبديل قد يصبح المعلم متفرغاً
@@ -1086,6 +1090,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                   placeAssignment(a, day, period);
                   didPlace = true;
                 }
+
               }
             }
             if (!didPlace) break;
