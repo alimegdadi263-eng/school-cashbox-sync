@@ -31,6 +31,37 @@ export default function DailyScheduleManager() {
   const [sending, setSending] = useState(false);
   /** الخانة المحدّدة للتبديل اليدوي (اضغط خانة ثم خانة أخرى للتبديل) */
   const [selectedCell, setSelectedCell] = useState<{ classKey: string; period: number } | null>(null);
+  /** خانة فارغة يتم إسناد حصة إشغال يدوية لها */
+  const [occupyCell, setOccupyCell] = useState<{ classKey: string; period: number } | null>(null);
+  const [occupyTeacherId, setOccupyTeacherId] = useState("");
+  const [occupyLabel, setOccupyLabel] = useState("إشغال");
+
+  /** المعلمون المتاحون (غير غائبين وليس لديهم حصة في نفس الحصة) لإسناد إشغال */
+  const availableTeachers = (period: number) => {
+    if (!dailyResult) return teachers;
+    return teachers.filter(t => {
+      if (absentTeacherIds.includes(t.id)) return false;
+      return !Object.values(dailyResult).some(days => days[0]?.[period]?.teacherId === t.id);
+    });
+  };
+
+  const applyOccupy = () => {
+    if (!dailyResult || !occupyCell || !occupyTeacherId) return;
+    const teacher = teachers.find(t => t.id === occupyTeacherId);
+    if (!teacher) return;
+    const next: ClassTimetable = JSON.parse(JSON.stringify(dailyResult));
+    next[occupyCell.classKey][0][occupyCell.period] = {
+      teacherId: teacher.id,
+      teacherName: teacher.name,
+      subjectName: occupyLabel.trim() || "إشغال",
+    };
+    setDailyResult(next);
+    setOccupyCell(null);
+    setOccupyTeacherId("");
+    setOccupyLabel("إشغال");
+    toast({ title: "تم إسناد حصة الإشغال" });
+  };
+
 
   const toggleAbsent = (id: string) => {
     setAbsentTeacherIds(prev =>
