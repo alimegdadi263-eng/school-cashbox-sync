@@ -1147,11 +1147,14 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       forcePlaceRemaining(newTT);
       compactTimetable(newTT);
     }
+    for (let r = 0; r < 3; r++) {
+      if (activityPeriods) alignActivityDouble(newTT);
+      forcePlaceRemaining(newTT);
+      if (pairDoubleSubjects) pairDoublePeriodSubjects(newTT);
+    }
     if (activityPeriods) alignActivityDouble(newTT);
     forcePlaceRemaining(newTT);
-    if (pairDoubleSubjects) pairDoublePeriodSubjects(newTT);
-    if (activityPeriods) alignActivityDouble(newTT);
-    forcePlaceRemaining(newTT);
+
 
 
 
