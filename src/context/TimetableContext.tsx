@@ -833,6 +833,11 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
      * الآلية: البحث عن حصتين لنفس المادة في أيام مختلفة، ثم تبديل إحداهما مع
      * الحصة المجاورة للأخرى، مع التحقق من تعارضات المعلمين والحصص الممنوعة.
      */
+    /** خانات محجوزة لحصص النشاط (الصف → مفاتيح "يوم-حصة") لا يجوز تحريكها لاحقاً */
+    const activityLocked = new Set<string>();
+    const lockKey = (ck: string, d: number, p: number) => `${ck}|${d}|${p}`;
+    const isLocked = (ck: string, d: number, p: number) => activityLocked.has(lockKey(ck, d, p));
+
     const pairDoublePeriodSubjects = (tt: ClassTimetable) => {
       const freeAt = (teacherId: string, day: number, period: number, exceptClassKey: string) => {
         for (const [ck, days] of Object.entries(tt)) {
@@ -846,7 +851,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
       for (const ck of Object.keys(tt)) {
         for (const subject of DOUBLE_PERIOD_SUBJECTS) {
-          for (let pass = 0; pass < 10; pass++) {
+          for (let pass = 0; pass < 12; pass++) {
             // مواقع المادة داخل هذا الصف
             const spots: { day: number; period: number }[] = [];
             for (let d = 0; d < daysCount; d++) {
@@ -857,32 +862,36 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
             if (spots.length < 2) break;
 
             // الحصص غير المقترنة (لا يوجد بجانبها نفس المادة)
-
-
             const lonely = spots.filter(s => !(
               tt[ck][s.day]?.[s.period - 1]?.subjectName === subject ||
               tt[ck][s.day]?.[s.period + 1]?.subjectName === subject
             ));
             if (lonely.length < 2) break;
 
-            const anchor = lonely[0];
             let done = false;
+            for (const anchor of lonely) {
+              if (isLocked(ck, anchor.day, anchor.period)) continue;
+              for (const neighbor of [anchor.period + 1, anchor.period - 1]) {
+                if (neighbor < 0 || neighbor >= periodsPerDay) continue;
+                if (isLocked(ck, anchor.day, neighbor)) continue;
+                const target = tt[ck][anchor.day][neighbor];
+                if (isActivityCell(target)) continue;
 
-            for (const neighbor of [anchor.period + 1, anchor.period - 1]) {
-              if (neighbor < 0 || neighbor >= periodsPerDay) continue;
-              const target = tt[ck][anchor.day][neighbor];
-              if (isActivityCell(target)) continue;
+                for (const other of lonely) {
+                  if (other.day === anchor.day && other.period === anchor.period) continue;
+                  if (other.day === anchor.day && other.period === neighbor) continue;
+                  if (isLocked(ck, other.day, other.period)) continue;
+                  const otherCell = tt[ck][other.day][other.period]!;
+                  if (!otherCell) continue;
+                  if (!freeAt(otherCell.teacherId, anchor.day, neighbor, ck)) continue;
+                  if (target && !freeAt(target.teacherId, other.day, other.period, ck)) continue;
 
-              for (const other of lonely.slice(1)) {
-                if (other.day === anchor.day) continue;
-                const otherCell = tt[ck][other.day][other.period]!;
-                if (!freeAt(otherCell.teacherId, anchor.day, neighbor, ck)) continue;
-                if (target && !freeAt(target.teacherId, other.day, other.period, ck)) continue;
-
-                tt[ck][anchor.day][neighbor] = otherCell;
-                tt[ck][other.day][other.period] = target;
-                done = true;
-                break;
+                  tt[ck][anchor.day][neighbor] = otherCell;
+                  tt[ck][other.day][other.period] = target;
+                  done = true;
+                  break;
+                }
+                if (done) break;
               }
               if (done) break;
             }
@@ -893,7 +902,6 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    if (pairDoubleSubjects) pairDoublePeriodSubjects(newTT);
 
     /**
      * أدوات مشتركة للتبديل الآمن داخل نفس الصف.
@@ -973,6 +981,10 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
           return !!c && c.teacherId === g.teacherId && c.subjectName === g.subjectName;
         };
 
+        // ألغِ أي قفل سابق لهذا الصف قبل إعادة الضبط
+        activityLocked.delete(lockKey(ck, day, pA));
+        activityLocked.delete(lockKey(ck, day, pB));
+
         for (const g of candidates) {
           // نسخة احتياطية للتراجع في حال فشل ملء الخانتين
           const backup = tt[ck].map(row => row.slice());
@@ -992,11 +1004,16 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
             if (!filled) { ok = false; break; }
           }
 
-          if (ok && isMatch(day, pA, g) && isMatch(day, pB, g)) break;
+          if (ok && isMatch(day, pA, g) && isMatch(day, pB, g)) {
+            activityLocked.add(lockKey(ck, day, pA));
+            activityLocked.add(lockKey(ck, day, pB));
+            break;
+          }
           tt[ck] = backup; // تراجع وجرّب مرشحاً آخر
         }
       }
     };
+
 
     /**
      * محاولة أخيرة لتقليل الحصص غير الموزّعة: لكل حصة متبقية نبحث عن خانة فارغة
@@ -1014,11 +1031,13 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       };
       const canHost = (teacherId: string, ck: string, day: number, period: number) => {
         if (tt[ck][day][period] !== null) return false;
+        if (isLocked(ck, day, period)) return false;
         if (busyElsewhere(teacherId, day, period, ck)) return false;
         const teacher = teachers.find(t => t.id === teacherId);
         return !(teacher && isBlocked(teacher, day, period));
       };
       const { trySwap } = makeSwapper(tt);
+
 
       for (let round = 0; round < 12; round++) {
         let placed = false;
@@ -1028,6 +1047,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
             for (let day = 0; day < daysCount && !didPlace; day++) {
               for (let period = 0; period < periodsPerDay && !didPlace; period++) {
                 if (tt[a.classKey][day][period] !== null) continue;
+                if (isLocked(a.classKey, day, period)) continue;
                 const teacher = teachers.find(t => t.id === a.teacherId);
                 if (teacher && isBlocked(teacher, day, period)) continue;
 
@@ -1037,6 +1057,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                   didPlace = true;
                   break;
                 }
+                // لا نحرّك حصص النشاط المثبّتة
+                if (isLocked(conflictKey, day, period)) continue;
                 // (1) حاول إزاحة الحصة المتعارضة إلى خانة فارغة أخرى في صفّها
                 const conflictCell = tt[conflictKey][day][period]!;
                 let moved = false;
@@ -1054,6 +1076,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                   for (let d2 = 0; d2 < daysCount && !moved; d2++) {
                     for (let p2 = 0; p2 < periodsPerDay && !moved; p2++) {
                       if (d2 === day && p2 === period) continue;
+                      if (isLocked(conflictKey, d2, p2)) continue;
                       if (tt[conflictKey][d2][p2] === null) continue;
                       if (trySwap(conflictKey, day, period, d2, p2)) {
                         // بعد التبديل قد يصبح المعلم متفرغاً
@@ -1067,6 +1090,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                   placeAssignment(a, day, period);
                   didPlace = true;
                 }
+
               }
             }
             if (!didPlace) break;
@@ -1077,14 +1101,18 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    // جولات متتابعة: ملء أقصى ما يمكن ← رصّ ← ضبط حصص النشاط
+    // ترتيب الجولات: ملء ورصّ ← تثبيت حصص النشاط (الثانية والثالثة متتاليتين في يوم الصف)
+    // ← إقران المهارات الرقمية/المهني (بأي يوم) دون المساس بخانات النشاط المقفلة ← ملء أخير.
     for (let i = 0; i < 3; i++) {
       forcePlaceRemaining(newTT);
       compactTimetable(newTT);
     }
     if (activityPeriods) alignActivityDouble(newTT);
     forcePlaceRemaining(newTT);
+    if (pairDoubleSubjects) pairDoublePeriodSubjects(newTT);
     if (activityPeriods) alignActivityDouble(newTT);
+    forcePlaceRemaining(newTT);
+
 
 
 
