@@ -999,13 +999,15 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         candidates.sort((a, b) => {
           const score = (g: typeof a) => {
             let s = 0;
-            if (DOUBLE_PERIOD_SUBJECTS.includes(g.subjectName)) s -= 100;
+            // نُبعد المهارات الرقمية/المهني عن خانة النشاط لأنها تُقرن في أي يوم آخر
+            if (DOUBLE_PERIOD_SUBJECTS.includes(g.subjectName)) s += 200;
             if (cur && g.teacherId === cur.teacherId && g.subjectName === cur.subjectName) s -= 50;
             s -= g.spots.length; // الأكثر حصصاً أسهل في التحريك
             return s;
           };
           return score(a) - score(b);
         });
+
 
         const isMatch = (d: number, p: number, g: { teacherId: string; subjectName: string }) => {
           const c = tt[ck][d][p];
@@ -1142,7 +1144,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     };
 
     // ترتيب الجولات: ملء ورصّ ← تثبيت حصص النشاط (الثانية والثالثة متتاليتين في يوم الصف)
-    // ← إقران المهارات الرقمية/المهني (بأي يوم) دون المساس بخانات النشاط المقفلة ← ملء أخير.
+    // ← إقران المهارات الرقمية/المهني (بأي يوم، دائماً) دون المساس بخانات النشاط المقفلة ← ملء أخير.
     for (let i = 0; i < 3; i++) {
       forcePlaceRemaining(newTT);
       compactTimetable(newTT);
@@ -1150,10 +1152,12 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     for (let r = 0; r < 3; r++) {
       if (activityPeriods) alignActivityDouble(newTT);
       forcePlaceRemaining(newTT);
-      if (pairDoubleSubjects) pairDoublePeriodSubjects(newTT);
+      pairDoublePeriodSubjects(newTT);
     }
     if (activityPeriods) alignActivityDouble(newTT);
+    pairDoublePeriodSubjects(newTT);
     forcePlaceRemaining(newTT);
+
 
 
 
