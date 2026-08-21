@@ -895,6 +895,123 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
     if (pairDoubleSubjects) pairDoublePeriodSubjects(newTT);
 
+    /**
+     * حصص النشاط: بدل حجز خانات فارغة باسم "نشاط"، نجعل الحصتين الثانية والثالثة
+     * في يوم النشاط الخاص بالصف متتاليتين لنفس المعلم ونفس المادة (حصة مزدوجة)،
+     * فتظهر في الملحفة كباقي الحصص باسم المعلم والمادة.
+     */
+    const alignActivityDouble = (tt: ClassTimetable) => {
+      const [pA, pB] = ACTIVITY_PERIODS;
+      if (pB >= periodsPerDay) return;
+
+      const freeAt = (teacherId: string, day: number, period: number, exceptClassKey: string) => {
+        for (const [ck, days] of Object.entries(tt)) {
+          if (ck === exceptClassKey) continue;
+          if (days[day]?.[period]?.teacherId === teacherId) return false;
+        }
+        const teacher = teachers.find(t => t.id === teacherId);
+        return !(teacher && isBlocked(teacher, day, period));
+      };
+
+      for (const ck of Object.keys(tt)) {
+        const { className } = parseClassKey(ck);
+        const day = getActivityDay(className);
+        if (day === undefined || day >= daysCount) continue;
+
+        const anchor = tt[ck][day][pA];
+        if (!anchor) continue;
+        const partner = tt[ck][day][pB];
+        if (partner && partner.teacherId === anchor.teacherId && partner.subjectName === anchor.subjectName) continue;
+
+        // ابحث عن حصة أخرى لنفس المعلم/المادة داخل نفس الصف في يوم آخر وبدّلها مع خانة النشاط الثانية
+        let done = false;
+        for (let d2 = 0; d2 < daysCount && !done; d2++) {
+          if (d2 === day) continue;
+          for (let p2 = 0; p2 < periodsPerDay; p2++) {
+            const c = tt[ck][d2][p2];
+            if (!c || c.teacherId !== anchor.teacherId || c.subjectName !== anchor.subjectName) continue;
+            if (!freeAt(anchor.teacherId, day, pB, ck)) break;
+            if (partner && !freeAt(partner.teacherId, d2, p2, ck)) continue;
+            tt[ck][day][pB] = c;
+            tt[ck][d2][p2] = partner;
+            done = true;
+            break;
+          }
+        }
+      }
+    };
+
+    if (activityPeriods) alignActivityDouble(newTT);
+
+    /**
+     * محاولة أخيرة لتقليل الحصص غير الموزّعة: لكل حصة متبقية نبحث عن خانة فارغة
+     * في صفّها، وإن كان المعلم مشغولاً في ذلك التوقيت نحاول نقل الحصة المتعارضة
+     * إلى خانة فارغة أخرى في صفّها (بدون أي تعارض) ثم نضع الحصة المتبقية.
+     */
+    const forcePlaceRemaining = (tt: ClassTimetable) => {
+      const busyElsewhere = (teacherId: string, day: number, period: number, exceptClassKey: string) => {
+        for (const [ck, days] of Object.entries(tt)) {
+          if (ck === exceptClassKey) continue;
+          if (days[day]?.[period]?.teacherId === teacherId) return ck;
+        }
+        return null;
+      };
+      const canHost = (teacherId: string, ck: string, day: number, period: number) => {
+        if (tt[ck][day][period] !== null) return false;
+        if (busyElsewhere(teacherId, day, period, ck)) return false;
+        const teacher = teachers.find(t => t.id === teacherId);
+        return !(teacher && isBlocked(teacher, day, period));
+      };
+
+      for (let round = 0; round < 6; round++) {
+        let placed = false;
+        for (const a of assignments) {
+          while (a.remaining > 0) {
+            let didPlace = false;
+            for (let day = 0; day < daysCount && !didPlace; day++) {
+              for (let period = 0; period < periodsPerDay && !didPlace; period++) {
+                if (tt[a.classKey][day][period] !== null) continue;
+                const teacher = teachers.find(t => t.id === a.teacherId);
+                if (teacher && isBlocked(teacher, day, period)) continue;
+
+                const conflictKey = busyElsewhere(a.teacherId, day, period, a.classKey);
+                if (!conflictKey) {
+                  placeAssignment(a, day, period);
+                  didPlace = true;
+                  break;
+                }
+                // حاول إزاحة الحصة المتعارضة إلى خانة فارغة أخرى في صفّها
+                const conflictCell = tt[conflictKey][day][period]!;
+                let moved = false;
+                for (let d2 = 0; d2 < daysCount && !moved; d2++) {
+                  for (let p2 = 0; p2 < periodsPerDay && !moved; p2++) {
+                    if (d2 === day && p2 === period) continue;
+                    if (!canHost(conflictCell.teacherId, conflictKey, d2, p2)) continue;
+                    tt[conflictKey][d2][p2] = conflictCell;
+                    tt[conflictKey][day][period] = null;
+                    moved = true;
+                  }
+                }
+                if (moved) {
+                  placeAssignment(a, day, period);
+                  didPlace = true;
+                }
+              }
+            }
+            if (!didPlace) break;
+            placed = true;
+          }
+        }
+        if (!placed) break;
+      }
+    };
+
+    forcePlaceRemaining(newTT);
+    compactTimetable(newTT);
+    if (activityPeriods) alignActivityDouble(newTT);
+
+
+
 
 
 
