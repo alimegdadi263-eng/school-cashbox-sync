@@ -913,8 +913,9 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                   if (isLocked(ck, other.day, other.period)) continue;
                   const otherCell = tt[ck][other.day][other.period]!;
                   if (!otherCell) continue;
-                  if (!freeAt(otherCell.teacherId, anchor.day, neighbor, ck)) continue;
-                  if (target && !freeAt(target.teacherId, other.day, other.period, ck)) continue;
+                  if (!freeAt(otherCell.teacherId, anchor.day, neighbor, ck) && !freeUpTeacher(otherCell.teacherId, anchor.day, neighbor, ck)) continue;
+                  if (target && !freeAt(target.teacherId, other.day, other.period, ck) && !freeUpTeacher(target.teacherId, other.day, other.period, ck)) continue;
+
 
                   tt[ck][anchor.day][neighbor] = otherCell;
                   tt[ck][other.day][other.period] = target;
