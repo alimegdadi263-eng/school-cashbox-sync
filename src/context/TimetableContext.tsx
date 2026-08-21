@@ -1101,14 +1101,18 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    // جولات متتابعة: ملء أقصى ما يمكن ← رصّ ← ضبط حصص النشاط
+    // ترتيب الجولات: ملء ورصّ ← تثبيت حصص النشاط (الثانية والثالثة متتاليتين في يوم الصف)
+    // ← إقران المهارات الرقمية/المهني (بأي يوم) دون المساس بخانات النشاط المقفلة ← ملء أخير.
     for (let i = 0; i < 3; i++) {
       forcePlaceRemaining(newTT);
       compactTimetable(newTT);
     }
     if (activityPeriods) alignActivityDouble(newTT);
     forcePlaceRemaining(newTT);
+    if (pairDoubleSubjects) pairDoublePeriodSubjects(newTT);
     if (activityPeriods) alignActivityDouble(newTT);
+    forcePlaceRemaining(newTT);
+
 
 
 
