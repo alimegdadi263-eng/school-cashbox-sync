@@ -1012,9 +1012,18 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
           return !!c && c.teacherId === g.teacherId && c.subjectName === g.subjectName;
         };
 
+        // إن كانت الخانتان مضبوطتين أصلاً (نفس المعلم والمادة) فثبّتهما وانتقل
+        const cA = tt[ck][day][pA];
+        const cB = tt[ck][day][pB];
+        if (cA && cB && cA.teacherId === cB.teacherId && cA.subjectName === cB.subjectName) {
+          activityLocked.add(lockKey(ck, day, pA));
+          activityLocked.add(lockKey(ck, day, pB));
+          continue;
+        }
         // ألغِ أي قفل سابق لهذا الصف قبل إعادة الضبط
         activityLocked.delete(lockKey(ck, day, pA));
         activityLocked.delete(lockKey(ck, day, pB));
+
 
         for (const g of candidates) {
           // نسخة احتياطية للتراجع في حال فشل ملء الخانتين
