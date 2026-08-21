@@ -1070,40 +1070,62 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
           (a, b) => (activityLoad[a.id] || 0) - (activityLoad[b.id] || 0)
         );
 
-        let chosen = sorted.find(t =>
-          !isBlocked(t, day, pA) && !isBlocked(t, day, pB) &&
-          !busy(t.name, t.id, day, pA) && !busy(t.name, t.id, day, pB)
-        );
+        /**
+         * الخيار (ج): النشاط يبقى دائماً للمعلم المُسنَد له مادة "نشاط" لهذا الصف.
+         * أي حصة أخرى تتعارض معه في الحصتين 2 و 3 تُنقل تلقائياً لخانة فارغة،
+         * وإن تعذّر النقل تُزال من ذلك التوقيت (تُترك فارغة) ولا يُستبدل المعلم أبداً.
+         */
+        const forceFree = (teacherId: string, d: number, p: number) => {
+          if (relocateTeacherLesson(teacherId, d, p)) return;
+          for (const [ck2, days] of Object.entries(tt)) {
+            const cell = days[d]?.[p];
+            if (cell && cell.teacherId === teacherId) tt[ck2][d][p] = null;
+          }
+        };
 
-        // لا يوجد معلم حرّ: نحاول إزاحة حصص المعلم المتعارضة إلى خانات فارغة
-        if (!chosen) {
-          for (const t of sorted) {
-            if (isBlocked(t, day, pA) || isBlocked(t, day, pB)) continue;
-            // تعارض مع نشاط صف آخر لنفس الاسم لا يمكن إزاحته
-            const nameClash = [pA, pB].some(p =>
+        let chosen: Teacher | undefined;
+
+        if (activityTeachers.length) {
+          // المعلم الأصلي للنشاط — نتمسّك به مهما كان
+          chosen = [...activityTeachers].sort(
+            (a, b) => (activityLoad[a.id] || 0) - (activityLoad[b.id] || 0)
+          )[0];
+          forceFree(chosen.id, day, pA);
+          forceFree(chosen.id, day, pB);
+        } else {
+          chosen = sorted.find(t =>
+            !isBlocked(t, day, pA) && !isBlocked(t, day, pB) &&
+            !busy(t.name, t.id, day, pA) && !busy(t.name, t.id, day, pB)
+          );
+
+          if (!chosen) {
+            for (const t of sorted) {
+              if (isBlocked(t, day, pA) || isBlocked(t, day, pB)) continue;
+              const nameClash = [pA, pB].some(p =>
+                Object.values(tt).some(days => {
+                  const c = days[day]?.[p];
+                  return c && isActivityCell(c) && c.teacherName === t.name;
+                })
+              );
+              if (nameClash) continue;
+              if (relocateTeacherLesson(t.id, day, pA) && relocateTeacherLesson(t.id, day, pB)) {
+                chosen = t;
+                break;
+              }
+            }
+          }
+
+          if (!chosen) {
+            chosen = sorted.find(t => ![pA, pB].some(p =>
               Object.values(tt).some(days => {
                 const c = days[day]?.[p];
                 return c && isActivityCell(c) && c.teacherName === t.name;
               })
-            );
-            if (nameClash) continue;
-            if (relocateTeacherLesson(t.id, day, pA) && relocateTeacherLesson(t.id, day, pB)) {
-              chosen = t;
-              break;
-            }
+            )) || sorted[0];
           }
         }
-
-        // آخر حل: نُسند أقل المعلمين نصيباً حتى لا تبقى الخانة بلا اسم
-        if (!chosen) {
-          chosen = sorted.find(t => ![pA, pB].some(p =>
-            Object.values(tt).some(days => {
-              const c = days[day]?.[p];
-              return c && isActivityCell(c) && c.teacherName === t.name;
-            })
-          )) || sorted[0];
-        }
         if (!chosen) continue;
+
 
         activityLoad[chosen.id] = (activityLoad[chosen.id] || 0) + 1;
         tt[ck][day][pA] = { teacherId: ACTIVITY_TEACHER_ID, teacherName: chosen.name, subjectName: ACTIVITY_SUBJECT };
