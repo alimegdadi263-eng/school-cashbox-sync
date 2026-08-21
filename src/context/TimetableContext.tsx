@@ -851,10 +851,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
      * الآلية: البحث عن حصتين لنفس المادة في أيام مختلفة، ثم تبديل إحداهما مع
      * الحصة المجاورة للأخرى، مع التحقق من تعارضات المعلمين والحصص الممنوعة.
      */
-    /** خانات محجوزة لحصص النشاط (الصف → مفاتيح "يوم-حصة") لا يجوز تحريكها لاحقاً */
-    const activityLocked = new Set<string>();
-    const lockKey = (ck: string, d: number, p: number) => `${ck}|${d}|${p}`;
-    const isLocked = (ck: string, d: number, p: number) => activityLocked.has(lockKey(ck, d, p));
+
+
 
     const pairDoublePeriodSubjects = (tt: ClassTimetable) => {
       const freeAt = (teacherId: string, day: number, period: number, exceptClassKey: string) => {
