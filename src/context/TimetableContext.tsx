@@ -1275,6 +1275,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     }
     pairDoublePeriodSubjects(newTT);
     forcePlaceRemaining(newTT);
+    preferArtInLastPeriod(newTT);
     if (activityPeriods) assignActivityTeachers(newTT);
 
 
