@@ -1262,7 +1262,38 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    /**
+     * الحصة الثامنة للصفوف التي تتجاوز 35 حصة: نحاول جعلها تربية فنية أو تربية
+     * رياضية عبر تبديلها مع حصة من هذه المواد داخل نفس الصف دون إحداث تعارض.
+     */
+    const preferArtInLastPeriod = (tt: ClassTimetable) => {
+      const { trySwap } = makeSwapper(tt);
+      const isPreferred = (c: TimetableCell | null) =>
+        !!c && LAST_PERIOD_PREFERRED.includes(c.subjectName.trim());
+
+      for (const ck of Object.keys(tt)) {
+        const cap = classCap[ck] ?? periodsPerDay;
+        if (cap < 8) continue;
+        const last = cap - 1;
+        for (let day = 0; day < daysCount; day++) {
+          if (!tt[ck][day][last] || isPreferred(tt[ck][day][last])) continue;
+          if (isLocked(ck, day, last)) continue;
+          let done = false;
+          for (let d2 = 0; d2 < daysCount && !done; d2++) {
+            for (let p2 = 0; p2 < cap && !done; p2++) {
+              if (d2 === day && p2 === last) continue;
+              if (p2 === last) continue; // لا نسحب من حصة ثامنة أخرى
+              if (!isPreferred(tt[ck][d2][p2])) continue;
+              if (isLocked(ck, d2, p2)) continue;
+              if (trySwap(ck, day, last, d2, p2)) done = true;
+            }
+          }
+        }
+      }
+    };
+
     // ترتيب الجولات: ملء ورصّ ← إقران المهارات الرقمية/المهني (بأي يوم، دائماً)
+
     // ← ملء أخير. خانات النشاط (الثانية والثالثة في يوم الصف) محجوزة منذ البداية
     // فلا يمسّها أي من هذه الجولات، ثم نُسند لها معلماً في النهاية.
     for (let i = 0; i < 3; i++) {
