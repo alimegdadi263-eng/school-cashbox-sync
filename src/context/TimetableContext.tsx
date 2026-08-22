@@ -1454,7 +1454,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       pairDoubleSubjects, setPairDoubleSubjects,
       activityPeriods, setActivityPeriods,
       addTeacher, updateTeacher, removeTeacher,
-      setTimetable, updateCell, swapCells, moveCell, placeFromStaging, moveToStaging, generateTimetable,
+      setTimetable, updateCell, swapCells, swapCellsAcrossDays, moveCell, placeFromStaging, moveToStaging, generateTimetable,
       getTeacherSchedule, getAllClassKeys, clearTimetable,
       generateDailySchedule,
     }}>
