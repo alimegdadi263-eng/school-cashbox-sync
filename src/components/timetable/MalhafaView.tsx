@@ -1,9 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useLayoutEffect, useCallback } from "react";
 import { useTimetable } from "@/context/TimetableContext";
 import { DAYS, parseClassKey } from "@/types/timetable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { GripVertical, AlertTriangle } from "lucide-react";
+import { GripVertical, AlertTriangle, Maximize2, Minimize2, ZoomIn, ZoomOut, Scan } from "lucide-react";
+
 
 interface DragItem {
   type: "cell";
