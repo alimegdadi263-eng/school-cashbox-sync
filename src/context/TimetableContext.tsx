@@ -28,6 +28,8 @@ interface TimetableContextType {
   setTimetable: (tt: ClassTimetable) => void;
   updateCell: (classKey: string, day: number, period: number, cell: TimetableCell | null) => void;
   swapCells: (classKey: string, day: number, period: number, periodA: number) => boolean;
+  /** تبديل حصتين داخل نفس الصف حتى لو كانتا في يومين مختلفين (نقل يدوي حرّ) */
+  swapCellsAcrossDays: (classKey: string, dayA: number, periodA: number, dayB: number, periodB: number) => boolean;
   moveCell: (classKey: string, fromDay: number, fromPeriod: number, toDay: number, toPeriod: number) => boolean;
 
   moveToStaging: (classKey: string, day: number, period: number) => boolean;
