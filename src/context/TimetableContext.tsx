@@ -658,7 +658,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                 if (conflictingClassKey && tt[conflictingClassKey]) {
                   const otherPeriods = tt[conflictingClassKey][day];
                   const conflictCell = otherPeriods[p]!;
-                  if (otherPeriods[np] === null) {
+                  if (otherPeriods[np] === null && !overCap(conflictingClassKey, np)) {
                     let canSwap = true;
                     for (const [checkKey, checkDays] of Object.entries(tt)) {
                       if (checkKey === conflictingClassKey || checkKey === ck) continue;
