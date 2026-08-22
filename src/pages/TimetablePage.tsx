@@ -243,6 +243,47 @@ export default function TimetablePage() {
                     </Button>
                   </div>
 
+                  {/* Export ALL classes / ALL teachers */}
+                  <div className="space-y-3 border-b border-border pb-4">
+                    <div>
+                      <Label className="text-xs">تصدير جداول جميع الصفوف (كل صف في جدول مستقل)</Label>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        <Button size="sm" disabled={exporting} onClick={() => safeExport("جداول جميع الصفوف (Excel)", () => exportFullSchoolTimetableExcel(timetable, periodsPerDay, school))}>
+                          <FileSpreadsheet className="w-4 h-4 ml-1" /> ملف واحد (Excel)
+                        </Button>
+                        <Button size="sm" variant="outline" disabled={exporting} onClick={() => safeExport("جداول جميع الصفوف (Word)", () => exportFullSchoolTimetableDocx(timetable, periodsPerDay, school))}>
+                          <FileText className="w-4 h-4 ml-1" /> ملف واحد (Word)
+                        </Button>
+                        <Button size="sm" variant="secondary" disabled={exporting} onClick={() => safeExport("ملفات الصفوف المنفصلة (Excel)", () => exportEachClassSeparateExcelZip(timetable, periodsPerDay, school))}>
+                          <Download className="w-4 h-4 ml-1" /> ملف لكل صف (Excel - ZIP)
+                        </Button>
+                        <Button size="sm" variant="secondary" disabled={exporting} onClick={() => safeExport("ملفات الصفوف المنفصلة (Word)", () => exportEachClassSeparateDocxZip(timetable, periodsPerDay, school))}>
+                          <Download className="w-4 h-4 ml-1" /> ملف لكل صف (Word - ZIP)
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">تصدير جداول جميع المعلمين (كل معلم في جدول مستقل)</Label>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        <Button size="sm" disabled={exporting || teachers.length === 0} onClick={() => safeExport("جداول جميع المعلمين (Excel)", () => exportAllTeachersTimetablesExcel(teachers, timetable, periodsPerDay, school))}>
+                          <FileSpreadsheet className="w-4 h-4 ml-1" /> ملف واحد (Excel)
+                        </Button>
+                        <Button size="sm" variant="outline" disabled={exporting || teachers.length === 0} onClick={() => safeExport("جداول جميع المعلمين (Word)", () => exportAllTeachersTimetablesDocx(teachers, timetable, periodsPerDay, school))}>
+                          <FileText className="w-4 h-4 ml-1" /> ملف واحد (Word)
+                        </Button>
+                        <Button size="sm" variant="secondary" disabled={exporting || teachers.length === 0} onClick={() => safeExport("ملفات المعلمين المنفصلة (Excel)", () => exportEachTeacherSeparateExcelZip(teachers, timetable, periodsPerDay, school))}>
+                          <Download className="w-4 h-4 ml-1" /> ملف لكل معلم (Excel - ZIP)
+                        </Button>
+                        <Button size="sm" variant="secondary" disabled={exporting || teachers.length === 0} onClick={() => safeExport("ملفات المعلمين المنفصلة (Word)", () => exportEachTeacherSeparateDocxZip(teachers, timetable, periodsPerDay, school))}>
+                          <Download className="w-4 h-4 ml-1" /> ملف لكل معلم (Word - ZIP)
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+
+
                   {/* Export Malhafa */}
                   <div className="flex flex-wrap gap-3 border-b border-border pb-4">
                     <Button className="bg-amber-700 hover:bg-amber-800 text-white" disabled={exporting} onClick={() => safeExport("الملحفة", () => exportMalhafaExcel(timetable, periodsPerDay, school))}>
