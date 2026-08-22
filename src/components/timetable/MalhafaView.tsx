@@ -58,6 +58,37 @@ export default function MalhafaView() {
   const [dragOver, setDragOver] = useState<{ classKey: string; day: number; period: number } | null>(null);
   const [stagingDragOver, setStagingDragOver] = useState(false);
 
+  // ==== عرض الشاشة الكاملة + التكبير/التصغير (لرؤية كل الأيام والصفوف دفعة واحدة) ====
+  const [fullscreen, setFullscreen] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
+
+  const fitToScreen = useCallback(() => {
+    const wrap = scrollRef.current;
+    const table = tableRef.current;
+    if (!wrap || !table) return;
+    const naturalWidth = table.offsetWidth / (zoom || 1);
+    const naturalHeight = table.offsetHeight / (zoom || 1);
+    if (!naturalWidth || !naturalHeight) return;
+    const ratio = Math.min(
+      (wrap.clientWidth - 4) / naturalWidth,
+      (wrap.clientHeight - 4) / naturalHeight,
+      1.5
+    );
+    setZoom(Math.max(0.25, Math.min(1.5, ratio)));
+  }, [zoom]);
+
+  // ملاءمة تلقائية عند الدخول لوضع الشاشة الكاملة
+  useLayoutEffect(() => {
+    if (fullscreen) {
+      const id = window.setTimeout(fitToScreen, 50);
+      return () => window.clearTimeout(id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fullscreen]);
+
+
   const handleDropToStaging = () => {
     if (!dragSource || dragSource.type !== "cell") { setStagingDragOver(false); return; }
     const ok = moveToStaging(dragSource.classKey, dragSource.day, dragSource.period);
