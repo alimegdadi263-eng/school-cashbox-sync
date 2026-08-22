@@ -1387,12 +1387,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     }
     pairDoublePeriodSubjects(newTT);
     forcePlaceRemaining(newTT);
-    for (let g = 0; g < 3; g++) {
-      fillInteriorGaps(newTT);
-      compactTimetable(newTT);
-    }
     preferArtInLastPeriod(newTT);
-    fillInteriorGaps(newTT);
     if (activityPeriods) assignActivityTeachers(newTT);
 
 
