@@ -1,9 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useLayoutEffect, useCallback } from "react";
 import { useTimetable } from "@/context/TimetableContext";
 import { DAYS, parseClassKey } from "@/types/timetable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { GripVertical, AlertTriangle } from "lucide-react";
+import { GripVertical, AlertTriangle, Maximize2, Minimize2, ZoomIn, ZoomOut, Scan } from "lucide-react";
+
 
 interface DragItem {
   type: "cell";
@@ -55,6 +57,37 @@ export default function MalhafaView() {
   const [dragSource, setDragSource] = useState<DragSource | null>(null);
   const [dragOver, setDragOver] = useState<{ classKey: string; day: number; period: number } | null>(null);
   const [stagingDragOver, setStagingDragOver] = useState(false);
+
+  // ==== عرض الشاشة الكاملة + التكبير/التصغير (لرؤية كل الأيام والصفوف دفعة واحدة) ====
+  const [fullscreen, setFullscreen] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
+
+  const fitToScreen = useCallback(() => {
+    const wrap = scrollRef.current;
+    const table = tableRef.current;
+    if (!wrap || !table) return;
+    const naturalWidth = table.offsetWidth / (zoom || 1);
+    const naturalHeight = table.offsetHeight / (zoom || 1);
+    if (!naturalWidth || !naturalHeight) return;
+    const ratio = Math.min(
+      (wrap.clientWidth - 4) / naturalWidth,
+      (wrap.clientHeight - 4) / naturalHeight,
+      1.5
+    );
+    setZoom(Math.max(0.25, Math.min(1.5, ratio)));
+  }, [zoom]);
+
+  // ملاءمة تلقائية عند الدخول لوضع الشاشة الكاملة
+  useLayoutEffect(() => {
+    if (fullscreen) {
+      const id = window.setTimeout(fitToScreen, 50);
+      return () => window.clearTimeout(id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fullscreen]);
+
 
   const handleDropToStaging = () => {
     if (!dragSource || dragSource.type !== "cell") { setStagingDragOver(false); return; }
@@ -108,81 +141,106 @@ export default function MalhafaView() {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <GripVertical className="w-5 h-5" />
-            الملحفة التفاعلية (سحب وإفلات)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-[10px]">
-              <thead>
-                <tr className="bg-primary text-primary-foreground">
-                  <th className="border border-border p-1 text-center" rowSpan={2}>الصف/الشعبة</th>
-                  {DAYS.map(d => (
-                    <th key={d} className="border border-border p-1 text-center" colSpan={periodsPerDay}>{d}</th>
-                  ))}
-                </tr>
-                <tr className="bg-primary/80 text-primary-foreground">
-                  {DAYS.map((d, di) =>
-                    Array.from({ length: periodsPerDay }, (_, pi) => (
-                      <th key={`${di}-${pi}`} className="border border-border p-0.5 text-center w-[60px]">{pi + 1}</th>
-                    ))
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {classKeys.map(ck => {
-                  const { className, section } = parseClassKey(ck);
-                  const days = timetable[ck];
-                  if (!days) return null;
-                  return (
-                    <tr key={ck} className="hover:bg-muted/20">
-                      <td className="border border-border p-1 text-center font-bold bg-muted/50 whitespace-nowrap">
-                        {className}/{section}
-                      </td>
-                      {DAYS.map((_, di) =>
-                        Array.from({ length: periodsPerDay }, (_, pi) => {
-                          const cell = days[di]?.[pi];
-                          const isDragOverCell = dragOver?.classKey === ck && dragOver?.day === di && dragOver?.period === pi;
-                          const isDragSourceCell = dragSource?.type === "cell" && dragSource?.classKey === ck && dragSource?.day === di && dragSource?.period === pi;
-                          const bgColor = cell?.teacherId ? teacherColorMap[cell.teacherId] : undefined;
-                          return (
-                            <td
-                              key={`${di}-${pi}`}
-                              draggable
-                              onDragStart={() => setDragSource({ type: "cell", classKey: ck, day: di, period: pi })}
-                              onDragOver={(e) => { e.preventDefault(); setDragOver({ classKey: ck, day: di, period: pi }); }}
-                              onDragLeave={() => setDragOver(null)}
-                              onDrop={(e) => { e.preventDefault(); handleDrop(ck, di, pi); }}
-                              onDragEnd={() => { setDragSource(null); setDragOver(null); }}
-                              style={bgColor && !isDragOverCell && !isDragSourceCell ? { backgroundColor: bgColor } : undefined}
-                              className={`border border-border p-0.5 text-center cursor-grab min-w-[60px] transition-colors
-                                ${isDragOverCell ? "bg-accent/40 ring-1 ring-accent" : ""}
-                                ${isDragSourceCell ? "opacity-50 bg-primary/10" : ""}
-                                ${!isDragOverCell && !isDragSourceCell && !bgColor ? "hover:bg-accent/10" : ""}
-                              `}
-                            >
-                              {cell ? (
-                                <div className="leading-tight">
-                                  <div className="font-semibold truncate">{cell.subjectName}</div>
-                                  <div className="text-[8px] truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{cell.teacherName}</div>
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground/30">-</span>
-                              )}
-                            </td>
-                          );
-                        })
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      <Card className={fullscreen ? "fixed inset-0 z-50 m-0 rounded-none overflow-hidden flex flex-col" : ""}>
+        <CardHeader className={fullscreen ? "py-2 shrink-0" : ""}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <GripVertical className="w-5 h-5" />
+              الملحفة التفاعلية (سحب وإفلات)
+            </CardTitle>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" onClick={() => setZoom(z => Math.max(0.25, +(z - 0.1).toFixed(2)))} title="تصغير">
+                <ZoomOut className="w-4 h-4" />
+              </Button>
+              <span className="text-xs w-12 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
+              <Button variant="outline" size="sm" onClick={() => setZoom(z => Math.min(1.5, +(z + 0.1).toFixed(2)))} title="تكبير">
+                <ZoomIn className="w-4 h-4" />
+              </Button>
+              <Button variant="outline" size="sm" onClick={fitToScreen} title="ملاءمة الجدول كاملاً على الشاشة">
+                <Scan className="w-4 h-4 ml-1" />
+                ملاءمة الشاشة
+              </Button>
+              <Button variant={fullscreen ? "default" : "outline"} size="sm" onClick={() => setFullscreen(f => !f)}>
+                {fullscreen ? <Minimize2 className="w-4 h-4 ml-1" /> : <Maximize2 className="w-4 h-4 ml-1" />}
+                {fullscreen ? "خروج من ملء الشاشة" : "ملء الشاشة"}
+              </Button>
+            </div>
           </div>
+        </CardHeader>
+        <CardContent className={fullscreen ? "flex-1 min-h-0 flex flex-col pb-2" : ""}>
+          <div
+            ref={scrollRef}
+            className={`overflow-auto border rounded-md relative ${fullscreen ? "flex-1 min-h-0" : "max-h-[70vh]"}`}
+          >
+            <div style={{ zoom }}>
+              <table ref={tableRef} className="w-full border-collapse text-[10px]">
+                <thead>
+                  <tr className="bg-primary text-primary-foreground">
+                    <th className="border border-border p-1 text-center sticky top-0 right-0 z-30 bg-primary h-6" rowSpan={2}>الصف/الشعبة</th>
+                    {DAYS.map(d => (
+                      <th key={d} className="border border-border p-1 text-center sticky top-0 z-20 bg-primary h-6" colSpan={periodsPerDay}>{d}</th>
+                    ))}
+                  </tr>
+                  <tr className="bg-primary/80 text-primary-foreground">
+                    {DAYS.map((d, di) =>
+                      Array.from({ length: periodsPerDay }, (_, pi) => (
+                        <th key={`${di}-${pi}`} className="border border-border p-0.5 text-center w-[60px] sticky top-6 z-20 bg-primary">{pi + 1}</th>
+                      ))
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {classKeys.map(ck => {
+                    const { className, section } = parseClassKey(ck);
+                    const days = timetable[ck];
+                    if (!days) return null;
+                    return (
+                      <tr key={ck} className="hover:bg-muted/20">
+                        <td className="border border-border p-1 text-center font-bold whitespace-nowrap sticky right-0 z-10 bg-secondary text-secondary-foreground">
+                          {className}/{section}
+                        </td>
+                        {DAYS.map((_, di) =>
+                          Array.from({ length: periodsPerDay }, (_, pi) => {
+                            const cell = days[di]?.[pi];
+                            const isDragOverCell = dragOver?.classKey === ck && dragOver?.day === di && dragOver?.period === pi;
+                            const isDragSourceCell = dragSource?.type === "cell" && dragSource?.classKey === ck && dragSource?.day === di && dragSource?.period === pi;
+                            const bgColor = cell?.teacherId ? teacherColorMap[cell.teacherId] : undefined;
+                            return (
+                              <td
+                                key={`${di}-${pi}`}
+                                draggable
+                                onDragStart={() => setDragSource({ type: "cell", classKey: ck, day: di, period: pi })}
+                                onDragOver={(e) => { e.preventDefault(); setDragOver({ classKey: ck, day: di, period: pi }); }}
+                                onDragLeave={() => setDragOver(null)}
+                                onDrop={(e) => { e.preventDefault(); handleDrop(ck, di, pi); }}
+                                onDragEnd={() => { setDragSource(null); setDragOver(null); }}
+                                style={bgColor && !isDragOverCell && !isDragSourceCell ? { backgroundColor: bgColor } : undefined}
+                                className={`border border-border p-0.5 text-center cursor-grab min-w-[60px] transition-colors
+                                  ${isDragOverCell ? "bg-accent/40 ring-1 ring-accent" : ""}
+                                  ${isDragSourceCell ? "opacity-50 bg-primary/10" : ""}
+                                  ${!isDragOverCell && !isDragSourceCell && !bgColor ? "hover:bg-accent/10" : ""}
+                                `}
+                              >
+                                {cell ? (
+                                  <div className="leading-tight">
+                                    <div className="font-semibold truncate">{cell.subjectName}</div>
+                                    <div className="text-[8px] truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{cell.teacherName}</div>
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground/30">-</span>
+                                )}
+                              </td>
+                            );
+                          })
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           <p className="text-muted-foreground text-xs mt-2">
             اسحب أي حصة وأفلتها على خانة فارغة (في أي يوم من نفس الصف) لنقلها، أو على حصة أخرى في نفس اليوم للتبديل، أو اسحب من الحصص المتبقية أدناه لوضعها في خانة فارغة
           </p>
