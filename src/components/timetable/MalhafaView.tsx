@@ -51,7 +51,7 @@ const TEACHER_COLORS = [
 ];
 
 export default function MalhafaView() {
-  const { timetable, periodsPerDay, getAllClassKeys, swapCells, moveCell, unplacedPeriods, placeFromStaging, moveToStaging, teachers } = useTimetable();
+  const { timetable, periodsPerDay, getAllClassKeys, swapCells, swapCellsAcrossDays, moveCell, unplacedPeriods, placeFromStaging, moveToStaging, teachers } = useTimetable();
   const classKeys = getAllClassKeys();
 
   const [dragSource, setDragSource] = useState<DragSource | null>(null);
@@ -61,8 +61,13 @@ export default function MalhafaView() {
   // ==== عرض الشاشة الكاملة + التكبير/التصغير (لرؤية كل الأيام والصفوف دفعة واحدة) ====
   const [fullscreen, setFullscreen] = useState(false);
   const [zoom, setZoom] = useState(1);
+  /** الوضع المدمج: إخفاء اسم المعلم وتصغير الخانات لتسع كل الجدول مع بقاء الخط واضحاً */
+  const [compact, setCompact] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
+
+  /** الحد الأدنى للتصغير حتى يبقى النص مقروءاً */
+  const MIN_READABLE_ZOOM = 0.55;
 
   const fitToScreen = useCallback(() => {
     const wrap = scrollRef.current;
@@ -76,8 +81,10 @@ export default function MalhafaView() {
       (wrap.clientHeight - 4) / naturalHeight,
       1.5
     );
-    setZoom(Math.max(0.25, Math.min(1.5, ratio)));
-  }, [zoom]);
+    // لا ننزل تحت الحد المقروء؛ إن لزم الأمر نفعّل الوضع المدمج بدل التصغير المفرط
+    if (ratio < MIN_READABLE_ZOOM && !compact) setCompact(true);
+    setZoom(Math.max(MIN_READABLE_ZOOM, Math.min(1.5, ratio)));
+  }, [zoom, compact]);
 
   // ملاءمة تلقائية عند الدخول لوضع الشاشة الكاملة
   useLayoutEffect(() => {
@@ -131,7 +138,10 @@ export default function MalhafaView() {
         if (ok) toast({ title: "تم التبديل بنجاح!" });
         else toast({ title: "لا يمكن التبديل - يوجد تعارض!", variant: "destructive" });
       } else {
-        toast({ title: "التبديل بين حصتين ممتلئتين يكون في نفس اليوم فقط", variant: "destructive" });
+        // تبديل حرّ بين يومين مختلفين داخل نفس الصف
+        const ok = swapCellsAcrossDays(targetClassKey, dragSource.day, dragSource.period, targetDay, targetPeriod);
+        if (ok) toast({ title: "تم التبديل بين اليومين بنجاح!" });
+        else toast({ title: "لا يمكن التبديل - تعارض للمعلم!", variant: "destructive" });
       }
     }
     setDragSource(null);
@@ -149,12 +159,15 @@ export default function MalhafaView() {
               الملحفة التفاعلية (سحب وإفلات)
             </CardTitle>
             <div className="flex items-center gap-1">
-              <Button variant="outline" size="sm" onClick={() => setZoom(z => Math.max(0.25, +(z - 0.1).toFixed(2)))} title="تصغير">
+              <Button variant="outline" size="sm" onClick={() => setZoom(z => Math.max(0.4, +(z - 0.1).toFixed(2)))} title="تصغير">
                 <ZoomOut className="w-4 h-4" />
               </Button>
               <span className="text-xs w-12 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
               <Button variant="outline" size="sm" onClick={() => setZoom(z => Math.min(1.5, +(z + 0.1).toFixed(2)))} title="تكبير">
                 <ZoomIn className="w-4 h-4" />
+              </Button>
+              <Button variant={compact ? "default" : "outline"} size="sm" onClick={() => setCompact(c => !c)} title="إخفاء أسماء المعلمين لعرض الجدول كاملاً بخط أوضح">
+                {compact ? "إظهار المعلمين" : "عرض مدمج"}
               </Button>
               <Button variant="outline" size="sm" onClick={fitToScreen} title="ملاءمة الجدول كاملاً على الشاشة">
                 <Scan className="w-4 h-4 ml-1" />
@@ -173,7 +186,7 @@ export default function MalhafaView() {
             className={`overflow-auto border rounded-md relative ${fullscreen ? "flex-1 min-h-0" : "max-h-[70vh]"}`}
           >
             <div style={{ zoom }}>
-              <table ref={tableRef} className="w-full border-collapse text-[10px]">
+              <table ref={tableRef} className={`w-full border-collapse ${compact ? "text-[12px]" : "text-[11px]"}`}>
                 <thead>
                   <tr className="bg-primary text-primary-foreground">
                     <th className="border border-border p-1 text-center sticky top-0 right-0 z-30 bg-primary h-6" rowSpan={2}>الصف/الشعبة</th>
@@ -184,7 +197,7 @@ export default function MalhafaView() {
                   <tr className="bg-primary/80 text-primary-foreground">
                     {DAYS.map((d, di) =>
                       Array.from({ length: periodsPerDay }, (_, pi) => (
-                        <th key={`${di}-${pi}`} className="border border-border p-0.5 text-center w-[60px] sticky top-6 z-20 bg-primary">{pi + 1}</th>
+                        <th key={`${di}-${pi}`} className={`border border-border p-0.5 text-center sticky top-6 z-20 bg-primary ${compact ? "w-[46px]" : "w-[60px]"}`}>{pi + 1}</th>
                       ))
                     )}
                   </tr>
@@ -215,16 +228,19 @@ export default function MalhafaView() {
                                 onDrop={(e) => { e.preventDefault(); handleDrop(ck, di, pi); }}
                                 onDragEnd={() => { setDragSource(null); setDragOver(null); }}
                                 style={bgColor && !isDragOverCell && !isDragSourceCell ? { backgroundColor: bgColor } : undefined}
-                                className={`border border-border p-0.5 text-center cursor-grab min-w-[60px] transition-colors
+                                className={`border border-border p-0.5 text-center cursor-grab transition-colors ${compact ? "min-w-[46px]" : "min-w-[60px]"}
                                   ${isDragOverCell ? "bg-accent/40 ring-1 ring-accent" : ""}
                                   ${isDragSourceCell ? "opacity-50 bg-primary/10" : ""}
                                   ${!isDragOverCell && !isDragSourceCell && !bgColor ? "hover:bg-accent/10" : ""}
                                 `}
+                                title={cell ? `${cell.subjectName} - ${cell.teacherName}` : undefined}
                               >
                                 {cell ? (
                                   <div className="leading-tight">
                                     <div className="font-semibold truncate">{cell.subjectName}</div>
-                                    <div className="text-[8px] truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{cell.teacherName}</div>
+                                    {!compact && (
+                                      <div className="text-[9px] truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{cell.teacherName}</div>
+                                    )}
                                   </div>
                                 ) : (
                                   <span className="text-muted-foreground/30">-</span>

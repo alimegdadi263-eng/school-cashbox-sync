@@ -28,6 +28,8 @@ interface TimetableContextType {
   setTimetable: (tt: ClassTimetable) => void;
   updateCell: (classKey: string, day: number, period: number, cell: TimetableCell | null) => void;
   swapCells: (classKey: string, day: number, period: number, periodA: number) => boolean;
+  /** تبديل حصتين داخل نفس الصف حتى لو كانتا في يومين مختلفين (نقل يدوي حرّ) */
+  swapCellsAcrossDays: (classKey: string, dayA: number, periodA: number, dayB: number, periodB: number) => boolean;
   moveCell: (classKey: string, fromDay: number, fromPeriod: number, toDay: number, toPeriod: number) => boolean;
 
   moveToStaging: (classKey: string, day: number, period: number) => boolean;
@@ -238,6 +240,43 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         return p;
       });
     });
+    setTimetableState(newTT);
+    save(teachers, newTT, periodsPerDay);
+    return true;
+  };
+
+  /**
+   * تبديل يدوي حرّ بين حصتين داخل نفس الصف حتى لو كانتا في يومين مختلفين.
+   * يُستخدم لنقل حصص مثل التربية الفنية/الرياضية من الحصة الثامنة إلى أي مكان آخر.
+   */
+  const swapCellsAcrossDays = (classKey: string, dayA: number, periodA: number, dayB: number, periodB: number): boolean => {
+    const days = timetable[classKey];
+    if (!days) return false;
+    if (dayA === dayB) return swapCells(classKey, dayA, periodA, periodB);
+    const cellA = days[dayA]?.[periodA] ?? null;
+    const cellB = days[dayB]?.[periodB] ?? null;
+    if (!cellA && !cellB) return false;
+
+    const busy = (teacherId: string | undefined, day: number, period: number) => {
+      if (!teacherId) return false;
+      for (const [key, d] of Object.entries(timetable)) {
+        if (key === classKey) continue;
+        if (d[day]?.[period]?.teacherId === teacherId) return true;
+      }
+      const teacher = teachers.find(t => t.id === teacherId);
+      return !!teacher && (teacher.blockedPeriods || []).some(bp => bp.day === day && bp.period === period);
+    };
+
+    if (busy(cellA?.teacherId, dayB, periodB) || busy(cellB?.teacherId, dayA, periodA)) return false;
+
+    const newTT = { ...timetable };
+    newTT[classKey] = days.map((d, di) =>
+      d.map((p, pi) => {
+        if (di === dayA && pi === periodA) return cellB;
+        if (di === dayB && pi === periodB) return cellA;
+        return p;
+      })
+    );
     setTimetableState(newTT);
     save(teachers, newTT, periodsPerDay);
     return true;
@@ -1296,6 +1335,48 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
     // ← ملء أخير. خانات النشاط (الثانية والثالثة في يوم الصف) محجوزة منذ البداية
     // فلا يمسّها أي من هذه الجولات، ثم نُسند لها معلماً في النهاية.
+    /**
+     * إزالة الفراغات الداخلية: أي خانة فارغة يليها حصص في نفس اليوم تُملأ بآخر
+     * حصة من يوم آخر لنفس الصف (نقلها لا يُحدث فراغاً جديداً) إن لم يوجد تعارض.
+     */
+    const fillInteriorGaps = (tt: ClassTimetable) => {
+      for (const ck of Object.keys(tt)) {
+        const cap = classCap[ck] ?? periodsPerDay;
+        for (let day = 0; day < daysCount; day++) {
+          for (let p = 0; p < cap; p++) {
+            if (tt[ck][day][p] !== null) continue;
+            if (isLocked(ck, day, p)) continue;
+            // فراغ داخلي فقط (يوجد حصة بعده في نفس اليوم)
+            let hasLater = false;
+            for (let q = p + 1; q < cap; q++) if (tt[ck][day][q]) { hasLater = true; break; }
+            if (!hasLater) continue;
+
+            let filled = false;
+            for (let d2 = 0; d2 < daysCount && !filled; d2++) {
+              if (d2 === day) continue;
+              // آخر حصة في اليوم الآخر
+              let lastIdx = -1;
+              for (let q = cap - 1; q >= 0; q--) if (tt[ck][d2][q]) { lastIdx = q; break; }
+              if (lastIdx < 0) continue;
+              const cell = tt[ck][d2][lastIdx]!;
+              if (isActivityCell(cell) || isLocked(ck, d2, lastIdx)) continue;
+              let conflict = false;
+              for (const [otherKey, otherDays] of Object.entries(tt)) {
+                if (otherKey === ck) continue;
+                if (otherDays[day]?.[p]?.teacherId === cell.teacherId) { conflict = true; break; }
+              }
+              if (conflict) continue;
+              const teacher = teachers.find(t => t.id === cell.teacherId);
+              if (teacher && isBlocked(teacher, day, p)) continue;
+              tt[ck][day][p] = cell;
+              tt[ck][d2][lastIdx] = null;
+              filled = true;
+            }
+          }
+        }
+      }
+    };
+
     for (let i = 0; i < 3; i++) {
       forcePlaceRemaining(newTT);
       compactTimetable(newTT);
@@ -1306,8 +1387,14 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     }
     pairDoublePeriodSubjects(newTT);
     forcePlaceRemaining(newTT);
+    for (let g = 0; g < 3; g++) {
+      fillInteriorGaps(newTT);
+      compactTimetable(newTT);
+    }
     preferArtInLastPeriod(newTT);
+    fillInteriorGaps(newTT);
     if (activityPeriods) assignActivityTeachers(newTT);
+
 
 
 
@@ -1367,7 +1454,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       pairDoubleSubjects, setPairDoubleSubjects,
       activityPeriods, setActivityPeriods,
       addTeacher, updateTeacher, removeTeacher,
-      setTimetable, updateCell, swapCells, moveCell, placeFromStaging, moveToStaging, generateTimetable,
+      setTimetable, updateCell, swapCells, swapCellsAcrossDays, moveCell, placeFromStaging, moveToStaging, generateTimetable,
       getTeacherSchedule, getAllClassKeys, clearTimetable,
       generateDailySchedule,
     }}>
