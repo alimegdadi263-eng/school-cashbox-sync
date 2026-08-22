@@ -101,7 +101,7 @@ export async function exportClassTimetableDocx(
   saveAs(blob, `جدول_${className}_${section}.docx`);
 }
 
-export async function exportTeacherTimetableDocx(
+function buildTeacherSection(
   teacher: Teacher,
   timetable: ClassTimetable,
   periodsPerDay: number,
@@ -143,33 +143,108 @@ export async function exportTeacherTimetableDocx(
     rows: [headerRow, ...dataRows],
   });
 
-  const doc = new Document({
-    sections: [{
-      properties: { page: { size: { orientation: "landscape" as any } } },
-      children: [
-        new Paragraph({
-          alignment: AlignmentType.CENTER,
-          bidirectional: true,
-          heading: HeadingLevel.HEADING_1,
-          children: [new TextRun({ text: schoolName, font: FONT, bold: true, size: 32, color: HEADER_BG, rightToLeft: true })],
-        }),
-        new Paragraph({
-          alignment: AlignmentType.CENTER,
-          bidirectional: true,
-          spacing: { after: 300 },
-          children: [new TextRun({
-            text: `الجدول الأسبوعي للمعلم/ة: ${teacher.name}`,
-            font: FONT, bold: true, size: 28, color: ACCENT_BG, rightToLeft: true,
-          })],
-        }),
-        table,
-      ],
-    }],
-  });
+  return {
+    properties: { page: { size: { orientation: "landscape" as any } } },
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        bidirectional: true,
+        heading: HeadingLevel.HEADING_1,
+        children: [new TextRun({ text: schoolName, font: FONT, bold: true, size: 32, color: HEADER_BG, rightToLeft: true })],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        bidirectional: true,
+        spacing: { after: 300 },
+        children: [new TextRun({
+          text: `الجدول الأسبوعي للمعلم/ة: ${teacher.name}`,
+          font: FONT, bold: true, size: 28, color: ACCENT_BG, rightToLeft: true,
+        })],
+      }),
+      table,
+    ],
+  };
+}
 
+export async function exportTeacherTimetableDocx(
+  teacher: Teacher,
+  timetable: ClassTimetable,
+  periodsPerDay: number,
+  schoolName: string
+) {
+  const doc = new Document({ sections: [buildTeacherSection(teacher, timetable, periodsPerDay, schoolName)] });
   const blob = await Packer.toBlob(doc);
   saveAs(blob, `جدول_${teacher.name}.docx`);
 }
+
+/** جميع المعلمين في ملف Word واحد - صفحة لكل معلم */
+export async function exportAllTeachersTimetablesDocx(
+  teachers: Teacher[],
+  timetable: ClassTimetable,
+  periodsPerDay: number,
+  schoolName: string
+) {
+  const doc = new Document({
+    sections: teachers.map(t => buildTeacherSection(t, timetable, periodsPerDay, schoolName)),
+  });
+  const blob = await Packer.toBlob(doc);
+  saveAs(blob, `جداول_جميع_المعلمين.docx`);
+}
+
+/** ملف Word منفصل لكل معلم داخل ملف ZIP */
+export async function exportEachTeacherSeparateDocxZip(
+  teachers: Teacher[],
+  timetable: ClassTimetable,
+  periodsPerDay: number,
+  schoolName: string
+) {
+  const JSZip = (await import("jszip")).default;
+  const zip = new JSZip();
+  for (const t of teachers) {
+    const doc = new Document({ sections: [buildTeacherSection(t, timetable, periodsPerDay, schoolName)] });
+    zip.file(`جدول_${t.name}.docx`, await Packer.toBlob(doc));
+  }
+  saveAs(await zip.generateAsync({ type: "blob" }), `جداول_المعلمين_منفصلة.zip`);
+}
+
+/** ملف Word منفصل لكل صف داخل ملف ZIP */
+export async function exportEachClassSeparateDocxZip(
+  timetable: ClassTimetable,
+  periodsPerDay: number,
+  schoolName: string
+) {
+  const JSZip = (await import("jszip")).default;
+  const zip = new JSZip();
+  for (const key of Object.keys(timetable).sort()) {
+    const { className, section } = parseClassKey(key);
+    const doc = new Document({
+      sections: [{
+        properties: { page: { size: { orientation: "landscape" as any } } },
+        children: [
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            bidirectional: true,
+            heading: HeadingLevel.HEADING_1,
+            children: [new TextRun({ text: schoolName, font: FONT, bold: true, size: 32, color: HEADER_BG, rightToLeft: true })],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            bidirectional: true,
+            spacing: { after: 300 },
+            children: [new TextRun({
+              text: `الجدول الأسبوعي - الصف ${className} / شعبة ${section}`,
+              font: FONT, bold: true, size: 28, color: ACCENT_BG, rightToLeft: true,
+            })],
+          }),
+          buildClassTable(timetable[key], periodsPerDay),
+        ],
+      }],
+    });
+    zip.file(`جدول_${className}_${section}.docx`, await Packer.toBlob(doc));
+  }
+  saveAs(await zip.generateAsync({ type: "blob" }), `جداول_الصفوف_منفصلة.zip`);
+}
+
 
 export async function exportFullSchoolTimetableDocx(
   timetable: ClassTimetable,

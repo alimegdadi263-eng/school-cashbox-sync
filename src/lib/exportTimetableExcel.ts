@@ -92,14 +92,24 @@ export async function exportClassTimetableExcel(
   saveAs(new Blob([buffer]), `جدول_${className}_${section}.xlsx`);
 }
 
-export async function exportTeacherTimetableExcel(
+function safeSheetName(name: string, used: Set<string>) {
+  let base = name.replace(/[\\/*?:[\]]/g, " ").trim().slice(0, 28) || "معلم";
+  let candidate = base;
+  let i = 2;
+  while (used.has(candidate)) candidate = `${base} ${i++}`;
+  used.add(candidate);
+  return candidate;
+}
+
+function addTeacherSheet(
+  wb: ExcelJS.Workbook,
   teacher: Teacher,
   timetable: ClassTimetable,
   periodsPerDay: number,
-  schoolName: string
+  schoolName: string,
+  used?: Set<string>
 ) {
-  const wb = new ExcelJS.Workbook();
-  const ws = wb.addWorksheet(teacher.name);
+  const ws = wb.addWorksheet(safeSheetName(teacher.name, used ?? new Set()));
   ws.views = [{ rightToLeft: true }];
 
   const titleRow = ws.addRow([`${schoolName} - الجدول الأسبوعي للمعلم/ة: ${teacher.name}`]);
@@ -143,10 +153,72 @@ export async function exportTeacherTimetableExcel(
 
   ws.getColumn(1).width = 10;
   for (let i = 2; i <= DAYS.length + 1; i++) ws.getColumn(i).width = 22;
+}
 
+export async function exportTeacherTimetableExcel(
+  teacher: Teacher,
+  timetable: ClassTimetable,
+  periodsPerDay: number,
+  schoolName: string
+) {
+  const wb = new ExcelJS.Workbook();
+  addTeacherSheet(wb, teacher, timetable, periodsPerDay, schoolName);
   const buffer = await wb.xlsx.writeBuffer();
   saveAs(new Blob([buffer]), `جدول_${teacher.name}.xlsx`);
 }
+
+/** جميع المعلمين في ملف Excel واحد - ورقة لكل معلم */
+export async function exportAllTeachersTimetablesExcel(
+  teachers: Teacher[],
+  timetable: ClassTimetable,
+  periodsPerDay: number,
+  schoolName: string
+) {
+  const wb = new ExcelJS.Workbook();
+  const used = new Set<string>();
+  for (const t of teachers) addTeacherSheet(wb, t, timetable, periodsPerDay, schoolName, used);
+  const buffer = await wb.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), `جداول_جميع_المعلمين.xlsx`);
+}
+
+/** ملف Excel منفصل لكل صف داخل ملف مضغوط ZIP */
+export async function exportEachClassSeparateExcelZip(
+  timetable: ClassTimetable,
+  periodsPerDay: number,
+  schoolName: string
+) {
+  const JSZip = (await import("jszip")).default;
+  const zip = new JSZip();
+  for (const key of Object.keys(timetable).sort()) {
+    const wb = new ExcelJS.Workbook();
+    addClassSheet(wb, key, timetable[key], periodsPerDay, schoolName);
+    const buffer = await wb.xlsx.writeBuffer();
+    const { className, section } = parseClassKey(key);
+    zip.file(`جدول_${className}_${section}.xlsx`, buffer);
+  }
+  const blob = await zip.generateAsync({ type: "blob" });
+  saveAs(blob, `جداول_الصفوف_منفصلة.zip`);
+}
+
+/** ملف Excel منفصل لكل معلم داخل ملف مضغوط ZIP */
+export async function exportEachTeacherSeparateExcelZip(
+  teachers: Teacher[],
+  timetable: ClassTimetable,
+  periodsPerDay: number,
+  schoolName: string
+) {
+  const JSZip = (await import("jszip")).default;
+  const zip = new JSZip();
+  for (const t of teachers) {
+    const wb = new ExcelJS.Workbook();
+    addTeacherSheet(wb, t, timetable, periodsPerDay, schoolName);
+    const buffer = await wb.xlsx.writeBuffer();
+    zip.file(`جدول_${t.name}.xlsx`, buffer);
+  }
+  const blob = await zip.generateAsync({ type: "blob" });
+  saveAs(blob, `جداول_المعلمين_منفصلة.zip`);
+}
+
 
 export async function exportFullSchoolTimetableExcel(
   timetable: ClassTimetable,
