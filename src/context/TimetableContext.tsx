@@ -536,6 +536,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         if (respectDailyLimit && assignment.perDayCount[day] >= maxPerDay) continue;
 
         for (const period of periodOrder) {
+          if (overCap(assignment.classKey, period)) continue;
           if (newTT[assignment.classKey][day][period] !== null) continue;
           if (isTeacherBusy(assignment.teacherId, day, period, assignment.classKey)) continue;
           if (isBlocked(teacher, day, period)) continue;
@@ -551,6 +552,13 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
           if (period === sixthPeriodIdx) score += 30 + latePeriodCount[assignment.teacherId].sixth * 45;
           if (period === seventhPeriodIdx) score += 45 + latePeriodCount[assignment.teacherId].seventh * 70;
+
+          // الحصة الأخيرة (الثامنة) للصفوف التي تتجاوز 35 حصة: تُفضَّل التربية الفنية والرياضية
+          const lastIdx = (classCap[assignment.classKey] ?? periodsPerDay) - 1;
+          if (period === lastIdx && lastIdx >= 7) {
+            score += LAST_PERIOD_PREFERRED.includes(assignment.subjectName.trim()) ? -400 : 250;
+          }
+
 
           if (!best || score < best.score) {
             best = { day, period, score };
