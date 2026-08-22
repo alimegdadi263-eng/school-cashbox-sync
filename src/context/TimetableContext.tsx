@@ -245,6 +245,43 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
+  /**
+   * تبديل يدوي حرّ بين حصتين داخل نفس الصف حتى لو كانتا في يومين مختلفين.
+   * يُستخدم لنقل حصص مثل التربية الفنية/الرياضية من الحصة الثامنة إلى أي مكان آخر.
+   */
+  const swapCellsAcrossDays = (classKey: string, dayA: number, periodA: number, dayB: number, periodB: number): boolean => {
+    const days = timetable[classKey];
+    if (!days) return false;
+    if (dayA === dayB) return swapCells(classKey, dayA, periodA, periodB);
+    const cellA = days[dayA]?.[periodA] ?? null;
+    const cellB = days[dayB]?.[periodB] ?? null;
+    if (!cellA && !cellB) return false;
+
+    const busy = (teacherId: string | undefined, day: number, period: number) => {
+      if (!teacherId) return false;
+      for (const [key, d] of Object.entries(timetable)) {
+        if (key === classKey) continue;
+        if (d[day]?.[period]?.teacherId === teacherId) return true;
+      }
+      const teacher = teachers.find(t => t.id === teacherId);
+      return !!teacher && (teacher.blockedPeriods || []).some(bp => bp.day === day && bp.period === period);
+    };
+
+    if (busy(cellA?.teacherId, dayB, periodB) || busy(cellB?.teacherId, dayA, periodA)) return false;
+
+    const newTT = { ...timetable };
+    newTT[classKey] = days.map((d, di) =>
+      d.map((p, pi) => {
+        if (di === dayA && pi === periodA) return cellB;
+        if (di === dayB && pi === periodB) return cellA;
+        return p;
+      })
+    );
+    setTimetableState(newTT);
+    save(teachers, newTT, periodsPerDay);
+    return true;
+  };
+
 
   /**
    * نقل حصة من مكانها إلى خانة فارغة (يمكن أن تكون في يوم آخر داخل نفس الصف).
