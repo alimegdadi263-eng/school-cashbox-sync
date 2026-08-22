@@ -228,16 +228,19 @@ export default function MalhafaView() {
                                 onDrop={(e) => { e.preventDefault(); handleDrop(ck, di, pi); }}
                                 onDragEnd={() => { setDragSource(null); setDragOver(null); }}
                                 style={bgColor && !isDragOverCell && !isDragSourceCell ? { backgroundColor: bgColor } : undefined}
-                                className={`border border-border p-0.5 text-center cursor-grab min-w-[60px] transition-colors
+                                className={`border border-border p-0.5 text-center cursor-grab transition-colors ${compact ? "min-w-[46px]" : "min-w-[60px]"}
                                   ${isDragOverCell ? "bg-accent/40 ring-1 ring-accent" : ""}
                                   ${isDragSourceCell ? "opacity-50 bg-primary/10" : ""}
                                   ${!isDragOverCell && !isDragSourceCell && !bgColor ? "hover:bg-accent/10" : ""}
                                 `}
+                                title={cell ? `${cell.subjectName} - ${cell.teacherName}` : undefined}
                               >
                                 {cell ? (
                                   <div className="leading-tight">
                                     <div className="font-semibold truncate">{cell.subjectName}</div>
-                                    <div className="text-[8px] truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{cell.teacherName}</div>
+                                    {!compact && (
+                                      <div className="text-[9px] truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{cell.teacherName}</div>
+                                    )}
                                   </div>
                                 ) : (
                                   <span className="text-muted-foreground/30">-</span>
