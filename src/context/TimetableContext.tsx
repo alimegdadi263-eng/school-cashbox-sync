@@ -411,10 +411,41 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       });
     }
 
+    /**
+     * سقف الحصص لكل صف:
+     * - الصف الذي مجموع حصصه الأسبوعية أكثر من 35 → يُسمح له بالحصة الثامنة.
+     * - الصف الذي مجموعه 35 أو أقل → الحد الأقصى 7 حصص يومياً (ترتيب حتى الحصة السابعة فقط).
+     * الخانات التي تتجاوز السقف تُقفل فلا يضع فيها المولّد أي حصة.
+     */
+    const classWeeklyTotal: Record<string, number> = {};
+    classKeys.forEach(ck => { classWeeklyTotal[ck] = 0; });
+    teachers.forEach(t => {
+      t.subjects.forEach(s => {
+        const ck = getClassKey(s.className, s.section);
+        if (classWeeklyTotal[ck] === undefined) classWeeklyTotal[ck] = 0;
+        classWeeklyTotal[ck] += s.periodsPerWeek;
+      });
+    });
 
+    const classCap: Record<string, number> = {};
+    classKeys.forEach(ck => {
+      classCap[ck] = classWeeklyTotal[ck] > 35 ? periodsPerDay : Math.min(periodsPerDay, 7);
+    });
+
+    const overCap = (ck: string, period: number) => period >= (classCap[ck] ?? periodsPerDay);
+
+    classKeys.forEach(ck => {
+      for (let d = 0; d < daysCount; d++) {
+        for (let p = classCap[ck]; p < periodsPerDay; p++) activityLocked.add(lockKey(ck, d, p));
+      }
+    });
+
+    /** المواد المفضّلة للحصة الثامنة عند الصفوف التي تتجاوز 35 حصة */
+    const LAST_PERIOD_PREFERRED = ["تربية فنية", "تربية رياضية"];
 
     const latePeriodCount: Record<string, { sixth: number; seventh: number }> = {};
     teachers.forEach(t => { latePeriodCount[t.id] = { sixth: 0, seventh: 0 }; });
+
 
     const classDayLoad: Record<string, number[]> = {};
     classKeys.forEach(key => {
