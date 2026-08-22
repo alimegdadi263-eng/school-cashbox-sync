@@ -131,7 +131,10 @@ export default function MalhafaView() {
         if (ok) toast({ title: "تم التبديل بنجاح!" });
         else toast({ title: "لا يمكن التبديل - يوجد تعارض!", variant: "destructive" });
       } else {
-        toast({ title: "التبديل بين حصتين ممتلئتين يكون في نفس اليوم فقط", variant: "destructive" });
+        // تبديل حرّ بين يومين مختلفين داخل نفس الصف
+        const ok = swapCellsAcrossDays(targetClassKey, dragSource.day, dragSource.period, targetDay, targetPeriod);
+        if (ok) toast({ title: "تم التبديل بين اليومين بنجاح!" });
+        else toast({ title: "لا يمكن التبديل - تعارض للمعلم!", variant: "destructive" });
       }
     }
     setDragSource(null);
