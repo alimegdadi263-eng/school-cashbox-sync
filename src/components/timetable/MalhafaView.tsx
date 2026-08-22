@@ -61,8 +61,13 @@ export default function MalhafaView() {
   // ==== عرض الشاشة الكاملة + التكبير/التصغير (لرؤية كل الأيام والصفوف دفعة واحدة) ====
   const [fullscreen, setFullscreen] = useState(false);
   const [zoom, setZoom] = useState(1);
+  /** الوضع المدمج: إخفاء اسم المعلم وتصغير الخانات لتسع كل الجدول مع بقاء الخط واضحاً */
+  const [compact, setCompact] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
+
+  /** الحد الأدنى للتصغير حتى يبقى النص مقروءاً */
+  const MIN_READABLE_ZOOM = 0.55;
 
   const fitToScreen = useCallback(() => {
     const wrap = scrollRef.current;
@@ -76,8 +81,10 @@ export default function MalhafaView() {
       (wrap.clientHeight - 4) / naturalHeight,
       1.5
     );
-    setZoom(Math.max(0.25, Math.min(1.5, ratio)));
-  }, [zoom]);
+    // لا ننزل تحت الحد المقروء؛ إن لزم الأمر نفعّل الوضع المدمج بدل التصغير المفرط
+    if (ratio < MIN_READABLE_ZOOM && !compact) setCompact(true);
+    setZoom(Math.max(MIN_READABLE_ZOOM, Math.min(1.5, ratio)));
+  }, [zoom, compact]);
 
   // ملاءمة تلقائية عند الدخول لوضع الشاشة الكاملة
   useLayoutEffect(() => {
