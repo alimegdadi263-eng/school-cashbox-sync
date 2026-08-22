@@ -1060,6 +1060,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
             for (let p2 = 0; p2 < periodsPerDay && !moved; p2++) {
               if (d2 === day && p2 === period) continue;
               if (tt[ck2][d2]?.[p2] !== null) continue;
+              if (overCap(ck2, p2)) continue;
               // لا نضع حصة داخل خانة نشاط محجوزة لهذا الصف
               const { className: cn2 } = parseClassKey(ck2);
               const aDay2 = getActivityDay(cn2);
