@@ -159,12 +159,15 @@ export default function MalhafaView() {
               الملحفة التفاعلية (سحب وإفلات)
             </CardTitle>
             <div className="flex items-center gap-1">
-              <Button variant="outline" size="sm" onClick={() => setZoom(z => Math.max(0.25, +(z - 0.1).toFixed(2)))} title="تصغير">
+              <Button variant="outline" size="sm" onClick={() => setZoom(z => Math.max(0.4, +(z - 0.1).toFixed(2)))} title="تصغير">
                 <ZoomOut className="w-4 h-4" />
               </Button>
               <span className="text-xs w-12 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
               <Button variant="outline" size="sm" onClick={() => setZoom(z => Math.min(1.5, +(z + 0.1).toFixed(2)))} title="تكبير">
                 <ZoomIn className="w-4 h-4" />
+              </Button>
+              <Button variant={compact ? "default" : "outline"} size="sm" onClick={() => setCompact(c => !c)} title="إخفاء أسماء المعلمين لعرض الجدول كاملاً بخط أوضح">
+                {compact ? "إظهار المعلمين" : "عرض مدمج"}
               </Button>
               <Button variant="outline" size="sm" onClick={fitToScreen} title="ملاءمة الجدول كاملاً على الشاشة">
                 <Scan className="w-4 h-4 ml-1" />
@@ -183,7 +186,7 @@ export default function MalhafaView() {
             className={`overflow-auto border rounded-md relative ${fullscreen ? "flex-1 min-h-0" : "max-h-[70vh]"}`}
           >
             <div style={{ zoom }}>
-              <table ref={tableRef} className="w-full border-collapse text-[10px]">
+              <table ref={tableRef} className={`w-full border-collapse ${compact ? "text-[12px]" : "text-[11px]"}`}>
                 <thead>
                   <tr className="bg-primary text-primary-foreground">
                     <th className="border border-border p-1 text-center sticky top-0 right-0 z-30 bg-primary h-6" rowSpan={2}>الصف/الشعبة</th>
@@ -194,7 +197,7 @@ export default function MalhafaView() {
                   <tr className="bg-primary/80 text-primary-foreground">
                     {DAYS.map((d, di) =>
                       Array.from({ length: periodsPerDay }, (_, pi) => (
-                        <th key={`${di}-${pi}`} className="border border-border p-0.5 text-center w-[60px] sticky top-6 z-20 bg-primary">{pi + 1}</th>
+                        <th key={`${di}-${pi}`} className={`border border-border p-0.5 text-center sticky top-6 z-20 bg-primary ${compact ? "w-[46px]" : "w-[60px]"}`}>{pi + 1}</th>
                       ))
                     )}
                   </tr>
