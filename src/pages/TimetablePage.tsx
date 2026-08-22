@@ -22,6 +22,9 @@ import {
   exportClassTimetableExcel,
   exportTeacherTimetableExcel,
   exportFullSchoolTimetableExcel,
+  exportAllTeachersTimetablesExcel,
+  exportEachClassSeparateExcelZip,
+  exportEachTeacherSeparateExcelZip,
   exportMalhafaExcel,
   exportMalhafaTransposedExcel,
   exportTeacherWorkloadExcel,
@@ -30,9 +33,13 @@ import {
   exportClassTimetableDocx,
   exportTeacherTimetableDocx,
   exportFullSchoolTimetableDocx,
+  exportAllTeachersTimetablesDocx,
+  exportEachClassSeparateDocxZip,
+  exportEachTeacherSeparateDocxZip,
   exportMalhafaDocx,
   exportMalhafaTransposedDocx,
 } from "@/lib/exportTimetableDocx";
+
 import { useAuth } from "@/hooks/useAuth";
 
 export default function TimetablePage() {
