@@ -411,10 +411,41 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       });
     }
 
+    /**
+     * سقف الحصص لكل صف:
+     * - الصف الذي مجموع حصصه الأسبوعية أكثر من 35 → يُسمح له بالحصة الثامنة.
+     * - الصف الذي مجموعه 35 أو أقل → الحد الأقصى 7 حصص يومياً (ترتيب حتى الحصة السابعة فقط).
+     * الخانات التي تتجاوز السقف تُقفل فلا يضع فيها المولّد أي حصة.
+     */
+    const classWeeklyTotal: Record<string, number> = {};
+    classKeys.forEach(ck => { classWeeklyTotal[ck] = 0; });
+    teachers.forEach(t => {
+      t.subjects.forEach(s => {
+        const ck = getClassKey(s.className, s.section);
+        if (classWeeklyTotal[ck] === undefined) classWeeklyTotal[ck] = 0;
+        classWeeklyTotal[ck] += s.periodsPerWeek;
+      });
+    });
 
+    const classCap: Record<string, number> = {};
+    classKeys.forEach(ck => {
+      classCap[ck] = classWeeklyTotal[ck] > 35 ? periodsPerDay : Math.min(periodsPerDay, 7);
+    });
+
+    const overCap = (ck: string, period: number) => period >= (classCap[ck] ?? periodsPerDay);
+
+    classKeys.forEach(ck => {
+      for (let d = 0; d < daysCount; d++) {
+        for (let p = classCap[ck]; p < periodsPerDay; p++) activityLocked.add(lockKey(ck, d, p));
+      }
+    });
+
+    /** المواد المفضّلة للحصة الثامنة عند الصفوف التي تتجاوز 35 حصة */
+    const LAST_PERIOD_PREFERRED = ["تربية فنية", "تربية رياضية"];
 
     const latePeriodCount: Record<string, { sixth: number; seventh: number }> = {};
     teachers.forEach(t => { latePeriodCount[t.id] = { sixth: 0, seventh: 0 }; });
+
 
     const classDayLoad: Record<string, number[]> = {};
     classKeys.forEach(key => {
@@ -505,6 +536,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         if (respectDailyLimit && assignment.perDayCount[day] >= maxPerDay) continue;
 
         for (const period of periodOrder) {
+          if (overCap(assignment.classKey, period)) continue;
           if (newTT[assignment.classKey][day][period] !== null) continue;
           if (isTeacherBusy(assignment.teacherId, day, period, assignment.classKey)) continue;
           if (isBlocked(teacher, day, period)) continue;
@@ -520,6 +552,13 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
           if (period === sixthPeriodIdx) score += 30 + latePeriodCount[assignment.teacherId].sixth * 45;
           if (period === seventhPeriodIdx) score += 45 + latePeriodCount[assignment.teacherId].seventh * 70;
+
+          // الحصة الأخيرة (الثامنة) للصفوف التي تتجاوز 35 حصة: تُفضَّل التربية الفنية والرياضية
+          const lastIdx = (classCap[assignment.classKey] ?? periodsPerDay) - 1;
+          if (period === lastIdx && lastIdx >= 7) {
+            score += LAST_PERIOD_PREFERRED.includes(assignment.subjectName.trim()) ? -400 : 250;
+          }
+
 
           if (!best || score < best.score) {
             best = { day, period, score };
@@ -619,7 +658,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                 if (conflictingClassKey && tt[conflictingClassKey]) {
                   const otherPeriods = tt[conflictingClassKey][day];
                   const conflictCell = otherPeriods[p]!;
-                  if (otherPeriods[np] === null) {
+                  if (otherPeriods[np] === null && !overCap(conflictingClassKey, np)) {
                     let canSwap = true;
                     for (const [checkKey, checkDays] of Object.entries(tt)) {
                       if (checkKey === conflictingClassKey || checkKey === ck) continue;
@@ -1021,6 +1060,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
             for (let p2 = 0; p2 < periodsPerDay && !moved; p2++) {
               if (d2 === day && p2 === period) continue;
               if (tt[ck2][d2]?.[p2] !== null) continue;
+              if (overCap(ck2, p2)) continue;
               // لا نضع حصة داخل خانة نشاط محجوزة لهذا الصف
               const { className: cn2 } = parseClassKey(ck2);
               const aDay2 = getActivityDay(cn2);
@@ -1222,7 +1262,38 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    /**
+     * الحصة الثامنة للصفوف التي تتجاوز 35 حصة: نحاول جعلها تربية فنية أو تربية
+     * رياضية عبر تبديلها مع حصة من هذه المواد داخل نفس الصف دون إحداث تعارض.
+     */
+    const preferArtInLastPeriod = (tt: ClassTimetable) => {
+      const { trySwap } = makeSwapper(tt);
+      const isPreferred = (c: TimetableCell | null) =>
+        !!c && LAST_PERIOD_PREFERRED.includes(c.subjectName.trim());
+
+      for (const ck of Object.keys(tt)) {
+        const cap = classCap[ck] ?? periodsPerDay;
+        if (cap < 8) continue;
+        const last = cap - 1;
+        for (let day = 0; day < daysCount; day++) {
+          if (!tt[ck][day][last] || isPreferred(tt[ck][day][last])) continue;
+          if (isLocked(ck, day, last)) continue;
+          let done = false;
+          for (let d2 = 0; d2 < daysCount && !done; d2++) {
+            for (let p2 = 0; p2 < cap && !done; p2++) {
+              if (d2 === day && p2 === last) continue;
+              if (p2 === last) continue; // لا نسحب من حصة ثامنة أخرى
+              if (!isPreferred(tt[ck][d2][p2])) continue;
+              if (isLocked(ck, d2, p2)) continue;
+              if (trySwap(ck, day, last, d2, p2)) done = true;
+            }
+          }
+        }
+      }
+    };
+
     // ترتيب الجولات: ملء ورصّ ← إقران المهارات الرقمية/المهني (بأي يوم، دائماً)
+
     // ← ملء أخير. خانات النشاط (الثانية والثالثة في يوم الصف) محجوزة منذ البداية
     // فلا يمسّها أي من هذه الجولات، ثم نُسند لها معلماً في النهاية.
     for (let i = 0; i < 3; i++) {
@@ -1235,6 +1306,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     }
     pairDoublePeriodSubjects(newTT);
     forcePlaceRemaining(newTT);
+    preferArtInLastPeriod(newTT);
     if (activityPeriods) assignActivityTeachers(newTT);
 
 
