@@ -1335,6 +1335,48 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
     // ← ملء أخير. خانات النشاط (الثانية والثالثة في يوم الصف) محجوزة منذ البداية
     // فلا يمسّها أي من هذه الجولات، ثم نُسند لها معلماً في النهاية.
+    /**
+     * إزالة الفراغات الداخلية: أي خانة فارغة يليها حصص في نفس اليوم تُملأ بآخر
+     * حصة من يوم آخر لنفس الصف (نقلها لا يُحدث فراغاً جديداً) إن لم يوجد تعارض.
+     */
+    const fillInteriorGaps = (tt: ClassTimetable) => {
+      for (const ck of Object.keys(tt)) {
+        const cap = classCap[ck] ?? periodsPerDay;
+        for (let day = 0; day < daysCount; day++) {
+          for (let p = 0; p < cap; p++) {
+            if (tt[ck][day][p] !== null) continue;
+            if (isLocked(ck, day, p)) continue;
+            // فراغ داخلي فقط (يوجد حصة بعده في نفس اليوم)
+            let hasLater = false;
+            for (let q = p + 1; q < cap; q++) if (tt[ck][day][q]) { hasLater = true; break; }
+            if (!hasLater) continue;
+
+            let filled = false;
+            for (let d2 = 0; d2 < daysCount && !filled; d2++) {
+              if (d2 === day) continue;
+              // آخر حصة في اليوم الآخر
+              let lastIdx = -1;
+              for (let q = cap - 1; q >= 0; q--) if (tt[ck][d2][q]) { lastIdx = q; break; }
+              if (lastIdx < 0) continue;
+              const cell = tt[ck][d2][lastIdx]!;
+              if (isActivityCell(cell) || isLocked(ck, d2, lastIdx)) continue;
+              let conflict = false;
+              for (const [otherKey, otherDays] of Object.entries(tt)) {
+                if (otherKey === ck) continue;
+                if (otherDays[day]?.[p]?.teacherId === cell.teacherId) { conflict = true; break; }
+              }
+              if (conflict) continue;
+              const teacher = teachers.find(t => t.id === cell.teacherId);
+              if (teacher && isBlocked(teacher, day, p)) continue;
+              tt[ck][day][p] = cell;
+              tt[ck][d2][lastIdx] = null;
+              filled = true;
+            }
+          }
+        }
+      }
+    };
+
     for (let i = 0; i < 3; i++) {
       forcePlaceRemaining(newTT);
       compactTimetable(newTT);
@@ -1345,8 +1387,14 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     }
     pairDoublePeriodSubjects(newTT);
     forcePlaceRemaining(newTT);
+    for (let g = 0; g < 3; g++) {
+      fillInteriorGaps(newTT);
+      compactTimetable(newTT);
+    }
     preferArtInLastPeriod(newTT);
+    fillInteriorGaps(newTT);
     if (activityPeriods) assignActivityTeachers(newTT);
+
 
 
 
