@@ -234,10 +234,89 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     lanSyncSaveTimetable(data);
   }, []);
 
+  /**
+   * مزامنة الجدول الحالي مع بيانات المعلمين دون إعادة توليد:
+   * 1) تحديث اسم المعلم في كل خاناته (تغيير الاسم ينعكس فوراً).
+   * 2) حذف الخانات لمعلم لم يعد يدرّس هذه المادة لهذا الصف.
+   * 3) حذف الحصص الزائدة عند تقليل عدد الحصص الأسبوعية.
+   * 4) إضافة الحصص الناقصة في خانات فارغة بلا تعارض عند زيادة العدد.
+   */
+  const syncTimetableWithTeachers = useCallback((tt: ClassTimetable, list: Teacher[], ppd: number): ClassTimetable => {
+    const next: ClassTimetable = {};
+    for (const [ck, days] of Object.entries(tt)) {
+      next[ck] = days.map(d => d.map(c => (c ? { ...c } : null)));
+    }
+    const byId = new Map(list.map(t => [t.id, t]));
+    const required = new Map<string, number>();
+    list.forEach(t => t.subjects.forEach(s => {
+      const ck = getClassKey(s.className, s.section);
+      required.set(`${t.id}|${s.subjectName}|${ck}`, s.periodsPerWeek);
+      if (!next[ck]) next[ck] = Array.from({ length: DAYS.length }, () => Array(MAX_PERIODS).fill(null));
+    }));
+
+    const counts = new Map<string, { day: number; period: number }[]>();
+    for (const [ck, days] of Object.entries(next)) {
+      for (let d = 0; d < days.length; d++) {
+        for (let p = 0; p < days[d].length; p++) {
+          const cell = days[d][p];
+          if (!cell || isActivityCell(cell)) continue;
+          const teacher = byId.get(cell.teacherId);
+          if (!teacher) { days[d][p] = null; continue; }
+          if (teacher.name !== cell.teacherName) cell.teacherName = teacher.name;
+          const key = `${cell.teacherId}|${cell.subjectName}|${ck}`;
+          if (!required.has(key)) { days[d][p] = null; continue; }
+          const arr = counts.get(key) || [];
+          arr.push({ day: d, period: p });
+          counts.set(key, arr);
+        }
+      }
+    }
+
+    // حذف الزائد
+    for (const [key, spots] of counts.entries()) {
+      const need = required.get(key) ?? 0;
+      if (spots.length <= need) continue;
+      const ck = key.split("|")[2];
+      spots.slice(need).forEach(s => { next[ck][s.day][s.period] = null; });
+      counts.set(key, spots.slice(0, need));
+    }
+
+    const teacherBusy = (teacherId: string, day: number, period: number) => {
+      for (const days of Object.values(next)) {
+        if (days[day]?.[period]?.teacherId === teacherId) return true;
+      }
+      return false;
+    };
+
+    // إضافة الناقص
+    for (const [key, need] of required.entries()) {
+      const [teacherId, subjectName, ck] = key.split("|");
+      const teacher = byId.get(teacherId);
+      if (!teacher) continue;
+      let have = (counts.get(key) || []).length;
+      for (let d = 0; d < DAYS.length && have < need; d++) {
+        for (let p = 0; p < ppd && have < need; p++) {
+          if (next[ck][d]?.[p]) continue;
+          if (teacherBusy(teacherId, d, p)) continue;
+          if (isBlocked(teacher, d, p)) continue;
+          next[ck][d][p] = { teacherId, teacherName: teacher.name, subjectName };
+          have++;
+        }
+      }
+    }
+
+    return next;
+  }, []);
+
   const addTeacher = (teacher: Teacher) => {
     setTeachers(prev => {
       const next = [...prev, teacher];
-      save(next, timetable, periodsPerDay);
+      const hasTT = Object.keys(timetable).length > 0;
+      const newTT = hasTT && constraints.autoSyncTeachers
+        ? syncTimetableWithTeachers(timetable, next, periodsPerDay)
+        : timetable;
+      if (newTT !== timetable) setTimetableState(newTT);
+      save(next, newTT, periodsPerDay);
       return next;
     });
   };
@@ -245,10 +324,52 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
   const updateTeacher = (teacher: Teacher) => {
     setTeachers(prev => {
       const next = prev.map(t => t.id === teacher.id ? teacher : t);
-      save(next, timetable, periodsPerDay);
+      const hasTT = Object.keys(timetable).length > 0;
+      const newTT = hasTT && constraints.autoSyncTeachers
+        ? syncTimetableWithTeachers(timetable, next, periodsPerDay)
+        : timetable;
+      if (newTT !== timetable) setTimetableState(newTT);
+      save(next, newTT, periodsPerDay);
       return next;
     });
   };
+
+  /** حفظ نسخة من الجدول الحالي للرجوع إليها لاحقاً */
+  const saveCurrentTimetable = (name: string) => {
+    const snap: SavedTimetable = {
+      id: `${Date.now()}`,
+      name: name.trim() || `جدول ${new Date().toLocaleString("ar")}`,
+      createdAt: new Date().toISOString(),
+      periodsPerDay,
+      timetable: JSON.parse(JSON.stringify(timetable)),
+      teachers: JSON.parse(JSON.stringify(teachers)),
+    };
+    setSavedTimetables(prev => {
+      const next = [snap, ...prev].slice(0, 30);
+      try { localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+
+  const restoreSavedTimetable = (id: string): boolean => {
+    const snap = savedTimetables.find(s => s.id === id);
+    if (!snap) return false;
+    const restoredTeachers = snap.teachers?.length ? snap.teachers : teachers;
+    setTeachers(restoredTeachers);
+    setTimetableState(snap.timetable);
+    setPeriodsPerDayState(snap.periodsPerDay || periodsPerDay);
+    save(restoredTeachers, snap.timetable, snap.periodsPerDay || periodsPerDay);
+    return true;
+  };
+
+  const deleteSavedTimetable = (id: string) => {
+    setSavedTimetables(prev => {
+      const next = prev.filter(s => s.id !== id);
+      try { localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+
 
   const removeTeacher = (id: string) => {
     const newTT = { ...timetable };
