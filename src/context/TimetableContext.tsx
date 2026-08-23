@@ -10,6 +10,43 @@ export interface UnplacedPeriod {
   count: number;
 }
 
+/** القيود الاختيارية للجدول — كل قيد يمكن تفعيله/تعطيله من تبويب "القيود" */
+export interface TimetableConstraints {
+  /** المهارات الرقمية / التربية المهنية حصتان متتاليتان (إلزامي عند التفعيل) */
+  pairDoubleSubjects: boolean;
+  /** حجز حصص النشاط (الثانية والثالثة) حسب الصف واليوم */
+  activityPeriods: boolean;
+  /** تركيز أيام تأخر المعلم (السادسة مع السابعة في نفس اليوم) */
+  alignLateDays: boolean;
+  /** تفضيل التربية الفنية/الرياضية في الحصة الثامنة */
+  preferArtLastPeriod: boolean;
+  /** إزالة الفراغات الداخلية بين الحصص */
+  fillGaps: boolean;
+  /** سقف متغير: الصفوف >35 حصة لها ثامنة، وغيرها 7 حصص */
+  variablePeriodCap: boolean;
+  /** مزامنة تلقائية: أي تعديل على المعلمين ينعكس على الجدول دون إعادة توليد */
+  autoSyncTeachers: boolean;
+}
+
+export const DEFAULT_CONSTRAINTS: TimetableConstraints = {
+  pairDoubleSubjects: false,
+  activityPeriods: false,
+  alignLateDays: true,
+  preferArtLastPeriod: true,
+  fillGaps: true,
+  variablePeriodCap: true,
+  autoSyncTeachers: true,
+};
+
+export interface SavedTimetable {
+  id: string;
+  name: string;
+  createdAt: string;
+  periodsPerDay: number;
+  timetable: ClassTimetable;
+  teachers: Teacher[];
+}
+
 interface TimetableContextType {
   teachers: Teacher[];
   timetable: ClassTimetable;
@@ -22,6 +59,13 @@ interface TimetableContextType {
   /** تفعيل حجز حصص النشاط (الثانية والثالثة) حسب الصف واليوم */
   activityPeriods: boolean;
   setActivityPeriods: (v: boolean) => void;
+  constraints: TimetableConstraints;
+  setConstraint: (key: keyof TimetableConstraints, value: boolean) => void;
+  /** الجداول المحفوظة (نسخ يمكن الرجوع إليها) */
+  savedTimetables: SavedTimetable[];
+  saveCurrentTimetable: (name: string) => void;
+  restoreSavedTimetable: (id: string) => boolean;
+  deleteSavedTimetable: (id: string) => void;
   addTeacher: (teacher: Teacher) => void;
   updateTeacher: (teacher: Teacher) => void;
   removeTeacher: (id: string) => void;
@@ -46,6 +90,9 @@ const TimetableContext = createContext<TimetableContextType | null>(null);
 const STORAGE_KEY = "school_timetable_data";
 const DOUBLE_KEY = "school_timetable_pair_double";
 const ACTIVITY_KEY = "school_timetable_activity_periods";
+const CONSTRAINTS_KEY = "school_timetable_constraints";
+const SNAPSHOTS_KEY = "school_timetable_snapshots";
+
 
 function getElectronLanHelper() {
   return (window as any)?.electronAPI?.lan;
@@ -78,23 +125,50 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
   const [timetable, setTimetableState] = useState<ClassTimetable>({});
   const [periodsPerDay, setPeriodsPerDayState] = useState(7);
   const [unplacedPeriods, setUnplacedPeriods] = useState<UnplacedPeriod[]>([]);
-  const [pairDoubleSubjects, setPairDoubleSubjectsState] = useState<boolean>(() => {
-    try { return localStorage.getItem(DOUBLE_KEY) === "1"; } catch { return false; }
+  const [constraints, setConstraintsState] = useState<TimetableConstraints>(() => {
+    try {
+      const raw = localStorage.getItem(CONSTRAINTS_KEY);
+      if (raw) return { ...DEFAULT_CONSTRAINTS, ...JSON.parse(raw) };
+    } catch {}
+    // ترحيل الإعدادات القديمة
+    let legacy: Partial<TimetableConstraints> = {};
+    try {
+      legacy = {
+        pairDoubleSubjects: localStorage.getItem(DOUBLE_KEY) === "1",
+        activityPeriods: localStorage.getItem(ACTIVITY_KEY) === "1",
+      };
+    } catch {}
+    return { ...DEFAULT_CONSTRAINTS, ...legacy };
   });
 
-  const [activityPeriods, setActivityPeriodsState] = useState<boolean>(() => {
-    try { return localStorage.getItem(ACTIVITY_KEY) === "1"; } catch { return false; }
+  const [savedTimetables, setSavedTimetables] = useState<SavedTimetable[]>(() => {
+    try {
+      const raw = localStorage.getItem(SNAPSHOTS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
   });
 
-  const setActivityPeriods = (v: boolean) => {
-    setActivityPeriodsState(v);
-    try { localStorage.setItem(ACTIVITY_KEY, v ? "1" : "0"); } catch {}
+  const persistConstraints = (c: TimetableConstraints) => {
+    try {
+      localStorage.setItem(CONSTRAINTS_KEY, JSON.stringify(c));
+      localStorage.setItem(DOUBLE_KEY, c.pairDoubleSubjects ? "1" : "0");
+      localStorage.setItem(ACTIVITY_KEY, c.activityPeriods ? "1" : "0");
+    } catch {}
   };
 
-  const setPairDoubleSubjects = (v: boolean) => {
-    setPairDoubleSubjectsState(v);
-    try { localStorage.setItem(DOUBLE_KEY, v ? "1" : "0"); } catch {}
+  const setConstraint = (key: keyof TimetableConstraints, value: boolean) => {
+    setConstraintsState(prev => {
+      const next = { ...prev, [key]: value };
+      persistConstraints(next);
+      return next;
+    });
   };
+
+  const pairDoubleSubjects = constraints.pairDoubleSubjects;
+  const activityPeriods = constraints.activityPeriods;
+  const setPairDoubleSubjects = (v: boolean) => setConstraint("pairDoubleSubjects", v);
+  const setActivityPeriods = (v: boolean) => setConstraint("activityPeriods", v);
+
 
   useEffect(() => {
     const loadData = async () => {
@@ -160,10 +234,89 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     lanSyncSaveTimetable(data);
   }, []);
 
+  /**
+   * مزامنة الجدول الحالي مع بيانات المعلمين دون إعادة توليد:
+   * 1) تحديث اسم المعلم في كل خاناته (تغيير الاسم ينعكس فوراً).
+   * 2) حذف الخانات لمعلم لم يعد يدرّس هذه المادة لهذا الصف.
+   * 3) حذف الحصص الزائدة عند تقليل عدد الحصص الأسبوعية.
+   * 4) إضافة الحصص الناقصة في خانات فارغة بلا تعارض عند زيادة العدد.
+   */
+  const syncTimetableWithTeachers = useCallback((tt: ClassTimetable, list: Teacher[], ppd: number): ClassTimetable => {
+    const next: ClassTimetable = {};
+    for (const [ck, days] of Object.entries(tt)) {
+      next[ck] = days.map(d => d.map(c => (c ? { ...c } : null)));
+    }
+    const byId = new Map(list.map(t => [t.id, t]));
+    const required = new Map<string, number>();
+    list.forEach(t => t.subjects.forEach(s => {
+      const ck = getClassKey(s.className, s.section);
+      required.set(`${t.id}|${s.subjectName}|${ck}`, s.periodsPerWeek);
+      if (!next[ck]) next[ck] = Array.from({ length: DAYS.length }, () => Array(MAX_PERIODS).fill(null));
+    }));
+
+    const counts = new Map<string, { day: number; period: number }[]>();
+    for (const [ck, days] of Object.entries(next)) {
+      for (let d = 0; d < days.length; d++) {
+        for (let p = 0; p < days[d].length; p++) {
+          const cell = days[d][p];
+          if (!cell || isActivityCell(cell)) continue;
+          const teacher = byId.get(cell.teacherId);
+          if (!teacher) { days[d][p] = null; continue; }
+          if (teacher.name !== cell.teacherName) cell.teacherName = teacher.name;
+          const key = `${cell.teacherId}|${cell.subjectName}|${ck}`;
+          if (!required.has(key)) { days[d][p] = null; continue; }
+          const arr = counts.get(key) || [];
+          arr.push({ day: d, period: p });
+          counts.set(key, arr);
+        }
+      }
+    }
+
+    // حذف الزائد
+    for (const [key, spots] of counts.entries()) {
+      const need = required.get(key) ?? 0;
+      if (spots.length <= need) continue;
+      const ck = key.split("|")[2];
+      spots.slice(need).forEach(s => { next[ck][s.day][s.period] = null; });
+      counts.set(key, spots.slice(0, need));
+    }
+
+    const teacherBusy = (teacherId: string, day: number, period: number) => {
+      for (const days of Object.values(next)) {
+        if (days[day]?.[period]?.teacherId === teacherId) return true;
+      }
+      return false;
+    };
+
+    // إضافة الناقص
+    for (const [key, need] of required.entries()) {
+      const [teacherId, subjectName, ck] = key.split("|");
+      const teacher = byId.get(teacherId);
+      if (!teacher) continue;
+      let have = (counts.get(key) || []).length;
+      for (let d = 0; d < DAYS.length && have < need; d++) {
+        for (let p = 0; p < ppd && have < need; p++) {
+          if (next[ck][d]?.[p]) continue;
+          if (teacherBusy(teacherId, d, p)) continue;
+          if (isBlocked(teacher, d, p)) continue;
+          next[ck][d][p] = { teacherId, teacherName: teacher.name, subjectName };
+          have++;
+        }
+      }
+    }
+
+    return next;
+  }, []);
+
   const addTeacher = (teacher: Teacher) => {
     setTeachers(prev => {
       const next = [...prev, teacher];
-      save(next, timetable, periodsPerDay);
+      const hasTT = Object.keys(timetable).length > 0;
+      const newTT = hasTT && constraints.autoSyncTeachers
+        ? syncTimetableWithTeachers(timetable, next, periodsPerDay)
+        : timetable;
+      if (newTT !== timetable) setTimetableState(newTT);
+      save(next, newTT, periodsPerDay);
       return next;
     });
   };
@@ -171,10 +324,52 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
   const updateTeacher = (teacher: Teacher) => {
     setTeachers(prev => {
       const next = prev.map(t => t.id === teacher.id ? teacher : t);
-      save(next, timetable, periodsPerDay);
+      const hasTT = Object.keys(timetable).length > 0;
+      const newTT = hasTT && constraints.autoSyncTeachers
+        ? syncTimetableWithTeachers(timetable, next, periodsPerDay)
+        : timetable;
+      if (newTT !== timetable) setTimetableState(newTT);
+      save(next, newTT, periodsPerDay);
       return next;
     });
   };
+
+  /** حفظ نسخة من الجدول الحالي للرجوع إليها لاحقاً */
+  const saveCurrentTimetable = (name: string) => {
+    const snap: SavedTimetable = {
+      id: `${Date.now()}`,
+      name: name.trim() || `جدول ${new Date().toLocaleString("ar")}`,
+      createdAt: new Date().toISOString(),
+      periodsPerDay,
+      timetable: JSON.parse(JSON.stringify(timetable)),
+      teachers: JSON.parse(JSON.stringify(teachers)),
+    };
+    setSavedTimetables(prev => {
+      const next = [snap, ...prev].slice(0, 30);
+      try { localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+
+  const restoreSavedTimetable = (id: string): boolean => {
+    const snap = savedTimetables.find(s => s.id === id);
+    if (!snap) return false;
+    const restoredTeachers = snap.teachers?.length ? snap.teachers : teachers;
+    setTeachers(restoredTeachers);
+    setTimetableState(snap.timetable);
+    setPeriodsPerDayState(snap.periodsPerDay || periodsPerDay);
+    save(restoredTeachers, snap.timetable, snap.periodsPerDay || periodsPerDay);
+    return true;
+  };
+
+  const deleteSavedTimetable = (id: string) => {
+    setSavedTimetables(prev => {
+      const next = prev.filter(s => s.id !== id);
+      try { localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+
 
   const removeTeacher = (id: string) => {
     const newTT = { ...timetable };
@@ -468,7 +663,9 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
     const classCap: Record<string, number> = {};
     classKeys.forEach(ck => {
-      classCap[ck] = classWeeklyTotal[ck] > 35 ? periodsPerDay : Math.min(periodsPerDay, 7);
+      classCap[ck] = !constraints.variablePeriodCap
+        ? periodsPerDay
+        : (classWeeklyTotal[ck] > 35 ? periodsPerDay : Math.min(periodsPerDay, 7));
     });
 
     const overCap = (ck: string, period: number) => period >= (classCap[ck] ?? periodsPerDay);
@@ -923,7 +1120,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    alignLateDays(newTT);
+    if (constraints.alignLateDays) alignLateDays(newTT);
 
     /**
      * جعل حصص المواد المحددة (المهارات الرقمية / التربية المهنية) حصتين متتاليتين
@@ -1377,23 +1574,168 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    /**
+     * قيد إلزامي: المهارات الرقمية / التربية المهنية حصتان متتاليتان.
+     * جولة صارمة تعمل بعد الإقران العادي: تُخلي الخانة المجاورة بالقوة عبر
+     * نقل الحصة المتعارضة في الصف الآخر إلى خانة فارغة أو تبديلها داخل صفها.
+     */
+    const enforceDoublePairsStrict = (tt: ClassTimetable) => {
+      const teacherFreeAt = (teacherId: string, day: number, period: number, exceptCk: string) => {
+        for (const [ck, days] of Object.entries(tt)) {
+          if (ck === exceptCk) continue;
+          if (days[day]?.[period]?.teacherId === teacherId) return false;
+        }
+        const teacher = teachers.find(t => t.id === teacherId);
+        return !(teacher && isBlocked(teacher, day, period));
+      };
+
+      /** إخلاء المعلم في توقيت محدد بنقل حصته في صف آخر أو تبديلها داخل صفها */
+      const forceFreeTeacher = (teacherId: string, day: number, period: number, exceptCk: string): boolean => {
+        const teacher = teachers.find(t => t.id === teacherId);
+        if (teacher && isBlocked(teacher, day, period)) return false;
+        for (const [ck2, days] of Object.entries(tt)) {
+          if (ck2 === exceptCk) continue;
+          const cell = days[day]?.[period];
+          if (!cell || cell.teacherId !== teacherId) continue;
+          if (isLocked(ck2, day, period) || isActivityCell(cell)) return false;
+          const cap2 = classCap[ck2] ?? periodsPerDay;
+          // 1) خانة فارغة داخل نفس الصف
+          for (let d2 = 0; d2 < daysCount; d2++) {
+            for (let p2 = 0; p2 < cap2; p2++) {
+              if (tt[ck2][d2][p2] !== null || isLocked(ck2, d2, p2)) continue;
+              if (!teacherFreeAt(teacherId, d2, p2, ck2)) continue;
+              tt[ck2][d2][p2] = cell;
+              tt[ck2][day][period] = null;
+              return true;
+            }
+          }
+          // 2) تبديل داخل نفس الصف مع حصة أخرى بلا تعارض
+          for (let d2 = 0; d2 < daysCount; d2++) {
+            for (let p2 = 0; p2 < cap2; p2++) {
+              if (d2 === day && p2 === period) continue;
+              const other = tt[ck2][d2][p2];
+              if (!other || isActivityCell(other) || isLocked(ck2, d2, p2)) continue;
+              if (!teacherFreeAt(teacherId, d2, p2, ck2)) continue;
+              if (!teacherFreeAt(other.teacherId, day, period, ck2)) continue;
+              tt[ck2][d2][p2] = cell;
+              tt[ck2][day][period] = other;
+              return true;
+            }
+          }
+          return false;
+        }
+        return true;
+      };
+
+      const ensureFree = (teacherId: string, day: number, period: number, ck: string) =>
+        teacherFreeAt(teacherId, day, period, ck) || forceFreeTeacher(teacherId, day, period, ck);
+
+      for (const ck of Object.keys(tt)) {
+        const cap = classCap[ck] ?? periodsPerDay;
+        for (const subject of DOUBLE_PERIOD_SUBJECTS) {
+          for (let pass = 0; pass < 10; pass++) {
+            const spots: { day: number; period: number }[] = [];
+            for (let d = 0; d < daysCount; d++) {
+              for (let p = 0; p < cap; p++) {
+                if (tt[ck][d]?.[p]?.subjectName === subject) spots.push({ day: d, period: p });
+              }
+            }
+            const lonely = spots.filter(s => !(
+              tt[ck][s.day]?.[s.period - 1]?.subjectName === subject ||
+              tt[ck][s.day]?.[s.period + 1]?.subjectName === subject
+            ));
+            if (lonely.length < 2) break;
+
+            const anchor = lonely[0];
+            const partner = lonely[1];
+            const anchorCell = tt[ck][anchor.day][anchor.period]!;
+            let done = false;
+
+            for (const neighbor of [anchor.period + 1, anchor.period - 1]) {
+              if (neighbor < 0 || neighbor >= cap) continue;
+              if (isLocked(ck, anchor.day, neighbor) || isLocked(ck, partner.day, partner.period)) continue;
+              const target = tt[ck][anchor.day][neighbor];
+              if (isActivityCell(target)) continue;
+              const partnerCell = tt[ck][partner.day][partner.period]!;
+              if (!partnerCell) continue;
+              if (partner.day === anchor.day && partner.period === neighbor) { done = true; break; }
+              if (!ensureFree(partnerCell.teacherId, anchor.day, neighbor, ck)) continue;
+              if (target && !ensureFree(target.teacherId, partner.day, partner.period, ck)) continue;
+              tt[ck][anchor.day][neighbor] = partnerCell;
+              tt[ck][partner.day][partner.period] = target ?? null;
+              done = true;
+              break;
+            }
+            if (!done) {
+              // الحل الأخير: نقل حصة المرساة بجانب الشريك
+              let moved = false;
+              for (const neighbor of [partner.period + 1, partner.period - 1]) {
+                if (neighbor < 0 || neighbor >= cap) continue;
+                if (isLocked(ck, partner.day, neighbor)) continue;
+                const target = tt[ck][partner.day][neighbor];
+                if (isActivityCell(target)) continue;
+                if (!ensureFree(anchorCell.teacherId, partner.day, neighbor, ck)) continue;
+                if (target && !ensureFree(target.teacherId, anchor.day, anchor.period, ck)) continue;
+                tt[ck][partner.day][neighbor] = anchorCell;
+                tt[ck][anchor.day][anchor.period] = target ?? null;
+                moved = true;
+                break;
+              }
+              if (!moved) break;
+            }
+          }
+        }
+      }
+    };
+
+    /** عدد التعارضات: معلم واحد في أكثر من صف بنفس اليوم والحصة */
+    const countConflicts = (tt: ClassTimetable) => {
+      const seen = new Map<string, number>();
+      for (const days of Object.values(tt)) {
+        days.forEach((row, d) => row.forEach((cell, p) => {
+          if (!cell || isActivityCell(cell)) return;
+          const k = `${cell.teacherId}|${d}|${p}`;
+          seen.set(k, (seen.get(k) ?? 0) + 1);
+        }));
+      }
+      let c = 0;
+      seen.forEach(v => { if (v > 1) c += v - 1; });
+      return c;
+    };
+
+    /** تشغيل الجولة الصارمة على نسخة، واعتمادها فقط إن لم تُنتج تعارضات جديدة */
+    const applyStrictSafely = (tt: ClassTimetable) => {
+      const before = countConflicts(tt);
+      const clone: ClassTimetable = JSON.parse(JSON.stringify(tt));
+      enforceDoublePairsStrict(clone);
+      if (countConflicts(clone) > before) return;
+      for (const ck of Object.keys(tt)) tt[ck] = clone[ck];
+    };
+
     for (let i = 0; i < 3; i++) {
       forcePlaceRemaining(newTT);
       compactTimetable(newTT);
     }
-    for (let r = 0; r < 3; r++) {
-      forcePlaceRemaining(newTT);
+    if (pairDoubleSubjects) {
+      for (let r = 0; r < 3; r++) {
+        forcePlaceRemaining(newTT);
+        pairDoublePeriodSubjects(newTT);
+      }
       pairDoublePeriodSubjects(newTT);
+      for (let s = 0; s < 3; s++) applyStrictSafely(newTT);
     }
-    pairDoublePeriodSubjects(newTT);
     forcePlaceRemaining(newTT);
-    for (let g = 0; g < 3; g++) {
-      fillInteriorGaps(newTT);
-      compactTimetable(newTT);
+    if (constraints.fillGaps) {
+      for (let g = 0; g < 3; g++) {
+        fillInteriorGaps(newTT);
+        compactTimetable(newTT);
+      }
     }
-    preferArtInLastPeriod(newTT);
-    fillInteriorGaps(newTT);
+    if (constraints.preferArtLastPeriod) preferArtInLastPeriod(newTT);
+    if (constraints.fillGaps) fillInteriorGaps(newTT);
+    if (pairDoubleSubjects) applyStrictSafely(newTT);
     if (activityPeriods) assignActivityTeachers(newTT);
+
 
 
 
@@ -1453,6 +1795,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       teachers, timetable, unplacedPeriods, periodsPerDay, setPeriodsPerDay,
       pairDoubleSubjects, setPairDoubleSubjects,
       activityPeriods, setActivityPeriods,
+      constraints, setConstraint,
+      savedTimetables, saveCurrentTimetable, restoreSavedTimetable, deleteSavedTimetable,
       addTeacher, updateTeacher, removeTeacher,
       setTimetable, updateCell, swapCells, swapCellsAcrossDays, moveCell, placeFromStaging, moveToStaging, generateTimetable,
       getTeacherSchedule, getAllClassKeys, clearTimetable,

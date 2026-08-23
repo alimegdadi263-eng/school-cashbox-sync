@@ -5,16 +5,18 @@ import TimetableGrid from "@/components/timetable/TimetableGrid";
 import MalhafaView from "@/components/timetable/MalhafaView";
 import DailyScheduleManager from "@/components/timetable/DailyScheduleManager";
 import TimetableStatistics from "@/components/timetable/TimetableStatistics";
+import ConstraintsPanel from "@/components/timetable/ConstraintsPanel";
+import SavedTimetables from "@/components/timetable/SavedTimetables";
 import { useTimetable } from "@/context/TimetableContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
   Wand2, Trash2, FileSpreadsheet, FileText, Download, Loader2,
   Users, CalendarDays, LayoutGrid, BarChart3, CalendarClock, FileDown,
+  SlidersHorizontal, Archive,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { parseClassKey } from "@/types/timetable";
@@ -43,7 +45,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 
 export default function TimetablePage() {
-  const { teachers, timetable, periodsPerDay, setPeriodsPerDay, pairDoubleSubjects, setPairDoubleSubjects, activityPeriods, setActivityPeriods, generateTimetable, getAllClassKeys, clearTimetable } = useTimetable();
+  const { teachers, timetable, periodsPerDay, setPeriodsPerDay, generateTimetable, getAllClassKeys, clearTimetable } = useTimetable();
   const { schoolName } = useAuth();
   const classKeys = getAllClassKeys();
 
@@ -106,18 +108,10 @@ export default function TimetablePage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5">
-              <Switch id="double-periods" checked={pairDoubleSubjects} onCheckedChange={setPairDoubleSubjects} />
-              <Label htmlFor="double-periods" className="text-sm cursor-pointer">
-                حصتان متتاليتان (المهارات الرقمية / المهني)
-              </Label>
-            </div>
-            <div className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5">
-              <Switch id="activity-periods" checked={activityPeriods} onCheckedChange={setActivityPeriods} />
-              <Label htmlFor="activity-periods" className="text-sm cursor-pointer">
-                حصص النشاط (الثانية والثالثة)
-              </Label>
-            </div>
+            <Button variant="outline" onClick={() => setActiveTab("constraints")}>
+              <SlidersHorizontal className="w-4 h-4 ml-2" /> القيود
+            </Button>
+
             <Button onClick={handleGenerate}>
               <Wand2 className="w-4 h-4 ml-2" /> توليد الجدول
             </Button>
@@ -129,9 +123,12 @@ export default function TimetablePage() {
 
         {/* Horizontal Tabs Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 h-auto">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-8 h-auto">
             <TabsTrigger value="teachers" className="flex items-center gap-1.5 py-2.5">
               <Users className="w-4 h-4" /> المعلمون
+            </TabsTrigger>
+            <TabsTrigger value="constraints" className="flex items-center gap-1.5 py-2.5">
+              <SlidersHorizontal className="w-4 h-4" /> القيود
             </TabsTrigger>
             <TabsTrigger value="grid" className="flex items-center gap-1.5 py-2.5">
               <LayoutGrid className="w-4 h-4" /> الجدول
@@ -145,6 +142,9 @@ export default function TimetablePage() {
             <TabsTrigger value="daily" className="flex items-center gap-1.5 py-2.5">
               <CalendarClock className="w-4 h-4" /> الجدول اليومي
             </TabsTrigger>
+            <TabsTrigger value="saved" className="flex items-center gap-1.5 py-2.5">
+              <Archive className="w-4 h-4" /> الجداول المحفوظة
+            </TabsTrigger>
             <TabsTrigger value="export" className="flex items-center gap-1.5 py-2.5" disabled={!hasTimetable}>
               <FileDown className="w-4 h-4" /> التصدير
             </TabsTrigger>
@@ -153,6 +153,15 @@ export default function TimetablePage() {
           <TabsContent value="teachers" className="mt-4">
             <TeacherManager />
           </TabsContent>
+
+          <TabsContent value="constraints" className="mt-4">
+            <ConstraintsPanel />
+          </TabsContent>
+
+          <TabsContent value="saved" className="mt-4">
+            <SavedTimetables />
+          </TabsContent>
+
 
           <TabsContent value="grid" className="mt-4">
             <TimetableGrid />
