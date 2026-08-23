@@ -109,18 +109,10 @@ export default function TimetablePage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5">
-              <Switch id="double-periods" checked={pairDoubleSubjects} onCheckedChange={setPairDoubleSubjects} />
-              <Label htmlFor="double-periods" className="text-sm cursor-pointer">
-                حصتان متتاليتان (المهارات الرقمية / المهني)
-              </Label>
-            </div>
-            <div className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5">
-              <Switch id="activity-periods" checked={activityPeriods} onCheckedChange={setActivityPeriods} />
-              <Label htmlFor="activity-periods" className="text-sm cursor-pointer">
-                حصص النشاط (الثانية والثالثة)
-              </Label>
-            </div>
+            <Button variant="outline" onClick={() => setActiveTab("constraints")}>
+              <SlidersHorizontal className="w-4 h-4 ml-2" /> القيود
+            </Button>
+
             <Button onClick={handleGenerate}>
               <Wand2 className="w-4 h-4 ml-2" /> توليد الجدول
             </Button>
