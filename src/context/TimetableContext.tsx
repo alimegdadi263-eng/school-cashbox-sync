@@ -663,7 +663,9 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
     const classCap: Record<string, number> = {};
     classKeys.forEach(ck => {
-      classCap[ck] = classWeeklyTotal[ck] > 35 ? periodsPerDay : Math.min(periodsPerDay, 7);
+      classCap[ck] = !constraints.variablePeriodCap
+        ? periodsPerDay
+        : (classWeeklyTotal[ck] > 35 ? periodsPerDay : Math.min(periodsPerDay, 7));
     });
 
     const overCap = (ck: string, period: number) => period >= (classCap[ck] ?? periodsPerDay);
