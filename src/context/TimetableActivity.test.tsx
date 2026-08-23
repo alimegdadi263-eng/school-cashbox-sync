@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, act, waitFor } from "@testing-library/react";
 import { TimetableProvider, useTimetable } from "./TimetableContext";
-import { DAYS, ACTIVITY_PERIODS, DOUBLE_PERIOD_SUBJECTS, getActivityDay, getClassKey, parseClassKey, Teacher } from "@/types/timetable";
+import { ACTIVITY_TEACHER_ID, DAYS, ACTIVITY_PERIODS, DOUBLE_PERIOD_SUBJECTS, getActivityDay, getClassKey, parseClassKey, Teacher } from "@/types/timetable";
 
 const STORAGE_KEY = "school_timetable_data";
 
@@ -86,7 +86,7 @@ describe("توليد الجدول: حصص النشاط والحصص المزدو
         const seen = new Set<string>();
         for (const ck of Object.keys(tt)) {
           const c = tt[ck][d][p];
-          if (!c) continue;
+          if (!c || c.teacherId === ACTIVITY_TEACHER_ID) continue;
           if (seen.has(c.teacherId)) conflicts++;
           seen.add(c.teacherId);
         }
