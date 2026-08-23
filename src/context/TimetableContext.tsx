@@ -125,23 +125,50 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
   const [timetable, setTimetableState] = useState<ClassTimetable>({});
   const [periodsPerDay, setPeriodsPerDayState] = useState(7);
   const [unplacedPeriods, setUnplacedPeriods] = useState<UnplacedPeriod[]>([]);
-  const [pairDoubleSubjects, setPairDoubleSubjectsState] = useState<boolean>(() => {
-    try { return localStorage.getItem(DOUBLE_KEY) === "1"; } catch { return false; }
+  const [constraints, setConstraintsState] = useState<TimetableConstraints>(() => {
+    try {
+      const raw = localStorage.getItem(CONSTRAINTS_KEY);
+      if (raw) return { ...DEFAULT_CONSTRAINTS, ...JSON.parse(raw) };
+    } catch {}
+    // ترحيل الإعدادات القديمة
+    let legacy: Partial<TimetableConstraints> = {};
+    try {
+      legacy = {
+        pairDoubleSubjects: localStorage.getItem(DOUBLE_KEY) === "1",
+        activityPeriods: localStorage.getItem(ACTIVITY_KEY) === "1",
+      };
+    } catch {}
+    return { ...DEFAULT_CONSTRAINTS, ...legacy };
   });
 
-  const [activityPeriods, setActivityPeriodsState] = useState<boolean>(() => {
-    try { return localStorage.getItem(ACTIVITY_KEY) === "1"; } catch { return false; }
+  const [savedTimetables, setSavedTimetables] = useState<SavedTimetable[]>(() => {
+    try {
+      const raw = localStorage.getItem(SNAPSHOTS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
   });
 
-  const setActivityPeriods = (v: boolean) => {
-    setActivityPeriodsState(v);
-    try { localStorage.setItem(ACTIVITY_KEY, v ? "1" : "0"); } catch {}
+  const persistConstraints = (c: TimetableConstraints) => {
+    try {
+      localStorage.setItem(CONSTRAINTS_KEY, JSON.stringify(c));
+      localStorage.setItem(DOUBLE_KEY, c.pairDoubleSubjects ? "1" : "0");
+      localStorage.setItem(ACTIVITY_KEY, c.activityPeriods ? "1" : "0");
+    } catch {}
   };
 
-  const setPairDoubleSubjects = (v: boolean) => {
-    setPairDoubleSubjectsState(v);
-    try { localStorage.setItem(DOUBLE_KEY, v ? "1" : "0"); } catch {}
+  const setConstraint = (key: keyof TimetableConstraints, value: boolean) => {
+    setConstraintsState(prev => {
+      const next = { ...prev, [key]: value };
+      persistConstraints(next);
+      return next;
+    });
   };
+
+  const pairDoubleSubjects = constraints.pairDoubleSubjects;
+  const activityPeriods = constraints.activityPeriods;
+  const setPairDoubleSubjects = (v: boolean) => setConstraint("pairDoubleSubjects", v);
+  const setActivityPeriods = (v: boolean) => setConstraint("activityPeriods", v);
+
 
   useEffect(() => {
     const loadData = async () => {
