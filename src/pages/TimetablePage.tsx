@@ -17,6 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   Wand2, Trash2, FileSpreadsheet, FileText, Download, Loader2,
   Users, CalendarDays, LayoutGrid, BarChart3, CalendarClock, FileDown,
+  SlidersHorizontal, Archive,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { parseClassKey } from "@/types/timetable";
