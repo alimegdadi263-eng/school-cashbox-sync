@@ -1120,7 +1120,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    alignLateDays(newTT);
+    if (constraints.alignLateDays) alignLateDays(newTT);
 
     /**
      * جعل حصص المواد المحددة (المهارات الرقمية / التربية المهنية) حصتين متتاليتين
