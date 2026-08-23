@@ -5,6 +5,8 @@ import TimetableGrid from "@/components/timetable/TimetableGrid";
 import MalhafaView from "@/components/timetable/MalhafaView";
 import DailyScheduleManager from "@/components/timetable/DailyScheduleManager";
 import TimetableStatistics from "@/components/timetable/TimetableStatistics";
+import ConstraintsPanel from "@/components/timetable/ConstraintsPanel";
+import SavedTimetables from "@/components/timetable/SavedTimetables";
 import { useTimetable } from "@/context/TimetableContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
