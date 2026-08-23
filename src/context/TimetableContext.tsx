@@ -1688,6 +1688,30 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    /** عدد التعارضات: معلم واحد في أكثر من صف بنفس اليوم والحصة */
+    const countConflicts = (tt: ClassTimetable) => {
+      const seen = new Map<string, number>();
+      for (const days of Object.values(tt)) {
+        days.forEach((row, d) => row.forEach((cell, p) => {
+          if (!cell || isActivityCell(cell)) return;
+          const k = `${cell.teacherId}|${d}|${p}`;
+          seen.set(k, (seen.get(k) ?? 0) + 1);
+        }));
+      }
+      let c = 0;
+      seen.forEach(v => { if (v > 1) c += v - 1; });
+      return c;
+    };
+
+    /** تشغيل الجولة الصارمة على نسخة، واعتمادها فقط إن لم تُنتج تعارضات جديدة */
+    const applyStrictSafely = (tt: ClassTimetable) => {
+      const before = countConflicts(tt);
+      const clone: ClassTimetable = JSON.parse(JSON.stringify(tt));
+      enforceDoublePairsStrict(clone);
+      if (countConflicts(clone) > before) return;
+      for (const ck of Object.keys(tt)) tt[ck] = clone[ck];
+    };
+
     for (let i = 0; i < 3; i++) {
       forcePlaceRemaining(newTT);
       compactTimetable(newTT);
@@ -1698,7 +1722,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         pairDoublePeriodSubjects(newTT);
       }
       pairDoublePeriodSubjects(newTT);
-      for (let s = 0; s < 3; s++) enforceDoublePairsStrict(newTT);
+      for (let s = 0; s < 3; s++) applyStrictSafely(newTT);
     }
     forcePlaceRemaining(newTT);
     if (constraints.fillGaps) {
@@ -1709,7 +1733,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     }
     if (constraints.preferArtLastPeriod) preferArtInLastPeriod(newTT);
     if (constraints.fillGaps) fillInteriorGaps(newTT);
-    if (pairDoubleSubjects) enforceDoublePairsStrict(newTT);
+    if (pairDoubleSubjects) applyStrictSafely(newTT);
     if (activityPeriods) assignActivityTeachers(newTT);
 
 
