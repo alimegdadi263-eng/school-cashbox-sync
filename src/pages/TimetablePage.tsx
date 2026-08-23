@@ -124,9 +124,12 @@ export default function TimetablePage() {
 
         {/* Horizontal Tabs Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 h-auto">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-8 h-auto">
             <TabsTrigger value="teachers" className="flex items-center gap-1.5 py-2.5">
               <Users className="w-4 h-4" /> المعلمون
+            </TabsTrigger>
+            <TabsTrigger value="constraints" className="flex items-center gap-1.5 py-2.5">
+              <SlidersHorizontal className="w-4 h-4" /> القيود
             </TabsTrigger>
             <TabsTrigger value="grid" className="flex items-center gap-1.5 py-2.5">
               <LayoutGrid className="w-4 h-4" /> الجدول
@@ -140,6 +143,9 @@ export default function TimetablePage() {
             <TabsTrigger value="daily" className="flex items-center gap-1.5 py-2.5">
               <CalendarClock className="w-4 h-4" /> الجدول اليومي
             </TabsTrigger>
+            <TabsTrigger value="saved" className="flex items-center gap-1.5 py-2.5">
+              <Archive className="w-4 h-4" /> الجداول المحفوظة
+            </TabsTrigger>
             <TabsTrigger value="export" className="flex items-center gap-1.5 py-2.5" disabled={!hasTimetable}>
               <FileDown className="w-4 h-4" /> التصدير
             </TabsTrigger>
@@ -148,6 +154,15 @@ export default function TimetablePage() {
           <TabsContent value="teachers" className="mt-4">
             <TeacherManager />
           </TabsContent>
+
+          <TabsContent value="constraints" className="mt-4">
+            <ConstraintsPanel />
+          </TabsContent>
+
+          <TabsContent value="saved" className="mt-4">
+            <SavedTimetables />
+          </TabsContent>
+
 
           <TabsContent value="grid" className="mt-4">
             <TimetableGrid />
