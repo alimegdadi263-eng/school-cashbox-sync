@@ -10,6 +10,43 @@ export interface UnplacedPeriod {
   count: number;
 }
 
+/** القيود الاختيارية للجدول — كل قيد يمكن تفعيله/تعطيله من تبويب "القيود" */
+export interface TimetableConstraints {
+  /** المهارات الرقمية / التربية المهنية حصتان متتاليتان (إلزامي عند التفعيل) */
+  pairDoubleSubjects: boolean;
+  /** حجز حصص النشاط (الثانية والثالثة) حسب الصف واليوم */
+  activityPeriods: boolean;
+  /** تركيز أيام تأخر المعلم (السادسة مع السابعة في نفس اليوم) */
+  alignLateDays: boolean;
+  /** تفضيل التربية الفنية/الرياضية في الحصة الثامنة */
+  preferArtLastPeriod: boolean;
+  /** إزالة الفراغات الداخلية بين الحصص */
+  fillGaps: boolean;
+  /** سقف متغير: الصفوف >35 حصة لها ثامنة، وغيرها 7 حصص */
+  variablePeriodCap: boolean;
+  /** مزامنة تلقائية: أي تعديل على المعلمين ينعكس على الجدول دون إعادة توليد */
+  autoSyncTeachers: boolean;
+}
+
+export const DEFAULT_CONSTRAINTS: TimetableConstraints = {
+  pairDoubleSubjects: false,
+  activityPeriods: false,
+  alignLateDays: true,
+  preferArtLastPeriod: true,
+  fillGaps: true,
+  variablePeriodCap: true,
+  autoSyncTeachers: true,
+};
+
+export interface SavedTimetable {
+  id: string;
+  name: string;
+  createdAt: string;
+  periodsPerDay: number;
+  timetable: ClassTimetable;
+  teachers: Teacher[];
+}
+
 interface TimetableContextType {
   teachers: Teacher[];
   timetable: ClassTimetable;
@@ -22,6 +59,13 @@ interface TimetableContextType {
   /** تفعيل حجز حصص النشاط (الثانية والثالثة) حسب الصف واليوم */
   activityPeriods: boolean;
   setActivityPeriods: (v: boolean) => void;
+  constraints: TimetableConstraints;
+  setConstraint: (key: keyof TimetableConstraints, value: boolean) => void;
+  /** الجداول المحفوظة (نسخ يمكن الرجوع إليها) */
+  savedTimetables: SavedTimetable[];
+  saveCurrentTimetable: (name: string) => void;
+  restoreSavedTimetable: (id: string) => boolean;
+  deleteSavedTimetable: (id: string) => void;
   addTeacher: (teacher: Teacher) => void;
   updateTeacher: (teacher: Teacher) => void;
   removeTeacher: (id: string) => void;
@@ -46,6 +90,9 @@ const TimetableContext = createContext<TimetableContextType | null>(null);
 const STORAGE_KEY = "school_timetable_data";
 const DOUBLE_KEY = "school_timetable_pair_double";
 const ACTIVITY_KEY = "school_timetable_activity_periods";
+const CONSTRAINTS_KEY = "school_timetable_constraints";
+const SNAPSHOTS_KEY = "school_timetable_snapshots";
+
 
 function getElectronLanHelper() {
   return (window as any)?.electronAPI?.lan;
