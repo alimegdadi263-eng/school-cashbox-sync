@@ -46,7 +46,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 
 export default function TimetablePage() {
-  const { teachers, timetable, periodsPerDay, setPeriodsPerDay, pairDoubleSubjects, setPairDoubleSubjects, activityPeriods, setActivityPeriods, generateTimetable, getAllClassKeys, clearTimetable } = useTimetable();
+  const { teachers, timetable, periodsPerDay, setPeriodsPerDay, generateTimetable, getAllClassKeys, clearTimetable } = useTimetable();
   const { schoolName } = useAuth();
   const classKeys = getAllClassKeys();
 
