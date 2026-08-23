@@ -1572,23 +1572,144 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    /**
+     * قيد إلزامي: المهارات الرقمية / التربية المهنية حصتان متتاليتان.
+     * جولة صارمة تعمل بعد الإقران العادي: تُخلي الخانة المجاورة بالقوة عبر
+     * نقل الحصة المتعارضة في الصف الآخر إلى خانة فارغة أو تبديلها داخل صفها.
+     */
+    const enforceDoublePairsStrict = (tt: ClassTimetable) => {
+      const teacherFreeAt = (teacherId: string, day: number, period: number, exceptCk: string) => {
+        for (const [ck, days] of Object.entries(tt)) {
+          if (ck === exceptCk) continue;
+          if (days[day]?.[period]?.teacherId === teacherId) return false;
+        }
+        const teacher = teachers.find(t => t.id === teacherId);
+        return !(teacher && isBlocked(teacher, day, period));
+      };
+
+      /** إخلاء المعلم في توقيت محدد بنقل حصته في صف آخر أو تبديلها داخل صفها */
+      const forceFreeTeacher = (teacherId: string, day: number, period: number, exceptCk: string): boolean => {
+        const teacher = teachers.find(t => t.id === teacherId);
+        if (teacher && isBlocked(teacher, day, period)) return false;
+        for (const [ck2, days] of Object.entries(tt)) {
+          if (ck2 === exceptCk) continue;
+          const cell = days[day]?.[period];
+          if (!cell || cell.teacherId !== teacherId) continue;
+          if (isLocked(ck2, day, period) || isActivityCell(cell)) return false;
+          const cap2 = classCap[ck2] ?? periodsPerDay;
+          // 1) خانة فارغة داخل نفس الصف
+          for (let d2 = 0; d2 < daysCount; d2++) {
+            for (let p2 = 0; p2 < cap2; p2++) {
+              if (tt[ck2][d2][p2] !== null || isLocked(ck2, d2, p2)) continue;
+              if (!teacherFreeAt(teacherId, d2, p2, ck2)) continue;
+              tt[ck2][d2][p2] = cell;
+              tt[ck2][day][period] = null;
+              return true;
+            }
+          }
+          // 2) تبديل داخل نفس الصف مع حصة أخرى بلا تعارض
+          for (let d2 = 0; d2 < daysCount; d2++) {
+            for (let p2 = 0; p2 < cap2; p2++) {
+              if (d2 === day && p2 === period) continue;
+              const other = tt[ck2][d2][p2];
+              if (!other || isActivityCell(other) || isLocked(ck2, d2, p2)) continue;
+              if (!teacherFreeAt(teacherId, d2, p2, ck2)) continue;
+              if (!teacherFreeAt(other.teacherId, day, period, ck2)) continue;
+              tt[ck2][d2][p2] = cell;
+              tt[ck2][day][period] = other;
+              return true;
+            }
+          }
+          return false;
+        }
+        return true;
+      };
+
+      const ensureFree = (teacherId: string, day: number, period: number, ck: string) =>
+        teacherFreeAt(teacherId, day, period, ck) || forceFreeTeacher(teacherId, day, period, ck);
+
+      for (const ck of Object.keys(tt)) {
+        const cap = classCap[ck] ?? periodsPerDay;
+        for (const subject of DOUBLE_PERIOD_SUBJECTS) {
+          for (let pass = 0; pass < 10; pass++) {
+            const spots: { day: number; period: number }[] = [];
+            for (let d = 0; d < daysCount; d++) {
+              for (let p = 0; p < cap; p++) {
+                if (tt[ck][d]?.[p]?.subjectName === subject) spots.push({ day: d, period: p });
+              }
+            }
+            const lonely = spots.filter(s => !(
+              tt[ck][s.day]?.[s.period - 1]?.subjectName === subject ||
+              tt[ck][s.day]?.[s.period + 1]?.subjectName === subject
+            ));
+            if (lonely.length < 2) break;
+
+            const anchor = lonely[0];
+            const partner = lonely[1];
+            const anchorCell = tt[ck][anchor.day][anchor.period]!;
+            let done = false;
+
+            for (const neighbor of [anchor.period + 1, anchor.period - 1]) {
+              if (neighbor < 0 || neighbor >= cap) continue;
+              if (isLocked(ck, anchor.day, neighbor) || isLocked(ck, partner.day, partner.period)) continue;
+              const target = tt[ck][anchor.day][neighbor];
+              if (isActivityCell(target)) continue;
+              const partnerCell = tt[ck][partner.day][partner.period]!;
+              if (!partnerCell) continue;
+              if (partner.day === anchor.day && partner.period === neighbor) { done = true; break; }
+              if (!ensureFree(partnerCell.teacherId, anchor.day, neighbor, ck)) continue;
+              if (target && !ensureFree(target.teacherId, partner.day, partner.period, ck)) continue;
+              tt[ck][anchor.day][neighbor] = partnerCell;
+              tt[ck][partner.day][partner.period] = target ?? null;
+              done = true;
+              break;
+            }
+            if (!done) {
+              // الحل الأخير: نقل حصة المرساة بجانب الشريك
+              let moved = false;
+              for (const neighbor of [partner.period + 1, partner.period - 1]) {
+                if (neighbor < 0 || neighbor >= cap) continue;
+                if (isLocked(ck, partner.day, neighbor)) continue;
+                const target = tt[ck][partner.day][neighbor];
+                if (isActivityCell(target)) continue;
+                if (!ensureFree(anchorCell.teacherId, partner.day, neighbor, ck)) continue;
+                if (target && !ensureFree(target.teacherId, anchor.day, anchor.period, ck)) continue;
+                tt[ck][partner.day][neighbor] = anchorCell;
+                tt[ck][anchor.day][anchor.period] = target ?? null;
+                moved = true;
+                break;
+              }
+              if (!moved) break;
+            }
+          }
+        }
+      }
+    };
+
     for (let i = 0; i < 3; i++) {
       forcePlaceRemaining(newTT);
       compactTimetable(newTT);
     }
-    for (let r = 0; r < 3; r++) {
-      forcePlaceRemaining(newTT);
+    if (pairDoubleSubjects) {
+      for (let r = 0; r < 3; r++) {
+        forcePlaceRemaining(newTT);
+        pairDoublePeriodSubjects(newTT);
+      }
       pairDoublePeriodSubjects(newTT);
+      for (let s = 0; s < 3; s++) enforceDoublePairsStrict(newTT);
     }
-    pairDoublePeriodSubjects(newTT);
     forcePlaceRemaining(newTT);
-    for (let g = 0; g < 3; g++) {
-      fillInteriorGaps(newTT);
-      compactTimetable(newTT);
+    if (constraints.fillGaps) {
+      for (let g = 0; g < 3; g++) {
+        fillInteriorGaps(newTT);
+        compactTimetable(newTT);
+      }
     }
-    preferArtInLastPeriod(newTT);
-    fillInteriorGaps(newTT);
+    if (constraints.preferArtLastPeriod) preferArtInLastPeriod(newTT);
+    if (constraints.fillGaps) fillInteriorGaps(newTT);
+    if (pairDoubleSubjects) enforceDoublePairsStrict(newTT);
     if (activityPeriods) assignActivityTeachers(newTT);
+
 
 
 
