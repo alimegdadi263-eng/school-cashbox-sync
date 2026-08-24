@@ -1771,9 +1771,6 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                   for (let p2 = 0; p2 < cap2; p2++) {
                     if (tt[blockerCk][d2][p2] !== null || isLocked(blockerCk, d2, p2)) continue;
                     // لا نصنع فراغاً داخلياً جديداً في الصف الآخر
-                    let laterExists = false;
-                    for (let z = p2 + 1; z < cap2; z++) if (tt[blockerCk][d2][z]) { laterExists = true; break; }
-                    if (laterExists && !(d2 === day && p2 > p)) { /* مسموح فقط إن كان يملأ فراغاً */ }
                     if (!teacherIsFree(tt, blockerCell.teacherId, d2, p2, blockerCk)) continue;
                     tt[blockerCk][d2][p2] = blockerCell;
                     tt[blockerCk][day][p] = null;
