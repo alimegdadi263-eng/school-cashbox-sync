@@ -552,6 +552,14 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     } else {
       newUnplaced[stagingIdx] = { ...item, count: item.count - 1 };
     }
+    // أي حصة أُخرجت لحل تعارض تُضاف إلى الحصص غير الموزّعة
+    for (const d of droppedCells) {
+      const existing = newUnplaced.find(
+        u => u.teacherId === d.teacherId && u.classKey === d.classKey && u.subjectName === d.subjectName
+      );
+      if (existing) existing.count += 1;
+      else newUnplaced.push({ ...d, count: 1 });
+    }
     setUnplacedPeriods(newUnplaced);
     return true;
   };
@@ -1867,16 +1875,74 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         compactTimetable(newTT);
       }
     }
+    /** تشغيل أي جولة على نسخة، واعتمادها فقط إن لم تزد التعارضات */
+    const applySafely = (tt: ClassTimetable, fn: (t: ClassTimetable) => void) => {
+      const before = countConflicts(tt);
+      const clone: ClassTimetable = JSON.parse(JSON.stringify(tt));
+      fn(clone);
+      if (countConflicts(clone) > before) return;
+      for (const ck of Object.keys(tt)) tt[ck] = clone[ck];
+    };
+
+    /**
+     * ضمان نهائي: صفر تعارضات. أي معلم موجود في أكثر من صف بنفس اليوم والحصة
+     * تُنقل حصصه الزائدة إلى خانة فارغة آمنة، وإن تعذّر تُرفع إلى المنطقة الفارغة.
+     */
+    const droppedCells: { teacherId: string; teacherName: string; subjectName: string; classKey: string }[] = [];
+    const resolveAllConflicts = (tt: ClassTimetable) => {
+      for (let pass = 0; pass < 20; pass++) {
+        const occupied = new Map<string, string>(); // teacher|day|period -> classKey
+        let fixed = false;
+        for (const ck of Object.keys(tt)) {
+          const cap = classCap[ck] ?? periodsPerDay;
+          for (let d = 0; d < daysCount; d++) {
+            for (let p = 0; p < cap; p++) {
+              const cell = tt[ck][d][p];
+              if (!cell || isActivityCell(cell)) continue;
+              const key = `${cell.teacherId}|${d}|${p}`;
+              if (!occupied.has(key)) { occupied.set(key, ck); continue; }
+              // تعارض: أخرج هذه الحصة إلى خانة آمنة
+              fixed = true;
+              let placed = false;
+              for (let d2 = 0; d2 < daysCount && !placed; d2++) {
+                for (let p2 = 0; p2 < cap; p2++) {
+                  if (tt[ck][d2][p2] !== null || isLocked(ck, d2, p2)) continue;
+                  if (!teacherIsFree(tt, cell.teacherId, d2, p2, ck)) continue;
+                  tt[ck][d2][p2] = cell;
+                  placed = true;
+                  break;
+                }
+              }
+              tt[ck][d][p] = null;
+              if (!placed) {
+                droppedCells.push({
+                  teacherId: cell.teacherId,
+                  teacherName: cell.teacherName,
+                  subjectName: cell.subjectName,
+                  classKey: ck,
+                });
+              }
+            }
+          }
+        }
+        if (!fixed) break;
+      }
+    };
+
     if (constraints.preferArtLastPeriod) preferArtInLastPeriod(newTT);
-    if (constraints.balanceTeacherDaily) balanceTeacherDailyLoad(newTT);
+    if (constraints.balanceTeacherDaily) applySafely(newTT, balanceTeacherDailyLoad);
     if (constraints.fillGaps) {
-      fillInteriorGaps(newTT);
+      applySafely(newTT, fillInteriorGaps);
       compactTimetable(newTT);
-      eliminateInteriorGaps(newTT);
+      applySafely(newTT, eliminateInteriorGaps);
     }
     if (pairDoubleSubjects) applyStrictSafely(newTT);
-    if (constraints.fillGaps) eliminateInteriorGaps(newTT);
+    if (constraints.fillGaps) applySafely(newTT, eliminateInteriorGaps);
     if (activityPeriods) assignActivityTeachers(newTT);
+    // ضمان نهائي: لا تعارضات إطلاقاً، ثم رصّ الفراغات الناتجة
+    resolveAllConflicts(newTT);
+    if (constraints.fillGaps) applySafely(newTT, eliminateInteriorGaps);
+    resolveAllConflicts(newTT);
 
 
 
