@@ -26,6 +26,8 @@ export interface TimetableConstraints {
   variablePeriodCap: boolean;
   /** مزامنة تلقائية: أي تعديل على المعلمين ينعكس على الجدول دون إعادة توليد */
   autoSyncTeachers: boolean;
+  /** توزيع حصص المعلم بشكل متساوٍ قدر الإمكان على أيام الأسبوع */
+  balanceTeacherDaily: boolean;
 }
 
 export const DEFAULT_CONSTRAINTS: TimetableConstraints = {
@@ -36,6 +38,7 @@ export const DEFAULT_CONSTRAINTS: TimetableConstraints = {
   fillGaps: true,
   variablePeriodCap: true,
   autoSyncTeachers: true,
+  balanceTeacherDaily: true,
 };
 
 export interface SavedTimetable {
