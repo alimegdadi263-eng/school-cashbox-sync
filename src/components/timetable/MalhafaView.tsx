@@ -115,6 +115,15 @@ export default function MalhafaView() {
     return map;
   }, [teachers]);
 
+  // الاسم الحالي للمعلم (يتحدث فوراً عند تعديل الاسم دون إعادة توليد)
+  const teacherNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    teachers.forEach(t => { map[t.id] = t.name; });
+    return map;
+  }, [teachers]);
+  const nameOf = (c: { teacherId: string; teacherName: string }) => teacherNameMap[c.teacherId] || c.teacherName;
+
+
   if (Object.keys(timetable).length === 0) return null;
 
   const handleDrop = (targetClassKey: string, targetDay: number, targetPeriod: number) => {
