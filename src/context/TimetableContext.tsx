@@ -324,18 +324,37 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  /** تحديث أسماء المعلمين داخل خانات الجدول (ينعكس فوراً على الملحفة) */
+  const renameTeachersInTimetable = (tt: ClassTimetable, list: Teacher[]): ClassTimetable => {
+    const byId = new Map(list.map(t => [t.id, t]));
+    let changed = false;
+    const next: ClassTimetable = {};
+    for (const [ck, days] of Object.entries(tt)) {
+      next[ck] = days.map(d => d.map(c => {
+        if (!c) return c;
+        const t = byId.get(c.teacherId);
+        if (t && t.name !== c.teacherName) { changed = true; return { ...c, teacherName: t.name }; }
+        return c;
+      }));
+    }
+    return changed ? next : tt;
+  };
+
   const updateTeacher = (teacher: Teacher) => {
     setTeachers(prev => {
       const next = prev.map(t => t.id === teacher.id ? teacher : t);
       const hasTT = Object.keys(timetable).length > 0;
-      const newTT = hasTT && constraints.autoSyncTeachers
-        ? syncTimetableWithTeachers(timetable, next, periodsPerDay)
+      const newTT = hasTT
+        ? (constraints.autoSyncTeachers
+            ? syncTimetableWithTeachers(timetable, next, periodsPerDay)
+            : renameTeachersInTimetable(timetable, next))
         : timetable;
       if (newTT !== timetable) setTimetableState(newTT);
       save(next, newTT, periodsPerDay);
       return next;
     });
   };
+
 
   /** حفظ نسخة من الجدول الحالي للرجوع إليها لاحقاً */
   const saveCurrentTimetable = (name: string) => {
