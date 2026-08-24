@@ -1715,6 +1715,142 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       for (const ck of Object.keys(tt)) tt[ck] = clone[ck];
     };
 
+    /** هل المعلم متفرغ في هذا التوقيت (خارج الصف المستثنى)؟ */
+    const teacherIsFree = (tt: ClassTimetable, teacherId: string, day: number, period: number, exceptCk: string) => {
+      for (const [ck2, days] of Object.entries(tt)) {
+        if (ck2 === exceptCk) continue;
+        if (days[day]?.[period]?.teacherId === teacherId) return false;
+      }
+      const t = teachers.find(x => x.id === teacherId);
+      return !(t && isBlocked(t, day, period));
+    };
+
+    /**
+     * إزالة الفراغات الداخلية نهائياً: لا يجوز وجود حصة فارغة يليها حصص في نفس
+     * اليوم. تُسحب حصة لاحقة من نفس اليوم إلى الفراغ، وإن تعارض المعلم يُنقل
+     * المتعارض في صفه إلى خانة فارغة أخرى ثم يتم السحب. الفراغ يبقى في النهاية فقط.
+     */
+    const eliminateInteriorGaps = (tt: ClassTimetable) => {
+      for (let pass = 0; pass < 40; pass++) {
+        let changed = false;
+        for (const ck of Object.keys(tt)) {
+          const cap = classCap[ck] ?? periodsPerDay;
+          for (let day = 0; day < daysCount; day++) {
+            for (let p = 0; p < cap; p++) {
+              if (tt[ck][day][p] !== null || isLocked(ck, day, p)) continue;
+              let hasLater = false;
+              for (let q = p + 1; q < cap; q++) if (tt[ck][day][q]) { hasLater = true; break; }
+              if (!hasLater) continue;
+
+              // مرشحون: من آخر اليوم إلى الأقرب
+              for (let q = cap - 1; q > p; q--) {
+                const cell = tt[ck][day][q];
+                if (!cell || isActivityCell(cell) || isLocked(ck, day, q)) continue;
+                const t = teachers.find(x => x.id === cell.teacherId);
+                if (t && isBlocked(t, day, p)) continue;
+
+                if (teacherIsFree(tt, cell.teacherId, day, p, ck)) {
+                  tt[ck][day][p] = cell;
+                  tt[ck][day][q] = null;
+                  changed = true;
+                  break;
+                }
+
+                // إخلاء المعلم: نقل حصته المتعارضة في الصف الآخر إلى خانة فارغة
+                let blockerCk = "";
+                for (const [ck2, days] of Object.entries(tt)) {
+                  if (ck2 === ck) continue;
+                  if (days[day]?.[p]?.teacherId === cell.teacherId) { blockerCk = ck2; break; }
+                }
+                if (!blockerCk) continue;
+                const blockerCell = tt[blockerCk][day][p];
+                if (!blockerCell || isActivityCell(blockerCell) || isLocked(blockerCk, day, p)) continue;
+                const cap2 = classCap[blockerCk] ?? periodsPerDay;
+                let relocated = false;
+                for (let d2 = 0; d2 < daysCount && !relocated; d2++) {
+                  for (let p2 = 0; p2 < cap2; p2++) {
+                    if (tt[blockerCk][d2][p2] !== null || isLocked(blockerCk, d2, p2)) continue;
+                    // لا نصنع فراغاً داخلياً جديداً في الصف الآخر
+                    let laterExists = false;
+                    for (let z = p2 + 1; z < cap2; z++) if (tt[blockerCk][d2][z]) { laterExists = true; break; }
+                    if (laterExists && !(d2 === day && p2 > p)) { /* مسموح فقط إن كان يملأ فراغاً */ }
+                    if (!teacherIsFree(tt, blockerCell.teacherId, d2, p2, blockerCk)) continue;
+                    tt[blockerCk][d2][p2] = blockerCell;
+                    tt[blockerCk][day][p] = null;
+                    relocated = true;
+                    break;
+                  }
+                }
+                if (!relocated) continue;
+                tt[ck][day][p] = cell;
+                tt[ck][day][q] = null;
+                changed = true;
+                break;
+              }
+            }
+          }
+        }
+        if (!changed) break;
+      }
+    };
+
+    /**
+     * موازنة نصاب المعلم اليومي: محاولة جعل عدد حصص المعلم متقارباً في جميع
+     * أيام الأسبوع بنقل حصة من أثقل يوم إلى أخف يوم داخل نفس الصف دون تعارض.
+     */
+    const balanceTeacherDailyLoad = (tt: ClassTimetable) => {
+      const counts = () => {
+        const m: Record<string, number[]> = {};
+        for (const days of Object.values(tt)) {
+          days.forEach((row, d) => row.forEach(cell => {
+            if (!cell || isActivityCell(cell)) return;
+            if (!m[cell.teacherId]) m[cell.teacherId] = Array(daysCount).fill(0);
+            m[cell.teacherId][d] += 1;
+          }));
+        }
+        return m;
+      };
+
+      for (let pass = 0; pass < 25; pass++) {
+        let changed = false;
+        const m = counts();
+        for (const [teacherId, perDay] of Object.entries(m)) {
+          const max = Math.max(...perDay);
+          const min = Math.min(...perDay);
+          if (max - min < 2) continue;
+          const heavy = perDay.indexOf(max);
+          const light = perDay.indexOf(min);
+          let moved = false;
+          for (const ck of Object.keys(tt)) {
+            if (moved) break;
+            const cap = classCap[ck] ?? periodsPerDay;
+            for (let p = cap - 1; p >= 0; p--) {
+              const cell = tt[ck][heavy][p];
+              if (!cell || cell.teacherId !== teacherId) continue;
+              if (isActivityCell(cell) || isLocked(ck, heavy, p)) continue;
+              // لا ننقل إن كان يكسر إقران الحصص المزدوجة
+              if (DOUBLE_PERIOD_SUBJECTS.includes(cell.subjectName)) continue;
+              // خانة فارغة في اليوم الخفيف بلا فراغ داخلي جديد
+              for (let p2 = 0; p2 < cap; p2++) {
+                if (tt[ck][light][p2] !== null || isLocked(ck, light, p2)) continue;
+                let laterExists = false;
+                for (let z = p2 + 1; z < cap; z++) if (tt[ck][light][z]) { laterExists = true; break; }
+                if (laterExists) continue;
+                if (!teacherIsFree(tt, teacherId, light, p2, ck)) continue;
+                tt[ck][light][p2] = cell;
+                tt[ck][heavy][p] = null;
+                moved = true;
+                changed = true;
+                break;
+              }
+              if (moved) break;
+            }
+          }
+        }
+        if (!changed) break;
+      }
+    };
+
     for (let i = 0; i < 3; i++) {
       forcePlaceRemaining(newTT);
       compactTimetable(newTT);
@@ -1735,8 +1871,14 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       }
     }
     if (constraints.preferArtLastPeriod) preferArtInLastPeriod(newTT);
-    if (constraints.fillGaps) fillInteriorGaps(newTT);
+    if (constraints.balanceTeacherDaily) balanceTeacherDailyLoad(newTT);
+    if (constraints.fillGaps) {
+      fillInteriorGaps(newTT);
+      compactTimetable(newTT);
+      eliminateInteriorGaps(newTT);
+    }
     if (pairDoubleSubjects) applyStrictSafely(newTT);
+    if (constraints.fillGaps) eliminateInteriorGaps(newTT);
     if (activityPeriods) assignActivityTeachers(newTT);
 
 
