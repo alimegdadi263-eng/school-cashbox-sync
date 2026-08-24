@@ -134,6 +134,10 @@ export default function SavedTimetables() {
                   >
                     <RotateCcw className="w-4 h-4 ml-1" /> استرجاع
                   </Button>
+                  <Button size="sm" variant="ghost" onClick={() => exportOne(s.id)}>
+                    <Download className="w-4 h-4 ml-1" /> تصدير
+                  </Button>
+
                   <Button
                     size="sm"
                     variant="ghost"
