@@ -185,11 +185,15 @@ export default function MalhafaView() {
             ref={scrollRef}
             className={`overflow-auto border rounded-md relative ${fullscreen ? "flex-1 min-h-0" : "max-h-[70vh]"}`}
           >
-            <div style={{ zoom }}>
+            <div style={{ zoom }} className="min-w-max">
               <table ref={tableRef} className={`w-full border-collapse ${compact ? "text-[12px]" : "text-[11px]"}`}>
                 <thead>
                   <tr className="bg-primary text-primary-foreground">
-                    <th className="border border-border p-1 text-center sticky top-0 right-0 z-30 bg-primary h-6" rowSpan={2}>الصف/الشعبة</th>
+                    <th
+                      rowSpan={2}
+                      style={{ position: "sticky", insetInlineEnd: 0, insetInlineStart: "auto", top: 0, zIndex: 40 }}
+                      className="border border-border p-1 text-center bg-primary h-6 shadow-[-2px_0_0_0_hsl(var(--border))]"
+                    >الصف/الشعبة</th>
                     {DAYS.map(d => (
                       <th key={d} className="border border-border p-1 text-center sticky top-0 z-20 bg-primary h-6" colSpan={periodsPerDay}>{d}</th>
                     ))}
@@ -209,7 +213,10 @@ export default function MalhafaView() {
                     if (!days) return null;
                     return (
                       <tr key={ck} className="hover:bg-muted/20">
-                        <td className="border border-border p-1 text-center font-bold whitespace-nowrap sticky right-0 z-10 bg-secondary text-secondary-foreground">
+                        <td
+                          style={{ position: "sticky", insetInlineEnd: 0, insetInlineStart: "auto", zIndex: 25 }}
+                          className="border border-border p-1 text-center font-bold whitespace-nowrap bg-secondary text-secondary-foreground shadow-[-2px_0_0_0_hsl(var(--border))]"
+                        >
                           {className}/{section}
                         </td>
                         {DAYS.map((_, di) =>
