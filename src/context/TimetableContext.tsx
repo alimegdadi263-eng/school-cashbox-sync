@@ -69,6 +69,9 @@ interface TimetableContextType {
   saveCurrentTimetable: (name: string) => void;
   restoreSavedTimetable: (id: string) => boolean;
   deleteSavedTimetable: (id: string) => void;
+  /** استيراد نسخ جداول محفوظة من ملف (JSON) */
+  importSavedTimetables: (snaps: SavedTimetable[]) => number;
+
   addTeacher: (teacher: Teacher) => void;
   updateTeacher: (teacher: Teacher) => void;
   removeTeacher: (id: string) => void;
