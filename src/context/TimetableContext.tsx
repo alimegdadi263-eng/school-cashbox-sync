@@ -2059,7 +2059,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       pairDoubleSubjects, setPairDoubleSubjects,
       activityPeriods, setActivityPeriods,
       constraints, setConstraint,
-      savedTimetables, saveCurrentTimetable, restoreSavedTimetable, deleteSavedTimetable,
+      savedTimetables, saveCurrentTimetable, restoreSavedTimetable, deleteSavedTimetable, importSavedTimetables,
       addTeacher, updateTeacher, removeTeacher,
       setTimetable, updateCell, swapCells, swapCellsAcrossDays, moveCell, placeFromStaging, moveToStaging, generateTimetable,
       getTeacherSchedule, getAllClassKeys, clearTimetable,
