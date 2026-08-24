@@ -552,14 +552,6 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     } else {
       newUnplaced[stagingIdx] = { ...item, count: item.count - 1 };
     }
-    // أي حصة أُخرجت لحل تعارض تُضاف إلى الحصص غير الموزّعة
-    for (const d of droppedCells) {
-      const existing = newUnplaced.find(
-        u => u.teacherId === d.teacherId && u.classKey === d.classKey && u.subjectName === d.subjectName
-      );
-      if (existing) existing.count += 1;
-      else newUnplaced.push({ ...d, count: 1 });
-    }
     setUnplacedPeriods(newUnplaced);
     return true;
   };
@@ -1968,6 +1960,14 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
           count: assignment.remaining,
         });
       }
+    }
+    // أي حصة أُخرجت لحل تعارض تُضاف إلى الحصص غير الموزّعة
+    for (const d of droppedCells) {
+      const existing = newUnplaced.find(
+        u => u.teacherId === d.teacherId && u.classKey === d.classKey && u.subjectName === d.subjectName
+      );
+      if (existing) existing.count += 1;
+      else newUnplaced.push({ ...d, count: 1 });
     }
     setUnplacedPeriods(newUnplaced);
 
