@@ -115,6 +115,15 @@ export default function MalhafaView() {
     return map;
   }, [teachers]);
 
+  // الاسم الحالي للمعلم (يتحدث فوراً عند تعديل الاسم دون إعادة توليد)
+  const teacherNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    teachers.forEach(t => { map[t.id] = t.name; });
+    return map;
+  }, [teachers]);
+  const nameOf = (c: { teacherId: string; teacherName: string }) => teacherNameMap[c.teacherId] || c.teacherName;
+
+
   if (Object.keys(timetable).length === 0) return null;
 
   const handleDrop = (targetClassKey: string, targetDay: number, targetPeriod: number) => {
@@ -240,14 +249,15 @@ export default function MalhafaView() {
                                   ${isDragSourceCell ? "opacity-50 bg-primary/10" : ""}
                                   ${!isDragOverCell && !isDragSourceCell && !bgColor ? "hover:bg-accent/10" : ""}
                                 `}
-                                title={cell ? `${cell.subjectName} - ${cell.teacherName}` : undefined}
+                                title={cell ? `${cell.subjectName} - ${nameOf(cell)}` : undefined}
                               >
                                 {cell ? (
                                   <div className="leading-tight">
                                     <div className="font-semibold truncate">{cell.subjectName}</div>
                                     {!compact && (
-                                      <div className="text-[9px] truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{cell.teacherName}</div>
+                                      <div className="text-[9px] truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{nameOf(cell)}</div>
                                     )}
+
                                   </div>
                                 ) : (
                                   <span className="text-muted-foreground/30">-</span>
@@ -308,7 +318,7 @@ export default function MalhafaView() {
                     `}
                   >
                     <div className="font-bold">{item.subjectName}</div>
-                    <div className="text-muted-foreground">{item.teacherName}</div>
+                    <div className="text-muted-foreground">{nameOf(item)}</div>
                     <div className="text-muted-foreground">{className}/{section}</div>
                     <div className="mt-1 font-semibold text-destructive">{item.count} حصة</div>
                   </div>

@@ -69,6 +69,9 @@ interface TimetableContextType {
   saveCurrentTimetable: (name: string) => void;
   restoreSavedTimetable: (id: string) => boolean;
   deleteSavedTimetable: (id: string) => void;
+  /** استيراد نسخ جداول محفوظة من ملف (JSON) */
+  importSavedTimetables: (snaps: SavedTimetable[]) => number;
+
   addTeacher: (teacher: Teacher) => void;
   updateTeacher: (teacher: Teacher) => void;
   removeTeacher: (id: string) => void;
@@ -324,18 +327,37 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  /** تحديث أسماء المعلمين داخل خانات الجدول (ينعكس فوراً على الملحفة) */
+  const renameTeachersInTimetable = (tt: ClassTimetable, list: Teacher[]): ClassTimetable => {
+    const byId = new Map(list.map(t => [t.id, t]));
+    let changed = false;
+    const next: ClassTimetable = {};
+    for (const [ck, days] of Object.entries(tt)) {
+      next[ck] = days.map(d => d.map(c => {
+        if (!c) return c;
+        const t = byId.get(c.teacherId);
+        if (t && t.name !== c.teacherName) { changed = true; return { ...c, teacherName: t.name }; }
+        return c;
+      }));
+    }
+    return changed ? next : tt;
+  };
+
   const updateTeacher = (teacher: Teacher) => {
     setTeachers(prev => {
       const next = prev.map(t => t.id === teacher.id ? teacher : t);
       const hasTT = Object.keys(timetable).length > 0;
-      const newTT = hasTT && constraints.autoSyncTeachers
-        ? syncTimetableWithTeachers(timetable, next, periodsPerDay)
+      const newTT = hasTT
+        ? (constraints.autoSyncTeachers
+            ? syncTimetableWithTeachers(timetable, next, periodsPerDay)
+            : renameTeachersInTimetable(timetable, next))
         : timetable;
       if (newTT !== timetable) setTimetableState(newTT);
       save(next, newTT, periodsPerDay);
       return next;
     });
   };
+
 
   /** حفظ نسخة من الجدول الحالي للرجوع إليها لاحقاً */
   const saveCurrentTimetable = (name: string) => {
@@ -372,6 +394,37 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
   };
+
+  /** استيراد نسخ محفوظة من ملف JSON (تُضاف للقائمة مع تجاهل المكرر) */
+  const importSavedTimetables = (snaps: SavedTimetable[]): number => {
+    const valid = (Array.isArray(snaps) ? snaps : []).filter(
+      s => s && typeof s === "object" && s.timetable && typeof s.timetable === "object"
+    );
+    if (valid.length === 0) return 0;
+    let added = 0;
+    setSavedTimetables(prev => {
+      const existing = new Set(prev.map(s => s.id));
+      const incoming = valid.map(s => {
+        let id = s.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        if (existing.has(id)) id = `${id}-${Math.random().toString(36).slice(2, 6)}`;
+        existing.add(id);
+        added++;
+        return {
+          id,
+          name: s.name || `جدول مستورد ${new Date().toLocaleDateString("ar")}`,
+          createdAt: s.createdAt || new Date().toISOString(),
+          periodsPerDay: s.periodsPerDay || 7,
+          timetable: s.timetable,
+          teachers: Array.isArray(s.teachers) ? s.teachers : [],
+        } as SavedTimetable;
+      });
+      const next = [...incoming, ...prev].slice(0, 30);
+      try { localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+    return added;
+  };
+
 
 
   const removeTeacher = (id: string) => {
@@ -2006,7 +2059,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       pairDoubleSubjects, setPairDoubleSubjects,
       activityPeriods, setActivityPeriods,
       constraints, setConstraint,
-      savedTimetables, saveCurrentTimetable, restoreSavedTimetable, deleteSavedTimetable,
+      savedTimetables, saveCurrentTimetable, restoreSavedTimetable, deleteSavedTimetable, importSavedTimetables,
       addTeacher, updateTeacher, removeTeacher,
       setTimetable, updateCell, swapCells, swapCellsAcrossDays, moveCell, placeFromStaging, moveToStaging, generateTimetable,
       getTeacherSchedule, getAllClassKeys, clearTimetable,
