@@ -318,7 +318,7 @@ export default function MalhafaView() {
                     `}
                   >
                     <div className="font-bold">{item.subjectName}</div>
-                    <div className="text-muted-foreground">{item.teacherName}</div>
+                    <div className="text-muted-foreground">{nameOf(item)}</div>
                     <div className="text-muted-foreground">{className}/{section}</div>
                     <div className="mt-1 font-semibold text-destructive">{item.count} حصة</div>
                   </div>
