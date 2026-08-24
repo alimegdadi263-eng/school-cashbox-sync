@@ -1933,8 +1933,10 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     if (activityPeriods) assignActivityTeachers(newTT);
     // ضمان نهائي: لا تعارضات إطلاقاً، ثم رصّ الفراغات الناتجة
     resolveAllConflicts(newTT);
-    if (constraints.fillGaps) applySafely(newTT, eliminateInteriorGaps);
-    resolveAllConflicts(newTT);
+    // ثم رصّ نهائي للفراغات (لا يُنتج تعارضات لأنه يتحقق من تفرّغ المعلم)
+    if (constraints.fillGaps) {
+      for (let f = 0; f < 3; f++) applySafely(newTT, eliminateInteriorGaps);
+    }
 
 
 
