@@ -1,14 +1,18 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTimetable } from "@/context/TimetableContext";
 import { toast } from "@/hooks/use-toast";
-import { Save, RotateCcw, Trash2 } from "lucide-react";
+import { Save, RotateCcw, Trash2, Download, Upload } from "lucide-react";
 
 export default function SavedTimetables() {
-  const { timetable, savedTimetables, saveCurrentTimetable, restoreSavedTimetable, deleteSavedTimetable } = useTimetable();
+  const {
+    timetable, teachers, periodsPerDay,
+    savedTimetables, saveCurrentTimetable, restoreSavedTimetable, deleteSavedTimetable, importSavedTimetables,
+  } = useTimetable();
   const [name, setName] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const hasTimetable = Object.keys(timetable).length > 0;
 
@@ -22,12 +26,58 @@ export default function SavedTimetables() {
     toast({ title: "تم حفظ نسخة من الجدول ✅" });
   };
 
+  const downloadJson = (data: unknown, filename: string) => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportOne = (id: string) => {
+    const snap = savedTimetables.find(s => s.id === id);
+    if (!snap) return;
+    downloadJson([snap], `ملحفة-${snap.name}.json`);
+    toast({ title: "تم تصدير النسخة كملف 📁" });
+  };
+
+  const exportCurrent = () => {
+    if (!hasTimetable) {
+      toast({ title: "لا يوجد جدول لتصديره", variant: "destructive" });
+      return;
+    }
+    downloadJson([{
+      id: `${Date.now()}`,
+      name: name.trim() || `الملحفة الحالية`,
+      createdAt: new Date().toISOString(),
+      periodsPerDay,
+      timetable,
+      teachers,
+    }], `الملحفة-الحالية.json`);
+    toast({ title: "تم تصدير الملحفة الحالية 📁" });
+  };
+
+  const handleImport = async (file: File) => {
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const arr = Array.isArray(parsed) ? parsed : [parsed];
+      const added = importSavedTimetables(arr);
+      if (added > 0) toast({ title: `تم استيراد ${added} نسخة ✅ — اضغط "استرجاع" لتطبيقها` });
+      else toast({ title: "الملف لا يحتوي على جداول صالحة", variant: "destructive" });
+    } catch {
+      toast({ title: "تعذّر قراءة الملف", variant: "destructive" });
+    }
+  };
+
   return (
     <Card dir="rtl">
       <CardHeader>
         <CardTitle className="text-lg">الجداول المحفوظة</CardTitle>
         <p className="text-sm text-muted-foreground">
-          احفظ الجدول الحالي قبل توليد جدول جديد لتستطيع الرجوع إليه في أي وقت.
+          احفظ الجدول الحالي قبل توليد جدول جديد، أو صدّر الملحفة كملف واستوردها في أي وقت.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -42,7 +92,25 @@ export default function SavedTimetables() {
           <Button onClick={handleSave} disabled={!hasTimetable}>
             <Save className="w-4 h-4 ml-2" /> حفظ الجدول الحالي
           </Button>
+          <Button variant="outline" onClick={exportCurrent} disabled={!hasTimetable}>
+            <Download className="w-4 h-4 ml-2" /> تصدير الملحفة كملف
+          </Button>
+          <Button variant="secondary" onClick={() => fileRef.current?.click()}>
+            <Upload className="w-4 h-4 ml-2" /> استيراد ملحفة محفوظة
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            onChange={e => {
+              const f = e.target.files?.[0];
+              if (f) handleImport(f);
+              e.target.value = "";
+            }}
+          />
         </div>
+
 
         {savedTimetables.length === 0 ? (
           <p className="text-center text-muted-foreground py-8">لا توجد نسخ محفوظة بعد</p>
