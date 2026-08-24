@@ -249,14 +249,15 @@ export default function MalhafaView() {
                                   ${isDragSourceCell ? "opacity-50 bg-primary/10" : ""}
                                   ${!isDragOverCell && !isDragSourceCell && !bgColor ? "hover:bg-accent/10" : ""}
                                 `}
-                                title={cell ? `${cell.subjectName} - ${cell.teacherName}` : undefined}
+                                title={cell ? `${cell.subjectName} - ${nameOf(cell)}` : undefined}
                               >
                                 {cell ? (
                                   <div className="leading-tight">
                                     <div className="font-semibold truncate">{cell.subjectName}</div>
                                     {!compact && (
-                                      <div className="text-[9px] truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{cell.teacherName}</div>
+                                      <div className="text-[9px] truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{nameOf(cell)}</div>
                                     )}
+
                                   </div>
                                 ) : (
                                   <span className="text-muted-foreground/30">-</span>
