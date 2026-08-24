@@ -395,6 +395,37 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  /** استيراد نسخ محفوظة من ملف JSON (تُضاف للقائمة مع تجاهل المكرر) */
+  const importSavedTimetables = (snaps: SavedTimetable[]): number => {
+    const valid = (Array.isArray(snaps) ? snaps : []).filter(
+      s => s && typeof s === "object" && s.timetable && typeof s.timetable === "object"
+    );
+    if (valid.length === 0) return 0;
+    let added = 0;
+    setSavedTimetables(prev => {
+      const existing = new Set(prev.map(s => s.id));
+      const incoming = valid.map(s => {
+        let id = s.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        if (existing.has(id)) id = `${id}-${Math.random().toString(36).slice(2, 6)}`;
+        existing.add(id);
+        added++;
+        return {
+          id,
+          name: s.name || `جدول مستورد ${new Date().toLocaleDateString("ar")}`,
+          createdAt: s.createdAt || new Date().toISOString(),
+          periodsPerDay: s.periodsPerDay || 7,
+          timetable: s.timetable,
+          teachers: Array.isArray(s.teachers) ? s.teachers : [],
+        } as SavedTimetable;
+      });
+      const next = [...incoming, ...prev].slice(0, 30);
+      try { localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+    return added;
+  };
+
+
 
   const removeTeacher = (id: string) => {
     const newTT = { ...timetable };
