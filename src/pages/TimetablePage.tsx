@@ -294,6 +294,32 @@ export default function TimetablePage() {
                     </div>
                   </div>
 
+                  {/* Export daily matrix (موضوع/معلم) بدون غياب */}
+                  <div className="space-y-2 border-b border-border pb-4">
+                    <Label className="text-xs">تصدير جدول يوم كامل (الصفوف أعمدة: الموضوع + المعلم) — بدون معلمين غائبين</Label>
+                    <div className="flex flex-wrap items-end gap-2">
+                      <div className="w-40">
+                        <Select value={exportDay} onValueChange={setExportDay}>
+                          <SelectTrigger><SelectValue placeholder="اختر اليوم" /></SelectTrigger>
+                          <SelectContent>
+                            {DAYS.map((d, i) => (
+                              <SelectItem key={d} value={String(i)}>{d}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button size="sm" disabled={exporting} onClick={() => safeExport(`جدول ${DAYS[Number(exportDay)]} (Excel)`, () =>
+                        exportDailyScheduleMatrixExcel(generateDailySchedule(Number(exportDay), []), Number(exportDay), periodsPerDay, school, [], [])
+                      )}>
+                        <FileSpreadsheet className="w-4 h-4 ml-1" /> Excel موضوع/معلم
+                      </Button>
+                      <Button size="sm" variant="outline" disabled={exporting} onClick={() => safeExport(`جدول ${DAYS[Number(exportDay)]} (Word)`, () =>
+                        exportDailyScheduleMatrixDocx(generateDailySchedule(Number(exportDay), []), Number(exportDay), periodsPerDay, school, [], [])
+                      )}>
+                        <FileText className="w-4 h-4 ml-1" /> Word موضوع/معلم
+                      </Button>
+                    </div>
+                  </div>
 
 
                   {/* Export Malhafa */}
