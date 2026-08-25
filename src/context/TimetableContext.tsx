@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import type { Teacher, ClassTimetable, TimetableCell } from "@/types/timetable";
-import { getClassKey, parseClassKey, DAYS, MAX_PERIODS, DOUBLE_PERIOD_SUBJECTS, ACTIVITY_TEACHER_ID, ACTIVITY_SUBJECT, ACTIVITY_PERIODS, getActivityDay, isActivityCell } from "@/types/timetable";
+import { getClassKey, parseClassKey, CLASS_NAMES, SECTIONS, DAYS, MAX_PERIODS, DOUBLE_PERIOD_SUBJECTS, ACTIVITY_TEACHER_ID, ACTIVITY_SUBJECT, ACTIVITY_PERIODS, getActivityDay, isActivityCell } from "@/types/timetable";
 
 export interface UnplacedPeriod {
   teacherId: string;
