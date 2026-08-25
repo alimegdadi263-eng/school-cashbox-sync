@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 import { CalendarDays, UserX, Plus, Trash2, FileSpreadsheet, FileText } from "lucide-react";
-import { exportDailyScheduleExcel, exportDailyScheduleDocx, exportDailyScheduleExcelInverted, exportDailyScheduleDocxInverted } from "@/lib/exportDailySchedule";
+import { exportDailyScheduleExcel, exportDailyScheduleDocx, exportDailyScheduleExcelInverted, exportDailyScheduleDocxInverted, exportDailyScheduleMatrixExcel, exportDailyScheduleMatrixDocx } from "@/lib/exportDailySchedule";
 import { useAuth } from "@/hooks/useAuth";
 import { loadGatewayProfiles, sendBulkSmsMultiGateway } from "@/lib/smsGateway";
 import { toast } from "@/hooks/use-toast";
@@ -437,7 +437,24 @@ export default function DailyScheduleManager() {
               }}>
                 <FileText className="w-4 h-4 ml-1" /> Word معكوس
               </Button>
+
+              <span className="text-xs text-muted-foreground self-center mr-3 ml-1">موضوع + معلم:</span>
+              <Button size="sm" variant="secondary" onClick={() => {
+                const school = schoolName || "المدرسة";
+                const absentNames = teachers.filter(t => absentTeacherIds.includes(t.id)).map(t => t.name);
+                exportDailyScheduleMatrixExcel(dailyResult, selectedDay, periodsPerDay, school, absentNames, dutyTeachers);
+              }}>
+                <FileSpreadsheet className="w-4 h-4 ml-1" /> Excel موضوع/معلم
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => {
+                const school = schoolName || "المدرسة";
+                const absentNames = teachers.filter(t => absentTeacherIds.includes(t.id)).map(t => t.name);
+                exportDailyScheduleMatrixDocx(dailyResult, selectedDay, periodsPerDay, school, absentNames, dutyTeachers);
+              }}>
+                <FileText className="w-4 h-4 ml-1" /> Word موضوع/معلم
+              </Button>
             </div>
+
 
             {/* إشعار المعلمين برسائل نصية */}
             <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
