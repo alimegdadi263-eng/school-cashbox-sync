@@ -644,17 +644,19 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
   const getAllClassKeys = (): string[] => {
     const keys = new Set<string>();
     teachers.forEach(t => t.subjects.forEach(s => keys.add(getClassKey(s.className, s.section))));
-    return Array.from(keys).sort((a, b) => {
-      const ca = parseClassKey(a);
-      const cb = parseClassKey(b);
-      const classIdxA = CLASS_NAMES.indexOf(ca.className);
-      const classIdxB = CLASS_NAMES.indexOf(cb.className);
-      if (classIdxA !== classIdxB) return classIdxA - classIdxB;
-      const sectionIdxA = SECTIONS.indexOf(ca.section);
-      const sectionIdxB = SECTIONS.indexOf(cb.section);
-      return sectionIdxA - sectionIdxB;
-    });
+    // نضيف أي صف موجود في الجدول الحالي حتى لو لم يعد مرتبطاً بمعلم
+    Object.keys(timetable).forEach(k => keys.add(k));
+    return Array.from(keys).sort(compareClassKeys);
   };
+
+  /** إعادة ترتيب صفوف الجدول الحالي (الأول أ، ب... ثم الثاني...) دون إعادة توليد */
+  const reorderClasses = () => {
+    const ordered: ClassTimetable = {};
+    Object.keys(timetable).sort(compareClassKeys).forEach(k => { ordered[k] = timetable[k]; });
+    setTimetableState(ordered);
+    save(teachers, ordered, periodsPerDay);
+  };
+
 
   const getTeacherSchedule = (teacherId: string) => {
     const schedule: { classKey: string; day: number; period: number; subjectName: string }[] = [];
