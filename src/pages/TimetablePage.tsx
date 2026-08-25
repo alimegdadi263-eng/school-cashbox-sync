@@ -19,7 +19,8 @@ import {
   SlidersHorizontal, Archive,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { parseClassKey } from "@/types/timetable";
+import { parseClassKey, DAYS } from "@/types/timetable";
+import { exportDailyScheduleMatrixExcel, exportDailyScheduleMatrixDocx } from "@/lib/exportDailySchedule";
 import {
   exportClassTimetableExcel,
   exportTeacherTimetableExcel,
