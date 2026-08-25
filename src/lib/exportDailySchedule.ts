@@ -500,3 +500,153 @@ export async function exportDailyScheduleDocxInverted(
   const blob = await Packer.toBlob(doc);
   saveAs(blob, `الجدول_اليومي_معكوس_${dayName}.docx`);
 }
+
+// =================== MATRIX (صفوف = حصص، لكل صف عمودان: الموضوع + المعلم) ===================
+
+export async function exportDailyScheduleMatrixExcel(
+  dailyTT: ClassTimetable,
+  dayIndex: number,
+  periodsPerDay: number,
+  schoolName: string,
+  absentTeacherNames: string[],
+  dutyTeachers: DutyTeacher[]
+) {
+  const wb = new ExcelJS.Workbook();
+  const dayName = DAYS[dayIndex];
+  const ws = wb.addWorksheet(`جدول ${dayName}`);
+  setupWorksheet(ws);
+
+  const border = excelBorder();
+  const sortedKeys = Object.keys(dailyTT).sort();
+  const totalCols = 2 + sortedKeys.length * 2; // اليوم + الحصة + (موضوع/معلم) لكل شعبة
+
+  addExcelHeader(ws, schoolName, dayName, totalCols, absentTeacherNames, border);
+
+  // صف رؤوس 1: أسماء الصفوف (دمج عمودين لكل صف)
+  const r1: string[] = ["اليوم", "الحصة"];
+  sortedKeys.forEach(key => {
+    const { className, section } = parseClassKey(key);
+    r1.push(`${className} ${section}`, "");
+  });
+  const row1 = ws.addRow(r1);
+  row1.height = 26;
+
+  // صف رؤوس 2: الموضوع / المعلم
+  const r2: string[] = ["", ""];
+  sortedKeys.forEach(() => r2.push("الموضوع", "المعلم"));
+  const row2 = ws.addRow(r2);
+  row2.height = 22;
+
+  ws.mergeCells(row1.number, 1, row2.number, 1); // اليوم
+  ws.mergeCells(row1.number, 2, row2.number, 2); // الحصة
+  sortedKeys.forEach((_, i) => {
+    const c = 3 + i * 2;
+    ws.mergeCells(row1.number, c, row1.number, c + 1);
+  });
+
+  [row1, row2].forEach(r => r.eachCell({ includeEmpty: true }, c => {
+    c.font = { name: FONT_NAME, bold: true, size: 12, color: { argb: "FFFFFFFF" } };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2B3A55" } };
+    c.alignment = { horizontal: "center", vertical: "middle", wrapText: true, readingOrder: "rtl" as any };
+    c.border = border;
+  }));
+
+  const firstDataRow = row2.number + 1;
+  for (let p = 0; p < periodsPerDay; p++) {
+    const data: string[] = ["", `الحصة ${p + 1}`];
+    sortedKeys.forEach(key => {
+      const periods = dailyTT[key][0] || [];
+      const cell = periods[p];
+      data.push(cell ? cell.subjectName : "", cell ? cell.teacherName : "");
+    });
+    const row = ws.addRow(data);
+    row.height = 24;
+    row.eachCell({ includeEmpty: true }, (c, colNum) => {
+      c.border = border;
+      c.alignment = { horizontal: "center", vertical: "middle", wrapText: true, readingOrder: "rtl" as any };
+      if (colNum <= 2) {
+        c.font = { name: FONT_NAME, bold: true, size: 11, color: { argb: "FFFFFFFF" } };
+        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2B3A55" } };
+      } else {
+        const isTeacher = (colNum - 3) % 2 === 1;
+        c.font = { name: FONT_NAME, size: 11, bold: isTeacher, color: { argb: isTeacher ? "FFC0392B" : "FF000000" } };
+        if (!data[colNum - 1]) c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEDEDED" } };
+      }
+    });
+  }
+  ws.mergeCells(firstDataRow, 1, firstDataRow + periodsPerDay - 1, 1);
+  const dayCell = ws.getCell(firstDataRow, 1);
+  dayCell.value = dayName;
+  dayCell.alignment = { horizontal: "center", vertical: "middle", textRotation: 90, readingOrder: "rtl" as any };
+
+  addDutyTeachersExcel(ws, dutyTeachers, totalCols, border);
+
+  ws.getColumn(1).width = 6;
+  ws.getColumn(2).width = 14;
+  for (let i = 3; i <= totalCols; i++) ws.getColumn(i).width = 12;
+
+  const buffer = await wb.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), `جدول_يوم_${dayName}_موضوع_ومعلم.xlsx`);
+}
+
+export async function exportDailyScheduleMatrixDocx(
+  dailyTT: ClassTimetable,
+  dayIndex: number,
+  periodsPerDay: number,
+  schoolName: string,
+  absentTeacherNames: string[],
+  dutyTeachers: DutyTeacher[]
+) {
+  const dayName = DAYS[dayIndex];
+  const sortedKeys = Object.keys(dailyTT).sort();
+
+  const headerRow1 = new DocxTR({
+    tableHeader: true,
+    children: [
+      hdrCell("الحصة", 900),
+      ...sortedKeys.flatMap(key => {
+        const { className, section } = parseClassKey(key);
+        return [hdrCell(`${className} ${section}`), hdrCell(`${className} ${section}`)];
+      }),
+    ],
+  });
+
+  const headerRow2 = new DocxTR({
+    tableHeader: true,
+    children: [
+      hdrCell("", 900),
+      ...sortedKeys.flatMap(() => [hdrCell("الموضوع"), hdrCell("المعلم")]),
+    ],
+  });
+
+  const dataRows = Array.from({ length: periodsPerDay }, (_, pi) => new DocxTR({
+    children: [
+      hdrCell(`الحصة ${pi + 1}`, 900),
+      ...sortedKeys.flatMap(key => {
+        const periods = dailyTT[key][0] || [];
+        const cell = periods[pi];
+        return [dCell(cell ? [cell.subjectName] : [], !cell), dCell(cell ? [cell.teacherName] : [], !cell)];
+      }),
+    ],
+  }));
+
+  const mainTable = new DocxTable({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    visuallyRightToLeft: true,
+    rows: [headerRow1, headerRow2, ...dataRows],
+  });
+
+  const doc = new Document({
+    sections: [{
+      properties: { page: { size: { orientation: "landscape" as any } } },
+      children: [
+        ...buildDocxHeader(schoolName, dayName, absentTeacherNames),
+        mainTable,
+        ...buildDutyTeachersDocx(dutyTeachers),
+      ],
+    }],
+  });
+
+  const blob = await Packer.toBlob(doc);
+  saveAs(blob, `جدول_يوم_${dayName}_موضوع_ومعلم.docx`);
+}
