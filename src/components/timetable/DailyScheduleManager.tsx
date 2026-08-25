@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 import { CalendarDays, UserX, Plus, Trash2, FileSpreadsheet, FileText } from "lucide-react";
-import { exportDailyScheduleExcel, exportDailyScheduleDocx, exportDailyScheduleExcelInverted, exportDailyScheduleDocxInverted } from "@/lib/exportDailySchedule";
+import { exportDailyScheduleExcel, exportDailyScheduleDocx, exportDailyScheduleExcelInverted, exportDailyScheduleDocxInverted, exportDailyScheduleMatrixExcel, exportDailyScheduleMatrixDocx } from "@/lib/exportDailySchedule";
 import { useAuth } from "@/hooks/useAuth";
 import { loadGatewayProfiles, sendBulkSmsMultiGateway } from "@/lib/smsGateway";
 import { toast } from "@/hooks/use-toast";
