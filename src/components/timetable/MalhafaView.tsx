@@ -4,7 +4,7 @@ import { DAYS, parseClassKey } from "@/types/timetable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { GripVertical, AlertTriangle, Maximize2, Minimize2, ZoomIn, ZoomOut, Scan } from "lucide-react";
+import { GripVertical, AlertTriangle, Maximize2, Minimize2, ZoomIn, ZoomOut, Scan, ArrowDownAZ } from "lucide-react";
 
 
 interface DragItem {
@@ -51,7 +51,7 @@ const TEACHER_COLORS = [
 ];
 
 export default function MalhafaView() {
-  const { timetable, periodsPerDay, getAllClassKeys, swapCells, swapCellsAcrossDays, moveCell, unplacedPeriods, placeFromStaging, moveToStaging, teachers } = useTimetable();
+  const { timetable, periodsPerDay, getAllClassKeys, swapCells, swapCellsAcrossDays, moveCell, unplacedPeriods, placeFromStaging, moveToStaging, teachers, reorderClasses } = useTimetable();
   const classKeys = getAllClassKeys();
 
   const [dragSource, setDragSource] = useState<DragSource | null>(null);
@@ -177,6 +177,15 @@ export default function MalhafaView() {
               </Button>
               <Button variant={compact ? "default" : "outline"} size="sm" onClick={() => setCompact(c => !c)} title="إخفاء أسماء المعلمين لعرض الجدول كاملاً بخط أوضح">
                 {compact ? "إظهار المعلمين" : "عرض مدمج"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { reorderClasses(); toast({ title: "تم ترتيب الصفوف حسب الترتيب الدراسي" }); }}
+                title="إعادة ترتيب الصفوف: الأول أ، ب... ثم الثاني وهكذا"
+              >
+                <ArrowDownAZ className="w-4 h-4 ml-1" />
+                ترتيب الصفوف
               </Button>
               <Button variant="outline" size="sm" onClick={fitToScreen} title="ملاءمة الجدول كاملاً على الشاشة">
                 <Scan className="w-4 h-4 ml-1" />
