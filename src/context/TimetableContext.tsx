@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import type { Teacher, ClassTimetable, TimetableCell } from "@/types/timetable";
-import { getClassKey, parseClassKey, DAYS, MAX_PERIODS, DOUBLE_PERIOD_SUBJECTS, ACTIVITY_TEACHER_ID, ACTIVITY_SUBJECT, ACTIVITY_PERIODS, getActivityDay, isActivityCell } from "@/types/timetable";
+import { getClassKey, parseClassKey, CLASS_NAMES, SECTIONS, DAYS, MAX_PERIODS, DOUBLE_PERIOD_SUBJECTS, ACTIVITY_TEACHER_ID, ACTIVITY_SUBJECT, ACTIVITY_PERIODS, getActivityDay, isActivityCell } from "@/types/timetable";
 
 export interface UnplacedPeriod {
   teacherId: string;
@@ -644,7 +644,16 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
   const getAllClassKeys = (): string[] => {
     const keys = new Set<string>();
     teachers.forEach(t => t.subjects.forEach(s => keys.add(getClassKey(s.className, s.section))));
-    return Array.from(keys).sort();
+    return Array.from(keys).sort((a, b) => {
+      const ca = parseClassKey(a);
+      const cb = parseClassKey(b);
+      const classIdxA = CLASS_NAMES.indexOf(ca.className);
+      const classIdxB = CLASS_NAMES.indexOf(cb.className);
+      if (classIdxA !== classIdxB) return classIdxA - classIdxB;
+      const sectionIdxA = SECTIONS.indexOf(ca.section);
+      const sectionIdxB = SECTIONS.indexOf(cb.section);
+      return sectionIdxA - sectionIdxB;
+    });
   };
 
   const getTeacherSchedule = (teacherId: string) => {
