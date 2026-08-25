@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import type { Teacher, ClassTimetable, TimetableCell } from "@/types/timetable";
-import { getClassKey, parseClassKey, CLASS_NAMES, SECTIONS, DAYS, MAX_PERIODS, DOUBLE_PERIOD_SUBJECTS, ACTIVITY_TEACHER_ID, ACTIVITY_SUBJECT, ACTIVITY_PERIODS, getActivityDay, isActivityCell } from "@/types/timetable";
+import { getClassKey, parseClassKey, CLASS_NAMES, SECTIONS, DAYS, MAX_PERIODS, DOUBLE_PERIOD_SUBJECTS, ACTIVITY_TEACHER_ID, ACTIVITY_SUBJECT, ACTIVITY_PERIODS, getActivityDay, isActivityCell, compareClassKeys } from "@/types/timetable";
 
 export interface UnplacedPeriod {
   teacherId: string;
@@ -87,6 +87,7 @@ interface TimetableContextType {
   generateTimetable: () => void;
   getTeacherSchedule: (teacherId: string) => { classKey: string; day: number; period: number; subjectName: string }[];
   getAllClassKeys: () => string[];
+  reorderClasses: () => void;
   clearTimetable: () => void;
   generateDailySchedule: (day: number, absentTeacherIds: string[]) => ClassTimetable;
 }
@@ -2073,7 +2074,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       savedTimetables, saveCurrentTimetable, restoreSavedTimetable, deleteSavedTimetable, importSavedTimetables,
       addTeacher, updateTeacher, removeTeacher,
       setTimetable, updateCell, swapCells, swapCellsAcrossDays, moveCell, placeFromStaging, moveToStaging, generateTimetable,
-      getTeacherSchedule, getAllClassKeys, clearTimetable,
+      getTeacherSchedule, getAllClassKeys, reorderClasses, clearTimetable,
       generateDailySchedule,
     }}>
       {children}
