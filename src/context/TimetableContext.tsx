@@ -644,7 +644,16 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
   const getAllClassKeys = (): string[] => {
     const keys = new Set<string>();
     teachers.forEach(t => t.subjects.forEach(s => keys.add(getClassKey(s.className, s.section))));
-    return Array.from(keys).sort();
+    return Array.from(keys).sort((a, b) => {
+      const ca = parseClassKey(a);
+      const cb = parseClassKey(b);
+      const classIdxA = CLASS_NAMES.indexOf(ca.className);
+      const classIdxB = CLASS_NAMES.indexOf(cb.className);
+      if (classIdxA !== classIdxB) return classIdxA - classIdxB;
+      const sectionIdxA = SECTIONS.indexOf(ca.section);
+      const sectionIdxB = SECTIONS.indexOf(cb.section);
+      return sectionIdxA - sectionIdxB;
+    });
   };
 
   const getTeacherSchedule = (teacherId: string) => {
