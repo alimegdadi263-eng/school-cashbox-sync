@@ -132,3 +132,35 @@ export function getActivityDay(className: string): number | undefined {
 export function isActivityCell(cell: { teacherId?: string } | null | undefined): boolean {
   return !!cell && cell.teacherId === ACTIVITY_TEACHER_ID;
 }
+
+/** تطبيع اسم الصف لمقارنة الترتيب (يزيل "الصف" والهمزات والمسافات الزائدة) */
+export function normalizeClassName(name: string): string {
+  return (name || "")
+    .replace(/الصف/g, "")
+    .replace(/[أإآ]/g, "ا")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** تطبيع رمز الشعبة (هـ / ه) */
+export function normalizeSection(section: string): string {
+  return (section || "").replace(/^ه$/, "هـ").trim();
+}
+
+/** مقارنة مفتاحي صف حسب الترتيب الدراسي: الأول أ، الأول ب... ثم الثاني... */
+export function compareClassKeys(a: string, b: string): number {
+  const ca = parseClassKey(a);
+  const cb = parseClassKey(b);
+  const norm = CLASS_NAMES.map(normalizeClassName);
+  const ia = norm.indexOf(normalizeClassName(ca.className));
+  const ib = norm.indexOf(normalizeClassName(cb.className));
+  const ra = ia === -1 ? 999 : ia;
+  const rb = ib === -1 ? 999 : ib;
+  if (ra !== rb) return ra - rb;
+  const sa = SECTIONS.indexOf(normalizeSection(ca.section));
+  const sb = SECTIONS.indexOf(normalizeSection(cb.section));
+  const xa = sa === -1 ? 999 : sa;
+  const xb = sb === -1 ? 999 : sb;
+  if (xa !== xb) return xa - xb;
+  return a.localeCompare(b, "ar");
+}
