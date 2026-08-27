@@ -21,6 +21,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { parseClassKey, DAYS } from "@/types/timetable";
 import { exportDailyScheduleMatrixExcel, exportDailyScheduleMatrixDocx } from "@/lib/exportDailySchedule";
+import { exportFollowupRecordExcel } from "@/lib/exportFollowupRecord";
 import {
   exportClassTimetableExcel,
   exportTeacherTimetableExcel,
