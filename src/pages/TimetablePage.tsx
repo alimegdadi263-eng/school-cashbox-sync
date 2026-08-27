@@ -321,6 +321,17 @@ export default function TimetablePage() {
                     </div>
                   </div>
 
+                  {/* سجل المتابعة للمعلمات */}
+                  <div className="space-y-2 border-b border-border pb-4">
+                    <Label className="text-xs">سجل المتابعة (التحضير 25 خانة / الخطط 5 خانات / المناوبة الأسبوعية / الحضور والغياب 8→6 / الأداء والعلامات)</Label>
+                    <div>
+                      <Button size="sm" className="bg-emerald-700 hover:bg-emerald-800 text-white" disabled={exporting || teachers.length === 0}
+                        onClick={() => safeExport("سجل المتابعة", () => exportFollowupRecordExcel(teachers, school))}>
+                        <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير سجل المتابعة (Excel)
+                      </Button>
+                    </div>
+                  </div>
+
 
                   {/* Export Malhafa */}
                   <div className="flex flex-wrap gap-3 border-b border-border pb-4">
