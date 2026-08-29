@@ -17,7 +17,8 @@ import type { Teacher } from "@/types/timetable";
 const FONT = "Traditional Arabic";
 const NAVY = "FF2B3A55";
 const GOLD = "FFD4A84B";
-const ROWS_PER_TEACHER = 22;
+// عدد الصفوف لكل معلم/ة — مضبوط ليتسع السجل كاملاً في صفحة واحدة
+const ROWS_PER_TEACHER = 14;
 
 const HEADERS = [
   "التاريخ", "المبحث", "الصف", "الصفحات المقررة",
