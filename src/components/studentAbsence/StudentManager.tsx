@@ -13,6 +13,7 @@ import { CLASS_NAMES, SECONDARY_CLASSES } from "@/types/timetable";
 import { STUDENTS_LIST_KEY } from "@/types/studentAbsence";
 import { exportStudentListDocx, exportStudentListExcel } from "@/lib/exportStudentList";
 import ExportFieldsDialog from "./ExportFieldsDialog";
+import { exportDailyAbsenceFormExcel, exportDailyAbsenceFormDocx } from "@/lib/exportDailyAbsenceForm";
 
 const AJYAL_GRADE_MAP: Record<string, string> = {
   "الأول": "الأول", "الاول": "الأول",
