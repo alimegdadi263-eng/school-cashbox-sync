@@ -22,6 +22,7 @@ import { toast } from "@/hooks/use-toast";
 import { parseClassKey, DAYS } from "@/types/timetable";
 import { exportDailyScheduleMatrixExcel, exportDailyScheduleMatrixDocx } from "@/lib/exportDailySchedule";
 import { exportFollowupRecordExcel, exportFollowupRecordDocx } from "@/lib/exportFollowupRecord";
+import { exportCurriculumRecordExcel, exportCurriculumRecordDocx } from "@/lib/exportCurriculumRecord";
 import {
   exportClassTimetableExcel,
   exportTeacherTimetableExcel,
@@ -45,10 +46,12 @@ import {
 } from "@/lib/exportTimetableDocx";
 
 import { useAuth } from "@/hooks/useAuth";
+import { useFinance } from "@/context/FinanceContext";
 
 export default function TimetablePage() {
   const { teachers, timetable, periodsPerDay, setPeriodsPerDay, generateTimetable, getAllClassKeys, clearTimetable, generateDailySchedule } = useTimetable();
   const { schoolName } = useAuth();
+  const { state: financeState } = useFinance();
   const classKeys = getAllClassKeys();
 
   const [exportClassKey, setExportClassKey] = useState("");
@@ -90,6 +93,11 @@ export default function TimetablePage() {
       setExporting(false);
     }
   }, [exporting]);
+
+  const curriculumInfo = {
+    schoolName: financeState.schoolName || school,
+    directorName: financeState.directorName || "",
+  };
 
   const hasTimetable = Object.keys(timetable).length > 0;
 
@@ -338,6 +346,21 @@ export default function TimetablePage() {
 
                   </div>
 
+
+                  {/* سجل ما قطع من المنهاج */}
+                  <div className="space-y-2 border-b border-border pb-4">
+                    <Label className="text-xs">سجل متابعة ما قطع من المنهاج (صفحة لكل معلمة — اسم المديرة من الإعدادات)</Label>
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" className="bg-sky-700 hover:bg-sky-800 text-white" disabled={exporting || teachers.length === 0}
+                        onClick={() => safeExport("سجل ما قطع من المنهاج", () => exportCurriculumRecordExcel(teachers, curriculumInfo))}>
+                        <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير (Excel)
+                      </Button>
+                      <Button size="sm" variant="outline" className="border-sky-700 text-sky-800" disabled={exporting || teachers.length === 0}
+                        onClick={() => safeExport("سجل ما قطع من المنهاج (Word)", () => exportCurriculumRecordDocx(teachers, curriculumInfo))}>
+                        <FileText className="w-4 h-4 ml-1" /> تصدير (Word)
+                      </Button>
+                    </div>
+                  </div>
 
                   {/* Export Malhafa */}
                   <div className="flex flex-wrap gap-3 border-b border-border pb-4">
