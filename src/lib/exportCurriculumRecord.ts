@@ -235,9 +235,9 @@ export async function exportCurriculumRecordDocx(
       rows,
     }));
 
-    children.push(new Paragraph({ spacing: { after: 100 }, children: [] }));
+    children.push(new Paragraph({ spacing: { after: 60 }, children: [] }));
     children.push(p("ملاحظات :", { bold: true }));
-    children.push(new Paragraph({ spacing: { after: 200 }, children: [] }));
+    children.push(new Paragraph({ spacing: { after: 100 }, children: [] }));
     children.push(p(`مدير/ة المدرسة : ${info.directorName || ""}`, { bold: true }));
     children.push(p("FormQF71-1-54rev.a", { size: 18, align: AlignmentType.LEFT }));
   });
