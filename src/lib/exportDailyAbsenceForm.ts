@@ -5,6 +5,10 @@ import {
   BorderStyle, ShadingType, AlignmentType, VerticalAlign, PageBreak,
 } from "docx";
 import type { StudentInfo } from "@/types/studentAbsence";
+import { CLASS_NAMES, SECTIONS } from "@/types/timetable";
+
+/** عدد الأسطر الفارغة عندما لا يوجد طلبة مسجلون */
+const BLANK_ROWS = 40;
 
 /**
  * نموذج الغياب اليومي للطلبة:
