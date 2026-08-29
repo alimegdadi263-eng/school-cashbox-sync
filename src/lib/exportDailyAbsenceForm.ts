@@ -149,8 +149,8 @@ export async function exportDailyAbsenceFormDocx(
   schoolName: string,
   filterClass?: string,
 ) {
-  const data = groupByClass(filterClass ? students.filter(s => s.className === filterClass) : students);
-  if (data.length === 0) throw new Error("لا يوجد طلبة للتصدير");
+  const grouped = groupByClass(filterClass ? students.filter(s => s.className === filterClass) : students);
+  const data = grouped.length > 0 ? grouped : blankData(filterClass);
 
   const numW = 600;
   const nameW = 3160;
