@@ -74,7 +74,7 @@ export async function exportCurriculumRecordExcel(
     title.height = 28;
 
     const infoRow = ws.addRow([
-      `اسم المعلمة: ${t.name}`, "", "",
+      `اسم المعلم/ة: ${t.name}`, "", "",
       `للعام الدراسي: ${year}`, "",
       `مدرسة: ${info.schoolName}`, "",
     ]);
