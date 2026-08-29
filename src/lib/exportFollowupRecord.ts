@@ -203,12 +203,34 @@ function mainSubject(t: Teacher): string {
   return best || "غير محدد";
 }
 
+/** فترات المناوبة المطلوبة */
+const DUTY_SLOTS = ["الحصة الأولى", "الفرصة", "الحصة الخامسة", "الحصة السابعة"];
+
 /**
- * صفحة المناوبة: كل يوم 8 مناوبات، مع عمودي «ناوب ✓» و«لم يناوب ✗» لكل أسبوع.
+ * صفحة المناوبة: كل يوم 8 مناوبات، مع عمودي «ناوب ✓» و«لم يناوب ✗» لكل فترة مناوبة.
  * يتم توزيع المعلمات على الأيام بحيث تجتمع معلمات التخصص الواحد في يوم واحد،
  * ويُكمَّل النقص من تخصصات أخرى.
  */
-function addDutySheet(wb: ExcelJS.Workbook, title: string, teachers: Teacher[], perDay = 8, weeks = 4) {
+function dutyDistribution(teachers: Teacher[], perDay = 8) {
+  const bySubject = new Map<string, string[]>();
+  teachers.forEach(t => {
+    const name = t.name.trim();
+    if (!name) return;
+    const subj = mainSubject(t);
+    if (!bySubject.has(subj)) bySubject.set(subj, []);
+    if (!bySubject.get(subj)!.includes(name)) bySubject.get(subj)!.push(name);
+  });
+  const queue: { name: string; subject: string }[] = [];
+  [...bySubject.entries()]
+    .sort((a, b) => b[1].length - a[1].length)
+    .forEach(([subj, list]) => list.forEach(name => queue.push({ name, subject: subj })));
+  const days: { name: string; subject: string }[][] = DAYS.map(() => []);
+  queue.forEach((entry, i) => days[Math.floor(i / perDay) % DAYS.length].push(entry));
+  return days;
+}
+
+function addDutySheet(wb: ExcelJS.Workbook, title: string, teachers: Teacher[], perDay = 8, slots = DUTY_SLOTS) {
+
   const ws = wb.addWorksheet("المناوبة");
   ws.views = [{ rightToLeft: true, state: "frozen", xSplit: 3, ySplit: 5 }];
   ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
