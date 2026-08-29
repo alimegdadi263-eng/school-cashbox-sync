@@ -235,26 +235,9 @@ function addDutySheet(wb: ExcelJS.Workbook, title: string, teachers: Teacher[], 
   ws.views = [{ rightToLeft: true, state: "frozen", xSplit: 3, ySplit: 5 }];
   ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
 
-  // تجميع حسب التخصص ثم ترتيب المجموعات من الأكبر للأصغر
-  const bySubject = new Map<string, string[]>();
-  teachers.forEach(t => {
-    const name = t.name.trim();
-    if (!name) return;
-    const subj = mainSubject(t);
-    if (!bySubject.has(subj)) bySubject.set(subj, []);
-    if (!bySubject.get(subj)!.includes(name)) bySubject.get(subj)!.push(name);
-  });
-  const queue: { name: string; subject: string }[] = [];
-  [...bySubject.entries()]
-    .sort((a, b) => b[1].length - a[1].length)
-    .forEach(([subj, list]) => list.forEach(name => queue.push({ name, subject: subj })));
+  const days = dutyDistribution(teachers, perDay);
 
-  // توزيع متتابع: معلمات نفس التخصص متجاورات فتقع في نفس اليوم
-  const days: { name: string; subject: string }[][] = DAYS.map(() => []);
-  queue.forEach((entry, i) => days[Math.floor(i / perDay) % DAYS.length].push(entry));
-
-  const weekCols = weeks * 2;
-  const totalCols = 3 + weekCols;
+  const totalCols = 3 + slots.length * 2;
   addTitle(ws, title, totalCols);
 
   const topRow = ws.addRow([]);
@@ -264,9 +247,9 @@ function addDutySheet(wb: ExcelJS.Workbook, title: string, teachers: Teacher[], 
     topRow.getCell(i + 1).value = h;
     styleHeader(topRow.getCell(i + 1));
   });
-  for (let w = 0; w < weeks; w++) {
+  slots.forEach((slot, w) => {
     const start = 4 + w * 2;
-    topRow.getCell(start).value = `الأسبوع ${w + 1}`;
+    topRow.getCell(start).value = slot;
     ws.mergeCells(topRow.number, start, topRow.number, start + 1);
     styleHeader(topRow.getCell(start), GOLD);
     styleHeader(topRow.getCell(start + 1), GOLD);
@@ -277,7 +260,8 @@ function addDutySheet(wb: ExcelJS.Workbook, title: string, teachers: Teacher[], 
     const c2 = subRow.getCell(start + 1);
     c2.value = "لم يناوب ✗";
     styleHeader(c2);
-  }
+  });
+
   topRow.height = 24;
   subRow.height = 26;
 
