@@ -217,13 +217,13 @@ export async function exportCurriculumRecordDocx(
     const rows: TableRow[] = [
       new TableRow({
         tableHeader: true,
-        height: { value: 500, rule: "atLeast" },
+        height: { value: 420, rule: "atLeast" },
         children: HEADERS.map((h, i) => cell(h, { header: true, width: colWidths[i] })),
       }),
     ];
     for (let i = 0; i < ROWS_PER_TEACHER; i++) {
       rows.push(new TableRow({
-        height: { value: 420, rule: "atLeast" },
+        height: { value: 360, rule: "atLeast" },
         children: colWidths.map(w => cell("", { width: w })),
       }));
     }
