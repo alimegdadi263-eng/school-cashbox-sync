@@ -17,7 +17,8 @@ import type { Teacher } from "@/types/timetable";
 const FONT = "Traditional Arabic";
 const NAVY = "FF2B3A55";
 const GOLD = "FFD4A84B";
-const ROWS_PER_TEACHER = 22;
+// عدد الصفوف لكل معلم/ة — مضبوط ليتسع السجل كاملاً في صفحة واحدة
+const ROWS_PER_TEACHER = 14;
 
 const HEADERS = [
   "التاريخ", "المبحث", "الصف", "الصفحات المقررة",
@@ -216,13 +217,13 @@ export async function exportCurriculumRecordDocx(
     const rows: TableRow[] = [
       new TableRow({
         tableHeader: true,
-        height: { value: 500, rule: "atLeast" },
+        height: { value: 420, rule: "atLeast" },
         children: HEADERS.map((h, i) => cell(h, { header: true, width: colWidths[i] })),
       }),
     ];
     for (let i = 0; i < ROWS_PER_TEACHER; i++) {
       rows.push(new TableRow({
-        height: { value: 420, rule: "atLeast" },
+        height: { value: 360, rule: "atLeast" },
         children: colWidths.map(w => cell("", { width: w })),
       }));
     }
@@ -234,9 +235,9 @@ export async function exportCurriculumRecordDocx(
       rows,
     }));
 
-    children.push(new Paragraph({ spacing: { after: 100 }, children: [] }));
+    children.push(new Paragraph({ spacing: { after: 60 }, children: [] }));
     children.push(p("ملاحظات :", { bold: true }));
-    children.push(new Paragraph({ spacing: { after: 200 }, children: [] }));
+    children.push(new Paragraph({ spacing: { after: 100 }, children: [] }));
     children.push(p(`مدير/ة المدرسة : ${info.directorName || ""}`, { bold: true }));
     children.push(p("FormQF71-1-54rev.a", { size: 18, align: AlignmentType.LEFT }));
   });
