@@ -5,6 +5,10 @@ import {
   BorderStyle, ShadingType, AlignmentType, VerticalAlign, PageBreak,
 } from "docx";
 import type { StudentInfo } from "@/types/studentAbsence";
+import { CLASS_NAMES, SECTIONS } from "@/types/timetable";
+
+/** عدد الأسطر الفارغة عندما لا يوجد طلبة مسجلون */
+const BLANK_ROWS = 40;
 
 /**
  * نموذج الغياب اليومي للطلبة:
@@ -29,6 +33,17 @@ function groupByClass(students: StudentInfo[]) {
   }));
 }
 
+/** نماذج فارغة لجميع الصفوف والشعب عندما لا يوجد طلبة مسجلون */
+function blankData(filterClass?: string) {
+  const classes = filterClass
+    ? [filterClass]
+    : CLASS_NAMES.flatMap(c => SECTIONS.map(s => `${c} ${s}`));
+  return classes.map(cls => ({
+    cls,
+    list: Array.from({ length: BLANK_ROWS }, () => ({ name: "" }) as StudentInfo),
+  }));
+}
+
 /* ------------------------------- Excel ------------------------------- */
 
 function xBorder(): Partial<ExcelJS.Borders> {
@@ -41,8 +56,8 @@ export async function exportDailyAbsenceFormExcel(
   schoolName: string,
   filterClass?: string,
 ) {
-  const data = groupByClass(filterClass ? students.filter(s => s.className === filterClass) : students);
-  if (data.length === 0) throw new Error("لا يوجد طلبة للتصدير");
+  const grouped = groupByClass(filterClass ? students.filter(s => s.className === filterClass) : students);
+  const data = grouped.length > 0 ? grouped : blankData(filterClass);
 
   const wb = new ExcelJS.Workbook();
   wb.creator = schoolName;
@@ -134,8 +149,8 @@ export async function exportDailyAbsenceFormDocx(
   schoolName: string,
   filterClass?: string,
 ) {
-  const data = groupByClass(filterClass ? students.filter(s => s.className === filterClass) : students);
-  if (data.length === 0) throw new Error("لا يوجد طلبة للتصدير");
+  const grouped = groupByClass(filterClass ? students.filter(s => s.className === filterClass) : students);
+  const data = grouped.length > 0 ? grouped : blankData(filterClass);
 
   const numW = 600;
   const nameW = 3160;
