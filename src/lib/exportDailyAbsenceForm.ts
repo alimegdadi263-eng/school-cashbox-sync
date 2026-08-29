@@ -33,6 +33,17 @@ function groupByClass(students: StudentInfo[]) {
   }));
 }
 
+/** نماذج فارغة لجميع الصفوف والشعب عندما لا يوجد طلبة مسجلون */
+function blankData(filterClass?: string) {
+  const classes = filterClass
+    ? [filterClass]
+    : CLASS_NAMES.flatMap(c => SECTIONS.map(s => `${c} ${s}`));
+  return classes.map(cls => ({
+    cls,
+    list: Array.from({ length: BLANK_ROWS }, () => ({ name: "" }) as StudentInfo),
+  }));
+}
+
 /* ------------------------------- Excel ------------------------------- */
 
 function xBorder(): Partial<ExcelJS.Borders> {
