@@ -1,3 +1,4 @@
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle, ShadingType, AlignmentType, VerticalAlign, PageOrientation, PageBreak } from "docx";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import type { Teacher } from "@/types/timetable";
@@ -203,17 +204,15 @@ function mainSubject(t: Teacher): string {
   return best || "غير محدد";
 }
 
+/** فترات المناوبة المطلوبة */
+const DUTY_SLOTS = ["الحصة الأولى", "الفرصة", "الحصة الخامسة", "الحصة السابعة"];
+
 /**
- * صفحة المناوبة: كل يوم 8 مناوبات، مع عمودي «ناوب ✓» و«لم يناوب ✗» لكل أسبوع.
+ * صفحة المناوبة: كل يوم 8 مناوبات، مع عمودي «ناوب ✓» و«لم يناوب ✗» لكل فترة مناوبة.
  * يتم توزيع المعلمات على الأيام بحيث تجتمع معلمات التخصص الواحد في يوم واحد،
  * ويُكمَّل النقص من تخصصات أخرى.
  */
-function addDutySheet(wb: ExcelJS.Workbook, title: string, teachers: Teacher[], perDay = 8, weeks = 4) {
-  const ws = wb.addWorksheet("المناوبة");
-  ws.views = [{ rightToLeft: true, state: "frozen", xSplit: 3, ySplit: 5 }];
-  ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
-
-  // تجميع حسب التخصص ثم ترتيب المجموعات من الأكبر للأصغر
+function dutyDistribution(teachers: Teacher[], perDay = 8) {
   const bySubject = new Map<string, string[]>();
   teachers.forEach(t => {
     const name = t.name.trim();
@@ -226,13 +225,20 @@ function addDutySheet(wb: ExcelJS.Workbook, title: string, teachers: Teacher[], 
   [...bySubject.entries()]
     .sort((a, b) => b[1].length - a[1].length)
     .forEach(([subj, list]) => list.forEach(name => queue.push({ name, subject: subj })));
-
-  // توزيع متتابع: معلمات نفس التخصص متجاورات فتقع في نفس اليوم
   const days: { name: string; subject: string }[][] = DAYS.map(() => []);
   queue.forEach((entry, i) => days[Math.floor(i / perDay) % DAYS.length].push(entry));
+  return days;
+}
 
-  const weekCols = weeks * 2;
-  const totalCols = 3 + weekCols;
+function addDutySheet(wb: ExcelJS.Workbook, title: string, teachers: Teacher[], perDay = 8, slots = DUTY_SLOTS) {
+
+  const ws = wb.addWorksheet("المناوبة");
+  ws.views = [{ rightToLeft: true, state: "frozen", xSplit: 3, ySplit: 5 }];
+  ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+
+  const days = dutyDistribution(teachers, perDay);
+
+  const totalCols = 3 + slots.length * 2;
   addTitle(ws, title, totalCols);
 
   const topRow = ws.addRow([]);
@@ -242,9 +248,9 @@ function addDutySheet(wb: ExcelJS.Workbook, title: string, teachers: Teacher[], 
     topRow.getCell(i + 1).value = h;
     styleHeader(topRow.getCell(i + 1));
   });
-  for (let w = 0; w < weeks; w++) {
+  slots.forEach((slot, w) => {
     const start = 4 + w * 2;
-    topRow.getCell(start).value = `الأسبوع ${w + 1}`;
+    topRow.getCell(start).value = slot;
     ws.mergeCells(topRow.number, start, topRow.number, start + 1);
     styleHeader(topRow.getCell(start), GOLD);
     styleHeader(topRow.getCell(start + 1), GOLD);
@@ -255,7 +261,8 @@ function addDutySheet(wb: ExcelJS.Workbook, title: string, teachers: Teacher[], 
     const c2 = subRow.getCell(start + 1);
     c2.value = "لم يناوب ✗";
     styleHeader(c2);
-  }
+  });
+
   topRow.height = 24;
   subRow.height = 26;
 
@@ -326,3 +333,143 @@ export async function exportFollowupRecordExcel(teachers: Teacher[], schoolName:
   saveAs(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), `سجل المتابعة - ${schoolName}.xlsx`);
 }
 
+
+/* ============================ تصدير Word (سجل المتابعة) ============================ */
+
+const PAGE_W = 15840; // عرض صفحة أفقية (Letter landscape)
+const CONTENT_W = 15840 - 1440; // بهوامش 0.5 بوصة على الجانبين
+
+function dtxt(text: string, opts?: { bold?: boolean; size?: number; color?: string }) {
+  return new TextRun({ text, font: FONT_NAME, size: opts?.size ?? 20, bold: opts?.bold, color: opts?.color, rightToLeft: true });
+}
+
+function dCellBorders() {
+  const b = { style: BorderStyle.SINGLE, size: 1, color: "999999" };
+  return { top: b, bottom: b, left: b, right: b };
+}
+
+function dCell(text: string, width: number, opts?: { header?: boolean; bold?: boolean; align?: typeof AlignmentType[keyof typeof AlignmentType]; fill?: string }) {
+  return new TableCell({
+    borders: dCellBorders(),
+    width: { size: width, type: WidthType.DXA },
+    shading: { fill: opts?.header ? "2B3A55" : (opts?.fill || "FFFFFF"), type: ShadingType.CLEAR },
+    margins: { top: 40, bottom: 40, left: 60, right: 60 },
+    verticalAlign: VerticalAlign.CENTER,
+    children: [new Paragraph({
+      bidirectional: true,
+      alignment: opts?.align || AlignmentType.CENTER,
+      children: [dtxt(text, { bold: opts?.header || opts?.bold, color: opts?.header ? "FFFFFF" : undefined })],
+    })],
+  });
+}
+
+function dTitle(text: string) {
+  return new Paragraph({
+    bidirectional: true,
+    alignment: AlignmentType.CENTER,
+    spacing: { after: 160 },
+    children: [dtxt(text, { bold: true, size: 30 })],
+  });
+}
+
+/** جدول: م + الاسم + أعمدة فارغة */
+function dGridTable(names: string[], colHeaders: string[]) {
+  const numW = 500;
+  const nameW = 2200;
+  const colW = Math.floor((CONTENT_W - numW - nameW) / colHeaders.length);
+  const widths = [numW, nameW, ...colHeaders.map(() => colW)];
+  const total = widths.reduce((a, b) => a + b, 0);
+
+  const rows = [
+    new TableRow({
+      tableHeader: true,
+      children: ["م", "اسم المعلمة", ...colHeaders].map((h, i) => dCell(h, widths[i], { header: true })),
+    }),
+    ...names.map((n, i) => new TableRow({
+      children: [
+        dCell(String(i + 1), widths[0]),
+        dCell(n, widths[1], { bold: true, align: AlignmentType.RIGHT }),
+        ...colHeaders.map((_, ci) => dCell("", widths[ci + 2])),
+      ],
+    })),
+  ];
+  return new Table({ width: { size: total, type: WidthType.DXA }, columnWidths: widths, rows });
+}
+
+export async function exportFollowupRecordDocx(teachers: Teacher[], schoolName: string) {
+  const names = [...new Set(teachers.map(t => t.name.trim()).filter(Boolean))];
+  if (names.length === 0) throw new Error("لا يوجد معلمات في الجدول المدرسي");
+
+  const days = dutyDistribution(teachers, 8);
+
+  // جدول المناوبة (اليوم / الاسم / التخصص + فترات المناوبة)
+  const dutyWidths = [1100, 2200, 1600, ...DUTY_SLOTS.flatMap(() => {
+    const w = Math.floor((CONTENT_W - 1100 - 2200 - 1600) / (DUTY_SLOTS.length * 2));
+    return [w, w];
+  })];
+  const dutyTotal = dutyWidths.reduce((a, b) => a + b, 0);
+  const dutyRows: TableRow[] = [
+    new TableRow({
+      tableHeader: true,
+      children: [
+        dCell("اليوم", dutyWidths[0], { header: true }),
+        dCell("اسم المعلمة", dutyWidths[1], { header: true }),
+        dCell("التخصص", dutyWidths[2], { header: true }),
+        ...DUTY_SLOTS.flatMap((s, i) => [
+          dCell(`${s} — ناوب ✓`, dutyWidths[3 + i * 2], { header: true }),
+          dCell(`${s} — لم يناوب ✗`, dutyWidths[4 + i * 2], { header: true }),
+        ]),
+      ],
+    }),
+  ];
+  DAYS.forEach((day, di) => {
+    for (let i = 0; i < 8; i++) {
+      const e = days[di][i];
+      dutyRows.push(new TableRow({
+        children: [
+          dCell(i === 0 ? day : "", dutyWidths[0], { bold: i === 0, fill: "F2F2F2" }),
+          dCell(e?.name || "", dutyWidths[1], { align: AlignmentType.RIGHT }),
+          dCell(e?.subject || "", dutyWidths[2]),
+          ...DUTY_SLOTS.flatMap((_, si) => [dCell("", dutyWidths[3 + si * 2]), dCell("", dutyWidths[4 + si * 2])]),
+        ],
+      }));
+    }
+  });
+
+  const sectionProps = {
+    page: {
+      size: { width: 12240, height: 15840, orientation: PageOrientation.LANDSCAPE },
+      margin: { top: 720, right: 720, bottom: 720, left: 720 },
+    },
+  };
+
+  const prepCols = Array.from({ length: 25 }, (_, i) => String(i + 1));
+
+  const doc = new Document({
+    styles: { default: { document: { run: { font: FONT_NAME, size: 20 } } } },
+    sections: [
+      {
+        properties: sectionProps,
+        children: [
+          dTitle(`${schoolName} — سجل المتابعة / متابعة التحضير اليومي (التاريخ فوق رقم الخانة)`),
+          dGridTable(names, prepCols),
+          new Paragraph({ children: [new PageBreak()] }),
+          dTitle(`${schoolName} — سجل المتابعة / متابعة الخطط`),
+          dGridTable(names, PLAN_NAMES),
+          new Paragraph({ children: [new PageBreak()] }),
+          dTitle(`${schoolName} — سجل المتابعة / جدول المناوبة`),
+          new Table({ width: { size: dutyTotal, type: WidthType.DXA }, columnWidths: dutyWidths, rows: dutyRows }),
+          new Paragraph({ children: [new PageBreak()] }),
+          dTitle(`${schoolName} — سجل المتابعة / سجل الحضور والغياب`),
+          dGridTable(names, MONTHS),
+          new Paragraph({ children: [new PageBreak()] }),
+          dTitle(`${schoolName} — سجل المتابعة / سجل الأداء والعلامات (الفصل الأول ثم الثاني)`),
+          dGridTable(names, [...MARK_COLS.map(c => `أول: ${c}`), ...MARK_COLS.map(c => `ثاني: ${c}`)]),
+        ],
+      },
+    ],
+  });
+
+  const blob = await Packer.toBlob(doc);
+  saveAs(blob, `سجل المتابعة - ${schoolName}.docx`);
+}

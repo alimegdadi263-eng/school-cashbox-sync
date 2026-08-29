@@ -13,6 +13,7 @@ import { CLASS_NAMES, SECONDARY_CLASSES } from "@/types/timetable";
 import { STUDENTS_LIST_KEY } from "@/types/studentAbsence";
 import { exportStudentListDocx, exportStudentListExcel } from "@/lib/exportStudentList";
 import ExportFieldsDialog from "./ExportFieldsDialog";
+import { exportDailyAbsenceFormExcel, exportDailyAbsenceFormDocx } from "@/lib/exportDailyAbsenceForm";
 
 const AJYAL_GRADE_MAP: Record<string, string> = {
   "الأول": "الأول", "الاول": "الأول",
@@ -513,6 +514,15 @@ export default function StudentManager({ userId, schoolName, directorateName }: 
                 </Button>
               </>
             )}
+            <Button variant="outline" size="sm" className="border-emerald-700 text-emerald-800"
+              onClick={() => exportDailyAbsenceFormExcel(students, schoolName || "", filterClass || undefined)}>
+              <FileSpreadsheet className="w-4 h-4 ml-1" /> نموذج الغياب اليومي (Excel)
+            </Button>
+            <Button variant="outline" size="sm" className="border-emerald-700 text-emerald-800"
+              onClick={() => exportDailyAbsenceFormDocx(students, schoolName || "", filterClass || undefined)}>
+              <FileText className="w-4 h-4 ml-1" /> نموذج الغياب اليومي (Word)
+            </Button>
+
             <label>
               <Button variant="outline" size="sm" asChild><span><Upload className="w-4 h-4 ml-1" /> استيراد CSV</span></Button>
               <input type="file" accept=".csv" className="hidden" onChange={importCSV} />

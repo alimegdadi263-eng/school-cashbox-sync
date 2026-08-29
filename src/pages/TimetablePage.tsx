@@ -21,7 +21,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { parseClassKey, DAYS } from "@/types/timetable";
 import { exportDailyScheduleMatrixExcel, exportDailyScheduleMatrixDocx } from "@/lib/exportDailySchedule";
-import { exportFollowupRecordExcel } from "@/lib/exportFollowupRecord";
+import { exportFollowupRecordExcel, exportFollowupRecordDocx } from "@/lib/exportFollowupRecord";
 import {
   exportClassTimetableExcel,
   exportTeacherTimetableExcel,
@@ -324,13 +324,18 @@ export default function TimetablePage() {
 
                   {/* سجل المتابعة للمعلمات */}
                   <div className="space-y-2 border-b border-border pb-4">
-                    <Label className="text-xs">سجل المتابعة (التحضير 25 خانة / الخطط 5 خانات / المناوبة الأسبوعية / الحضور والغياب 8→6 / الأداء والعلامات)</Label>
-                    <div>
+                    <Label className="text-xs">سجل المتابعة (التحضير 25 خانة / الخطط 5 خانات / المناوبة: الحصة الأولى، الفرصة، الحصة الخامسة، الحصة السابعة / الحضور والغياب 8→6 / الأداء والعلامات)</Label>
+                    <div className="flex flex-wrap gap-2">
                       <Button size="sm" className="bg-emerald-700 hover:bg-emerald-800 text-white" disabled={exporting || teachers.length === 0}
                         onClick={() => safeExport("سجل المتابعة", () => exportFollowupRecordExcel(teachers, school))}>
                         <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير سجل المتابعة (Excel)
                       </Button>
+                      <Button size="sm" variant="outline" className="border-emerald-700 text-emerald-800" disabled={exporting || teachers.length === 0}
+                        onClick={() => safeExport("سجل المتابعة (Word)", () => exportFollowupRecordDocx(teachers, school))}>
+                        <FileText className="w-4 h-4 ml-1" /> تصدير سجل المتابعة (Word)
+                      </Button>
                     </div>
+
                   </div>
 
 
