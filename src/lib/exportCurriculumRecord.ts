@@ -128,6 +128,135 @@ export async function exportCurriculumRecordExcel(
 }
 
 /* ------------------------------ Word ------------------------------ */
+/* تصدير منسّق بالكامل باتجاه من اليمين لليسار:
+   - عنوان ذهبي/كحلي واضح، معلومات المعلم/ة والسنة والمدرسة في سطر واحد
+   - جدول بحدود واضحة، صف رأس ثابت، ارتفاعات صفوف مريحة للكتابة اليدوية */
+
+const WORD_BORDER = { style: BorderStyle.SINGLE, size: 8, color: "2B3A55" };
+const WORD_BORDERS = { top: WORD_BORDER, bottom: WORD_BORDER, left: WORD_BORDER, right: WORD_BORDER };
+
+function p(text: string, opts: { bold?: boolean; size?: number; align?: (typeof AlignmentType)[keyof typeof AlignmentType]; color?: string; before?: number; after?: number } = {}) {
+  return new Paragraph({
+    alignment: opts.align ?? AlignmentType.RIGHT,
+    bidirectional: true,
+    spacing: { before: opts.before ?? 0, after: opts.after ?? 60 },
+    children: [new TextRun({ text, bold: opts.bold, size: opts.size ?? 24, font: FONT, rightToLeft: true, color: opts.color })],
+  });
+}
+
+function cell(text: string, opts: { header?: boolean; width: number }) {
+  return new TableCell({
+    width: { size: opts.width, type: WidthType.DXA },
+    verticalAlign: VerticalAlign.CENTER,
+    borders: WORD_BORDERS,
+    shading: opts.header ? { fill: "2B3A55", type: ShadingType.CLEAR, color: "auto" } : undefined,
+    margins: { top: 60, bottom: 60, left: 80, right: 80 },
+    children: [new Paragraph({
+      alignment: AlignmentType.CENTER,
+      bidirectional: true,
+      children: [new TextRun({
+        text, bold: opts.header, size: opts.header ? 22 : 20, font: FONT, rightToLeft: true,
+        color: opts.header ? "FFFFFF" : "000000",
+      })],
+    })],
+  });
+}
+
+export async function exportCurriculumRecordDocx(
+  teachers: Teacher[],
+  info: CurriculumRecordInfo,
+) {
+  const year = info.academicYear || defaultYear();
+  const total = 9360;
+  const cols = [1100, 1600, 900, 1300, 1400, 1400, 1660];
+  const sum = cols.reduce((a, b) => a + b, 0);
+  const colWidths = cols.map(c => Math.round((c / sum) * total));
+
+  const children: (Paragraph | Table)[] = [];
+
+  teachers.forEach((t, idx) => {
+    if (idx > 0) children.push(new Paragraph({ children: [new PageBreak()] }));
+
+    children.push(p("سجل متابعة ما قطع من المنهاج", {
+      bold: true, size: 36, align: AlignmentType.CENTER, color: "2B3A55", after: 160,
+    }));
+
+    // سطر المعلومات: جدول بثلاث خانات بلا حدود لمحاذاة دقيقة من اليمين لليسار
+    const infoW = [3120, 3120, 3120];
+    const infoTable = new Table({
+      width: { size: total, type: WidthType.DXA },
+      columnWidths: infoW,
+      visuallyRightToLeft: true,
+      borders: {
+        top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+        bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+        left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+        right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+        insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+        insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+      },
+      rows: [new TableRow({
+        children: [
+          `اسم المعلم/ة: ${t.name}`,
+          `للعام الدراسي: ${year}`,
+          `مدرسة: ${info.schoolName}`,
+        ].map((txt, i) => new TableCell({
+          width: { size: infoW[i], type: WidthType.DXA },
+          children: [new Paragraph({
+            alignment: AlignmentType.RIGHT,
+            bidirectional: true,
+            children: [new TextRun({ text: txt, bold: true, size: 24, font: FONT, rightToLeft: true })],
+          })],
+        })),
+      })],
+    });
+    children.push(infoTable);
+    children.push(new Paragraph({ spacing: { after: 120 }, children: [] }));
+
+    const rows: TableRow[] = [
+      new TableRow({
+        tableHeader: true,
+        height: { value: 500 },
+        children: HEADERS.map((h, i) => cell(h, { header: true, width: colWidths[i] })),
+      }),
+    ];
+    for (let i = 0; i < ROWS_PER_TEACHER; i++) {
+      rows.push(new TableRow({
+        height: { value: 420 },
+        children: colWidths.map(w => cell("", { width: w })),
+      }));
+    }
+
+    children.push(new Table({
+      width: { size: total, type: WidthType.DXA },
+      columnWidths: colWidths,
+      visuallyRightToLeft: true,
+      rows,
+    }));
+
+    children.push(new Paragraph({ spacing: { after: 100 }, children: [] }));
+    children.push(p("ملاحظات :", { bold: true }));
+    children.push(new Paragraph({ spacing: { after: 200 }, children: [] }));
+    children.push(p(`مدير/ة المدرسة : ${info.directorName || ""}`, { bold: true }));
+    children.push(p("FormQF71-1-54rev.a", { size: 18, align: AlignmentType.LEFT }));
+  });
+
+  const doc = new Document({
+    styles: { default: { document: { run: { font: FONT, size: 24 } } } },
+    sections: [{
+      properties: {
+        page: {
+          size: { width: 12240, height: 15840 },
+          margin: { top: 1000, right: 1000, bottom: 1000, left: 1000 },
+        },
+      },
+      children,
+    }],
+  });
+
+  const blob = await Packer.toBlob(doc);
+  saveAs(blob, `سجل ما قطع من المنهاج - ${info.schoolName}.docx`);
+}
 
 function p(text: string, opts: { bold?: boolean; size?: number; align?: (typeof AlignmentType)[keyof typeof AlignmentType] } = {}) {
   return new Paragraph({
