@@ -2052,7 +2052,9 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                 for (let p2 = 0; p2 < cap; p2++) {
                   if (tt[ck][d2][p2] !== null || isLocked(ck, d2, p2)) continue;
                   if (!teacherIsFree(tt, cell.teacherId, d2, p2, ck)) continue;
+                  if (!canHoldSubject(tt, ck, d2, cell, d2 === d ? p : -1)) continue;
                   tt[ck][d2][p2] = cell;
+
                   placed = true;
                   break;
                 }
