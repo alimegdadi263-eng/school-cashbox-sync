@@ -1976,7 +1976,10 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
               if (isActivityCell(cell) || isLocked(ck, heavy, p)) continue;
               // لا ننقل إن كان يكسر إقران الحصص المزدوجة
               if (DOUBLE_PERIOD_SUBJECTS.includes(cell.subjectName)) continue;
+              // لا نكسر قيد تكرار المادة في اليوم الخفيف
+              if (!canHoldSubject(tt, ck, light, cell)) continue;
               // خانة فارغة في اليوم الخفيف بلا فراغ داخلي جديد
+
               for (let p2 = 0; p2 < cap; p2++) {
                 if (tt[ck][light][p2] !== null || isLocked(ck, light, p2)) continue;
                 let laterExists = false;
