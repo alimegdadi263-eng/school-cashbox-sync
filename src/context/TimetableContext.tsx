@@ -320,17 +320,24 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       return false;
     };
 
-    // إضافة الناقص
+    // إضافة الناقص — مع احترام قيد تكرار المادة وسقف الصفوف الدنيا (5 حصص)
     for (const [key, need] of required.entries()) {
       const [teacherId, subjectName, ck] = key.split("|");
       const teacher = byId.get(teacherId);
       if (!teacher) continue;
+      const { className } = parseClassKey(ck);
+      const cap = constraints.lowerGradesFivePeriods && isLowerGrade(className)
+        ? Math.min(ppd, 5)
+        : ppd;
+      const maxSameSubjectPerDay = !constraints.oneSubjectPerDay ? 99 : (need > 5 ? 2 : 1);
       let have = (counts.get(key) || []).length;
       for (let d = 0; d < DAYS.length && have < need; d++) {
-        for (let p = 0; p < ppd && have < need; p++) {
+        if (countSubjectInDay(next[ck], d, subjectName) >= maxSameSubjectPerDay) continue;
+        for (let p = 0; p < cap && have < need; p++) {
           if (next[ck][d]?.[p]) continue;
           if (teacherBusy(teacherId, d, p)) continue;
           if (isBlocked(teacher, d, p)) continue;
+          if (countSubjectInDay(next[ck], d, subjectName) >= maxSameSubjectPerDay) break;
           next[ck][d][p] = { teacherId, teacherName: teacher.name, subjectName };
           have++;
         }
@@ -338,7 +345,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     }
 
     return next;
-  }, []);
+  }, [constraints]);
+
 
   const addTeacher = (teacher: Teacher) => {
     setTeachers(prev => {
