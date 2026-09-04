@@ -28,6 +28,10 @@ export interface TimetableConstraints {
   autoSyncTeachers: boolean;
   /** توزيع حصص المعلم بشكل متساوٍ قدر الإمكان على أيام الأسبوع */
   balanceTeacherDaily: boolean;
+  /** منع تكرار نفس المادة أكثر من حصة في اليوم إلا إذا كان نصابها الأسبوعي أكثر من 5 */
+  oneSubjectPerDay: boolean;
+  /** الصفوف الأول والثاني والثالث: 5 حصص يومياً بالضبط */
+  lowerGradesFivePeriods: boolean;
 }
 
 export const DEFAULT_CONSTRAINTS: TimetableConstraints = {
@@ -39,7 +43,10 @@ export const DEFAULT_CONSTRAINTS: TimetableConstraints = {
   variablePeriodCap: true,
   autoSyncTeachers: true,
   balanceTeacherDaily: true,
+  oneSubjectPerDay: true,
+  lowerGradesFivePeriods: true,
 };
+
 
 export interface SavedTimetable {
   id: string;
