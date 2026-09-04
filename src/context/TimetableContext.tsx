@@ -864,8 +864,9 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     ) => {
       if (!constraints.oneSubjectPerDay) return true;
       if (isActivityCell(cell)) return true;
+      if (DOUBLE_PERIOD_SUBJECTS.includes(cell.subjectName)) return true;
       const total = subjectWeekly[`${ck}|${cell.subjectName}`] ?? 0;
-      const limit = subjectDayLimit(total);
+      const limit = subjectDayLimit(total, cell.subjectName);
       return countSubjectInDay(tt[ck], day, cell.subjectName, exceptPeriod) < limit;
     };
 
@@ -1594,7 +1595,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                 if (tt[a.classKey][day][period] !== null) continue;
                 if (isLocked(a.classKey, day, period)) continue;
                 if (constraints.oneSubjectPerDay &&
-                    countSubjectInDay(tt[a.classKey], day, a.subjectName) >= subjectDayLimit(a.total)) continue;
+                    countSubjectInDay(tt[a.classKey], day, a.subjectName) >= subjectDayLimit(a.total, a.subjectName)) continue;
                 const teacher = teachers.find(t => t.id === a.teacherId);
                 if (teacher && isBlocked(teacher, day, period)) continue;
 
@@ -2017,8 +2018,9 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
             for (let p = 0; p < cap; p++) {
               const cell = tt[ck][d][p];
               if (!cell || isActivityCell(cell) || isLocked(ck, d, p)) continue;
+              if (DOUBLE_PERIOD_SUBJECTS.includes(cell.subjectName)) continue;
               const total = subjectWeekly[`${ck}|${cell.subjectName}`] ?? 0;
-              const limit = subjectDayLimit(total);
+              const limit = subjectDayLimit(total, cell.subjectName);
               if (countSubjectInDay(tt[ck], d, cell.subjectName) <= limit) continue;
 
               let moved = false;
