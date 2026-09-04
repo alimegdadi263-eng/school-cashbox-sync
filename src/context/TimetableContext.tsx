@@ -831,7 +831,9 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
      * - المادة التي نصابها الأسبوعي أكثر من 5 حصص يُسمح لها بحصتين في اليوم.
      * - غير ذلك: حصة واحدة فقط في اليوم لنفس الصف.
      */
-    const subjectDayLimit = (totalPeriods: number): number => {
+    const subjectDayLimit = (totalPeriods: number, subjectName?: string): number => {
+      // المواد المزدوجة (المهني/المهارات الرقمية) مستثناة: حصصها يجب أن تبقى متتالية في يوم واحد
+      if (subjectName && DOUBLE_PERIOD_SUBJECTS.includes(subjectName)) return Math.max(2, totalPeriods);
       if (!constraints.oneSubjectPerDay) return totalPeriods >= 6 ? 2 : Math.max(1, Math.ceil(totalPeriods / daysCount));
       return totalPeriods > 5 ? 2 : 1;
     };
@@ -839,7 +841,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
     /** هل يتجاوز وضع هذه المادة في هذا اليوم الحدّ المسموح؟ */
     const subjectDayFull = (classKey: string, day: number, subjectName: string, total: number) =>
-      countSubjectInDay(newTT[classKey], day, subjectName) >= subjectDayLimit(total);
+      countSubjectInDay(newTT[classKey], day, subjectName) >= subjectDayLimit(total, subjectName);
+
 
     /** النصاب الأسبوعي لكل (صف|مادة) لاستخدامه في فحص التكرار عند النقل */
     const subjectWeekly: Record<string, number> = {};
