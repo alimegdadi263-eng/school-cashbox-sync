@@ -2134,6 +2134,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     };
 
     if (constraints.preferArtLastPeriod) preferArtInLastPeriod(newTT);
+    if (constraints.oneSubjectPerDay) applySafely(newTT, enforceSubjectPerDay);
+
     if (constraints.balanceTeacherDaily) applySafely(newTT, balanceTeacherDailyLoad);
     if (constraints.fillGaps) {
       applySafely(newTT, fillInteriorGaps);
