@@ -886,6 +886,9 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
       for (const day of dayOrder) {
         if (respectDailyLimit && assignment.perDayCount[day] >= maxPerDay) continue;
+        // قيد إلزامي: لا تتكرر نفس المادة في اليوم إلا لمن نصابها > 5
+        if (subjectDayFull(assignment.classKey, day, assignment.subjectName, assignment.total)) continue;
+
 
         for (const period of periodOrder) {
           if (overCap(assignment.classKey, period)) continue;
