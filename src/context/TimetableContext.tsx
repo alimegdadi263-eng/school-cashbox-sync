@@ -134,6 +134,24 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+/** الصفوف الدنيا التي يجب أن يكون لها 5 حصص يومياً بالضبط */
+const LOWER_GRADES = ["الاول", "الثاني", "الثالث"];
+const isLowerGrade = (className: string) =>
+  LOWER_GRADES.includes((className || "").replace(/الصف/g, "").replace(/[أإآ]/g, "ا").replace(/\s+/g, " ").trim());
+
+/** عدد مرات ظهور المادة داخل يوم واحد لصف معيّن */
+function countSubjectInDay(days: (TimetableCell | null)[][], day: number, subject: string, exceptPeriod = -1) {
+  let n = 0;
+  const row = days[day] || [];
+  for (let p = 0; p < row.length; p++) {
+    if (p === exceptPeriod) continue;
+    if (row[p]?.subjectName === subject) n++;
+  }
+  return n;
+}
+
+
+
 export function TimetableProvider({ children }: { children: React.ReactNode }) {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [timetable, setTimetableState] = useState<ClassTimetable>({});
