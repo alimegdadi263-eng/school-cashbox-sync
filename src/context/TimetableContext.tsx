@@ -1713,7 +1713,9 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
               if (conflict) continue;
               const teacher = teachers.find(t => t.id === cell.teacherId);
               if (teacher && isBlocked(teacher, day, p)) continue;
+              if (!canHoldSubject(tt, ck, day, cell)) continue;
               tt[ck][day][p] = cell;
+
               tt[ck][d2][lastIdx] = null;
               filled = true;
             }
