@@ -2151,6 +2151,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     if (constraints.fillGaps) {
       for (let f = 0; f < 3; f++) applySafely(newTT, eliminateInteriorGaps);
     }
+    if (constraints.oneSubjectPerDay) applySafely(newTT, enforceSubjectPerDay);
+
 
 
 
