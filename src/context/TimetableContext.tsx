@@ -841,6 +841,32 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     const subjectDayFull = (classKey: string, day: number, subjectName: string, total: number) =>
       countSubjectInDay(newTT[classKey], day, subjectName) >= subjectDayLimit(total);
 
+    /** النصاب الأسبوعي لكل (صف|مادة) لاستخدامه في فحص التكرار عند النقل */
+    const subjectWeekly: Record<string, number> = {};
+    assignments.forEach(a => {
+      const k = `${a.classKey}|${a.subjectName}`;
+      subjectWeekly[k] = (subjectWeekly[k] || 0) + a.total;
+    });
+
+    /**
+     * هل يجوز نقل/وضع هذه الخانة في هذا اليوم دون كسر قيد تكرار المادة؟
+     * يُستخدم في جولات الرصّ والموازنة التي تنقل الحصص بين الأيام.
+     */
+    const canHoldSubject = (
+      tt: ClassTimetable,
+      ck: string,
+      day: number,
+      cell: TimetableCell,
+      exceptPeriod = -1
+    ) => {
+      if (!constraints.oneSubjectPerDay) return true;
+      if (isActivityCell(cell)) return true;
+      const total = subjectWeekly[`${ck}|${cell.subjectName}`] ?? 0;
+      const limit = subjectDayLimit(total);
+      return countSubjectInDay(tt[ck], day, cell.subjectName, exceptPeriod) < limit;
+    };
+
+
 
     const isTeacherBusy = (teacherId: string, day: number, period: number, ignoreClassKey?: string) => {
       for (const [classKey, days] of Object.entries(newTT)) {
