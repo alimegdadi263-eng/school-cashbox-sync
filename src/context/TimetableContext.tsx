@@ -1919,7 +1919,9 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                     if (tt[blockerCk][d2][p2] !== null || isLocked(blockerCk, d2, p2)) continue;
                     // لا نصنع فراغاً داخلياً جديداً في الصف الآخر
                     if (!teacherIsFree(tt, blockerCell.teacherId, d2, p2, blockerCk)) continue;
+                    if (d2 !== day && !canHoldSubject(tt, blockerCk, d2, blockerCell)) continue;
                     tt[blockerCk][d2][p2] = blockerCell;
+
                     tt[blockerCk][day][p] = null;
                     relocated = true;
                     break;
