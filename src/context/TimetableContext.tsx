@@ -2000,6 +2000,64 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    /**
+     * جولة تصحيح نهائية لقيد تكرار المادة: أي مادة تجاوزت حدّها اليومي تُنقل
+     * نسختها الزائدة إلى يوم آخر لا تظهر فيه (أو تُبدَّل مع حصة من ذلك اليوم)
+     * دون إحداث أي تعارض للمعلمين.
+     */
+    const enforceSubjectPerDay = (tt: ClassTimetable) => {
+      for (const ck of Object.keys(tt)) {
+        const cap = classCap[ck] ?? periodsPerDay;
+        for (let pass = 0; pass < 6; pass++) {
+          let changed = false;
+          for (let d = 0; d < daysCount; d++) {
+            for (let p = 0; p < cap; p++) {
+              const cell = tt[ck][d][p];
+              if (!cell || isActivityCell(cell) || isLocked(ck, d, p)) continue;
+              const total = subjectWeekly[`${ck}|${cell.subjectName}`] ?? 0;
+              const limit = subjectDayLimit(total);
+              if (countSubjectInDay(tt[ck], d, cell.subjectName) <= limit) continue;
+
+              let moved = false;
+              // 1) خانة فارغة في يوم آخر
+              for (let d2 = 0; d2 < daysCount && !moved; d2++) {
+                if (d2 === d) continue;
+                if (!canHoldSubject(tt, ck, d2, cell)) continue;
+                for (let p2 = 0; p2 < cap; p2++) {
+                  if (tt[ck][d2][p2] !== null || isLocked(ck, d2, p2)) continue;
+                  if (!teacherIsFree(tt, cell.teacherId, d2, p2, ck)) continue;
+                  tt[ck][d2][p2] = cell;
+                  tt[ck][d][p] = null;
+                  moved = true;
+                  break;
+                }
+              }
+              // 2) تبديل مع حصة في يوم آخر
+              for (let d2 = 0; d2 < daysCount && !moved; d2++) {
+                if (d2 === d) continue;
+                if (!canHoldSubject(tt, ck, d2, cell)) continue;
+                for (let p2 = 0; p2 < cap; p2++) {
+                  const other = tt[ck][d2][p2];
+                  if (!other || isActivityCell(other) || isLocked(ck, d2, p2)) continue;
+                  if (DOUBLE_PERIOD_SUBJECTS.includes(other.subjectName)) continue;
+                  if (!canHoldSubject(tt, ck, d, other, p)) continue;
+                  if (!teacherIsFree(tt, cell.teacherId, d2, p2, ck)) continue;
+                  if (!teacherIsFree(tt, other.teacherId, d, p, ck)) continue;
+                  tt[ck][d2][p2] = cell;
+                  tt[ck][d][p] = other;
+                  moved = true;
+                  break;
+                }
+              }
+              if (moved) changed = true;
+            }
+          }
+          if (!changed) break;
+        }
+      }
+    };
+
+
     for (let i = 0; i < 3; i++) {
       forcePlaceRemaining(newTT);
       compactTimetable(newTT);
