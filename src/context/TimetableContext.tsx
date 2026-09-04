@@ -1590,8 +1590,11 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
               for (let period = 0; period < periodsPerDay && !didPlace; period++) {
                 if (tt[a.classKey][day][period] !== null) continue;
                 if (isLocked(a.classKey, day, period)) continue;
+                if (constraints.oneSubjectPerDay &&
+                    countSubjectInDay(tt[a.classKey], day, a.subjectName) >= subjectDayLimit(a.total)) continue;
                 const teacher = teachers.find(t => t.id === a.teacherId);
                 if (teacher && isBlocked(teacher, day, period)) continue;
+
 
                 const conflictKey = busyElsewhere(a.teacherId, day, period, a.classKey);
                 if (!conflictKey) {
