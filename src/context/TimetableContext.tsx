@@ -28,6 +28,10 @@ export interface TimetableConstraints {
   autoSyncTeachers: boolean;
   /** توزيع حصص المعلم بشكل متساوٍ قدر الإمكان على أيام الأسبوع */
   balanceTeacherDaily: boolean;
+  /** منع تكرار نفس المادة أكثر من حصة في اليوم إلا إذا كان نصابها الأسبوعي أكثر من 5 */
+  oneSubjectPerDay: boolean;
+  /** الصفوف الأول والثاني والثالث: 5 حصص يومياً بالضبط */
+  lowerGradesFivePeriods: boolean;
 }
 
 export const DEFAULT_CONSTRAINTS: TimetableConstraints = {
@@ -39,7 +43,10 @@ export const DEFAULT_CONSTRAINTS: TimetableConstraints = {
   variablePeriodCap: true,
   autoSyncTeachers: true,
   balanceTeacherDaily: true,
+  oneSubjectPerDay: true,
+  lowerGradesFivePeriods: true,
 };
+
 
 export interface SavedTimetable {
   id: string;
@@ -126,6 +133,24 @@ function shuffle<T>(arr: T[]): T[] {
   }
   return a;
 }
+
+/** الصفوف الدنيا التي يجب أن يكون لها 5 حصص يومياً بالضبط */
+const LOWER_GRADES = ["الاول", "الثاني", "الثالث"];
+const isLowerGrade = (className: string) =>
+  LOWER_GRADES.includes((className || "").replace(/الصف/g, "").replace(/[أإآ]/g, "ا").replace(/\s+/g, " ").trim());
+
+/** عدد مرات ظهور المادة داخل يوم واحد لصف معيّن */
+function countSubjectInDay(days: (TimetableCell | null)[][], day: number, subject: string, exceptPeriod = -1) {
+  let n = 0;
+  const row = days[day] || [];
+  for (let p = 0; p < row.length; p++) {
+    if (p === exceptPeriod) continue;
+    if (row[p]?.subjectName === subject) n++;
+  }
+  return n;
+}
+
+
 
 export function TimetableProvider({ children }: { children: React.ReactNode }) {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -295,17 +320,24 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       return false;
     };
 
-    // إضافة الناقص
+    // إضافة الناقص — مع احترام قيد تكرار المادة وسقف الصفوف الدنيا (5 حصص)
     for (const [key, need] of required.entries()) {
       const [teacherId, subjectName, ck] = key.split("|");
       const teacher = byId.get(teacherId);
       if (!teacher) continue;
+      const { className } = parseClassKey(ck);
+      const cap = constraints.lowerGradesFivePeriods && isLowerGrade(className)
+        ? Math.min(ppd, 5)
+        : ppd;
+      const maxSameSubjectPerDay = !constraints.oneSubjectPerDay ? 99 : (need > 5 ? 2 : 1);
       let have = (counts.get(key) || []).length;
       for (let d = 0; d < DAYS.length && have < need; d++) {
-        for (let p = 0; p < ppd && have < need; p++) {
+        if (countSubjectInDay(next[ck], d, subjectName) >= maxSameSubjectPerDay) continue;
+        for (let p = 0; p < cap && have < need; p++) {
           if (next[ck][d]?.[p]) continue;
           if (teacherBusy(teacherId, d, p)) continue;
           if (isBlocked(teacher, d, p)) continue;
+          if (countSubjectInDay(next[ck], d, subjectName) >= maxSameSubjectPerDay) break;
           next[ck][d][p] = { teacherId, teacherName: teacher.name, subjectName };
           have++;
         }
@@ -313,7 +345,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     }
 
     return next;
-  }, []);
+  }, [constraints]);
+
 
   const addTeacher = (teacher: Teacher) => {
     setTeachers(prev => {
@@ -731,10 +764,16 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
     const classCap: Record<string, number> = {};
     classKeys.forEach(ck => {
-      classCap[ck] = !constraints.variablePeriodCap
+      const base = !constraints.variablePeriodCap
         ? periodsPerDay
         : (classWeeklyTotal[ck] > 35 ? periodsPerDay : Math.min(periodsPerDay, 7));
+      // الصفوف الأول والثاني والثالث: 5 حصص يومياً بالضبط
+      const { className } = parseClassKey(ck);
+      classCap[ck] = constraints.lowerGradesFivePeriods && isLowerGrade(className)
+        ? Math.min(periodsPerDay, 5)
+        : base;
     });
+
 
     const overCap = (ck: string, period: number) => period >= (classCap[ck] ?? periodsPerDay);
 
@@ -787,12 +826,51 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     const sixthPeriodIdx = periodsPerDay - 2;
     const seventhPeriodIdx = periodsPerDay - 1;
 
-    // For subjects with 6+ periods, allow up to 2 per day; otherwise 1
-    const getMaxPerDay = (totalPeriods: number): number => {
-      if (totalPeriods >= 6) return 2;
-      const avg = totalPeriods / daysCount;
-      return Math.max(1, Math.ceil(avg));
+    /**
+     * قيد تكرار المادة في اليوم الواحد:
+     * - المادة التي نصابها الأسبوعي أكثر من 5 حصص يُسمح لها بحصتين في اليوم.
+     * - غير ذلك: حصة واحدة فقط في اليوم لنفس الصف.
+     */
+    const subjectDayLimit = (totalPeriods: number, subjectName?: string): number => {
+      // المواد المزدوجة (المهني/المهارات الرقمية) مستثناة: حصصها يجب أن تبقى متتالية في يوم واحد
+      if (subjectName && DOUBLE_PERIOD_SUBJECTS.includes(subjectName)) return Math.max(2, totalPeriods);
+      if (!constraints.oneSubjectPerDay) return totalPeriods >= 6 ? 2 : Math.max(1, Math.ceil(totalPeriods / daysCount));
+      return totalPeriods > 5 ? 2 : 1;
     };
+    const getMaxPerDay = subjectDayLimit;
+
+    /** هل يتجاوز وضع هذه المادة في هذا اليوم الحدّ المسموح؟ */
+    const subjectDayFull = (classKey: string, day: number, subjectName: string, total: number) =>
+      countSubjectInDay(newTT[classKey], day, subjectName) >= subjectDayLimit(total, subjectName);
+
+
+    /** النصاب الأسبوعي لكل (صف|مادة) لاستخدامه في فحص التكرار عند النقل */
+    const subjectWeekly: Record<string, number> = {};
+    assignments.forEach(a => {
+      const k = `${a.classKey}|${a.subjectName}`;
+      subjectWeekly[k] = (subjectWeekly[k] || 0) + a.total;
+    });
+
+    /**
+     * هل يجوز نقل/وضع هذه الخانة في هذا اليوم دون كسر قيد تكرار المادة؟
+     * يُستخدم في جولات الرصّ والموازنة التي تنقل الحصص بين الأيام.
+     */
+    const canHoldSubject = (
+      tt: ClassTimetable,
+      ck: string,
+      day: number,
+      cell: TimetableCell,
+      exceptPeriod = -1
+    ) => {
+      if (!constraints.oneSubjectPerDay) return true;
+      if (isActivityCell(cell)) return true;
+      if (DOUBLE_PERIOD_SUBJECTS.includes(cell.subjectName)) return true;
+      const total = subjectWeekly[`${ck}|${cell.subjectName}`] ?? 0;
+      const limit = subjectDayLimit(total, cell.subjectName);
+      return countSubjectInDay(tt[ck], day, cell.subjectName, exceptPeriod) < limit;
+    };
+
+
 
     const isTeacherBusy = (teacherId: string, day: number, period: number, ignoreClassKey?: string) => {
       for (const [classKey, days] of Object.entries(newTT)) {
@@ -838,6 +916,9 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
       for (const day of dayOrder) {
         if (respectDailyLimit && assignment.perDayCount[day] >= maxPerDay) continue;
+        // قيد إلزامي: لا تتكرر نفس المادة في اليوم إلا لمن نصابها > 5
+        if (subjectDayFull(assignment.classKey, day, assignment.subjectName, assignment.total)) continue;
+
 
         for (const period of periodOrder) {
           if (overCap(assignment.classKey, period)) continue;
@@ -1513,8 +1594,11 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
               for (let period = 0; period < periodsPerDay && !didPlace; period++) {
                 if (tt[a.classKey][day][period] !== null) continue;
                 if (isLocked(a.classKey, day, period)) continue;
+                if (constraints.oneSubjectPerDay &&
+                    countSubjectInDay(tt[a.classKey], day, a.subjectName) >= subjectDayLimit(a.total, a.subjectName)) continue;
                 const teacher = teachers.find(t => t.id === a.teacherId);
                 if (teacher && isBlocked(teacher, day, period)) continue;
+
 
                 const conflictKey = busyElsewhere(a.teacherId, day, period, a.classKey);
                 if (!conflictKey) {
@@ -1633,7 +1717,9 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
               if (conflict) continue;
               const teacher = teachers.find(t => t.id === cell.teacherId);
               if (teacher && isBlocked(teacher, day, p)) continue;
+              if (!canHoldSubject(tt, ck, day, cell)) continue;
               tt[ck][day][p] = cell;
+
               tt[ck][d2][lastIdx] = null;
               filled = true;
             }
@@ -1837,7 +1923,9 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                     if (tt[blockerCk][d2][p2] !== null || isLocked(blockerCk, d2, p2)) continue;
                     // لا نصنع فراغاً داخلياً جديداً في الصف الآخر
                     if (!teacherIsFree(tt, blockerCell.teacherId, d2, p2, blockerCk)) continue;
+                    if (d2 !== day && !canHoldSubject(tt, blockerCk, d2, blockerCell)) continue;
                     tt[blockerCk][d2][p2] = blockerCell;
+
                     tt[blockerCk][day][p] = null;
                     relocated = true;
                     break;
@@ -1892,7 +1980,10 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
               if (isActivityCell(cell) || isLocked(ck, heavy, p)) continue;
               // لا ننقل إن كان يكسر إقران الحصص المزدوجة
               if (DOUBLE_PERIOD_SUBJECTS.includes(cell.subjectName)) continue;
+              // لا نكسر قيد تكرار المادة في اليوم الخفيف
+              if (!canHoldSubject(tt, ck, light, cell)) continue;
               // خانة فارغة في اليوم الخفيف بلا فراغ داخلي جديد
+
               for (let p2 = 0; p2 < cap; p2++) {
                 if (tt[ck][light][p2] !== null || isLocked(ck, light, p2)) continue;
                 let laterExists = false;
@@ -1912,6 +2003,65 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         if (!changed) break;
       }
     };
+
+    /**
+     * جولة تصحيح نهائية لقيد تكرار المادة: أي مادة تجاوزت حدّها اليومي تُنقل
+     * نسختها الزائدة إلى يوم آخر لا تظهر فيه (أو تُبدَّل مع حصة من ذلك اليوم)
+     * دون إحداث أي تعارض للمعلمين.
+     */
+    const enforceSubjectPerDay = (tt: ClassTimetable) => {
+      for (const ck of Object.keys(tt)) {
+        const cap = classCap[ck] ?? periodsPerDay;
+        for (let pass = 0; pass < 6; pass++) {
+          let changed = false;
+          for (let d = 0; d < daysCount; d++) {
+            for (let p = 0; p < cap; p++) {
+              const cell = tt[ck][d][p];
+              if (!cell || isActivityCell(cell) || isLocked(ck, d, p)) continue;
+              if (DOUBLE_PERIOD_SUBJECTS.includes(cell.subjectName)) continue;
+              const total = subjectWeekly[`${ck}|${cell.subjectName}`] ?? 0;
+              const limit = subjectDayLimit(total, cell.subjectName);
+              if (countSubjectInDay(tt[ck], d, cell.subjectName) <= limit) continue;
+
+              let moved = false;
+              // 1) خانة فارغة في يوم آخر
+              for (let d2 = 0; d2 < daysCount && !moved; d2++) {
+                if (d2 === d) continue;
+                if (!canHoldSubject(tt, ck, d2, cell)) continue;
+                for (let p2 = 0; p2 < cap; p2++) {
+                  if (tt[ck][d2][p2] !== null || isLocked(ck, d2, p2)) continue;
+                  if (!teacherIsFree(tt, cell.teacherId, d2, p2, ck)) continue;
+                  tt[ck][d2][p2] = cell;
+                  tt[ck][d][p] = null;
+                  moved = true;
+                  break;
+                }
+              }
+              // 2) تبديل مع حصة في يوم آخر
+              for (let d2 = 0; d2 < daysCount && !moved; d2++) {
+                if (d2 === d) continue;
+                if (!canHoldSubject(tt, ck, d2, cell)) continue;
+                for (let p2 = 0; p2 < cap; p2++) {
+                  const other = tt[ck][d2][p2];
+                  if (!other || isActivityCell(other) || isLocked(ck, d2, p2)) continue;
+                  if (DOUBLE_PERIOD_SUBJECTS.includes(other.subjectName)) continue;
+                  if (!canHoldSubject(tt, ck, d, other, p)) continue;
+                  if (!teacherIsFree(tt, cell.teacherId, d2, p2, ck)) continue;
+                  if (!teacherIsFree(tt, other.teacherId, d, p, ck)) continue;
+                  tt[ck][d2][p2] = cell;
+                  tt[ck][d][p] = other;
+                  moved = true;
+                  break;
+                }
+              }
+              if (moved) changed = true;
+            }
+          }
+          if (!changed) break;
+        }
+      }
+    };
+
 
     for (let i = 0; i < 3; i++) {
       forcePlaceRemaining(newTT);
@@ -1965,7 +2115,9 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
                 for (let p2 = 0; p2 < cap; p2++) {
                   if (tt[ck][d2][p2] !== null || isLocked(ck, d2, p2)) continue;
                   if (!teacherIsFree(tt, cell.teacherId, d2, p2, ck)) continue;
+                  if (!canHoldSubject(tt, ck, d2, cell, d2 === d ? p : -1)) continue;
                   tt[ck][d2][p2] = cell;
+
                   placed = true;
                   break;
                 }
@@ -1987,6 +2139,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     };
 
     if (constraints.preferArtLastPeriod) preferArtInLastPeriod(newTT);
+    if (constraints.oneSubjectPerDay) applySafely(newTT, enforceSubjectPerDay);
+
     if (constraints.balanceTeacherDaily) applySafely(newTT, balanceTeacherDailyLoad);
     if (constraints.fillGaps) {
       applySafely(newTT, fillInteriorGaps);
@@ -2002,6 +2156,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     if (constraints.fillGaps) {
       for (let f = 0; f < 3; f++) applySafely(newTT, eliminateInteriorGaps);
     }
+    if (constraints.oneSubjectPerDay) applySafely(newTT, enforceSubjectPerDay);
+
 
 
 

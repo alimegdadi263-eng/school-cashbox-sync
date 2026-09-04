@@ -15,10 +15,10 @@ function buildTeachers(): Teacher[] {
   const heavy = [6, 6, 6, 6, 6, 6, 2, 2];
   const names = ["لغة عربية", "رياضيات", "علوم", "لغة إنجليزية", "تربية إسلامية", "تاريخ", "تربية فنية", "تربية رياضية"];
   light.forEach((p, i) => {
-    teachers.push({ id: `L${i}`, name: `معلم أ${i}`, subjects: [{ subjectName: names[i], className: "الأول", section: "أ", periodsPerWeek: p }] });
+    teachers.push({ id: `L${i}`, name: `معلم أ${i}`, subjects: [{ subjectName: names[i], className: "الرابع", section: "أ", periodsPerWeek: p }] });
   });
   heavy.forEach((p, i) => {
-    teachers.push({ id: `H${i}`, name: `معلم ب${i}`, subjects: [{ subjectName: names[i], className: "الثاني", section: "أ", periodsPerWeek: p }] });
+    teachers.push({ id: `H${i}`, name: `معلم ب${i}`, subjects: [{ subjectName: names[i], className: "السابع", section: "أ", periodsPerWeek: p }] });
   });
   return teachers;
 }
@@ -53,8 +53,8 @@ describe("سقف الحصص اليومية حسب مجموع حصص الصف", (
     let heavyEighth = 0;
     let heavyEighthPreferred = 0;
     for (let d = 0; d < DAYS.length; d++) {
-      if (tt["الأول-أ"][d][7]) lightEighth++;
-      const c = tt["الثاني-أ"][d][7];
+      if (tt["الرابع-أ"][d][7]) lightEighth++;
+      const c = tt["السابع-أ"][d][7];
       if (c) {
         heavyEighth++;
         if (["تربية فنية", "تربية رياضية"].includes(c.subjectName)) heavyEighthPreferred++;
