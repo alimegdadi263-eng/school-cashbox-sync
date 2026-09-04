@@ -826,12 +826,21 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     const sixthPeriodIdx = periodsPerDay - 2;
     const seventhPeriodIdx = periodsPerDay - 1;
 
-    // For subjects with 6+ periods, allow up to 2 per day; otherwise 1
-    const getMaxPerDay = (totalPeriods: number): number => {
-      if (totalPeriods >= 6) return 2;
-      const avg = totalPeriods / daysCount;
-      return Math.max(1, Math.ceil(avg));
+    /**
+     * قيد تكرار المادة في اليوم الواحد:
+     * - المادة التي نصابها الأسبوعي أكثر من 5 حصص يُسمح لها بحصتين في اليوم.
+     * - غير ذلك: حصة واحدة فقط في اليوم لنفس الصف.
+     */
+    const subjectDayLimit = (totalPeriods: number): number => {
+      if (!constraints.oneSubjectPerDay) return totalPeriods >= 6 ? 2 : Math.max(1, Math.ceil(totalPeriods / daysCount));
+      return totalPeriods > 5 ? 2 : 1;
     };
+    const getMaxPerDay = subjectDayLimit;
+
+    /** هل يتجاوز وضع هذه المادة في هذا اليوم الحدّ المسموح؟ */
+    const subjectDayFull = (classKey: string, day: number, subjectName: string, total: number) =>
+      countSubjectInDay(newTT[classKey], day, subjectName) >= subjectDayLimit(total);
+
 
     const isTeacherBusy = (teacherId: string, day: number, period: number, ignoreClassKey?: string) => {
       for (const [classKey, days] of Object.entries(newTT)) {
