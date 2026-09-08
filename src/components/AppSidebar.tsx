@@ -21,6 +21,7 @@ import {
   Download,
   Loader2,
   BarChart3,
+  CloudUpload,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useFinance } from "@/context/FinanceContext";
@@ -48,7 +49,7 @@ function isGroup(entry: SidebarEntry): entry is NavGroup {
 
 export default function AppSidebar() {
   const location = useLocation();
-  const { isAdmin, signOut } = useAuth();
+  const { isAdmin, signOut, backupStatus, lastBackupAt, backupNow } = useAuth();
   const { state: financeState } = useFinance();
   const schoolName = financeState.schoolName;
   const { state: networkState } = useNetwork();
