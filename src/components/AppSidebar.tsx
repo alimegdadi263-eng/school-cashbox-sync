@@ -21,6 +21,7 @@ import {
   Download,
   Loader2,
   BarChart3,
+  CloudUpload,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useFinance } from "@/context/FinanceContext";
@@ -48,7 +49,7 @@ function isGroup(entry: SidebarEntry): entry is NavGroup {
 
 export default function AppSidebar() {
   const location = useLocation();
-  const { isAdmin, signOut } = useAuth();
+  const { isAdmin, signOut, backupStatus, lastBackupAt, backupNow } = useAuth();
   const { state: financeState } = useFinance();
   const schoolName = financeState.schoolName;
   const { state: networkState } = useNetwork();
@@ -230,6 +231,22 @@ export default function AppSidebar() {
         {updateStatus === "downloading" && (
           <Progress value={updateProgress} className="h-1.5 mx-2" />
         )}
+
+        <Button
+          variant="ghost"
+          onClick={() => void backupNow()}
+          disabled={backupStatus === "saving" || backupStatus === "restoring"}
+          className="w-full justify-start gap-3 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+        >
+          <CloudUpload className="w-5 h-5" />
+          <span className="text-xs">
+            {backupStatus === "restoring" ? "جارٍ استعادة بياناتك..." :
+             backupStatus === "saving" ? "جارٍ الحفظ في السحابة..." :
+             backupStatus === "error" ? "تعذّر الحفظ - اضغط للمحاولة" :
+             lastBackupAt ? `محفوظ ${lastBackupAt.toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" })}` :
+             "حفظ نسخة الآن"}
+          </span>
+        </Button>
 
         <Button
           variant="ghost"

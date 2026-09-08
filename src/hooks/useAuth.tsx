@@ -2,6 +2,7 @@ import { useState, useEffect, createContext, useContext, ReactNode } from "react
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 import { useSessionPresence, clearSessionPresence } from "./useSessionPresence";
+import { useCloudBackup, type CloudBackupStatus } from "./useCloudBackup";
 
 interface AuthContextType {
   user: User | null;
@@ -12,6 +13,9 @@ interface AuthContextType {
   subscriptionExpiresAt: string | null;
   userRole: string | null;
   schoolName: string;
+  backupStatus: CloudBackupStatus;
+  lastBackupAt: Date | null;
+  backupNow: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -109,13 +113,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // نبضة الجلسة: تسجيل هذا الجهاز كجلسة نشطة للحساب الحالي
   useSessionPresence(user?.id ?? null);
 
+  // النسخ الاحتياطي السحابي: استعادة العمل عند الدخول وحفظه تلقائياً أثناء العمل
+  const { status: backupStatus, lastSyncedAt: lastBackupAt, backupNow } = useCloudBackup(user?.id ?? null);
+
   const signOut = async () => {
+    // حفظ آخر نسخة قبل الخروج حتى لا يضيع أي عمل
+    try {
+      await backupNow();
+    } catch (e) {
+      console.error("backup before signOut failed", e);
+    }
     if (user?.id) await clearSessionPresence(user.id);
     await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isAdmin, isActive, subscriptionExpiresAt, userRole, schoolName, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isAdmin, isActive, subscriptionExpiresAt, userRole, schoolName, backupStatus, lastBackupAt, backupNow, signOut }}>
       {children}
     </AuthContext.Provider>
   );
