@@ -92,6 +92,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_backups: {
+        Row: {
+          created_at: string
+          data_key: string
+          updated_at: string
+          user_id: string
+          value: Json | null
+        }
+        Insert: {
+          created_at?: string
+          data_key: string
+          updated_at?: string
+          user_id: string
+          value?: Json | null
+        }
+        Update: {
+          created_at?: string
+          data_key?: string
+          updated_at?: string
+          user_id?: string
+          value?: Json | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
