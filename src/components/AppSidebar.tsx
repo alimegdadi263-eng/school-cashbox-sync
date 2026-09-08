@@ -233,6 +233,22 @@ export default function AppSidebar() {
 
         <Button
           variant="ghost"
+          onClick={() => void backupNow()}
+          disabled={backupStatus === "saving" || backupStatus === "restoring"}
+          className="w-full justify-start gap-3 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+        >
+          <CloudUpload className="w-5 h-5" />
+          <span className="text-xs">
+            {backupStatus === "restoring" ? "جارٍ استعادة بياناتك..." :
+             backupStatus === "saving" ? "جارٍ الحفظ في السحابة..." :
+             backupStatus === "error" ? "تعذّر الحفظ - اضغط للمحاولة" :
+             lastBackupAt ? `محفوظ ${lastBackupAt.toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" })}` :
+             "حفظ نسخة الآن"}
+          </span>
+        </Button>
+
+        <Button
+          variant="ghost"
           onClick={signOut}
           className="w-full justify-start gap-3 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
         >
