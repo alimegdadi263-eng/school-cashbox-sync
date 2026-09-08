@@ -2,6 +2,7 @@ import { useState, useEffect, createContext, useContext, ReactNode } from "react
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 import { useSessionPresence, clearSessionPresence } from "./useSessionPresence";
+import { useCloudBackup, type CloudBackupStatus } from "./useCloudBackup";
 
 interface AuthContextType {
   user: User | null;
@@ -12,6 +13,9 @@ interface AuthContextType {
   subscriptionExpiresAt: string | null;
   userRole: string | null;
   schoolName: string;
+  backupStatus: CloudBackupStatus;
+  lastBackupAt: Date | null;
+  backupNow: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
