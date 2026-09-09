@@ -334,8 +334,13 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     }
 
     const teacherBusy = (teacherId: string, day: number, period: number) => {
+      const name = byId.get(teacherId)?.name;
       for (const days of Object.values(next)) {
-        if (days[day]?.[period]?.teacherId === teacherId) return true;
+        const c = days[day]?.[period];
+        if (!c) continue;
+        if (c.teacherId === teacherId) return true;
+        // خانات النشاط تُسجَّل باسم المعلم لا برقمه
+        if (isActivityCell(c) && name && c.teacherName === name) return true;
       }
       return false;
     };
