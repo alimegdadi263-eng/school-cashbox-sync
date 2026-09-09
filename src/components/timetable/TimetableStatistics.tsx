@@ -35,8 +35,19 @@ export default function TimetableStatistics() {
 
   if (Object.keys(timetable).length === 0) return null;
 
+  // --- النصاب المطلوب (المُدخَل في بيانات المعلمين) لكل صف ولكل معلم ---
+  const requiredByClass: Record<string, number> = {};
+  const requiredByTeacher: Record<string, number> = {};
+  teachers.forEach(t => {
+    t.subjects.forEach(s => {
+      const ck = `${s.className}-${s.section}`;
+      requiredByClass[ck] = (requiredByClass[ck] || 0) + s.periodsPerWeek;
+      requiredByTeacher[t.id] = (requiredByTeacher[t.id] || 0) + s.periodsPerWeek;
+    });
+  });
+
   // --- إحصائيات الصفوف ---
-  const classStats: { classKey: string; className: string; section: string; subjects: Record<string, number>; total: number }[] = [];
+  const classStats: { classKey: string; className: string; section: string; subjects: Record<string, number>; total: number; required: number }[] = [];
 
   for (const [classKey, days] of Object.entries(timetable)) {
     const { className, section } = parseClassKey(classKey);
@@ -50,8 +61,9 @@ export default function TimetableStatistics() {
         }
       });
     });
-    classStats.push({ classKey, className, section, subjects, total });
+    classStats.push({ classKey, className, section, subjects, total, required: requiredByClass[classKey] || 0 });
   }
+
 
   // --- كشف أنصبة المعلمين ---
   const teacherStats = teachers.map(t => {
