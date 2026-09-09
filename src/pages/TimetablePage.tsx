@@ -362,6 +362,18 @@ export default function TimetablePage() {
                     </div>
                   </div>
 
+                  {/* الجدول الرسمي المصدق */}
+                  <div className="space-y-2 border-b border-border pb-4">
+                    <Label className="text-xs">جدول ترتيب الدروس (النموذج الرسمي المصدق) — الصفوف أعمدة: الموضوع + الاسم الأول للمعلم، مع اسم المدرسة والمديرية من الإعدادات</Label>
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" className="bg-indigo-700 hover:bg-indigo-800 text-white" disabled={exporting || !hasTimetable}
+                        onClick={() => safeExport("الجدول المصدق", () => exportOfficialTimetableExcel(timetable, periodsPerDay, officialInfo))}>
+                        <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير جدول مصدق (Excel)
+                      </Button>
+                    </div>
+                  </div>
+
+
                   {/* Export Malhafa */}
                   <div className="flex flex-wrap gap-3 border-b border-border pb-4">
                     <Button className="bg-amber-700 hover:bg-amber-800 text-white" disabled={exporting} onClick={() => safeExport("الملحفة", () => exportMalhafaExcel(timetable, periodsPerDay, school))}>
