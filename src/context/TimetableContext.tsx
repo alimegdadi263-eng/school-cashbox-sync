@@ -334,8 +334,13 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     }
 
     const teacherBusy = (teacherId: string, day: number, period: number) => {
+      const name = byId.get(teacherId)?.name;
       for (const days of Object.values(next)) {
-        if (days[day]?.[period]?.teacherId === teacherId) return true;
+        const c = days[day]?.[period];
+        if (!c) continue;
+        if (c.teacherId === teacherId) return true;
+        // خانات النشاط تُسجَّل باسم المعلم لا برقمه
+        if (isActivityCell(c) && name && c.teacherName === name) return true;
       }
       return false;
     };
@@ -378,6 +383,18 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
           if (countSubjectInDay(next[ck], d, subjectName) >= maxSameSubjectPerDay) break;
           next[ck][d][p] = { teacherId, teacherName: teacher.name, subjectName };
           have++;
+        }
+      }
+      // ما تبقّى ناقصاً: يُوضع في أي خانة فارغة والمعلم متفرّغ فيها (بدون تعارض)
+      if (have < need) {
+        for (let d = 0; d < DAYS.length && have < need; d++) {
+          for (let p = 0; p < ppd && have < need; p++) {
+            if (next[ck][d]?.[p]) continue;
+            if (teacherBusy(teacherId, d, p)) continue;
+            if (isBlocked(teacher, d, p)) continue;
+            next[ck][d][p] = { teacherId, teacherName: teacher.name, subjectName };
+            have++;
+          }
         }
       }
     }
