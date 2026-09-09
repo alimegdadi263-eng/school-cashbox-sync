@@ -1532,25 +1532,23 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
           chosen = [...activityTeachers].sort(
             (a, b) => (activityLoad[a.id] || 0) - (activityLoad[b.id] || 0)
           )[0];
-          forceFree(chosen.id, day, pA);
-          forceFree(chosen.id, day, pB);
+          slots.forEach(p => forceFree(chosen!.id, day, p));
         } else {
           chosen = sorted.find(t =>
-            !isBlocked(t, day, pA) && !isBlocked(t, day, pB) &&
-            !busy(t.name, t.id, day, pA) && !busy(t.name, t.id, day, pB)
+            slots.every(p => !isBlocked(t, day, p) && !busy(t.name, t.id, day, p))
           );
 
           if (!chosen) {
             for (const t of sorted) {
-              if (isBlocked(t, day, pA) || isBlocked(t, day, pB)) continue;
-              const nameClash = [pA, pB].some(p =>
+              if (slots.some(p => isBlocked(t, day, p))) continue;
+              const nameClash = slots.some(p =>
                 Object.values(tt).some(days => {
                   const c = days[day]?.[p];
                   return c && isActivityCell(c) && c.teacherName === t.name;
                 })
               );
               if (nameClash) continue;
-              if (relocateTeacherLesson(t.id, day, pA) && relocateTeacherLesson(t.id, day, pB)) {
+              if (slots.every(p => relocateTeacherLesson(t.id, day, p))) {
                 chosen = t;
                 break;
               }
@@ -1558,7 +1556,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
           }
 
           if (!chosen) {
-            chosen = sorted.find(t => ![pA, pB].some(p =>
+            chosen = sorted.find(t => !slots.some(p =>
               Object.values(tt).some(days => {
                 const c = days[day]?.[p];
                 return c && isActivityCell(c) && c.teacherName === t.name;
@@ -1570,8 +1568,10 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
 
         activityLoad[chosen.id] = (activityLoad[chosen.id] || 0) + 1;
-        tt[ck][day][pA] = { teacherId: ACTIVITY_TEACHER_ID, teacherName: chosen.name, subjectName: ACTIVITY_SUBJECT };
-        tt[ck][day][pB] = { teacherId: ACTIVITY_TEACHER_ID, teacherName: chosen.name, subjectName: ACTIVITY_SUBJECT };
+        slots.forEach(p => {
+          tt[ck][day][p] = { teacherId: ACTIVITY_TEACHER_ID, teacherName: chosen!.name, subjectName: ACTIVITY_SUBJECT };
+        });
+
       }
 
     };
