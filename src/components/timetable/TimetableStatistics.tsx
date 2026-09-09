@@ -68,10 +68,24 @@ export default function TimetableStatistics() {
   // --- كشف أنصبة المعلمين ---
   const teacherStats = teachers.map(t => {
     const schedule = getTeacherSchedule(t.id);
-    const totalPeriods = schedule.length;
+    // حصص النشاط تُسجَّل باسم المعلم لا برقمه، فنضمّها للنصاب حتى تتطابق الأرقام
+    const activityDays = DAYS.map(() => 0);
+    let activityTotal = 0;
+    Object.values(timetable).forEach(days => {
+      days.forEach((periods, di) => {
+        periods.forEach(cell => {
+          if (cell && cell.teacherId !== t.id && cell.teacherName === t.name && cell.subjectName === "نشاط") {
+            activityTotal++;
+            activityDays[di] = (activityDays[di] || 0) + 1;
+          }
+        });
+      });
+    });
+    const totalPeriods = schedule.length + activityTotal;
     const sixthCount = schedule.filter(s => s.period === periodsPerDay - 2).length;
     const seventhCount = schedule.filter(s => s.period === periodsPerDay - 1).length;
-    const dailyCounts = DAYS.map((_, di) => schedule.filter(s => s.day === di).length);
+    const dailyCounts = DAYS.map((_, di) => schedule.filter(s => s.day === di).length + (activityDays[di] || 0));
+
     const subjectCounts: Record<string, number> = {};
     schedule.forEach(s => {
       subjectCounts[s.subjectName] = (subjectCounts[s.subjectName] || 0) + 1;
