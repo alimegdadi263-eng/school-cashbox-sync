@@ -734,17 +734,34 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     const lockKey = (ck: string, d: number, p: number) => `${ck}|${d}|${p}`;
     const isLocked = (ck: string, d: number, p: number) => activityLocked.has(lockKey(ck, d, p));
 
+    /**
+     * عدد حصص النشاط المطلوبة فعلياً لكل صف = مجموع نصاب مادة "نشاط" المُسنَد
+     * لمعلمي هذا الصف (بحد أقصى حصتان). الصف الذي لا يوجد له معلم نشاط لا
+     * تُحجز له أي خانة نشاط إطلاقاً — فلا يزيد النشاط عن المُدخَل.
+     */
+    const activityNeed: Record<string, number> = {};
+    teachers.forEach(t => {
+      t.subjects.forEach(s => {
+        if (s.subjectName.trim() !== ACTIVITY_SUBJECT) return;
+        const ck = getClassKey(s.className, s.section);
+        activityNeed[ck] = Math.min(ACTIVITY_PERIODS.length, (activityNeed[ck] || 0) + s.periodsPerWeek);
+      });
+    });
+
     if (activityPeriods && ACTIVITY_PERIODS[1] < periodsPerDay) {
       classKeys.forEach(ck => {
+        const need = activityNeed[ck] || 0;
+        if (need <= 0) return;
         const { className } = parseClassKey(ck);
         const day = getActivityDay(className);
         if (day === undefined || day >= daysCount) return;
-        ACTIVITY_PERIODS.forEach(p => {
+        ACTIVITY_PERIODS.slice(0, need).forEach(p => {
           newTT[ck][day][p] = { teacherId: ACTIVITY_TEACHER_ID, teacherName: "", subjectName: ACTIVITY_SUBJECT };
           activityLocked.add(lockKey(ck, day, p));
         });
       });
     }
+
 
     /**
      * سقف الحصص لكل صف:
