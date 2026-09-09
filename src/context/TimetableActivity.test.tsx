@@ -4,6 +4,9 @@ import { TimetableProvider, useTimetable } from "./TimetableContext";
 import { ACTIVITY_TEACHER_ID, DAYS, ACTIVITY_PERIODS, DOUBLE_PERIOD_SUBJECTS, getActivityDay, getClassKey, parseClassKey, Teacher } from "@/types/timetable";
 
 const STORAGE_KEY = "school_timetable_data";
+/** الصفوف التي لها معلم نشاط فعلي */
+const ACTIVITY_CLASSES = ["الأول-أ", "الخامس-ب", "الثامن-أ"];
+
 
 function buildTeachers(): Teacher[] {
   const classes = ["الأول", "الثاني", "الخامس", "السادس", "الثامن", "التاسع"];
