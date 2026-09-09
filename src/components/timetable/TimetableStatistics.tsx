@@ -238,6 +238,8 @@ export default function TimetableStatistics() {
                   <TableRow>
                     <TableHead className="text-right">المعلم</TableHead>
                     <TableHead className="text-center">إجمالي الحصص</TableHead>
+                    <TableHead className="text-center">النصاب المطلوب</TableHead>
+                    <TableHead className="text-center">الفارق</TableHead>
                     <TableHead className="text-center">السادسات</TableHead>
                     <TableHead className="text-center">السابعات</TableHead>
                     {DAYS.map(d => (
@@ -250,8 +252,13 @@ export default function TimetableStatistics() {
                     <TableRow key={ts.id}>
                       <TableCell className="font-medium">{ts.name}</TableCell>
                       <TableCell className="text-center font-bold">{ts.totalPeriods}</TableCell>
+                      <TableCell className="text-center">{ts.required}</TableCell>
+                      <TableCell className={`text-center font-bold ${ts.diff === 0 ? "text-success" : "text-destructive"}`}>
+                        {ts.diff}
+                      </TableCell>
                       <TableCell className="text-center">{ts.sixthCount}</TableCell>
                       <TableCell className="text-center">{ts.seventhCount}</TableCell>
+
                       {ts.dailyCounts.map((c, i) => (
                         <TableCell
                           key={i}
