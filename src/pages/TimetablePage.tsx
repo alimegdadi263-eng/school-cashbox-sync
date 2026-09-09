@@ -104,7 +104,7 @@ export default function TimetablePage() {
     schoolName: financeState.schoolName || school,
     directorateName: financeState.directorateName || "",
     cityName: (financeState as any).cityName || "",
-    academicYear: financeState.year ? String(financeState.year) : "",
+    academicYear: String((financeState as any).year || ""),
     directorName: financeState.directorName || "",
   };
 
