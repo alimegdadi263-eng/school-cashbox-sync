@@ -177,7 +177,9 @@ export default function TimetableStatistics() {
                     {allSubjects.map(s => (
                       <TableHead key={s} className="text-center text-xs">{s}</TableHead>
                     ))}
-                    <TableHead className="text-center font-bold">المجموع</TableHead>
+                    <TableHead className="text-center font-bold">الموضوع بالجدول</TableHead>
+                    <TableHead className="text-center font-bold">النصاب المطلوب</TableHead>
+                    <TableHead className="text-center font-bold">الفارق</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -190,6 +192,12 @@ export default function TimetableStatistics() {
                         </TableCell>
                       ))}
                       <TableCell className="text-center font-bold bg-muted">{cs.total}</TableCell>
+                      <TableCell className="text-center">{cs.required}</TableCell>
+                      <TableCell
+                        className={`text-center font-bold ${cs.total === cs.required ? "text-success" : "text-destructive"}`}
+                      >
+                        {cs.total - cs.required}
+                      </TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="bg-muted/60 font-bold">
@@ -200,7 +208,14 @@ export default function TimetableStatistics() {
                       </TableCell>
                     ))}
                     <TableCell className="text-center bg-secondary text-secondary-foreground">{grandTotal}</TableCell>
+                    <TableCell className="text-center">
+                      {classStats.reduce((s, c) => s + c.required, 0)}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {grandTotal - classStats.reduce((s, c) => s + c.required, 0)}
+                    </TableCell>
                   </TableRow>
+
                 </TableBody>
               </Table>
             </div>
