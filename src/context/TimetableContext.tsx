@@ -945,12 +945,19 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
           // Prefer earlier periods (lower period index)
           let score = period * 100;
-          // Spread across days
-          score += assignment.perDayCount[day] * 20;
-          score += classDayLoad[assignment.classKey][day] * 4;
+          /**
+           * توزيع المادة على جميع الأيام: النصيب المثالي لليوم = النصاب ÷ عدد الأيام.
+           * أي يوم بلغ نصيبه المثالي يُعاقب بشدة، فمادة نصابها 5 حصص تنزل حصة
+           * واحدة في كل يوم بدل تكدسها في يومين.
+           */
+          const idealPerDay = Math.ceil(assignment.total / daysCount);
+          if (assignment.perDayCount[day] >= idealPerDay) score += 600;
+          score += assignment.perDayCount[day] * 120;
+          score += classDayLoad[assignment.classKey][day] * 6;
           score += getTeacherDayLoad(assignment.teacherId, day) * 8;
           // Add small random noise for variety
           score += Math.random() * 15;
+
 
           if (period === sixthPeriodIdx) score += 30 + latePeriodCount[assignment.teacherId].sixth * 45;
           if (period === seventhPeriodIdx) score += 45 + latePeriodCount[assignment.teacherId].seventh * 70;
