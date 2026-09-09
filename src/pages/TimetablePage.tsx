@@ -23,6 +23,7 @@ import { parseClassKey, DAYS } from "@/types/timetable";
 import { exportDailyScheduleMatrixExcel, exportDailyScheduleMatrixDocx } from "@/lib/exportDailySchedule";
 import { exportFollowupRecordExcel, exportFollowupRecordDocx } from "@/lib/exportFollowupRecord";
 import { exportCurriculumRecordExcel, exportCurriculumRecordDocx } from "@/lib/exportCurriculumRecord";
+import { exportOfficialTimetableExcel } from "@/lib/exportOfficialTimetable";
 import {
   exportClassTimetableExcel,
   exportTeacherTimetableExcel,
