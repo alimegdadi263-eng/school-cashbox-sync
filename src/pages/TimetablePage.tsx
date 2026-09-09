@@ -100,6 +100,15 @@ export default function TimetablePage() {
     directorName: financeState.directorName || "",
   };
 
+  const officialInfo = {
+    schoolName: financeState.schoolName || school,
+    directorateName: financeState.directorateName || "",
+    cityName: (financeState as any).cityName || "",
+    academicYear: financeState.year ? String(financeState.year) : "",
+    directorName: financeState.directorName || "",
+  };
+
+
   const hasTimetable = Object.keys(timetable).length > 0;
 
   return (
