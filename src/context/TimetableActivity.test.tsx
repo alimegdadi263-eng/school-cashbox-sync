@@ -79,17 +79,26 @@ describe("توليد الجدول: حصص النشاط والحصص المزدو
     const tt = api.timetable;
     const [pA, pB] = ACTIVITY_PERIODS;
 
-    let activityOk = 0, activityTotal = 0;
+    let activityOk = 0, activityTotal = 0, extraActivity = 0;
     for (const ck of Object.keys(tt)) {
       const { className } = parseClassKey(ck);
       const day = getActivityDay(className);
       if (day === undefined) continue;
+      const hasActivityTeacher = ACTIVITY_CLASSES.includes(ck);
+      if (!hasActivityTeacher) {
+        for (let d = 0; d < DAYS.length; d++)
+          for (let p = 0; p < 7; p++)
+            if (tt[ck][d][p]?.teacherId === ACTIVITY_TEACHER_ID) extraActivity++;
+        continue;
+      }
       activityTotal++;
       const a = tt[ck][day][pA];
       const b = tt[ck][day][pB];
       if (a && b && a.teacherId === b.teacherId && a.subjectName === b.subjectName) activityOk++;
       else console.log("فشل النشاط:", ck, DAYS[day], a?.subjectName, b?.subjectName);
     }
+    expect(extraActivity).toBe(0);
+
     console.log(`النشاط: ${activityOk}/${activityTotal}`);
 
     // فحص التعارضات: معلم في صفّين بنفس الوقت
