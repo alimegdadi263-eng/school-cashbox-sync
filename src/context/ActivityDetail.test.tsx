@@ -24,24 +24,15 @@ function buildTeachers(): Teacher[] {
       if (assigned.length) teachers.push({ id: `t${si}-${g}`, name: `معلم ${s.name} ${g+1}`, subjects: assigned });
     }
   });
-  // معلمو النشاط: معلم لكل مجموعة صفوف حسب يوم النشاط
-  const groups: Record<number, any[]> = {};
-  classes.forEach(cn => sections.forEach(sec => {
-    const day = ["الأول","الثاني","الثالث","الرابع"].includes(cn) ? 0
-      : ["الخامس","السادس","السابع"].includes(cn) ? 1 : 2;
-    (groups[day] ||= []).push({ subjectName: "نشاط", className: cn, section: sec, periodsPerWeek: 2 });
+  // معلم نشاط مستقل لكل صف (حتى لا يكون نفس المعلم في صفّين بنفس التوقيت)
+  classes.forEach((cn, ci) => sections.forEach((sec, sei) => {
+    teachers.push({
+      id: `act-${ci}-${sei}`,
+      name: `معلم نشاط ${cn} ${sec}`,
+      subjects: [{ subjectName: "نشاط", className: cn, section: sec, periodsPerWeek: 2 }],
+    });
   }));
-  Object.entries(groups).forEach(([day, assigned], i) => {
-    // معلمان لكل يوم لتفادي تعارض نفس المعلم في صفّين بنفس التوقيت
-    const half = Math.ceil(assigned.length / 6);
-    for (let k = 0; k * half < assigned.length; k++) {
-      teachers.push({
-        id: `act-${day}-${k}`,
-        name: `معلم نشاط ${i + 1}-${k + 1}`,
-        subjects: assigned.slice(k * half, (k + 1) * half),
-      });
-    }
-  });
+
   return teachers;
 }
 
