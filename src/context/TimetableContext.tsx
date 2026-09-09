@@ -291,7 +291,27 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       for (let d = 0; d < days.length; d++) {
         for (let p = 0; p < days[d].length; p++) {
           const cell = days[d][p];
-          if (!cell || isActivityCell(cell)) continue;
+          if (!cell) continue;
+          /**
+           * خانة النشاط تُسجَّل باسم المعلم لا برقمه، لذلك نُطابقها مع نصاب مادة
+           * "نشاط" لنفس المعلم في نفس الصف حتى لا يعتبرها النظام ناقصة ويضيف
+           * حصص نشاط جديدة عند كل حفظ.
+           */
+          if (isActivityCell(cell)) {
+            const owner = list.find(t =>
+              t.name === cell.teacherName &&
+              t.subjects.some(s =>
+                s.subjectName.trim() === ACTIVITY_SUBJECT && getClassKey(s.className, s.section) === ck
+              )
+            );
+            if (owner) {
+              const akey = `${owner.id}|${ACTIVITY_SUBJECT}|${ck}`;
+              const arr = counts.get(akey) || [];
+              arr.push({ day: d, period: p });
+              counts.set(akey, arr);
+            }
+            continue;
+          }
           const teacher = byId.get(cell.teacherId);
           if (!teacher) { days[d][p] = null; continue; }
           if (teacher.name !== cell.teacherName) cell.teacherName = teacher.name;
@@ -326,6 +346,24 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       const teacher = byId.get(teacherId);
       if (!teacher) continue;
       const { className } = parseClassKey(ck);
+      /**
+       * النشاط: يُضاف فقط في يوم الصف المخصص وفي الحصتين الثانية والثالثة، وبعدد
+       * النصاب المُدخَل تماماً — فلا يزيد عدد حصص النشاط عند كل حفظ.
+       */
+      if (subjectName.trim() === ACTIVITY_SUBJECT) {
+        const aDay = getActivityDay(className);
+        if (aDay === undefined || aDay >= DAYS.length) continue;
+        let haveA = (counts.get(key) || []).length;
+        for (const p of ACTIVITY_PERIODS) {
+          if (haveA >= need || p >= ppd) break;
+          if (next[ck][aDay]?.[p]) continue;
+          if (teacherBusy(teacherId, aDay, p)) continue;
+          if (isBlocked(teacher, aDay, p)) continue;
+          next[ck][aDay][p] = { teacherId: ACTIVITY_TEACHER_ID, teacherName: teacher.name, subjectName: ACTIVITY_SUBJECT };
+          haveA++;
+        }
+        continue;
+      }
       const cap = constraints.lowerGradesFivePeriods && isLowerGrade(className)
         ? Math.min(ppd, 5)
         : ppd;
