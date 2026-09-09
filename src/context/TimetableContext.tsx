@@ -1489,9 +1489,10 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         const { className } = parseClassKey(ck);
         const day = getActivityDay(className);
         if (day === undefined || day >= daysCount) continue;
-        const cA = tt[ck][day][pA];
-        const cB = tt[ck][day][pB];
-        if (!isActivityCell(cA) || !isActivityCell(cB)) continue;
+        // الخانات المحجوزة فعلياً للنشاط لهذا الصف فقط
+        const slots = ACTIVITY_PERIODS.filter(p => isActivityCell(tt[ck][day][p]));
+        if (slots.length === 0) continue;
+
 
         // معلمو هذا الصف مرتّبون حسب أقل نصيب نشاط
         // أولاً: المعلمون المُسنَد لهم مادة "نشاط" لهذا الصف تحديداً
