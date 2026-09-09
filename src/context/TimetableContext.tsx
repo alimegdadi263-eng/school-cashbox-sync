@@ -385,6 +385,18 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
           have++;
         }
       }
+      // ما تبقّى ناقصاً: يُوضع في أي خانة فارغة والمعلم متفرّغ فيها (بدون تعارض)
+      if (have < need) {
+        for (let d = 0; d < DAYS.length && have < need; d++) {
+          for (let p = 0; p < ppd && have < need; p++) {
+            if (next[ck][d]?.[p]) continue;
+            if (teacherBusy(teacherId, d, p)) continue;
+            if (isBlocked(teacher, d, p)) continue;
+            next[ck][d][p] = { teacherId, teacherName: teacher.name, subjectName };
+            have++;
+          }
+        }
+      }
     }
 
     return next;
