@@ -2176,11 +2176,56 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     if (activityPeriods) assignActivityTeachers(newTT);
     // ضمان نهائي: لا تعارضات إطلاقاً، ثم رصّ الفراغات الناتجة
     resolveAllConflicts(newTT);
+
+    /**
+     * إعادة الحصص التي أُخرجت لحل التعارضات إلى قائمة الحصص المطلوبة، ثم محاولة
+     * رصّها من جديد حتى لا يبقى شيء في المنطقة الفارغة قدر الإمكان.
+     */
+    if (droppedCells.length) {
+      for (const d of droppedCells) {
+        const a = assignments.find(
+          x => x.teacherId === d.teacherId && x.classKey === d.classKey && x.subjectName === d.subjectName
+        );
+        if (a) a.remaining += 1;
+      }
+      droppedCells.length = 0;
+    }
+    forcePlaceRemaining(newTT);
+
+    /**
+     * محاولة أخيرة (تخفيف قيد تكرار المادة فقط): أي حصة ما زالت غير موزّعة تُوضع
+     * في أي خانة فارغة يكون فيها المعلم متفرغاً — دون أي تعارض.
+     */
+    const lastResortPlace = (tt: ClassTimetable) => {
+      for (const a of assignments) {
+        while (a.remaining > 0) {
+          let done = false;
+          const cap = classCap[a.classKey] ?? periodsPerDay;
+          for (let d = 0; d < daysCount && !done; d++) {
+            for (let p = 0; p < cap && !done; p++) {
+              if (tt[a.classKey][d][p] !== null || isLocked(a.classKey, d, p)) continue;
+              const teacher = teachers.find(t => t.id === a.teacherId);
+              if (teacher && isBlocked(teacher, d, p)) continue;
+              if (!teacherIsFree(tt, a.teacherId, d, p, a.classKey)) continue;
+              placeAssignment(a, d, p);
+              done = true;
+            }
+          }
+          if (!done) break;
+        }
+      }
+    };
+    lastResortPlace(newTT);
+
     // ثم رصّ نهائي للفراغات (لا يُنتج تعارضات لأنه يتحقق من تفرّغ المعلم)
     if (constraints.fillGaps) {
       for (let f = 0; f < 3; f++) applySafely(newTT, eliminateInteriorGaps);
+      compactTimetable(newTT);
+      applySafely(newTT, eliminateInteriorGaps);
     }
     if (constraints.oneSubjectPerDay) applySafely(newTT, enforceSubjectPerDay);
+    resolveAllConflicts(newTT);
+
 
 
 
