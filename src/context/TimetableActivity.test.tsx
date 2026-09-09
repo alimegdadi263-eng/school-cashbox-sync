@@ -35,8 +35,18 @@ function buildTeachers(): Teacher[] {
       if (assigned.length) teachers.push({ id: `t${si}-${g}`, name: `معلم ${s.name} ${g + 1}`, subjects: assigned });
     }
   });
+  // معلم نشاط لبعض الصفوف فقط — الصفوف الأخرى يجب ألا تحصل على أي حصة نشاط
+  teachers.push({
+    id: "t-activity",
+    name: "معلم النشاط",
+    subjects: ACTIVITY_CLASSES.map(ck => {
+      const { className, section } = parseClassKey(ck);
+      return { subjectName: "نشاط", className, section, periodsPerWeek: 2 };
+    }),
+  });
   return teachers;
 }
+
 
 function Harness({ onReady }: { onReady: (api: ReturnType<typeof useTimetable>) => void }) {
   const api = useTimetable();
