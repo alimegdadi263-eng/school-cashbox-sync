@@ -346,6 +346,24 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       const teacher = byId.get(teacherId);
       if (!teacher) continue;
       const { className } = parseClassKey(ck);
+      /**
+       * النشاط: يُضاف فقط في يوم الصف المخصص وفي الحصتين الثانية والثالثة، وبعدد
+       * النصاب المُدخَل تماماً — فلا يزيد عدد حصص النشاط عند كل حفظ.
+       */
+      if (subjectName.trim() === ACTIVITY_SUBJECT) {
+        const aDay = getActivityDay(className);
+        if (aDay === undefined || aDay >= DAYS.length) continue;
+        let haveA = (counts.get(key) || []).length;
+        for (const p of ACTIVITY_PERIODS) {
+          if (haveA >= need || p >= ppd) break;
+          if (next[ck][aDay]?.[p]) continue;
+          if (teacherBusy(teacherId, aDay, p)) continue;
+          if (isBlocked(teacher, aDay, p)) continue;
+          next[ck][aDay][p] = { teacherId: ACTIVITY_TEACHER_ID, teacherName: teacher.name, subjectName: ACTIVITY_SUBJECT };
+          haveA++;
+        }
+        continue;
+      }
       const cap = constraints.lowerGradesFivePeriods && isLowerGrade(className)
         ? Math.min(ppd, 5)
         : ppd;
