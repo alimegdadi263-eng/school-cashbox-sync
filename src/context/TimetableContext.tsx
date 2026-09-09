@@ -1463,10 +1463,9 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
               if (d2 === day && p2 === period) continue;
               if (tt[ck2][d2]?.[p2] !== null) continue;
               if (overCap(ck2, p2)) continue;
-              // لا نضع حصة داخل خانة نشاط محجوزة لهذا الصف
-              const { className: cn2 } = parseClassKey(ck2);
-              const aDay2 = getActivityDay(cn2);
-              if (aDay2 === d2 && ACTIVITY_PERIODS.includes(p2)) continue;
+              // لا نضع حصة داخل خانة نشاط محجوزة فعلياً لهذا الصف
+              if (isLocked(ck2, d2, p2)) continue;
+
               const t = teachers.find(x => x.id === teacherId);
               if (t && isBlocked(t, d2, p2)) continue;
               // المعلم حرّ في التوقيت الجديد؟
