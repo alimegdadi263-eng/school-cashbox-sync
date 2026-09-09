@@ -81,6 +81,8 @@ export default function TimetableStatistics() {
       id: t.id,
       name: t.name,
       totalPeriods,
+      required: requiredByTeacher[t.id] || 0,
+      diff: totalPeriods - (requiredByTeacher[t.id] || 0),
       sixthCount,
       seventhCount,
       dailyCounts,
@@ -88,6 +90,7 @@ export default function TimetableStatistics() {
       leastDay: dailyCounts.indexOf(Math.min(...dailyCounts)),
       leastDayCount: Math.min(...dailyCounts),
     };
+
   });
 
   // --- جدول أشغال يومي ---
