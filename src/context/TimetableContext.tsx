@@ -734,17 +734,34 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     const lockKey = (ck: string, d: number, p: number) => `${ck}|${d}|${p}`;
     const isLocked = (ck: string, d: number, p: number) => activityLocked.has(lockKey(ck, d, p));
 
+    /**
+     * عدد حصص النشاط المطلوبة فعلياً لكل صف = مجموع نصاب مادة "نشاط" المُسنَد
+     * لمعلمي هذا الصف (بحد أقصى حصتان). الصف الذي لا يوجد له معلم نشاط لا
+     * تُحجز له أي خانة نشاط إطلاقاً — فلا يزيد النشاط عن المُدخَل.
+     */
+    const activityNeed: Record<string, number> = {};
+    teachers.forEach(t => {
+      t.subjects.forEach(s => {
+        if (s.subjectName.trim() !== ACTIVITY_SUBJECT) return;
+        const ck = getClassKey(s.className, s.section);
+        activityNeed[ck] = Math.min(ACTIVITY_PERIODS.length, (activityNeed[ck] || 0) + s.periodsPerWeek);
+      });
+    });
+
     if (activityPeriods && ACTIVITY_PERIODS[1] < periodsPerDay) {
       classKeys.forEach(ck => {
+        const need = activityNeed[ck] || 0;
+        if (need <= 0) return;
         const { className } = parseClassKey(ck);
         const day = getActivityDay(className);
         if (day === undefined || day >= daysCount) return;
-        ACTIVITY_PERIODS.forEach(p => {
+        ACTIVITY_PERIODS.slice(0, need).forEach(p => {
           newTT[ck][day][p] = { teacherId: ACTIVITY_TEACHER_ID, teacherName: "", subjectName: ACTIVITY_SUBJECT };
           activityLocked.add(lockKey(ck, day, p));
         });
       });
     }
+
 
     /**
      * سقف الحصص لكل صف:
@@ -928,12 +945,19 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
           // Prefer earlier periods (lower period index)
           let score = period * 100;
-          // Spread across days
-          score += assignment.perDayCount[day] * 20;
-          score += classDayLoad[assignment.classKey][day] * 4;
+          /**
+           * توزيع المادة على جميع الأيام: النصيب المثالي لليوم = النصاب ÷ عدد الأيام.
+           * أي يوم بلغ نصيبه المثالي يُعاقب بشدة، فمادة نصابها 5 حصص تنزل حصة
+           * واحدة في كل يوم بدل تكدسها في يومين.
+           */
+          const idealPerDay = Math.ceil(assignment.total / daysCount);
+          if (assignment.perDayCount[day] >= idealPerDay) score += 600;
+          score += assignment.perDayCount[day] * 120;
+          score += classDayLoad[assignment.classKey][day] * 6;
           score += getTeacherDayLoad(assignment.teacherId, day) * 8;
           // Add small random noise for variety
           score += Math.random() * 15;
+
 
           if (period === sixthPeriodIdx) score += 30 + latePeriodCount[assignment.teacherId].sixth * 45;
           if (period === seventhPeriodIdx) score += 45 + latePeriodCount[assignment.teacherId].seventh * 70;
@@ -1446,10 +1470,9 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
               if (d2 === day && p2 === period) continue;
               if (tt[ck2][d2]?.[p2] !== null) continue;
               if (overCap(ck2, p2)) continue;
-              // لا نضع حصة داخل خانة نشاط محجوزة لهذا الصف
-              const { className: cn2 } = parseClassKey(ck2);
-              const aDay2 = getActivityDay(cn2);
-              if (aDay2 === d2 && ACTIVITY_PERIODS.includes(p2)) continue;
+              // لا نضع حصة داخل خانة نشاط محجوزة فعلياً لهذا الصف
+              if (isLocked(ck2, d2, p2)) continue;
+
               const t = teachers.find(x => x.id === teacherId);
               if (t && isBlocked(t, d2, p2)) continue;
               // المعلم حرّ في التوقيت الجديد؟
@@ -1473,9 +1496,10 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         const { className } = parseClassKey(ck);
         const day = getActivityDay(className);
         if (day === undefined || day >= daysCount) continue;
-        const cA = tt[ck][day][pA];
-        const cB = tt[ck][day][pB];
-        if (!isActivityCell(cA) || !isActivityCell(cB)) continue;
+        // الخانات المحجوزة فعلياً للنشاط لهذا الصف فقط
+        const slots = ACTIVITY_PERIODS.filter(p => isActivityCell(tt[ck][day][p]));
+        if (slots.length === 0) continue;
+
 
         // معلمو هذا الصف مرتّبون حسب أقل نصيب نشاط
         // أولاً: المعلمون المُسنَد لهم مادة "نشاط" لهذا الصف تحديداً
@@ -1515,25 +1539,23 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
           chosen = [...activityTeachers].sort(
             (a, b) => (activityLoad[a.id] || 0) - (activityLoad[b.id] || 0)
           )[0];
-          forceFree(chosen.id, day, pA);
-          forceFree(chosen.id, day, pB);
+          slots.forEach(p => forceFree(chosen!.id, day, p));
         } else {
           chosen = sorted.find(t =>
-            !isBlocked(t, day, pA) && !isBlocked(t, day, pB) &&
-            !busy(t.name, t.id, day, pA) && !busy(t.name, t.id, day, pB)
+            slots.every(p => !isBlocked(t, day, p) && !busy(t.name, t.id, day, p))
           );
 
           if (!chosen) {
             for (const t of sorted) {
-              if (isBlocked(t, day, pA) || isBlocked(t, day, pB)) continue;
-              const nameClash = [pA, pB].some(p =>
+              if (slots.some(p => isBlocked(t, day, p))) continue;
+              const nameClash = slots.some(p =>
                 Object.values(tt).some(days => {
                   const c = days[day]?.[p];
                   return c && isActivityCell(c) && c.teacherName === t.name;
                 })
               );
               if (nameClash) continue;
-              if (relocateTeacherLesson(t.id, day, pA) && relocateTeacherLesson(t.id, day, pB)) {
+              if (slots.every(p => relocateTeacherLesson(t.id, day, p))) {
                 chosen = t;
                 break;
               }
@@ -1541,7 +1563,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
           }
 
           if (!chosen) {
-            chosen = sorted.find(t => ![pA, pB].some(p =>
+            chosen = sorted.find(t => !slots.some(p =>
               Object.values(tt).some(days => {
                 const c = days[day]?.[p];
                 return c && isActivityCell(c) && c.teacherName === t.name;
@@ -1553,8 +1575,10 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
 
         activityLoad[chosen.id] = (activityLoad[chosen.id] || 0) + 1;
-        tt[ck][day][pA] = { teacherId: ACTIVITY_TEACHER_ID, teacherName: chosen.name, subjectName: ACTIVITY_SUBJECT };
-        tt[ck][day][pB] = { teacherId: ACTIVITY_TEACHER_ID, teacherName: chosen.name, subjectName: ACTIVITY_SUBJECT };
+        slots.forEach(p => {
+          tt[ck][day][p] = { teacherId: ACTIVITY_TEACHER_ID, teacherName: chosen!.name, subjectName: ACTIVITY_SUBJECT };
+        });
+
       }
 
     };
@@ -2152,11 +2176,56 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     if (activityPeriods) assignActivityTeachers(newTT);
     // ضمان نهائي: لا تعارضات إطلاقاً، ثم رصّ الفراغات الناتجة
     resolveAllConflicts(newTT);
+
+    /**
+     * إعادة الحصص التي أُخرجت لحل التعارضات إلى قائمة الحصص المطلوبة، ثم محاولة
+     * رصّها من جديد حتى لا يبقى شيء في المنطقة الفارغة قدر الإمكان.
+     */
+    if (droppedCells.length) {
+      for (const d of droppedCells) {
+        const a = assignments.find(
+          x => x.teacherId === d.teacherId && x.classKey === d.classKey && x.subjectName === d.subjectName
+        );
+        if (a) a.remaining += 1;
+      }
+      droppedCells.length = 0;
+    }
+    forcePlaceRemaining(newTT);
+
+    /**
+     * محاولة أخيرة (تخفيف قيد تكرار المادة فقط): أي حصة ما زالت غير موزّعة تُوضع
+     * في أي خانة فارغة يكون فيها المعلم متفرغاً — دون أي تعارض.
+     */
+    const lastResortPlace = (tt: ClassTimetable) => {
+      for (const a of assignments) {
+        while (a.remaining > 0) {
+          let done = false;
+          const cap = classCap[a.classKey] ?? periodsPerDay;
+          for (let d = 0; d < daysCount && !done; d++) {
+            for (let p = 0; p < cap && !done; p++) {
+              if (tt[a.classKey][d][p] !== null || isLocked(a.classKey, d, p)) continue;
+              const teacher = teachers.find(t => t.id === a.teacherId);
+              if (teacher && isBlocked(teacher, d, p)) continue;
+              if (!teacherIsFree(tt, a.teacherId, d, p, a.classKey)) continue;
+              placeAssignment(a, d, p);
+              done = true;
+            }
+          }
+          if (!done) break;
+        }
+      }
+    };
+    lastResortPlace(newTT);
+
     // ثم رصّ نهائي للفراغات (لا يُنتج تعارضات لأنه يتحقق من تفرّغ المعلم)
     if (constraints.fillGaps) {
       for (let f = 0; f < 3; f++) applySafely(newTT, eliminateInteriorGaps);
+      compactTimetable(newTT);
+      applySafely(newTT, eliminateInteriorGaps);
     }
     if (constraints.oneSubjectPerDay) applySafely(newTT, enforceSubjectPerDay);
+    resolveAllConflicts(newTT);
+
 
 
 

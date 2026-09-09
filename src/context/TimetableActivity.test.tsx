@@ -4,6 +4,9 @@ import { TimetableProvider, useTimetable } from "./TimetableContext";
 import { ACTIVITY_TEACHER_ID, DAYS, ACTIVITY_PERIODS, DOUBLE_PERIOD_SUBJECTS, getActivityDay, getClassKey, parseClassKey, Teacher } from "@/types/timetable";
 
 const STORAGE_KEY = "school_timetable_data";
+/** الصفوف التي لها معلم نشاط فعلي */
+const ACTIVITY_CLASSES = ["الأول-أ", "الخامس-ب", "الثامن-أ"];
+
 
 function buildTeachers(): Teacher[] {
   const classes = ["الأول", "الثاني", "الخامس", "السادس", "الثامن", "التاسع"];
@@ -35,8 +38,18 @@ function buildTeachers(): Teacher[] {
       if (assigned.length) teachers.push({ id: `t${si}-${g}`, name: `معلم ${s.name} ${g + 1}`, subjects: assigned });
     }
   });
+  // معلم نشاط لبعض الصفوف فقط — الصفوف الأخرى يجب ألا تحصل على أي حصة نشاط
+  teachers.push({
+    id: "t-activity",
+    name: "معلم النشاط",
+    subjects: ACTIVITY_CLASSES.map(ck => {
+      const { className, section } = parseClassKey(ck);
+      return { subjectName: "نشاط", className, section, periodsPerWeek: 2 };
+    }),
+  });
   return teachers;
 }
+
 
 function Harness({ onReady }: { onReady: (api: ReturnType<typeof useTimetable>) => void }) {
   const api = useTimetable();
@@ -66,17 +79,26 @@ describe("توليد الجدول: حصص النشاط والحصص المزدو
     const tt = api.timetable;
     const [pA, pB] = ACTIVITY_PERIODS;
 
-    let activityOk = 0, activityTotal = 0;
+    let activityOk = 0, activityTotal = 0, extraActivity = 0;
     for (const ck of Object.keys(tt)) {
       const { className } = parseClassKey(ck);
       const day = getActivityDay(className);
       if (day === undefined) continue;
+      const hasActivityTeacher = ACTIVITY_CLASSES.includes(ck);
+      if (!hasActivityTeacher) {
+        for (let d = 0; d < DAYS.length; d++)
+          for (let p = 0; p < 7; p++)
+            if (tt[ck][d][p]?.teacherId === ACTIVITY_TEACHER_ID) extraActivity++;
+        continue;
+      }
       activityTotal++;
       const a = tt[ck][day][pA];
       const b = tt[ck][day][pB];
       if (a && b && a.teacherId === b.teacherId && a.subjectName === b.subjectName) activityOk++;
       else console.log("فشل النشاط:", ck, DAYS[day], a?.subjectName, b?.subjectName);
     }
+    expect(extraActivity).toBe(0);
+
     console.log(`النشاط: ${activityOk}/${activityTotal}`);
 
     // فحص التعارضات: معلم في صفّين بنفس الوقت

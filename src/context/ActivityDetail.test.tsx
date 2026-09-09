@@ -24,8 +24,18 @@ function buildTeachers(): Teacher[] {
       if (assigned.length) teachers.push({ id: `t${si}-${g}`, name: `معلم ${s.name} ${g+1}`, subjects: assigned });
     }
   });
+  // معلم نشاط مستقل لكل صف (حتى لا يكون نفس المعلم في صفّين بنفس التوقيت)
+  classes.forEach((cn, ci) => sections.forEach((sec, sei) => {
+    teachers.push({
+      id: `act-${ci}-${sei}`,
+      name: `معلم نشاط ${cn} ${sec}`,
+      subjects: [{ subjectName: "نشاط", className: cn, section: sec, periodsPerWeek: 2 }],
+    });
+  }));
+
   return teachers;
 }
+
 function Harness({ onReady }: any) { const api = useTimetable(); onReady(api); return null; }
 
 describe("تفصيل النشاط", () => {

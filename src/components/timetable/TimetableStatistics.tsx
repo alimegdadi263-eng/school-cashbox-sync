@@ -35,8 +35,19 @@ export default function TimetableStatistics() {
 
   if (Object.keys(timetable).length === 0) return null;
 
+  // --- النصاب المطلوب (المُدخَل في بيانات المعلمين) لكل صف ولكل معلم ---
+  const requiredByClass: Record<string, number> = {};
+  const requiredByTeacher: Record<string, number> = {};
+  teachers.forEach(t => {
+    t.subjects.forEach(s => {
+      const ck = `${s.className}-${s.section}`;
+      requiredByClass[ck] = (requiredByClass[ck] || 0) + s.periodsPerWeek;
+      requiredByTeacher[t.id] = (requiredByTeacher[t.id] || 0) + s.periodsPerWeek;
+    });
+  });
+
   // --- إحصائيات الصفوف ---
-  const classStats: { classKey: string; className: string; section: string; subjects: Record<string, number>; total: number }[] = [];
+  const classStats: { classKey: string; className: string; section: string; subjects: Record<string, number>; total: number; required: number }[] = [];
 
   for (const [classKey, days] of Object.entries(timetable)) {
     const { className, section } = parseClassKey(classKey);
@@ -50,16 +61,31 @@ export default function TimetableStatistics() {
         }
       });
     });
-    classStats.push({ classKey, className, section, subjects, total });
+    classStats.push({ classKey, className, section, subjects, total, required: requiredByClass[classKey] || 0 });
   }
+
 
   // --- كشف أنصبة المعلمين ---
   const teacherStats = teachers.map(t => {
     const schedule = getTeacherSchedule(t.id);
-    const totalPeriods = schedule.length;
+    // حصص النشاط تُسجَّل باسم المعلم لا برقمه، فنضمّها للنصاب حتى تتطابق الأرقام
+    const activityDays = DAYS.map(() => 0);
+    let activityTotal = 0;
+    Object.values(timetable).forEach(days => {
+      days.forEach((periods, di) => {
+        periods.forEach(cell => {
+          if (cell && cell.teacherId !== t.id && cell.teacherName === t.name && cell.subjectName === "نشاط") {
+            activityTotal++;
+            activityDays[di] = (activityDays[di] || 0) + 1;
+          }
+        });
+      });
+    });
+    const totalPeriods = schedule.length + activityTotal;
     const sixthCount = schedule.filter(s => s.period === periodsPerDay - 2).length;
     const seventhCount = schedule.filter(s => s.period === periodsPerDay - 1).length;
-    const dailyCounts = DAYS.map((_, di) => schedule.filter(s => s.day === di).length);
+    const dailyCounts = DAYS.map((_, di) => schedule.filter(s => s.day === di).length + (activityDays[di] || 0));
+
     const subjectCounts: Record<string, number> = {};
     schedule.forEach(s => {
       subjectCounts[s.subjectName] = (subjectCounts[s.subjectName] || 0) + 1;
@@ -69,6 +95,8 @@ export default function TimetableStatistics() {
       id: t.id,
       name: t.name,
       totalPeriods,
+      required: requiredByTeacher[t.id] || 0,
+      diff: totalPeriods - (requiredByTeacher[t.id] || 0),
       sixthCount,
       seventhCount,
       dailyCounts,
@@ -76,6 +104,7 @@ export default function TimetableStatistics() {
       leastDay: dailyCounts.indexOf(Math.min(...dailyCounts)),
       leastDayCount: Math.min(...dailyCounts),
     };
+
   });
 
   // --- جدول أشغال يومي ---
@@ -162,7 +191,9 @@ export default function TimetableStatistics() {
                     {allSubjects.map(s => (
                       <TableHead key={s} className="text-center text-xs">{s}</TableHead>
                     ))}
-                    <TableHead className="text-center font-bold">المجموع</TableHead>
+                    <TableHead className="text-center font-bold">الموضوع بالجدول</TableHead>
+                    <TableHead className="text-center font-bold">النصاب المطلوب</TableHead>
+                    <TableHead className="text-center font-bold">الفارق</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -175,6 +206,12 @@ export default function TimetableStatistics() {
                         </TableCell>
                       ))}
                       <TableCell className="text-center font-bold bg-muted">{cs.total}</TableCell>
+                      <TableCell className="text-center">{cs.required}</TableCell>
+                      <TableCell
+                        className={`text-center font-bold ${cs.total === cs.required ? "text-success" : "text-destructive"}`}
+                      >
+                        {cs.total - cs.required}
+                      </TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="bg-muted/60 font-bold">
@@ -185,7 +222,14 @@ export default function TimetableStatistics() {
                       </TableCell>
                     ))}
                     <TableCell className="text-center bg-secondary text-secondary-foreground">{grandTotal}</TableCell>
+                    <TableCell className="text-center">
+                      {classStats.reduce((s, c) => s + c.required, 0)}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {grandTotal - classStats.reduce((s, c) => s + c.required, 0)}
+                    </TableCell>
                   </TableRow>
+
                 </TableBody>
               </Table>
             </div>
@@ -208,6 +252,8 @@ export default function TimetableStatistics() {
                   <TableRow>
                     <TableHead className="text-right">المعلم</TableHead>
                     <TableHead className="text-center">إجمالي الحصص</TableHead>
+                    <TableHead className="text-center">النصاب المطلوب</TableHead>
+                    <TableHead className="text-center">الفارق</TableHead>
                     <TableHead className="text-center">السادسات</TableHead>
                     <TableHead className="text-center">السابعات</TableHead>
                     {DAYS.map(d => (
@@ -220,8 +266,13 @@ export default function TimetableStatistics() {
                     <TableRow key={ts.id}>
                       <TableCell className="font-medium">{ts.name}</TableCell>
                       <TableCell className="text-center font-bold">{ts.totalPeriods}</TableCell>
+                      <TableCell className="text-center">{ts.required}</TableCell>
+                      <TableCell className={`text-center font-bold ${ts.diff === 0 ? "text-success" : "text-destructive"}`}>
+                        {ts.diff}
+                      </TableCell>
                       <TableCell className="text-center">{ts.sixthCount}</TableCell>
                       <TableCell className="text-center">{ts.seventhCount}</TableCell>
+
                       {ts.dailyCounts.map((c, i) => (
                         <TableCell
                           key={i}
