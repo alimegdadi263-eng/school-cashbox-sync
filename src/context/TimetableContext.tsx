@@ -1589,44 +1589,58 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
         let chosen: Teacher | undefined;
 
+        /** هل اسم المعلم مأخوذ في خانة نشاط أخرى بنفس التوقيت؟ (تعارض النشاط) */
+        const activityNameClash = (t: Teacher) =>
+          slots.some(p =>
+            Object.values(tt).some(days => {
+              const c = days[day]?.[p];
+              return !!c && isActivityCell(c) && !!c.teacherName && c.teacherName === t.name;
+            })
+          );
+
         if (activityTeachers.length) {
-          // المعلم الأصلي للنشاط — نتمسّك به مهما كان
-          chosen = [...activityTeachers].sort(
-            (a, b) => (activityLoad[a.id] || 0) - (activityLoad[b.id] || 0)
-          )[0];
-          slots.forEach(p => forceFree(chosen!.id, day, p));
-        } else {
+          /**
+           * النشاط للمعلم المُسنَد له مادة "نشاط" لهذا الصف، بشرط ألا يكون
+           * مُسنَداً لنشاط صف آخر في نفس اليوم ونفس الحصتين (منع التعارض).
+           */
+          const candidates = [...activityTeachers]
+            .sort((a, b) => (activityLoad[a.id] || 0) - (activityLoad[b.id] || 0))
+            .filter(t => !activityNameClash(t) && !slots.some(p => isBlocked(t, day, p)));
+          chosen = candidates[0];
+          if (chosen) slots.forEach(p => forceFree(chosen!.id, day, p));
+        }
+
+        if (!chosen) {
           chosen = sorted.find(t =>
+            !activityNameClash(t) &&
             slots.every(p => !isBlocked(t, day, p) && !busy(t.name, t.id, day, p))
           );
 
           if (!chosen) {
             for (const t of sorted) {
               if (slots.some(p => isBlocked(t, day, p))) continue;
-              const nameClash = slots.some(p =>
-                Object.values(tt).some(days => {
-                  const c = days[day]?.[p];
-                  return c && isActivityCell(c) && c.teacherName === t.name;
-                })
-              );
-              if (nameClash) continue;
+              if (activityNameClash(t)) continue;
               if (slots.every(p => relocateTeacherLesson(t.id, day, p))) {
                 chosen = t;
                 break;
               }
             }
           }
-
-          if (!chosen) {
-            chosen = sorted.find(t => !slots.some(p =>
-              Object.values(tt).some(days => {
-                const c = days[day]?.[p];
-                return c && isActivityCell(c) && c.teacherName === t.name;
-              })
-            )) || sorted[0];
-          }
         }
-        if (!chosen) continue;
+
+        // لا يوجد معلم متاح دون تعارض → نُفرغ خانات النشاط بدل إنشاء تعارض
+        if (!chosen) {
+          slots.forEach(p => {
+            if (isActivityCell(tt[ck][day][p]) && !tt[ck][day][p]?.teacherName) {
+              tt[ck][day][p] = null;
+              activityLocked.delete(lockKey(ck, day, p));
+            }
+          });
+          continue;
+        }
+
+
+
 
 
         activityLoad[chosen.id] = (activityLoad[chosen.id] || 0) + 1;
@@ -2279,6 +2293,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       applySafely(newTT, eliminateInteriorGaps);
     }
     if (constraints.oneSubjectPerDay) applySafely(newTT, enforceSubjectPerDay);
+    // إعادة تثبيت الحصص المزدوجة بعد كل عمليات الرصّ حتى تبقى متتالية فعلاً
+    if (pairDoubleSubjects) applyStrictSafely(newTT);
     resolveAllConflicts(newTT);
 
 
