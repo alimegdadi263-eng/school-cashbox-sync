@@ -1639,7 +1639,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
           continue;
         }
 
-        if (!chosen) continue;
+
+
 
 
         activityLoad[chosen.id] = (activityLoad[chosen.id] || 0) + 1;
