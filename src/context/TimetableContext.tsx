@@ -2293,6 +2293,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       applySafely(newTT, eliminateInteriorGaps);
     }
     if (constraints.oneSubjectPerDay) applySafely(newTT, enforceSubjectPerDay);
+    // إعادة تثبيت الحصص المزدوجة بعد كل عمليات الرصّ حتى تبقى متتالية فعلاً
+    if (pairDoubleSubjects) applyStrictSafely(newTT);
     resolveAllConflicts(newTT);
 
 
