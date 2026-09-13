@@ -87,6 +87,9 @@ export function buildSubjectsTemplateWorkbook(
     return c;
   };
 
+  // شعار الوزارة أعلى يمين النموذج (الاتجاه RTL يضعه على اليمين بصرياً).
+  addEmblem(wb, ws, dayCol - 1, 0, 90);
+
   // عنوان النموذج في أعلى مساحة الصفوف، بنفس الفراغ الجانبي للنموذج الأصلي.
   ws.mergeCells(1, firstClassCol, 1, totalCols);
   const title = set(1, firstClassCol, "جدول ترتيب الدروس");
