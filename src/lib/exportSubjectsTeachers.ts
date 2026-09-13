@@ -184,15 +184,11 @@ export async function exportSubjectsTeachersExcel(
 
   if (classKeys.length === 0) throw new Error("لا توجد مباحث مسندة للمعلمين");
 
-  const chunks = Array.from(
-    { length: Math.max(1, Math.ceil(classKeys.length / CLASSES_PER_SHEET)) },
-    (_, index) => classKeys.slice(index * CLASSES_PER_SHEET, (index + 1) * CLASSES_PER_SHEET),
-  );
-
+  // كل الشعب في ورقة واحدة ليطبع الجدول على صفحة واحدة
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "الإدارة المدرسية";
   workbook.created = new Date();
-  chunks.forEach((chunk, index) => buildSheet(workbook, index, teachers, chunk, info));
+  buildSheet(workbook, teachers, classKeys, info);
 
   const buffer = await workbook.xlsx.writeBuffer();
   saveAs(new Blob([buffer]), `جدول_مباحث_مع_معلمين_${safeName(info.schoolName)}.xlsx`);
