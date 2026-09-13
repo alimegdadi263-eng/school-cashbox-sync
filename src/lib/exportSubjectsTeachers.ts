@@ -59,6 +59,9 @@ function buildSheet(
     return c;
   };
 
+  // شعار الوزارة أعلى الجدول
+  addEmblem(wb, ws, NO_COL - 1, 0, 80);
+
   // العنوان
   ws.mergeCells(1, NO_COL, 1, totalCols);
   const title = set(1, NO_COL, `جدول توزيع المباحث بين المعلمين${info.academicYear ? ` اعتباراً من ${info.academicYear}` : ""}`);
