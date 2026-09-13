@@ -10,7 +10,6 @@ import { addEmblem, type OfficialTimetableInfo } from "@/lib/exportOfficialTimet
  * الويب، والمعاينة، وبرنامج سطح المكتب.
  */
 
-const CLASSES_PER_SHEET = 19;
 
 const thin: Partial<ExcelJS.Borders> = {
   top: { style: "thin" }, bottom: { style: "thin" },
@@ -33,13 +32,11 @@ function classLabel(key: string) {
 
 function buildSheet(
   wb: ExcelJS.Workbook,
-  sheetIndex: number,
   teachers: Teacher[],
   classKeys: string[],
   info: OfficialTimetableInfo,
 ) {
-  const name = sheetIndex === 0 ? "جدول المباحث" : `جدول المباحث ${sheetIndex + 1}`;
-  const ws = wb.addWorksheet(name, { views: [{ rightToLeft: true, showGridLines: false }] });
+  const ws = wb.addWorksheet("جدول المباحث", { views: [{ rightToLeft: true, showGridLines: false }] });
 
   const NO_COL = 1;          // الرقم
   const NAME_COL = 2;        // اسم المعلم
