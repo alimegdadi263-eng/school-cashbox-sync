@@ -23,7 +23,7 @@ import { parseClassKey, DAYS } from "@/types/timetable";
 import { exportDailyScheduleMatrixExcel, exportDailyScheduleMatrixDocx } from "@/lib/exportDailySchedule";
 import { exportFollowupRecordExcel, exportFollowupRecordDocx } from "@/lib/exportFollowupRecord";
 import { exportCurriculumRecordExcel, exportCurriculumRecordDocx } from "@/lib/exportCurriculumRecord";
-import { exportOfficialTimetableExcel } from "@/lib/exportOfficialTimetable";
+import { exportOfficialTimetableExcel, exportSubjectsTemplateExcel } from "@/lib/exportOfficialTimetable";
 import {
   exportClassTimetableExcel,
   exportTeacherTimetableExcel,
@@ -372,13 +372,17 @@ export default function TimetablePage() {
                     </div>
                   </div>
 
-                  {/* الجدول الرسمي المصدق */}
+                  {/* الجدول الرسمي ونموذج المباحث */}
                   <div className="space-y-2 border-b border-border pb-4">
-                    <Label className="text-xs">جدول ترتيب الدروس (النموذج الرسمي المصدق) — الصفوف أعمدة: الموضوع + الاسم الأول للمعلم، مع اسم المدرسة والمديرية من الإعدادات</Label>
+                    <Label className="text-xs">نموذج المباحث — يُعبّأ حسب الصفوف والشعب الموجودة في الجدول، مع المادة والاسم الأول للمعلم وبيانات المدرسة</Label>
                     <div className="flex flex-wrap gap-2">
                       <Button size="sm" className="bg-indigo-700 hover:bg-indigo-800 text-white" disabled={exporting || !hasTimetable}
                         onClick={() => safeExport("الجدول المصدق", () => exportOfficialTimetableExcel(timetable, periodsPerDay, officialInfo))}>
                         <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير جدول مصدق (Excel)
+                      </Button>
+                      <Button size="sm" className="bg-indigo-700 hover:bg-indigo-800 text-white" disabled={exporting || !hasTimetable}
+                        onClick={() => safeExport("نموذج المباحث", () => exportSubjectsTemplateExcel(timetable, officialInfo))}>
+                        <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير نموذج المباحث (Excel)
                       </Button>
                     </div>
                   </div>
