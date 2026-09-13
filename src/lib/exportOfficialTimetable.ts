@@ -208,5 +208,7 @@ export async function exportOfficialTimetableExcel(
   _periodsPerDay: number,
   info: OfficialTimetableInfo
 ) {
-  return exportSubjectsTemplateExcel(timetable, info);
+  const wb = buildSubjectsTemplateWorkbook(timetable, info);
+  const buffer = await wb.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), `جدول_مصدق_${info.schoolName || "المدرسة"}.xlsx`);
 }
