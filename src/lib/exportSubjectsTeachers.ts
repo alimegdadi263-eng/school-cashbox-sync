@@ -157,14 +157,17 @@ function buildSheet(
   });
   ws.getRow(footerRow).height = 24;
 
-  // عروض الأعمدة
-  ws.getColumn(NO_COL).width = 5;
-  ws.getColumn(NAME_COL).width = 24;
+  // عروض الأعمدة: تضيق تلقائياً كلما زاد عدد الشعب ليبقى الجدول في ورقة واحدة
+  const many = classKeys.length;
+  const subjW = many > 30 ? 8 : many > 22 ? 10 : many > 16 ? 12 : 14;
+  const countW = many > 22 ? 5 : 7;
+  ws.getColumn(NO_COL).width = 4;
+  ws.getColumn(NAME_COL).width = many > 22 ? 18 : 24;
   for (let i = 0; i < classKeys.length; i++) {
-    ws.getColumn(FIRST_CLASS_COL + i * 2).width = 14;
-    ws.getColumn(FIRST_CLASS_COL + i * 2 + 1).width = 7;
+    ws.getColumn(FIRST_CLASS_COL + i * 2).width = subjW;
+    ws.getColumn(FIRST_CLASS_COL + i * 2 + 1).width = countW;
   }
-  ws.getColumn(TOTAL_COL).width = 10;
+  ws.getColumn(TOTAL_COL).width = 9;
 }
 
 export async function exportSubjectsTeachersExcel(
