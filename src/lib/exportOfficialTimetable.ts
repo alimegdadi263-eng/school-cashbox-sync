@@ -76,7 +76,9 @@ export function buildSubjectsTemplateWorkbook(
   ws.pageSetup = {
     paperSize: 9 as any, // A4 كما في الملف المرفق
     orientation: "landscape" as any,
-    scale: 43,
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 1,
     margins: { left: 0.7, right: 0.7, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 },
     printArea: `C1:${ws.getColumn(totalCols).letter}55`,
   };
