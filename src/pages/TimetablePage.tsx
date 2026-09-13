@@ -24,6 +24,7 @@ import { exportDailyScheduleMatrixExcel, exportDailyScheduleMatrixDocx } from "@
 import { exportFollowupRecordExcel, exportFollowupRecordDocx } from "@/lib/exportFollowupRecord";
 import { exportCurriculumRecordExcel, exportCurriculumRecordDocx } from "@/lib/exportCurriculumRecord";
 import { exportOfficialTimetableExcel, exportSubjectsTemplateExcel } from "@/lib/exportOfficialTimetable";
+import { exportSubjectsTeachersExcel } from "@/lib/exportSubjectsTeachers";
 import {
   exportClassTimetableExcel,
   exportTeacherTimetableExcel,
@@ -372,9 +373,9 @@ export default function TimetablePage() {
                     </div>
                   </div>
 
-                  {/* الجدول الرسمي ونموذج المباحث */}
+                  {/* الجداول الرسمية ونماذج المباحث */}
                   <div className="space-y-2 border-b border-border pb-4">
-                    <Label className="text-xs">نموذج المباحث — يُعبّأ حسب الصفوف والشعب الموجودة في الجدول، مع المادة والاسم الأول للمعلم وبيانات المدرسة</Label>
+                    <Label className="text-xs">نماذج المباحث الرسمية — تُعبّأ تلقائياً من بيانات الجدول والمعلمين والأنصبة</Label>
                     <div className="flex flex-wrap gap-2">
                       <Button size="sm" className="bg-indigo-700 hover:bg-indigo-800 text-white" disabled={exporting || !hasTimetable}
                         onClick={() => safeExport("الجدول المصدق", () => exportOfficialTimetableExcel(timetable, periodsPerDay, officialInfo))}>
@@ -383,6 +384,10 @@ export default function TimetablePage() {
                       <Button size="sm" className="bg-indigo-700 hover:bg-indigo-800 text-white" disabled={exporting || !hasTimetable}
                         onClick={() => safeExport("نموذج المباحث", () => exportSubjectsTemplateExcel(timetable, officialInfo))}>
                         <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير نموذج المباحث (Excel)
+                      </Button>
+                      <Button size="sm" className="bg-indigo-700 hover:bg-indigo-800 text-white" disabled={exporting || teachers.length === 0}
+                        onClick={() => safeExport("جدول مباحث مع معلمين", () => exportSubjectsTeachersExcel(teachers, officialInfo))}>
+                        <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير جدول مباحث مع معلمين (Excel)
                       </Button>
                     </div>
                   </div>
