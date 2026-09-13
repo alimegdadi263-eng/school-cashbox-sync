@@ -65,7 +65,7 @@ export default function AppSidebar() {
   const [updateStatus, setUpdateStatus] = useState<string>("idle");
   const [updateVersion, setUpdateVersion] = useState("");
   const [updateProgress, setUpdateProgress] = useState(0);
-  const [currentVersion, setCurrentVersion] = useState<string>((window as any).electronAPI?.appVersion || "2.0.1");
+  const [currentVersion, setCurrentVersion] = useState<string>((window as any).electronAPI?.appVersion || import.meta.env.VITE_APP_VERSION || "3.0.49");
 
   useEffect(() => {
     if (!isElectron) return;
