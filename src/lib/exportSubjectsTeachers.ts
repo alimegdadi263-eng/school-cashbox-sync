@@ -23,7 +23,6 @@ function classLabel(key: string) {
 function copyWorksheet(source: ExcelJS.Worksheet, target: ExcelJS.Worksheet) {
   target.properties = { ...source.properties };
   target.pageSetup = { ...source.pageSetup };
-  target.pageMargins = source.pageMargins ? { ...source.pageMargins } : undefined;
   target.views = source.views.map(view => ({ ...view }));
   target.autoFilter = source.autoFilter;
   for (let col = 1; col <= source.columnCount; col++) {
