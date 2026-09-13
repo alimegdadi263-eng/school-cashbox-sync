@@ -50,9 +50,8 @@ export function buildSubjectsTemplateWorkbook(
   const wb = new ExcelJS.Workbook();
   wb.creator = "الإدارة المدرسية";
   wb.created = new Date();
-  const ws = wb.addWorksheet("نموذج المباحث", { views: [{ rightToLeft: true }] });
+  const ws = wb.addWorksheet("نموذج المباحث", { views: [{ rightToLeft: true, showGridLines: false }] });
   ws.properties.defaultRowHeight = 18;
-  ws.showGridLines = false;
   ws.pageSetup = {
     paperSize: 9 as any, // A4 كما في الملف المرفق
     orientation: "landscape" as any,
