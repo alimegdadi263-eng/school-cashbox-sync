@@ -2,6 +2,27 @@ import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import type { ClassTimetable } from "@/types/timetable";
 import { DAYS, parseClassKey, compareClassKeys } from "@/types/timetable";
+import { MINISTRY_EMBLEM_BASE64 } from "@/lib/ministryEmblem";
+
+/** إدراج شعار الوزارة أعلى النموذج (مضمّن داخل الكود، لا يحتاج إنترنت). */
+export function addEmblem(
+  wb: ExcelJS.Workbook,
+  ws: ExcelJS.Worksheet,
+  col: number,
+  row: number,
+  size = 85,
+) {
+  try {
+    const imageId = wb.addImage({ base64: MINISTRY_EMBLEM_BASE64, extension: "png" });
+    ws.addImage(imageId, {
+      tl: { col, row } as never,
+      ext: { width: size, height: size },
+      editAs: "oneCell",
+    });
+  } catch {
+    /* تجاهل أي خطأ في الصورة حتى لا يتوقف التصدير */
+  }
+}
 
 /** نموذج المباحث الرسمي المطابق لملف المديرية المرفق. */
 
