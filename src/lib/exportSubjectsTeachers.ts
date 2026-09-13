@@ -2,7 +2,7 @@ import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import type { Teacher } from "@/types/timetable";
 import { compareClassKeys, getClassKey, parseClassKey } from "@/types/timetable";
-import type { OfficialTimetableInfo } from "@/lib/exportOfficialTimetable";
+import { addEmblem, type OfficialTimetableInfo } from "@/lib/exportOfficialTimetable";
 
 /**
  * جدول توزيع المباحث بين المعلمين.
