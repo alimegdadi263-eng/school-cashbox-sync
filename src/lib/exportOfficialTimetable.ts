@@ -2,6 +2,27 @@ import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import type { ClassTimetable } from "@/types/timetable";
 import { DAYS, parseClassKey, compareClassKeys } from "@/types/timetable";
+import { MINISTRY_EMBLEM_BASE64 } from "@/lib/ministryEmblem";
+
+/** إدراج شعار الوزارة أعلى النموذج (مضمّن داخل الكود، لا يحتاج إنترنت). */
+export function addEmblem(
+  wb: ExcelJS.Workbook,
+  ws: ExcelJS.Worksheet,
+  col: number,
+  row: number,
+  size = 85,
+) {
+  try {
+    const imageId = wb.addImage({ base64: MINISTRY_EMBLEM_BASE64, extension: "png" });
+    ws.addImage(imageId, {
+      tl: { col, row } as never,
+      ext: { width: size, height: size },
+      editAs: "oneCell",
+    });
+  } catch {
+    /* تجاهل أي خطأ في الصورة حتى لا يتوقف التصدير */
+  }
+}
 
 /** نموذج المباحث الرسمي المطابق لملف المديرية المرفق. */
 
@@ -55,7 +76,9 @@ export function buildSubjectsTemplateWorkbook(
   ws.pageSetup = {
     paperSize: 9 as any, // A4 كما في الملف المرفق
     orientation: "landscape" as any,
-    scale: 43,
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 1,
     margins: { left: 0.7, right: 0.7, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 },
     printArea: `C1:${ws.getColumn(totalCols).letter}55`,
   };
@@ -65,6 +88,9 @@ export function buildSubjectsTemplateWorkbook(
     c.value = value;
     return c;
   };
+
+  // شعار الوزارة أعلى يمين النموذج (الاتجاه RTL يضعه على اليمين بصرياً).
+  addEmblem(wb, ws, dayCol - 1, 0, 90);
 
   // عنوان النموذج في أعلى مساحة الصفوف، بنفس الفراغ الجانبي للنموذج الأصلي.
   ws.mergeCells(1, firstClassCol, 1, totalCols);

@@ -2,7 +2,7 @@ import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import type { Teacher } from "@/types/timetable";
 import { compareClassKeys, getClassKey, parseClassKey } from "@/types/timetable";
-import type { OfficialTimetableInfo } from "@/lib/exportOfficialTimetable";
+import { addEmblem, type OfficialTimetableInfo } from "@/lib/exportOfficialTimetable";
 
 /**
  * جدول توزيع المباحث بين المعلمين.
@@ -10,7 +10,6 @@ import type { OfficialTimetableInfo } from "@/lib/exportOfficialTimetable";
  * الويب، والمعاينة، وبرنامج سطح المكتب.
  */
 
-const CLASSES_PER_SHEET = 19;
 
 const thin: Partial<ExcelJS.Borders> = {
   top: { style: "thin" }, bottom: { style: "thin" },
@@ -33,13 +32,11 @@ function classLabel(key: string) {
 
 function buildSheet(
   wb: ExcelJS.Workbook,
-  sheetIndex: number,
   teachers: Teacher[],
   classKeys: string[],
   info: OfficialTimetableInfo,
 ) {
-  const name = sheetIndex === 0 ? "جدول المباحث" : `جدول المباحث ${sheetIndex + 1}`;
-  const ws = wb.addWorksheet(name, { views: [{ rightToLeft: true, showGridLines: false }] });
+  const ws = wb.addWorksheet("جدول المباحث", { views: [{ rightToLeft: true, showGridLines: false }] });
 
   const NO_COL = 1;          // الرقم
   const NAME_COL = 2;        // اسم المعلم
@@ -61,6 +58,9 @@ function buildSheet(
     c.value = value;
     return c;
   };
+
+  // شعار الوزارة أعلى الجدول
+  addEmblem(wb, ws, NO_COL - 1, 0, 80);
 
   // العنوان
   ws.mergeCells(1, NO_COL, 1, totalCols);
@@ -160,14 +160,17 @@ function buildSheet(
   });
   ws.getRow(footerRow).height = 24;
 
-  // عروض الأعمدة
-  ws.getColumn(NO_COL).width = 5;
-  ws.getColumn(NAME_COL).width = 24;
+  // عروض الأعمدة: تضيق تلقائياً كلما زاد عدد الشعب ليبقى الجدول في ورقة واحدة
+  const many = classKeys.length;
+  const subjW = many > 30 ? 8 : many > 22 ? 10 : many > 16 ? 12 : 14;
+  const countW = many > 22 ? 5 : 7;
+  ws.getColumn(NO_COL).width = 4;
+  ws.getColumn(NAME_COL).width = many > 22 ? 18 : 24;
   for (let i = 0; i < classKeys.length; i++) {
-    ws.getColumn(FIRST_CLASS_COL + i * 2).width = 14;
-    ws.getColumn(FIRST_CLASS_COL + i * 2 + 1).width = 7;
+    ws.getColumn(FIRST_CLASS_COL + i * 2).width = subjW;
+    ws.getColumn(FIRST_CLASS_COL + i * 2 + 1).width = countW;
   }
-  ws.getColumn(TOTAL_COL).width = 10;
+  ws.getColumn(TOTAL_COL).width = 9;
 }
 
 export async function exportSubjectsTeachersExcel(
@@ -184,15 +187,11 @@ export async function exportSubjectsTeachersExcel(
 
   if (classKeys.length === 0) throw new Error("لا توجد مباحث مسندة للمعلمين");
 
-  const chunks = Array.from(
-    { length: Math.max(1, Math.ceil(classKeys.length / CLASSES_PER_SHEET)) },
-    (_, index) => classKeys.slice(index * CLASSES_PER_SHEET, (index + 1) * CLASSES_PER_SHEET),
-  );
-
+  // كل الشعب في ورقة واحدة ليطبع الجدول على صفحة واحدة
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "الإدارة المدرسية";
   workbook.created = new Date();
-  chunks.forEach((chunk, index) => buildSheet(workbook, index, teachers, chunk, info));
+  buildSheet(workbook, teachers, classKeys, info);
 
   const buffer = await workbook.xlsx.writeBuffer();
   saveAs(new Blob([buffer]), `جدول_مباحث_مع_معلمين_${safeName(info.schoolName)}.xlsx`);
