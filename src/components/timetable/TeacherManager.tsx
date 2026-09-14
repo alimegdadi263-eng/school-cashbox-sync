@@ -13,11 +13,12 @@ import { Plus, Trash2, Edit, UserPlus, X, Upload, FileSpreadsheet, FileText, Dow
 import { toast } from "@/hooks/use-toast";
 import BlockedPeriodsEditor from "./BlockedPeriodsEditor";
 import * as ExcelJS from "exceljs";
+import { parseFullTimetableGrid } from "@/lib/importTimetableGrid";
 
 const CUSTOM_SUBJECTS_KEY = "school_custom_subjects";
 
 export default function TeacherManager() {
-  const { teachers, addTeacher, addTeachers, importTeachersAndGenerate, updateTeacher, removeTeacher, periodsPerDay } = useTimetable();
+  const { teachers, addTeacher, addTeachers, importTeachersAndGenerate, importFullTimetable, updateTeacher, removeTeacher, periodsPerDay } = useTimetable();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [name, setName] = useState("");
@@ -291,6 +292,27 @@ export default function TeacherManager() {
       }
       if (grid.length === 0) {
         throw new Error("تعذر قراءة الملف. احفظه بصيغة Excel (.xlsx) وأعد المحاولة.");
+      }
+
+      // 0) ملحفة جاهزة (جدول ترتيب الدروس): تُستورد كما هي بدون توليد
+      const full = parseFullTimetableGrid(grid);
+      if (full) {
+        const newSubjects = new Set<string>();
+        full.teachers.forEach(t => t.subjects.forEach(s => {
+          if (!allSubjects.includes(s.subjectName)) newSubjects.add(s.subjectName);
+        }));
+        if (newSubjects.size > 0) {
+          const updatedCustom = [...customSubjects, ...Array.from(newSubjects)];
+          setCustomSubjects(updatedCustom);
+          localStorage.setItem(CUSTOM_SUBJECTS_KEY, JSON.stringify(updatedCustom));
+        }
+        importFullTimetable(full.teachers, full.timetable, full.periodsPerDay);
+        toast({
+          title: "تم استيراد الجدول وبناء الملحفة ✅",
+          description: `${full.teachers.length} معلم/ة — ${full.cellsCount} حصة — ${full.periodsPerDay} حصص يومياً`,
+        });
+        e.target.value = "";
+        return;
       }
 
       const importedMap = new Map<string, Teacher>();
