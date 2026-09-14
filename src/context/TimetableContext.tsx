@@ -921,8 +921,14 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     return (teacher.blockedPeriods || []).some(bp => bp.day === day && bp.period === period);
   };
 
-  const generateTimetable = () => {
-    const classKeys = getAllClassKeys();
+  const generateTimetable = (overrideTeachers?: Teacher[]) => {
+    // قائمة المعلمين المعتمدة في هذا التوليد (تسمح بالتوليد فور الاستيراد)
+    const teachers = overrideTeachers ?? teachersRef.current;
+    const classKeys = overrideTeachers
+      ? Array.from(
+          new Set(overrideTeachers.flatMap(t => t.subjects.map(s => getClassKey(s.className, s.section))))
+        ).sort(compareClassKeys)
+      : getAllClassKeys();
     const newTT: ClassTimetable = {};
     const daysCount = DAYS.length;
 
