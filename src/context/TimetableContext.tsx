@@ -686,6 +686,19 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     save(teachers, tt, periodsPerDay);
   };
 
+  /**
+   * استيراد ملحفة جاهزة من ملف: استبدال المعلمين والملحفة وعدد الحصص دفعة واحدة
+   * بدون أي إعادة توليد (الجدول يبقى مطابقاً تماماً للملف المستورد).
+   */
+  const importFullTimetable = (list: Teacher[], tt: ClassTimetable, ppd: number) => {
+    teachersRef.current = list;
+    setTeachers(list);
+    timetableRef.current = tt;
+    setTimetableState(tt);
+    setPeriodsPerDayState(ppd);
+    save(list, tt, ppd);
+  };
+
   const setPeriodsPerDay = (n: number) => {
     setPeriodsPerDayState(n);
     save(teachers, timetable, n);
