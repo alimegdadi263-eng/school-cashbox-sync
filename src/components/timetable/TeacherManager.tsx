@@ -17,7 +17,7 @@ import * as ExcelJS from "exceljs";
 const CUSTOM_SUBJECTS_KEY = "school_custom_subjects";
 
 export default function TeacherManager() {
-  const { teachers, addTeacher, updateTeacher, removeTeacher, periodsPerDay } = useTimetable();
+  const { teachers, addTeacher, addTeachers, importTeachersAndGenerate, updateTeacher, removeTeacher, periodsPerDay } = useTimetable();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [name, setName] = useState("");
@@ -181,7 +181,7 @@ export default function TeacherManager() {
   };
 
   // Import teachers from Excel - supports exported format exactly and merged variants
-  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>, mode: "append" | "replace" = "append") => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
@@ -315,6 +315,27 @@ export default function TeacherManager() {
         localStorage.setItem(CUSTOM_SUBJECTS_KEY, JSON.stringify(updatedCustom));
       }
 
+      if (imported.length === 0) {
+        toast({ title: "لم يتم العثور على بيانات معلمين في الملف", variant: "destructive" });
+        e.target.value = "";
+        return;
+      }
+
+      const countPeriods = (list: Teacher[]) =>
+        list.reduce((sum, t) => sum + t.subjects.reduce((s, sub) => s + sub.periodsPerWeek, 0), 0);
+      const countSubjects = (list: Teacher[]) => list.reduce((sum, t) => sum + t.subjects.length, 0);
+
+      if (mode === "replace") {
+        // استيراد جدول المباحث: استبدال كل المعلمين وتوليد الملحفة مباشرة
+        importTeachersAndGenerate(imported);
+        toast({
+          title: `تم استيراد جدول المباحث وتوليد الملحفة ✅`,
+          description: `${imported.length} معلم — ${countSubjects(imported)} مادة — ${countPeriods(imported)} حصة`,
+        });
+        e.target.value = "";
+        return;
+      }
+
       let skipped = 0;
       const toAdd = imported.filter(t => {
         if (teachers.some(existing => existing.name === t.name)) {
@@ -324,14 +345,12 @@ export default function TeacherManager() {
         return true;
       });
 
-      toAdd.forEach(t => addTeacher(t));
-      
-      const totalSubjects = toAdd.reduce((sum, t) => sum + t.subjects.length, 0);
-      const totalPeriods = toAdd.reduce((sum, t) => sum + t.subjects.reduce((s, sub) => s + sub.periodsPerWeek, 0), 0);
-      
-      let msg = `تم استيراد ${toAdd.length} معلم (${totalSubjects} مادة، ${totalPeriods} حصة)`;
+      // إضافة دفعة واحدة: مزامنة الجدول مرة واحدة فقط (بدون أخطاء تراكمية)
+      addTeachers(toAdd);
+
+      let msg = `تم استيراد ${toAdd.length} معلم (${countSubjects(toAdd)} مادة، ${countPeriods(toAdd)} حصة)`;
       if (skipped > 0) msg += ` - تم تخطي ${skipped} معلم مكرر`;
-      
+
       toast({ title: msg });
     } catch (err) {
       toast({ title: "خطأ في استيراد الملف", description: String(err), variant: "destructive" });
@@ -449,11 +468,20 @@ export default function TeacherManager() {
             تصدير Excel
           </Button>
           <label className="cursor-pointer">
-            <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
+            <input type="file" accept=".xlsx,.xls" className="hidden" onChange={e => handleImportExcel(e, "append")} />
             <Button variant="outline" size="sm" asChild>
               <span>
                 <Upload className="w-4 h-4 ml-1" />
                 استيراد Excel
+              </span>
+            </Button>
+          </label>
+          <label className="cursor-pointer">
+            <input type="file" accept=".xlsx,.xls" className="hidden" onChange={e => handleImportExcel(e, "replace")} />
+            <Button variant="default" size="sm" asChild>
+              <span>
+                <FileSpreadsheet className="w-4 h-4 ml-1" />
+                استيراد جدول المباحث + توليد الملحفة
               </span>
             </Button>
           </label>

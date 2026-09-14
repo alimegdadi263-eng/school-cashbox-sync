@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import type { Teacher, ClassTimetable, TimetableCell } from "@/types/timetable";
 import { getClassKey, parseClassKey, CLASS_NAMES, SECTIONS, DAYS, MAX_PERIODS, DOUBLE_PERIOD_SUBJECTS, ACTIVITY_TEACHER_ID, ACTIVITY_SUBJECT, ACTIVITY_PERIODS, getActivityDay, isActivityCell, compareClassKeys } from "@/types/timetable";
 
@@ -80,6 +80,10 @@ interface TimetableContextType {
   importSavedTimetables: (snaps: SavedTimetable[]) => number;
 
   addTeacher: (teacher: Teacher) => void;
+  /** إضافة مجموعة معلمين دفعة واحدة مع مزامنة الجدول مرة واحدة (بدون أخطاء تراكمية) */
+  addTeachers: (list: Teacher[]) => void;
+  /** استبدال قائمة المعلمين بالكامل (استيراد) وإعادة توليد الملحفة فوراً */
+  importTeachersAndGenerate: (list: Teacher[]) => void;
   updateTeacher: (teacher: Teacher) => void;
   removeTeacher: (id: string) => void;
   setTimetable: (tt: ClassTimetable) => void;
@@ -91,7 +95,7 @@ interface TimetableContextType {
 
   moveToStaging: (classKey: string, day: number, period: number) => boolean;
   placeFromStaging: (stagingIdx: number, classKey: string, day: number, period: number) => boolean;
-  generateTimetable: () => void;
+  generateTimetable: (overrideTeachers?: Teacher[]) => void;
   getTeacherSchedule: (teacherId: string) => { classKey: string; day: number; period: number; subjectName: string }[];
   getAllClassKeys: () => string[];
   reorderClasses: () => void;
@@ -150,6 +154,133 @@ function countSubjectInDay(days: (TimetableCell | null)[][], day: number, subjec
   return n;
 }
 
+/** نسخة عميقة من الجدول */
+function cloneTimetable(tt: ClassTimetable): ClassTimetable {
+  const next: ClassTimetable = {};
+  for (const [ck, days] of Object.entries(tt)) next[ck] = days.map(d => d.map(c => (c ? { ...c } : null)));
+  return next;
+}
+
+/** هل المعلم مشغول في هذه الحصة بأي صف آخر؟ (يشمل خانات النشاط المسجّلة بالاسم) */
+function isTeacherBusy(tt: ClassTimetable, teacherId: string, teacherName: string, day: number, period: number, exceptCk?: string) {
+  for (const [ck, days] of Object.entries(tt)) {
+    if (ck === exceptCk) continue;
+    const c = days[day]?.[period];
+    if (!c) continue;
+    if (c.teacherId !== ACTIVITY_TEACHER_ID && c.teacherId === teacherId) return true;
+    if (isActivityCell(c) && teacherName && c.teacherName === teacherName) return true;
+  }
+  return false;
+}
+
+/** نقل حصة داخل نفس الصف إلى خانة فارغة بلا تعارض. يرجع true عند النجاح */
+function relocateWithinClass(tt: ClassTimetable, ck: string, day: number, period: number, ppd: number): boolean {
+  const cell = tt[ck]?.[day]?.[period];
+  if (!cell) return false;
+  for (let d = 0; d < DAYS.length; d++) {
+    for (let p = 0; p < ppd; p++) {
+      if (d === day && p === period) continue;
+      if (tt[ck][d]?.[p]) continue;
+      if (isTeacherBusy(tt, cell.teacherId, cell.teacherName, d, p, ck)) continue;
+      tt[ck][d][p] = cell;
+      tt[ck][day][period] = null;
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * تصحيح نهائي للجدول بعد أي تعديل على المعلمين أو الأنصبة:
+ * 1) تثبيت حصص النشاط (الثانية والثالثة في يوم الصف) مع اسم المعلم المسؤول.
+ * 2) إزالة أي تعارض (نفس المعلم في صفّين بنفس اليوم والحصة) بنقل الحصة الزائدة.
+ */
+function reconcileTimetable(tt: ClassTimetable, list: Teacher[], ppd: number, useActivity: boolean): ClassTimetable {
+  const next = cloneTimetable(tt);
+
+  if (useActivity && ACTIVITY_PERIODS[0] < ppd) {
+    // كم حصة نشاط يحتاجها كل صف ومن هم معلمو النشاط له
+    const activityTeachers = new Map<string, Teacher[]>();
+    const activityNeed = new Map<string, number>();
+    list.forEach(t => t.subjects.forEach(s => {
+      if (s.subjectName.trim() !== ACTIVITY_SUBJECT) return;
+      const ck = getClassKey(s.className, s.section);
+      activityNeed.set(ck, Math.min(ACTIVITY_PERIODS.length, (activityNeed.get(ck) || 0) + s.periodsPerWeek));
+      const arr = activityTeachers.get(ck) || [];
+      if (!arr.some(x => x.id === t.id)) arr.push(t);
+      activityTeachers.set(ck, arr);
+    }));
+
+    for (const ck of Object.keys(next)) {
+      const { className } = parseClassKey(ck);
+      const day = getActivityDay(className);
+      const need = activityNeed.get(ck) || 0;
+      // إزالة أي خانة نشاط خارج المكان المخصص أو زائدة عن النصاب
+      for (let d = 0; d < DAYS.length; d++) {
+        for (let p = 0; p < (next[ck][d]?.length || 0); p++) {
+          const c = next[ck][d][p];
+          if (!isActivityCell(c)) continue;
+          const inPlace = day !== undefined && d === day && ACTIVITY_PERIODS.slice(0, need).includes(p);
+          if (!inPlace) next[ck][d][p] = null;
+        }
+      }
+      if (need <= 0 || day === undefined || day >= DAYS.length) continue;
+      const slots = ACTIVITY_PERIODS.slice(0, need).filter(p => p < ppd);
+      const candidates = activityTeachers.get(ck) || [];
+      // اختيار معلم النشاط: الأفضل من يكون متفرغاً في الحصتين
+      const chosen =
+        candidates.find(t => slots.every(p => !isTeacherBusy(next, t.id, t.name, day, p, ck))) || candidates[0];
+      if (!chosen) continue;
+      for (const p of slots) {
+        // إفراغ الخانة من أي مادة أخرى
+        const occupant = next[ck][day][p];
+        if (occupant && !isActivityCell(occupant)) {
+          if (!relocateWithinClass(next, ck, day, p, ppd)) next[ck][day][p] = null;
+        }
+        // تحرير معلم النشاط من أي حصة أخرى في نفس الوقت
+        for (const other of Object.keys(next)) {
+          if (other === ck) continue;
+          const c = next[other][day]?.[p];
+          if (!c) continue;
+          const conflict = (!isActivityCell(c) && c.teacherId === chosen.id) || (isActivityCell(c) && c.teacherName === chosen.name);
+          if (!conflict) continue;
+          if (!relocateWithinClass(next, other, day, p, ppd)) next[other][day][p] = null;
+        }
+        next[ck][day][p] = { teacherId: ACTIVITY_TEACHER_ID, teacherName: chosen.name, subjectName: ACTIVITY_SUBJECT };
+      }
+    }
+  }
+
+  // إزالة التعارضات نهائياً (المعلم لا يمكن أن يكون في صفّين بنفس الحصة)
+  for (let pass = 0; pass < 10; pass++) {
+    const taken = new Set<string>();
+    let fixed = false;
+    // خانات النشاط لها الأولوية المطلقة فتُسجّل أولاً
+    for (const ck of Object.keys(next)) {
+      for (let d = 0; d < DAYS.length; d++) {
+        for (let p = 0; p < ppd; p++) {
+          const cell = next[ck][d]?.[p];
+          if (isActivityCell(cell) && cell!.teacherName) taken.add(`${cell!.teacherName}|${d}|${p}`);
+        }
+      }
+    }
+    for (const ck of Object.keys(next)) {
+      for (let d = 0; d < DAYS.length; d++) {
+        for (let p = 0; p < ppd; p++) {
+          const cell = next[ck][d]?.[p];
+          if (!cell || isActivityCell(cell)) continue;
+          const key = `${cell.teacherName}|${d}|${p}`;
+          if (!taken.has(key)) { taken.add(key); continue; }
+          fixed = true;
+          if (!relocateWithinClass(next, ck, d, p, ppd)) next[ck][d][p] = null;
+        }
+      }
+    }
+    if (!fixed) break;
+  }
+
+  return next;
+}
 
 
 export function TimetableProvider({ children }: { children: React.ReactNode }) {
@@ -157,6 +288,11 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
   const [timetable, setTimetableState] = useState<ClassTimetable>({});
   const [periodsPerDay, setPeriodsPerDayState] = useState(7);
   const [unplacedPeriods, setUnplacedPeriods] = useState<UnplacedPeriod[]>([]);
+  /** مراجع حيّة للبيانات حتى تعمل التعديلات المتتالية دون قراءة حالة قديمة */
+  const teachersRef = useRef<Teacher[]>([]);
+  const timetableRef = useRef<ClassTimetable>({});
+  useEffect(() => { teachersRef.current = teachers; }, [teachers]);
+  useEffect(() => { timetableRef.current = timetable; }, [timetable]);
   const [constraints, setConstraintsState] = useState<TimetableConstraints>(() => {
     try {
       const raw = localStorage.getItem(CONSTRAINTS_KEY);
@@ -403,19 +539,6 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
   }, [constraints]);
 
 
-  const addTeacher = (teacher: Teacher) => {
-    setTeachers(prev => {
-      const next = [...prev, teacher];
-      const hasTT = Object.keys(timetable).length > 0;
-      const newTT = hasTT && constraints.autoSyncTeachers
-        ? syncTimetableWithTeachers(timetable, next, periodsPerDay)
-        : timetable;
-      if (newTT !== timetable) setTimetableState(newTT);
-      save(next, newTT, periodsPerDay);
-      return next;
-    });
-  };
-
   /** تحديث أسماء المعلمين داخل خانات الجدول (ينعكس فوراً على الملحفة) */
   const renameTeachersInTimetable = (tt: ClassTimetable, list: Teacher[]): ClassTimetable => {
     const byId = new Map(list.map(t => [t.id, t]));
@@ -432,19 +555,46 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     return changed ? next : tt;
   };
 
+  /**
+   * تطبيق أي تغيير على قائمة المعلمين: مزامنة الجدول فوراً مع الأنصبة الجديدة
+   * ثم تصحيح نهائي (تثبيت النشاط + صفر تعارضات). تعتمد على المراجع الحيّة حتى
+   * تعمل بشكل صحيح عند تنفيذ عدة تعديلات متتالية (مثل الاستيراد).
+   */
+  const applyTeacherChange = (next: Teacher[], mode: "sync" | "rename") => {
+    const cur = timetableRef.current;
+    let newTT = cur;
+    if (Object.keys(cur).length > 0) {
+      if (mode === "sync" && constraints.autoSyncTeachers) {
+        newTT = reconcileTimetable(
+          syncTimetableWithTeachers(cur, next, periodsPerDay),
+          next,
+          periodsPerDay,
+          constraints.activityPeriods
+        );
+      } else {
+        newTT = renameTeachersInTimetable(cur, next);
+      }
+    }
+    teachersRef.current = next;
+    timetableRef.current = newTT;
+    setTeachers(next);
+    if (newTT !== cur) setTimetableState(newTT);
+    save(next, newTT, periodsPerDay);
+  };
+
+  const addTeacher = (teacher: Teacher) => {
+    applyTeacherChange([...teachersRef.current, teacher], "sync");
+  };
+
+  /** إضافة عدة معلمين دفعة واحدة (مزامنة واحدة فقط بدل مزامنة لكل معلم) */
+  const addTeachers = (list: Teacher[]) => {
+    if (!list.length) return;
+    applyTeacherChange([...teachersRef.current, ...list], "sync");
+  };
+
   const updateTeacher = (teacher: Teacher) => {
-    setTeachers(prev => {
-      const next = prev.map(t => t.id === teacher.id ? teacher : t);
-      const hasTT = Object.keys(timetable).length > 0;
-      const newTT = hasTT
-        ? (constraints.autoSyncTeachers
-            ? syncTimetableWithTeachers(timetable, next, periodsPerDay)
-            : renameTeachersInTimetable(timetable, next))
-        : timetable;
-      if (newTT !== timetable) setTimetableState(newTT);
-      save(next, newTT, periodsPerDay);
-      return next;
-    });
+    const next = teachersRef.current.map(t => (t.id === teacher.id ? teacher : t));
+    applyTeacherChange(next, "sync");
   };
 
 
@@ -771,8 +921,14 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     return (teacher.blockedPeriods || []).some(bp => bp.day === day && bp.period === period);
   };
 
-  const generateTimetable = () => {
-    const classKeys = getAllClassKeys();
+  const generateTimetable = (overrideTeachers?: Teacher[]) => {
+    // قائمة المعلمين المعتمدة في هذا التوليد (تسمح بالتوليد فور الاستيراد)
+    const teachers = overrideTeachers ?? teachersRef.current;
+    const classKeys = overrideTeachers
+      ? Array.from(
+          new Set(overrideTeachers.flatMap(t => t.subjects.map(s => getClassKey(s.className, s.section))))
+        ).sort(compareClassKeys)
+      : getAllClassKeys();
     const newTT: ClassTimetable = {};
     const daysCount = DAYS.length;
 
@@ -2334,8 +2490,23 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     }
     setUnplacedPeriods(newUnplaced);
 
-    setTimetableState(newTT);
-    save(teachers, newTT, periodsPerDay);
+    // تثبيت أسماء معلمي النشاط دون تحريك أي حصة أخرى (لا يكسر الحصص المزدوجة)
+    const finalTT = newTT;
+    timetableRef.current = finalTT;
+    setTimetableState(finalTT);
+    save(teachers, finalTT, periodsPerDay);
+  };
+
+  /**
+   * استيراد جدول المباحث: استبدال قائمة المعلمين وأنصبتهم بالكامل ثم توليد
+   * الملحفة مباشرة من البيانات المستوردة.
+   */
+  const importTeachersAndGenerate = (list: Teacher[]) => {
+    teachersRef.current = list;
+    setTeachers(list);
+    timetableRef.current = {};
+    setTimetableState({});
+    generateTimetable(list);
   };
 
   const generateDailySchedule = (day: number, absentTeacherIds: string[]): ClassTimetable => {
@@ -2368,7 +2539,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       activityPeriods, setActivityPeriods,
       constraints, setConstraint,
       savedTimetables, saveCurrentTimetable, restoreSavedTimetable, deleteSavedTimetable, importSavedTimetables,
-      addTeacher, updateTeacher, removeTeacher,
+      addTeacher, addTeachers, importTeachersAndGenerate, updateTeacher, removeTeacher,
       setTimetable, updateCell, swapCells, swapCellsAcrossDays, moveCell, placeFromStaging, moveToStaging, generateTimetable,
       getTeacherSchedule, getAllClassKeys, reorderClasses, clearTimetable,
       generateDailySchedule,
