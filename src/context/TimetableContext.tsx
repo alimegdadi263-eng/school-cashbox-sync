@@ -2490,8 +2490,23 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     }
     setUnplacedPeriods(newUnplaced);
 
-    setTimetableState(newTT);
-    save(teachers, newTT, periodsPerDay);
+    // تصحيح نهائي: تثبيت حصص النشاط باسم معلمها وصفر تعارضات
+    const finalTT = reconcileTimetable(newTT, teachers, periodsPerDay, constraints.activityPeriods);
+    timetableRef.current = finalTT;
+    setTimetableState(finalTT);
+    save(teachers, finalTT, periodsPerDay);
+  };
+
+  /**
+   * استيراد جدول المباحث: استبدال قائمة المعلمين وأنصبتهم بالكامل ثم توليد
+   * الملحفة مباشرة من البيانات المستوردة.
+   */
+  const importTeachersAndGenerate = (list: Teacher[]) => {
+    teachersRef.current = list;
+    setTeachers(list);
+    timetableRef.current = {};
+    setTimetableState({});
+    generateTimetable(list);
   };
 
   const generateDailySchedule = (day: number, absentTeacherIds: string[]): ClassTimetable => {
