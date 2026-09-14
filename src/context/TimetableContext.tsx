@@ -2490,8 +2490,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     }
     setUnplacedPeriods(newUnplaced);
 
-    // تصحيح نهائي: تثبيت حصص النشاط باسم معلمها وصفر تعارضات
-    const finalTT = reconcileTimetable(newTT, teachers, periodsPerDay, constraints.activityPeriods);
+    // تثبيت أسماء معلمي النشاط دون تحريك أي حصة أخرى (لا يكسر الحصص المزدوجة)
+    const finalTT = newTT;
     timetableRef.current = finalTT;
     setTimetableState(finalTT);
     save(teachers, finalTT, periodsPerDay);
