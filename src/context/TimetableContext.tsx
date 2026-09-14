@@ -534,19 +534,6 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
   }, [constraints]);
 
 
-  const addTeacher = (teacher: Teacher) => {
-    setTeachers(prev => {
-      const next = [...prev, teacher];
-      const hasTT = Object.keys(timetable).length > 0;
-      const newTT = hasTT && constraints.autoSyncTeachers
-        ? syncTimetableWithTeachers(timetable, next, periodsPerDay)
-        : timetable;
-      if (newTT !== timetable) setTimetableState(newTT);
-      save(next, newTT, periodsPerDay);
-      return next;
-    });
-  };
-
   /** تحديث أسماء المعلمين داخل خانات الجدول (ينعكس فوراً على الملحفة) */
   const renameTeachersInTimetable = (tt: ClassTimetable, list: Teacher[]): ClassTimetable => {
     const byId = new Map(list.map(t => [t.id, t]));
@@ -563,19 +550,46 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     return changed ? next : tt;
   };
 
+  /**
+   * تطبيق أي تغيير على قائمة المعلمين: مزامنة الجدول فوراً مع الأنصبة الجديدة
+   * ثم تصحيح نهائي (تثبيت النشاط + صفر تعارضات). تعتمد على المراجع الحيّة حتى
+   * تعمل بشكل صحيح عند تنفيذ عدة تعديلات متتالية (مثل الاستيراد).
+   */
+  const applyTeacherChange = (next: Teacher[], mode: "sync" | "rename") => {
+    const cur = timetableRef.current;
+    let newTT = cur;
+    if (Object.keys(cur).length > 0) {
+      if (mode === "sync" && constraints.autoSyncTeachers) {
+        newTT = reconcileTimetable(
+          syncTimetableWithTeachers(cur, next, periodsPerDay),
+          next,
+          periodsPerDay,
+          constraints.activityPeriods
+        );
+      } else {
+        newTT = renameTeachersInTimetable(cur, next);
+      }
+    }
+    teachersRef.current = next;
+    timetableRef.current = newTT;
+    setTeachers(next);
+    if (newTT !== cur) setTimetableState(newTT);
+    save(next, newTT, periodsPerDay);
+  };
+
+  const addTeacher = (teacher: Teacher) => {
+    applyTeacherChange([...teachersRef.current, teacher], "sync");
+  };
+
+  /** إضافة عدة معلمين دفعة واحدة (مزامنة واحدة فقط بدل مزامنة لكل معلم) */
+  const addTeachers = (list: Teacher[]) => {
+    if (!list.length) return;
+    applyTeacherChange([...teachersRef.current, ...list], "sync");
+  };
+
   const updateTeacher = (teacher: Teacher) => {
-    setTeachers(prev => {
-      const next = prev.map(t => t.id === teacher.id ? teacher : t);
-      const hasTT = Object.keys(timetable).length > 0;
-      const newTT = hasTT
-        ? (constraints.autoSyncTeachers
-            ? syncTimetableWithTeachers(timetable, next, periodsPerDay)
-            : renameTeachersInTimetable(timetable, next))
-        : timetable;
-      if (newTT !== timetable) setTimetableState(newTT);
-      save(next, newTT, periodsPerDay);
-      return next;
-    });
+    const next = teachersRef.current.map(t => (t.id === teacher.id ? teacher : t));
+    applyTeacherChange(next, "sync");
   };
 
 
