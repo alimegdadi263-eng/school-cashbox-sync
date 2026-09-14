@@ -154,6 +154,127 @@ function countSubjectInDay(days: (TimetableCell | null)[][], day: number, subjec
   return n;
 }
 
+/** نسخة عميقة من الجدول */
+function cloneTimetable(tt: ClassTimetable): ClassTimetable {
+  const next: ClassTimetable = {};
+  for (const [ck, days] of Object.entries(tt)) next[ck] = days.map(d => d.map(c => (c ? { ...c } : null)));
+  return next;
+}
+
+/** هل المعلم مشغول في هذه الحصة بأي صف آخر؟ (يشمل خانات النشاط المسجّلة بالاسم) */
+function isTeacherBusy(tt: ClassTimetable, teacherId: string, teacherName: string, day: number, period: number, exceptCk?: string) {
+  for (const [ck, days] of Object.entries(tt)) {
+    if (ck === exceptCk) continue;
+    const c = days[day]?.[period];
+    if (!c) continue;
+    if (c.teacherId !== ACTIVITY_TEACHER_ID && c.teacherId === teacherId) return true;
+    if (isActivityCell(c) && teacherName && c.teacherName === teacherName) return true;
+  }
+  return false;
+}
+
+/** نقل حصة داخل نفس الصف إلى خانة فارغة بلا تعارض. يرجع true عند النجاح */
+function relocateWithinClass(tt: ClassTimetable, ck: string, day: number, period: number, ppd: number): boolean {
+  const cell = tt[ck]?.[day]?.[period];
+  if (!cell) return false;
+  for (let d = 0; d < DAYS.length; d++) {
+    for (let p = 0; p < ppd; p++) {
+      if (d === day && p === period) continue;
+      if (tt[ck][d]?.[p]) continue;
+      if (isTeacherBusy(tt, cell.teacherId, cell.teacherName, d, p, ck)) continue;
+      tt[ck][d][p] = cell;
+      tt[ck][day][period] = null;
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * تصحيح نهائي للجدول بعد أي تعديل على المعلمين أو الأنصبة:
+ * 1) تثبيت حصص النشاط (الثانية والثالثة في يوم الصف) مع اسم المعلم المسؤول.
+ * 2) إزالة أي تعارض (نفس المعلم في صفّين بنفس اليوم والحصة) بنقل الحصة الزائدة.
+ */
+function reconcileTimetable(tt: ClassTimetable, list: Teacher[], ppd: number, useActivity: boolean): ClassTimetable {
+  const next = cloneTimetable(tt);
+
+  if (useActivity && ACTIVITY_PERIODS[0] < ppd) {
+    // كم حصة نشاط يحتاجها كل صف ومن هم معلمو النشاط له
+    const activityTeachers = new Map<string, Teacher[]>();
+    const activityNeed = new Map<string, number>();
+    list.forEach(t => t.subjects.forEach(s => {
+      if (s.subjectName.trim() !== ACTIVITY_SUBJECT) return;
+      const ck = getClassKey(s.className, s.section);
+      activityNeed.set(ck, Math.min(ACTIVITY_PERIODS.length, (activityNeed.get(ck) || 0) + s.periodsPerWeek));
+      const arr = activityTeachers.get(ck) || [];
+      if (!arr.some(x => x.id === t.id)) arr.push(t);
+      activityTeachers.set(ck, arr);
+    }));
+
+    for (const ck of Object.keys(next)) {
+      const { className } = parseClassKey(ck);
+      const day = getActivityDay(className);
+      const need = activityNeed.get(ck) || 0;
+      // إزالة أي خانة نشاط خارج المكان المخصص أو زائدة عن النصاب
+      for (let d = 0; d < DAYS.length; d++) {
+        for (let p = 0; p < (next[ck][d]?.length || 0); p++) {
+          const c = next[ck][d][p];
+          if (!isActivityCell(c)) continue;
+          const inPlace = day !== undefined && d === day && ACTIVITY_PERIODS.slice(0, need).includes(p);
+          if (!inPlace) next[ck][d][p] = null;
+        }
+      }
+      if (need <= 0 || day === undefined || day >= DAYS.length) continue;
+      const slots = ACTIVITY_PERIODS.slice(0, need).filter(p => p < ppd);
+      const candidates = activityTeachers.get(ck) || [];
+      // اختيار معلم النشاط: الأفضل من يكون متفرغاً في الحصتين
+      const chosen =
+        candidates.find(t => slots.every(p => !isTeacherBusy(next, t.id, t.name, day, p, ck))) || candidates[0];
+      if (!chosen) continue;
+      for (const p of slots) {
+        // إفراغ الخانة من أي مادة أخرى
+        const occupant = next[ck][day][p];
+        if (occupant && !isActivityCell(occupant)) {
+          if (!relocateWithinClass(next, ck, day, p, ppd)) next[ck][day][p] = null;
+        }
+        // تحرير معلم النشاط من أي حصة أخرى في نفس الوقت
+        for (const other of Object.keys(next)) {
+          if (other === ck) continue;
+          const c = next[other][day]?.[p];
+          if (!c) continue;
+          const conflict = (!isActivityCell(c) && c.teacherId === chosen.id) || (isActivityCell(c) && c.teacherName === chosen.name);
+          if (!conflict) continue;
+          if (!relocateWithinClass(next, other, day, p, ppd)) next[other][day][p] = null;
+        }
+        next[ck][day][p] = { teacherId: ACTIVITY_TEACHER_ID, teacherName: chosen.name, subjectName: ACTIVITY_SUBJECT };
+      }
+    }
+  }
+
+  // إزالة التعارضات نهائياً
+  for (let pass = 0; pass < 10; pass++) {
+    const seen = new Map<string, string>();
+    let fixed = false;
+    for (const ck of Object.keys(next)) {
+      for (let d = 0; d < DAYS.length; d++) {
+        for (let p = 0; p < ppd; p++) {
+          const cell = next[ck][d]?.[p];
+          if (!cell) continue;
+          const key = isActivityCell(cell) ? `n:${cell.teacherName}|${d}|${p}` : `${cell.teacherId}|${d}|${p}`;
+          const nameKey = `n:${cell.teacherName}|${d}|${p}`;
+          const dup = seen.has(key) || (isActivityCell(cell) ? false : seen.has(nameKey) && seen.get(nameKey) !== ck && cell.teacherName);
+          if (!seen.has(key) && !dup) { seen.set(key, ck); continue; }
+          if (isActivityCell(cell)) { seen.set(key, ck); continue; }
+          fixed = true;
+          if (!relocateWithinClass(next, ck, d, p, ppd)) next[ck][d][p] = null;
+        }
+      }
+    }
+    if (!fixed) break;
+  }
+
+  return next;
+}
 
 
 export function TimetableProvider({ children }: { children: React.ReactNode }) {
