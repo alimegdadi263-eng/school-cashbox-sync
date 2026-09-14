@@ -273,10 +273,6 @@ function reconcileTimetable(tt: ClassTimetable, list: Teacher[], ppd: number, us
           if (!taken.has(key)) { taken.add(key); continue; }
           fixed = true;
           if (!relocateWithinClass(next, ck, d, p, ppd)) next[ck][d][p] = null;
-          else {
-            const moved = cell;
-            taken.add(`${moved.teacherName}|${d}|${p}`);
-          }
         }
       }
     }
