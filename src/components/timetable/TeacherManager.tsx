@@ -180,18 +180,124 @@ export default function TeacherManager() {
     return String(value).trim();
   };
 
+  /** تحويل ورقة Excel إلى شبكة نصوص (يشمل الخلايا المدمجة) */
+  const gridFromWorksheet = (ws: ExcelJS.Worksheet): string[][] => {
+    const grid: string[][] = [];
+    const maxCol = Math.max(ws.columnCount || 0, 8);
+    ws.eachRow({ includeEmpty: true }, (row, rowNum) => {
+      const values: string[] = [];
+      for (let c = 1; c <= maxCol; c++) values.push(getExcelCellText(row.getCell(c).value));
+      grid[rowNum - 1] = values;
+    });
+    for (let i = 0; i < grid.length; i++) if (!grid[i]) grid[i] = [];
+    return grid;
+  };
+
+  /** ملفات .xls المصدَّرة من أنظمة أخرى تكون غالباً جداول HTML */
+  const gridFromHtml = (text: string): string[][] => {
+    if (!/<t(able|r)/i.test(text)) return [];
+    const doc = new DOMParser().parseFromString(text, "text/html");
+    const rows = Array.from(doc.querySelectorAll("tr"));
+    return rows.map(tr =>
+      Array.from(tr.querySelectorAll("td,th")).flatMap(cell => {
+        const span = Number((cell as HTMLTableCellElement).getAttribute("colspan") || 1) || 1;
+        const value = (cell.textContent || "").replace(/\s+/g, " ").trim();
+        return Array.from({ length: span }, () => value);
+      })
+    );
+  };
+
+  /** تفكيك عنوان الصف مثل: "الأول أ" أو "الصف الأول / أ" */
+  const parseClassLabel = (label: string): { className: string; section: string } | null => {
+    const cleaned = label.replace(/الصف/g, " ").replace(/[/\\-]/g, " ").replace(/\s+/g, " ").trim();
+    if (!cleaned) return null;
+    const parts = cleaned.split(" ");
+    const last = parts[parts.length - 1];
+    if (parts.length > 1 && SECTIONS.includes(last)) {
+      return { className: parts.slice(0, -1).join(" "), section: last };
+    }
+    return { className: cleaned, section: "أ" };
+  };
+
+  /** قراءة "جدول توزيع المباحث بين المعلمين" (صفوف = معلمون، أعمدة = صفوف دراسية) */
+  const parseMatrixGrid = (grid: string[][]): Teacher[] => {
+    let headRow = -1;
+    for (let r = 0; r < grid.length; r++) {
+      const row = grid[r] || [];
+      const subjectCells = row.filter(v => v === "المبحث").length;
+      const countCells = row.filter(v => v.includes("عدد الحصص")).length;
+      if (subjectCells >= 1 && countCells >= 1) { headRow = r; break; }
+    }
+    if (headRow < 1) return [];
+
+    const labelRow = grid[headRow - 1] || [];
+    const headerCells = grid[headRow] || [];
+    let nameCol = headerCells.findIndex(v => v.includes("اسم المعلم"));
+    if (nameCol < 0) nameCol = labelRow.findIndex(v => v.includes("اسم المعلم"));
+    if (nameCol < 0) return [];
+
+    const classCols: { col: number; className: string; section: string }[] = [];
+    headerCells.forEach((value, col) => {
+      if (value !== "المبحث") return;
+      const parsed = parseClassLabel(labelRow[col] || "");
+      if (parsed) classCols.push({ col, ...parsed });
+    });
+    if (classCols.length === 0) return [];
+
+    const teachers: Teacher[] = [];
+    for (let r = headRow + 1; r < grid.length; r++) {
+      const row = grid[r] || [];
+      const teacherName = (row[nameCol] || "").trim();
+      if (!teacherName) continue;
+      if (/إجمالي|المجموع|مجموع النصاب|اسم المعلم/.test(teacherName)) continue;
+
+      const teacher: Teacher = { id: crypto.randomUUID(), name: teacherName, subjects: [], blockedPeriods: [] };
+      classCols.forEach(({ col, className, section }) => {
+        const subjectText = (row[col] || "").trim();
+        const total = Number(String(row[col + 1] || "").replace(/[^\d.]/g, "")) || 0;
+        if (!subjectText || total <= 0) return;
+        const names = subjectText.split("/").map(s => normalizeSubjectName(s.trim())).filter(Boolean);
+        if (names.length === 0) return;
+        const base = Math.floor(total / names.length);
+        names.forEach((subjectName, i) => {
+          const periods = i === 0 ? total - base * (names.length - 1) : base;
+          if (periods > 0) teacher.subjects.push({ subjectName, className, section, periodsPerWeek: periods });
+        });
+      });
+      if (teacher.subjects.length > 0) teachers.push(teacher);
+    }
+    return teachers;
+  };
+
   // Import teachers from Excel - supports exported format exactly and merged variants
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>, mode: "append" | "replace" = "append") => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
       const buffer = await file.arrayBuffer();
-      const wb = new ExcelJS.Workbook();
-      await wb.xlsx.load(buffer);
-      const ws = wb.worksheets[0];
-      if (!ws) throw new Error("لا يوجد أوراق");
+      let grid: string[][] = [];
+      try {
+        const wb = new ExcelJS.Workbook();
+        await wb.xlsx.load(buffer);
+        for (const sheet of wb.worksheets) {
+          const candidate = gridFromWorksheet(sheet);
+          if (candidate.some(row => row.some(v => v))) { grid = candidate; break; }
+        }
+      } catch {
+        grid = [];
+      }
+      if (grid.length === 0) {
+        grid = gridFromHtml(new TextDecoder("utf-8").decode(buffer));
+      }
+      if (grid.length === 0) {
+        throw new Error("تعذر قراءة الملف. احفظه بصيغة Excel (.xlsx) وأعد المحاولة.");
+      }
 
       const importedMap = new Map<string, Teacher>();
+
+      // 1) محاولة قراءة جدول المباحث (مصفوفة معلمين × صفوف)
+      parseMatrixGrid(grid).forEach(teacher => importedMap.set(teacher.name, teacher));
+
       const customColumns = {
         teacher: 1,
         subject: 2,
@@ -204,34 +310,38 @@ export default function TeacherManager() {
       let headerRow = 1;
       let exportColumns: { teacher: number; subject: number; classSection: number; periods: number } | null = null;
 
-      ws.eachRow((row, rowNum) => {
-        if (exportColumns) return;
-        const values = Array.from({ length: Math.max(row.cellCount, 6) }, (_, idx) => getExcelCellText(row.getCell(idx + 1).value));
+      if (importedMap.size === 0) {
+        grid.forEach((row, rowIdx) => {
+          if (exportColumns) return;
+          const rowNum = rowIdx + 1;
+          const values = row;
 
-        const teacherIdx = values.findIndex(val => ["اسم المعلم", "اسم المعلم/ة"].includes(val));
-        const subjectIdx = values.findIndex(val => val === "المادة");
-        const classSectionIdx = values.findIndex(val => val === "الصف/الشعبة");
-        const periodsIdx = values.findIndex(val => val === "الحصص الأسبوعية");
+          const teacherIdx = values.findIndex(val => val.includes("اسم المعلم"));
+          const subjectIdx = values.findIndex(val => val === "المادة" || val === "المبحث");
+          const classSectionIdx = values.findIndex(val => val === "الصف/الشعبة" || val === "الصف / الشعبة");
+          const periodsIdx = values.findIndex(val => val.includes("الحصص الأسبوعية") || val.includes("عدد الحصص"));
 
-        if (teacherIdx >= 0 && subjectIdx >= 0 && classSectionIdx >= 0 && periodsIdx >= 0) {
-          headerRow = rowNum;
-          exportColumns = {
-            teacher: teacherIdx + 1,
-            subject: subjectIdx + 1,
-            classSection: classSectionIdx + 1,
-            periods: periodsIdx + 1,
-          };
-        } else if (teacherIdx >= 0 || subjectIdx >= 0) {
-          headerRow = rowNum;
-        }
-      });
+          if (teacherIdx >= 0 && subjectIdx >= 0 && classSectionIdx >= 0 && periodsIdx >= 0) {
+            headerRow = rowNum;
+            exportColumns = {
+              teacher: teacherIdx + 1,
+              subject: subjectIdx + 1,
+              classSection: classSectionIdx + 1,
+              periods: periodsIdx + 1,
+            };
+          } else if (teacherIdx >= 0 || subjectIdx >= 0) {
+            headerRow = rowNum;
+          }
+        });
+      }
 
       let lastTeacherName = "";
 
-      ws.eachRow((row, rowNum) => {
+      if (importedMap.size === 0) grid.forEach((row, rowIdx) => {
+        const rowNum = rowIdx + 1;
         if (rowNum <= headerRow) return;
 
-        const rowValues = Array.from({ length: Math.max(row.cellCount, 6) }, (_, idx) => getExcelCellText(row.getCell(idx + 1).value));
+        const rowValues = row;
         if (rowValues.every(val => !val)) return;
 
         const isSummaryRow = rowValues.some(val => val.includes("إجمالي المعلمين") || val.includes("إجمالي الحصص") || val.includes("المجموع"));
@@ -246,29 +356,25 @@ export default function TeacherManager() {
 
         if (exportColumns) {
           teacherName = rowValues[exportColumns.teacher - 1] || lastTeacherName;
-          subjectName = rowValues[exportColumns.subject - 1];
-          const classSection = rowValues[exportColumns.classSection - 1];
-          periods = Number(rowValues[exportColumns.periods - 1]) || 0;
+          subjectName = rowValues[exportColumns.subject - 1] || "";
+          const classSection = rowValues[exportColumns.classSection - 1] || "";
+          periods = Number(String(rowValues[exportColumns.periods - 1] || "").replace(/[^\d.]/g, "")) || 0;
 
-          if (classSection.includes("/")) {
-            const [rawClassName, rawSection = "أ"] = classSection.split("/");
-            className = rawClassName.trim();
-            section = rawSection.trim() || "أ";
-          } else {
-            className = classSection.trim();
-          }
+          const parsedLabel = parseClassLabel(classSection);
+          className = parsedLabel?.className || "";
+          section = parsedLabel?.section || "أ";
         } else {
           teacherName = rowValues[customColumns.teacher - 1] || lastTeacherName;
-          subjectName = rowValues[customColumns.subject - 1];
-          className = rowValues[customColumns.className - 1];
+          subjectName = rowValues[customColumns.subject - 1] || "";
+          className = rowValues[customColumns.className - 1] || "";
           section = rowValues[customColumns.section - 1] || "أ";
-          periods = Number(rowValues[customColumns.periods - 1]) || 0;
-          branch = rowValues[customColumns.branch - 1];
+          periods = Number(String(rowValues[customColumns.periods - 1] || "").replace(/[^\d.]/g, "")) || 0;
+          branch = rowValues[customColumns.branch - 1] || "";
         }
 
         teacherName = teacherName.trim();
         subjectName = normalizeSubjectName(subjectName.trim());
-        className = className.trim();
+        className = className.replace(/الصف/g, "").trim();
         section = section.trim() || "أ";
         branch = branch.trim();
 
