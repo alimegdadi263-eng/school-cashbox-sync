@@ -84,6 +84,8 @@ interface TimetableContextType {
   addTeachers: (list: Teacher[]) => void;
   /** استبدال قائمة المعلمين بالكامل (استيراد) وإعادة توليد الملحفة فوراً */
   importTeachersAndGenerate: (list: Teacher[]) => void;
+  /** استيراد ملحفة كاملة من ملف (معلمون + جدول + عدد الحصص) بدون إعادة توليد */
+  importFullTimetable: (list: Teacher[], tt: ClassTimetable, ppd: number) => void;
   updateTeacher: (teacher: Teacher) => void;
   removeTeacher: (id: string) => void;
   setTimetable: (tt: ClassTimetable) => void;
@@ -2552,7 +2554,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       activityPeriods, setActivityPeriods,
       constraints, setConstraint,
       savedTimetables, saveCurrentTimetable, restoreSavedTimetable, deleteSavedTimetable, importSavedTimetables,
-      addTeacher, addTeachers, importTeachersAndGenerate, updateTeacher, removeTeacher,
+      addTeacher, addTeachers, importTeachersAndGenerate, importFullTimetable, updateTeacher, removeTeacher,
       setTimetable, updateCell, swapCells, swapCellsAcrossDays, moveCell, placeFromStaging, moveToStaging, generateTimetable,
       getTeacherSchedule, getAllClassKeys, reorderClasses, clearTimetable,
       generateDailySchedule,
