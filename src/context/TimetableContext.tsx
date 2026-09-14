@@ -288,6 +288,11 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
   const [timetable, setTimetableState] = useState<ClassTimetable>({});
   const [periodsPerDay, setPeriodsPerDayState] = useState(7);
   const [unplacedPeriods, setUnplacedPeriods] = useState<UnplacedPeriod[]>([]);
+  /** مراجع حيّة للبيانات حتى تعمل التعديلات المتتالية دون قراءة حالة قديمة */
+  const teachersRef = useRef<Teacher[]>([]);
+  const timetableRef = useRef<ClassTimetable>({});
+  useEffect(() => { teachersRef.current = teachers; }, [teachers]);
+  useEffect(() => { timetableRef.current = timetable; }, [timetable]);
   const [constraints, setConstraintsState] = useState<TimetableConstraints>(() => {
     try {
       const raw = localStorage.getItem(CONSTRAINTS_KEY);
