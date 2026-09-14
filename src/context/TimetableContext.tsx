@@ -251,22 +251,32 @@ function reconcileTimetable(tt: ClassTimetable, list: Teacher[], ppd: number, us
     }
   }
 
-  // إزالة التعارضات نهائياً
+  // إزالة التعارضات نهائياً (المعلم لا يمكن أن يكون في صفّين بنفس الحصة)
   for (let pass = 0; pass < 10; pass++) {
-    const seen = new Map<string, string>();
+    const taken = new Set<string>();
     let fixed = false;
+    // خانات النشاط لها الأولوية المطلقة فتُسجّل أولاً
     for (const ck of Object.keys(next)) {
       for (let d = 0; d < DAYS.length; d++) {
         for (let p = 0; p < ppd; p++) {
           const cell = next[ck][d]?.[p];
-          if (!cell) continue;
-          const key = isActivityCell(cell) ? `n:${cell.teacherName}|${d}|${p}` : `${cell.teacherId}|${d}|${p}`;
-          const nameKey = `n:${cell.teacherName}|${d}|${p}`;
-          const dup = seen.has(key) || (isActivityCell(cell) ? false : seen.has(nameKey) && seen.get(nameKey) !== ck && cell.teacherName);
-          if (!seen.has(key) && !dup) { seen.set(key, ck); continue; }
-          if (isActivityCell(cell)) { seen.set(key, ck); continue; }
+          if (isActivityCell(cell) && cell!.teacherName) taken.add(`${cell!.teacherName}|${d}|${p}`);
+        }
+      }
+    }
+    for (const ck of Object.keys(next)) {
+      for (let d = 0; d < DAYS.length; d++) {
+        for (let p = 0; p < ppd; p++) {
+          const cell = next[ck][d]?.[p];
+          if (!cell || isActivityCell(cell)) continue;
+          const key = `${cell.teacherName}|${d}|${p}`;
+          if (!taken.has(key)) { taken.add(key); continue; }
           fixed = true;
           if (!relocateWithinClass(next, ck, d, p, ppd)) next[ck][d][p] = null;
+          else {
+            const moved = cell;
+            taken.add(`${moved.teacherName}|${d}|${p}`);
+          }
         }
       }
     }
