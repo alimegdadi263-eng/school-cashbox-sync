@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import type { Teacher, ClassTimetable, TimetableCell } from "@/types/timetable";
 import { getClassKey, parseClassKey, CLASS_NAMES, SECTIONS, DAYS, MAX_PERIODS, DOUBLE_PERIOD_SUBJECTS, ACTIVITY_TEACHER_ID, ACTIVITY_SUBJECT, ACTIVITY_PERIODS, getActivityDay, isActivityCell, compareClassKeys } from "@/types/timetable";
 
@@ -80,6 +80,10 @@ interface TimetableContextType {
   importSavedTimetables: (snaps: SavedTimetable[]) => number;
 
   addTeacher: (teacher: Teacher) => void;
+  /** إضافة مجموعة معلمين دفعة واحدة مع مزامنة الجدول مرة واحدة (بدون أخطاء تراكمية) */
+  addTeachers: (list: Teacher[]) => void;
+  /** استبدال قائمة المعلمين بالكامل (استيراد) وإعادة توليد الملحفة فوراً */
+  importTeachersAndGenerate: (list: Teacher[]) => void;
   updateTeacher: (teacher: Teacher) => void;
   removeTeacher: (id: string) => void;
   setTimetable: (tt: ClassTimetable) => void;
@@ -91,7 +95,7 @@ interface TimetableContextType {
 
   moveToStaging: (classKey: string, day: number, period: number) => boolean;
   placeFromStaging: (stagingIdx: number, classKey: string, day: number, period: number) => boolean;
-  generateTimetable: () => void;
+  generateTimetable: (overrideTeachers?: Teacher[]) => void;
   getTeacherSchedule: (teacherId: string) => { classKey: string; day: number; period: number; subjectName: string }[];
   getAllClassKeys: () => string[];
   reorderClasses: () => void;
