@@ -228,13 +228,153 @@ export async function exportSubjectsTemplateExcel(
   saveAs(new Blob([buffer]), `نموذج_المباحث_${info.schoolName || "المدرسة"}.xlsx`);
 }
 
-/** اسم قديم للإبقاء على توافق أي استدعاءات سابقة. */
+/** ===== النموذج المصدق (جدول ترتيب الدروس المعتمد من المديرية) ===== */
+
+const CERT_PERIOD_NAMES = [
+  "الاولى", "الثانية", "الثالثة", "الرابعة",
+  "الخامسة", "السادسة", "السابعة", "الثامنة",
+];
+
+export function buildCertifiedTimetableWorkbook(
+  timetable: ClassTimetable,
+  info: OfficialTimetableInfo
+) {
+  const classKeys = Object.keys(timetable).sort(compareClassKeys);
+  if (classKeys.length === 0) throw new Error("لا يوجد جدول لتصديره");
+
+  const dayCol = 1;      // A
+  const periodCol = 2;   // B
+  const firstClassCol = 3; // C
+  const totalCols = 2 + classKeys.length * 2;
+  const mid = Math.max(6, Math.round(totalCols / 2));
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "الإدارة المدرسية";
+  wb.created = new Date();
+  const ws = wb.addWorksheet("جدول ترتيب الدروس", {
+    views: [{ rightToLeft: true, showGridLines: false }],
+  });
+  ws.pageSetup = {
+    paperSize: 8 as any, // A3
+    orientation: "landscape" as any,
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 1,
+    margins: { left: 0.2, right: 0.2, top: 0.3, bottom: 0.3, header: 0.3, footer: 0.3 },
+  };
+
+  const set = (row: number, col: number, value: string) => {
+    const c = ws.getCell(row, col);
+    c.value = value;
+    return c;
+  };
+  const style = (
+    c: ExcelJS.Cell,
+    size: number,
+    bold: boolean,
+    horizontal: "center" | "right" = "center",
+    rotation = 0,
+    color?: string,
+  ) => {
+    c.font = { name: FONT, size, bold, ...(color ? { color: { argb: color } } : {}) };
+    c.alignment = {
+      horizontal,
+      vertical: "middle",
+      wrapText: true,
+      ...(rotation ? { textRotation: rotation } : {}),
+    };
+  };
+
+  // شعار الوزارة أعلى منتصف الصفحة
+  addEmblem(wb, ws, Math.max(0, mid - 2), 0, 132);
+
+  ws.mergeCells(6, 1, 6, totalCols);
+  style(set(6, 1, "جدول ترتيب الدروس"), 22, true);
+  ws.getRow(6).height = 38;
+
+  ws.mergeCells(7, 1, 7, totalCols);
+  style(set(7, 1, `للعام الدراسي   ${info.academicYear || ""}`.trimEnd()), 16, true);
+  ws.getRow(7).height = 34;
+
+  const third = Math.max(2, Math.floor(totalCols / 3));
+  ws.mergeCells(8, 1, 8, third);
+  style(set(8, 1, `مديرية التربية والتعليم: ${info.directorateName || ""}`.trimEnd()), 13, true, "right");
+  ws.mergeCells(8, third + 1, 8, third * 2);
+  style(set(8, third + 1, `مدرسة: ${info.schoolName || ""}`.trimEnd()), 13, true, "right");
+  ws.mergeCells(8, third * 2 + 1, 8, totalCols);
+  style(set(8, third * 2 + 1, `المدينة/ القرية: ${info.cityName || ""}`.trimEnd()), 13, true, "right");
+  ws.getRow(8).height = 30;
+
+  // رؤوس الجدول
+  ws.mergeCells(9, dayCol, 10, dayCol);
+  ws.mergeCells(9, periodCol, 10, periodCol);
+  classKeys.forEach((key, i) => {
+    const col = firstClassCol + i * 2;
+    ws.mergeCells(9, col, 9, col + 1);
+    const { className, section } = parseClassKey(key);
+    style(set(9, col, `${className} ${section}`.trim()), 12, true);
+    style(set(10, col, "الموضوع"), 11, true);
+    style(set(10, col + 1, "المعلم"), 11, true);
+  });
+  ws.getRow(9).height = 26;
+  ws.getRow(10).height = 20;
+
+  // صفوف الأيام: ثماني حصص لكل يوم
+  let row = 11;
+  for (let di = 0; di < DAYS.length; di++) {
+    const startRow = row;
+    for (let p = 0; p < 8; p++) {
+      style(set(row, periodCol, CERT_PERIOD_NAMES[p]), 11, true);
+      classKeys.forEach((key, i) => {
+        const col = firstClassCol + i * 2;
+        const cell = timetable[key]?.[di]?.[p];
+        style(set(row, col, cell ? cell.subjectName : ""), 10, false);
+        style(set(row, col + 1, cell ? firstName(cell.teacherName) : ""), 10, false);
+      });
+      ws.getRow(row).height = 20;
+      row++;
+    }
+    ws.mergeCells(startRow, dayCol, row - 1, dayCol);
+    style(ws.getCell(startRow, dayCol), 12, true, "center", 90);
+  }
+
+  for (let r = 9; r < row; r++) {
+    for (let c = dayCol; c <= totalCols; c++) ws.getCell(r, c).border = thin;
+  }
+
+  // التذييل
+  const footStart = row + 1;
+  ws.mergeCells(footStart, 1, footStart, mid - 1);
+  style(set(footStart, 1, "جرى تدقيقه في قسم التعليم العام من قبل : .............................................."), 12, true, "right");
+  ws.mergeCells(footStart, mid, footStart, totalCols);
+  style(set(footStart, mid, `اسم مدير المدرسة : ${info.directorName || ""}`.trimEnd()), 12, true, "right");
+
+  style(set(footStart + 1, 1, "التاريخ :"), 12, true, "right");
+  style(set(footStart + 1, 4, "مصدق"), 12, true, "right");
+  style(set(footStart + 1, 8, "توقيعه :"), 12, true, "right");
+  ws.mergeCells(footStart + 1, mid, footStart + 1, totalCols);
+  style(set(footStart + 1, mid, "توقيعه :"), 12, true, "right");
+
+  style(set(footStart + 2, 4, "الخاتم الرسمي"), 12, true, "right");
+  style(set(footStart + 2, 8, `مدير التربية والتعليم : ${info.directorateName || ""}`.trimEnd()), 12, true, "right");
+  ws.mergeCells(footStart + 2, mid, footStart + 2, totalCols);
+  style(set(footStart + 2, mid, "خاتم المدرسة :"), 12, true, "right");
+
+  [footStart, footStart + 1, footStart + 2].forEach(r => { ws.getRow(r).height = 28; });
+
+  ws.getColumn(dayCol).width = 7;
+  ws.getColumn(periodCol).width = 10;
+  for (let c = firstClassCol; c <= totalCols; c++) ws.getColumn(c).width = 11;
+
+  return wb;
+}
+
 export async function exportOfficialTimetableExcel(
   timetable: ClassTimetable,
   _periodsPerDay: number,
   info: OfficialTimetableInfo
 ) {
-  const wb = buildSubjectsTemplateWorkbook(timetable, info);
+  const wb = buildCertifiedTimetableWorkbook(timetable, info);
   const buffer = await wb.xlsx.writeBuffer();
   saveAs(new Blob([buffer]), `جدول_مصدق_${info.schoolName || "المدرسة"}.xlsx`);
 }
