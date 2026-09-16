@@ -217,17 +217,18 @@ export async function exportOfficialSubjectsTeachersExcel(
     set(row, TOTAL, total);
   }
 
-  // صفوف فارغة للإداريات
-  for (let i = 0; i < EMPTY_ROWS; i++) {
-    set(FIRST_ROW + index + i, NO, index + i + 1);
+  // صفوف فارغة للإداريات (لا يقل مجموع الصفوف عن 55 كما في النموذج)
+  const totalRows = Math.max(index + EMPTY_ROWS, 55);
+  for (let i = index; i < totalRows; i++) {
+    set(FIRST_ROW + i, NO, i + 1);
   }
 
-  const lastRow = FIRST_ROW + index + EMPTY_ROWS - 1;
+  const lastRow = FIRST_ROW + totalRows - 1;
   for (let r = FIRST_ROW; r <= lastRow; r++) {
     ws.getRow(r).height = 20;
     for (let col = 1; col <= NOTES; col++) {
       const c = ws.getCell(r, col);
-      c.font = { name: FONT, bold: col === NAME || col === TOTAL, size: 10 };
+      c.font = { name: FONT, bold: col === TOTAL, size: col === NAME ? 9 : 10 };
       c.alignment = {
         horizontal: col === NAME || col === NOTES ? "right" : "center",
         vertical: "middle", wrapText: true,
@@ -236,45 +237,50 @@ export async function exportOfficialSubjectsTeachersExcel(
     }
   }
 
-  // الملاحظات والتذييل كما في النموذج الرسمي
+  // الملاحظات والتذييل كما في النموذج المعتمد (4 كتل في نفس الصفوف)
+  const fr = lastRow + 2;
+  const pos = (f: number) => Math.min(NOTES, Math.max(1, Math.round(NOTES * f)));
+  const n1 = pos(0.276);
+  const s1 = pos(0.328), s1e = pos(0.5);
+  const s2 = pos(0.569), s2e = pos(0.741);
+  const s3 = pos(0.776), s3e = Math.max(pos(0.776) + 1, NOTES - 1);
+
   const noteLines = [
-    "1) يدون اسم المدير أولاً، كما تدون أسماء جميع الهيئة التدريسية ولو لم يكن لهم حصص مقررة، ثم ترتب أسماء معلمي المباحث بتسلسل يطابق ترتيب المباحث في جداول العلامات.",
-    "2) يبين في حقل الملاحظات : أ- عدد الحصص الزائدة عن النصاب ويجري تدريسها على حساب التعليم الإضافي مع بيان المبحث والصف والشعبة. ب- نشاطاته الأخرى (غير التدريس) بما في ذلك النشاطات الحرة.",
-    "3) يشار في حقل الملاحظات للمعلم المشترك والمدرسة التي يكمل نصابه فيها وعدد تلك الحصص.",
+    " يدون اسم المدير أولاً، كما تدون أسماء جميع الهيئة التدريسية ولو لم يكن لهم حصص مقررة، ثم ترتب أسماء معلمي المباحث بتسلسل يطابق ترتيب المباحث في جداول العلامات",
+    " يبين في حقل الملاحظات : أ- عدد الحصص الزائدة عن النصاب ويجري تدريسها على حساب التعليم الإضافي مع بيان المبحث والصف والشعبة. ب- نشاطاته الأخرى (غير التدريس) بما في ذلك النشاطات الحرة",
+    " يشار في حقل الملاحظات للمعلم المشترك والمدرسة التي يكمل نصابه فيها وعدد تلك الحصص",
   ];
-  let fr = lastRow + 2;
-  const half = Math.max(8, Math.floor(NOTES / 2));
-  noteLines.forEach(text => {
-    ws.mergeCells(fr, NO, fr, half);
-    const c = set(fr, NO, text);
+  noteLines.forEach((text, i) => {
+    const r = fr + i;
+    ws.mergeCells(r, NO, r, n1);
+    const c = set(r, NO, text);
     c.font = { name: FONT, size: 10 };
     c.alignment = { horizontal: "right", vertical: "middle", wrapText: true };
-    ws.getRow(fr).height = 18;
-    fr++;
+    ws.getRow(r).height = 18;
   });
 
-  const sigRow = lastRow + 2;
-  const sigs: [string, number][] = [
-    ["جرى تدقيقه في : 1- قسم الإشراف التربوي     2- التعليم العام", 0],
-    ["اسم المدقق وتوقيعه : ..................    التاريخ    /    / 202  م", 1],
-    [`اسم مدير/ة المدرسة وتوقيعه وخاتم المدرسة : ${info.directorName || ""}     التاريخ    /    / 202  م`, 2],
-  ];
-  sigs.forEach(([text, i]) => {
-    const r = sigRow + i;
-    ws.mergeCells(r, half + 1, r, NOTES);
-    const c = set(r, half + 1, text);
+  const block = (row: number, startCol: number, endCol: number, text: string) => {
+    ws.mergeCells(row, startCol, row, endCol);
+    const c = set(row, startCol, text);
     c.font = { name: FONT, bold: true, size: 10 };
     c.alignment = { horizontal: "right", vertical: "middle", wrapText: true };
-  });
+  };
+  block(fr, s1, s1e, "جرى تدقيقه في : 1- قسم الإشراف التربوي     2- التعليم العام");
+  block(fr + 1, s1, s1e, "اسم المدقق وتوقيعه : ..................    ");
+  block(fr + 2, s1, s1e, "التاريخ       /      /   202م");
+  block(fr, s2, s2e, "توقيع مدير التربية والتعليم  ................................");
+  block(fr + 2, s2, s2e, "التاريخ       /      /   202م");
+  block(fr, s3, s3e, `اسم مدير/ة المدرسة وتوقيعه وخاتم المدرسة : ${info.directorName || "..................................."}`);
+  block(fr + 2, s3, s3e, "التاريخ       /      /   202م");
 
   // عروض الأعمدة
   const many = classKeys.length;
   const subjW = many > 30 ? 8 : many > 22 ? 9 : many > 16 ? 11 : 13;
   const countW = many > 22 ? 5 : 6;
   ws.getColumn(NO).width = 4;
-  ws.getColumn(NAME).width = many > 22 ? 20 : 26;
+  ws.getColumn(NAME).width = 20;
   ws.getColumn(EXP).width = 7;
-  ws.getColumn(CERT).width = 9;
+  ws.getColumn(CERT).width = 13;
   ws.getColumn(SPEC).width = 11;
   ws.getColumn(SRC).width = 9;
   ws.getColumn(GRAD).width = 7;
@@ -285,6 +291,7 @@ export async function exportOfficialSubjectsTeachersExcel(
   }
   ws.getColumn(TOTAL).width = 8;
   ws.getColumn(NOTES).width = 20;
+
 
   const buffer = await wb.xlsx.writeBuffer();
   saveAs(new Blob([buffer]), `جدول_توزيع_المباحث_الرسمي_${safeName(info.schoolName)}.xlsx`);
