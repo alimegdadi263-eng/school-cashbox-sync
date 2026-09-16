@@ -25,6 +25,7 @@ import { exportFollowupRecordExcel, exportFollowupRecordDocx } from "@/lib/expor
 import { exportCurriculumRecordExcel, exportCurriculumRecordDocx } from "@/lib/exportCurriculumRecord";
 import { exportOfficialTimetableExcel, exportSubjectsTemplateExcel } from "@/lib/exportOfficialTimetable";
 import { exportSubjectsTeachersExcel } from "@/lib/exportSubjectsTeachers";
+import { exportOfficialSubjectsTeachersExcel } from "@/lib/exportOfficialSubjectsTeachers";
 import {
   exportClassTimetableExcel,
   exportTeacherTimetableExcel,
