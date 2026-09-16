@@ -237,8 +237,31 @@ export async function exportOfficialSubjectsTeachersExcel(
     }
   }
 
+  // صف المجموع العام: مجموع حصص كل شعبة + المجموع العام لحصص المدرسة
+  const SUM_ROW = lastRow + 1;
+  ws.getRow(SUM_ROW).height = 22;
+  ws.mergeCells(SUM_ROW, NO, SUM_ROW, COURSES);
+  const sumLabel = set(SUM_ROW, NO, "       المجموع العام للحصص كل شعبة والمجموع العام لحصص المدرسة ");
+  sumLabel.font = { name: FONT, bold: true, size: 11 };
+  sumLabel.alignment = { horizontal: "right", vertical: "middle", wrapText: true };
+  const letter = (col: number) => ws.getColumn(col).letter;
+  for (let i = 0; i < classKeys.length; i++) {
+    const col = FIRST_CLASS + i * 2 + 1;
+    const c = ws.getCell(SUM_ROW, col);
+    c.value = { formula: `SUM(${letter(col)}${FIRST_ROW}:${letter(col)}${lastRow})` } as never;
+  }
+  const grand = ws.getCell(SUM_ROW, TOTAL);
+  grand.value = { formula: `SUM(${letter(TOTAL)}${FIRST_ROW}:${letter(TOTAL)}${lastRow})` } as never;
+  for (let col = 1; col <= NOTES; col++) {
+    const c = ws.getCell(SUM_ROW, col);
+    c.font = { name: FONT, bold: true, size: col === NO ? 11 : 10 };
+    if (col > COURSES) c.alignment = { horizontal: "center", vertical: "middle" };
+    c.border = medium;
+  }
+
   // الملاحظات والتذييل كما في النموذج المعتمد (4 كتل في نفس الصفوف)
-  const fr = lastRow + 2;
+  const fr = SUM_ROW + 1;
+
   const pos = (f: number) => Math.min(NOTES, Math.max(1, Math.round(NOTES * f)));
   const n1 = pos(0.276);
   const s1 = pos(0.328), s1e = pos(0.5);
