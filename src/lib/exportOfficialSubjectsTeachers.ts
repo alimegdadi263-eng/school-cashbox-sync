@@ -94,9 +94,9 @@ export async function exportOfficialSubjectsTeachersExcel(
     return c;
   };
 
-  // الشعار أعلى الوسط كما في النموذج المعتمد
+  // الشعار أعلى الوسط كما في النموذج المعتمد (أصغر حتى لا يغطي اسم الوزارة)
   const emblemCol = Math.min(27, Math.max(1, NOTES - 6));
-  addEmblem(wb, ws, emblemCol, 0, 190);
+  addEmblem(wb, ws, emblemCol, 0, 70);
 
   // العنوان (الصف 5) واسم الوزارة يمين الشعار
   ws.mergeCells(5, NO, 5, Math.min(8, NOTES));
