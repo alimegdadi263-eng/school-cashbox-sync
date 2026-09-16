@@ -1,0 +1,283 @@
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
+import type { Teacher } from "@/types/timetable";
+import { ACTIVITY_SUBJECT, compareClassKeys, getClassKey, parseClassKey } from "@/types/timetable";
+import { addEmblem, type OfficialTimetableInfo } from "@/lib/exportOfficialTimetable";
+
+/**
+ * جدول توزيع المباحث بين المعلمين — النموذج الرسمي للمديرية.
+ * - المعلمات مرتبات بحيث يكون معلمو المبحث الواحد تحت بعضهم.
+ * - حصص النشاط تُدوّن في الملاحظات وتُحسب ضمن مجموع النصاب.
+ * - صفوف فارغة في نهاية الجدول لإضافة الإداريات يدوياً.
+ */
+
+const FONT = "Arial";
+const EMPTY_ROWS = 15;
+
+const thin: Partial<ExcelJS.Borders> = {
+  top: { style: "thin" }, bottom: { style: "thin" },
+  left: { style: "thin" }, right: { style: "thin" },
+};
+const medium: Partial<ExcelJS.Borders> = {
+  top: { style: "medium" }, bottom: { style: "medium" },
+  left: { style: "medium" }, right: { style: "medium" },
+};
+
+function safeName(value: string) {
+  return (value || "المدرسة").replace(/[\\/:*?"<>|]/g, "_");
+}
+
+function classLabel(key: string) {
+  const { className, section } = parseClassKey(key);
+  return `${className} ${section}`.trim();
+}
+
+/** المبحث الرئيسي للمعلم (الأكثر حصصاً) لاستخدامه في الترتيب والتجميع */
+function mainSubject(teacher: Teacher) {
+  const totals = new Map<string, number>();
+  for (const s of teacher.subjects || []) {
+    if (s.subjectName === ACTIVITY_SUBJECT) continue;
+    totals.set(s.subjectName, (totals.get(s.subjectName) || 0) + (s.periodsPerWeek || 0));
+  }
+  let best = "";
+  let bestCount = -1;
+  for (const [name, count] of totals) {
+    if (count > bestCount) { best = name; bestCount = count; }
+  }
+  return best;
+}
+
+export async function exportOfficialSubjectsTeachersExcel(
+  teachers: Teacher[],
+  info: OfficialTimetableInfo,
+) {
+  if (!teachers || teachers.length === 0) throw new Error("لا يوجد معلمون لتصديرهم");
+
+  const classKeys = [...new Set(
+    teachers.flatMap(t => (t.subjects || [])
+      .filter(s => s.subjectName !== ACTIVITY_SUBJECT)
+      .map(s => getClassKey(s.className, s.section)))
+  )].sort(compareClassKeys);
+
+  // ترتيب المعلمات: كل مبحث تحت بعضه، وداخل المبحث ترتيب أبجدي
+  const order: string[] = [];
+  for (const t of teachers) {
+    const subj = mainSubject(t);
+    if (!order.includes(subj)) order.push(subj);
+  }
+  const sorted = [...teachers].sort((a, b) => {
+    const sa = mainSubject(a), sb = mainSubject(b);
+    if (sa !== sb) return order.indexOf(sa) - order.indexOf(sb);
+    return a.name.localeCompare(b.name, "ar");
+  });
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "الإدارة المدرسية";
+  wb.created = new Date();
+  const ws = wb.addWorksheet("جدول المباحث", { views: [{ rightToLeft: true, showGridLines: false }] });
+
+  const NO = 1, NAME = 2, EXP = 3, CERT = 4, SPEC = 5, SRC = 6, GRAD = 7, COURSES = 8;
+  const FIRST_CLASS = 9;
+  const TOTAL = FIRST_CLASS + classKeys.length * 2;
+  const NOTES = TOTAL + 1;
+
+  ws.pageSetup = {
+    paperSize: 8 as never, // A3
+    orientation: "landscape" as never,
+    fitToPage: true, fitToWidth: 1, fitToHeight: 1,
+    margins: { left: 0.2, right: 0.2, top: 0.3, bottom: 0.3, header: 0.1, footer: 0.1 },
+  };
+
+  const set = (row: number, col: number, value: string | number) => {
+    const c = ws.getCell(row, col);
+    c.value = value;
+    return c;
+  };
+
+  addEmblem(wb, ws, NO - 1, 0, 70);
+
+  // العنوان
+  ws.mergeCells(1, NO, 1, NOTES);
+  const title = set(1, NO, `جدول توزيع المباحث بين المعلمين اعتباراً من ${info.academicYear || "    /    / 202  م"}`);
+  title.font = { name: FONT, bold: true, size: 18 };
+  title.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+  ws.getRow(1).height = 34;
+
+  // ترويسة المدرسة
+  const third = Math.max(6, Math.floor(NOTES / 3));
+  ws.mergeCells(2, NO, 2, third);
+  set(2, NO, `مديرية التربية والتعليم : ${info.directorateName || ""}`.trim());
+  ws.mergeCells(2, third + 1, 2, third * 2);
+  set(2, third + 1, `مدرسة : ${info.schoolName || ""}`.trim());
+  ws.mergeCells(2, third * 2 + 1, 2, NOTES);
+  set(2, third * 2 + 1, `المدينة / القرية : ${info.cityName || ""}`.trim());
+  ws.getRow(2).eachCell(c => {
+    c.font = { name: FONT, bold: true, size: 12 };
+    c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+  });
+  ws.getRow(2).height = 22;
+
+  // رؤوس الأعمدة (4 مستويات: 4..7)
+  const H1 = 4, H2 = 5, H3 = 6, H4 = 7;
+  const spanAll = (col: number, text: string) => {
+    ws.mergeCells(H1, col, H4, col);
+    const c = set(H1, col, text);
+    c.font = { name: FONT, bold: true, size: 11 };
+    c.alignment = { horizontal: "center", vertical: "middle", wrapText: true, textRotation: 0 };
+    return c;
+  };
+  spanAll(NO, "الرقم");
+  spanAll(NAME, "اسم المعلم الكامل");
+  spanAll(EXP, "عدد سنوات الخبرة");
+  spanAll(TOTAL, "مجموع الحصص");
+  spanAll(NOTES, "ملاحظــــات");
+
+  ws.mergeCells(H1, CERT, H2, GRAD);
+  const qual = set(H1, CERT, "المؤهل العلمي");
+  qual.font = { name: FONT, bold: true, size: 11 };
+  qual.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+
+  ws.mergeCells(H1, COURSES, H1, TOTAL - 1);
+  const dist = set(H1, COURSES, "توزيع حصص المباحث في كل صف وشعبة");
+  dist.font = { name: FONT, bold: true, size: 12 };
+  dist.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+
+  const rowsLabel = set(H2, COURSES, "الصفوف");
+  rowsLabel.font = { name: FONT, bold: true, size: 11 };
+  rowsLabel.alignment = { horizontal: "center", vertical: "middle" };
+
+  const sub = (col: number, text: string) => {
+    ws.mergeCells(H3, col, H4, col);
+    const c = set(H3, col, text);
+    c.font = { name: FONT, bold: true, size: 10 };
+    c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+  };
+  sub(CERT, "الشهادة");
+  sub(SPEC, "التخصص");
+  sub(SRC, "المصدر");
+  sub(GRAD, "سنة التخرج");
+  sub(COURSES, "الدورات الرئيسية التي حضرها المعلم");
+
+  classKeys.forEach((key, i) => {
+    const col = FIRST_CLASS + i * 2;
+    ws.mergeCells(H2, col, H2, col + 1);
+    const head = set(H2, col, classLabel(key));
+    head.font = { name: FONT, bold: true, size: 10 };
+    head.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    sub(col, "المبحث");
+    sub(col + 1, "عدد الحصص");
+  });
+
+  for (let r = H1; r <= H4; r++) {
+    ws.getRow(r).height = r === H1 ? 22 : r === H2 ? 20 : 18;
+    for (let col = 1; col <= NOTES; col++) {
+      ws.getCell(r, col).border = medium;
+    }
+  }
+
+  // صفوف المعلمات
+  const FIRST_ROW = H4 + 1;
+  let index = 0;
+  for (const teacher of sorted) {
+    const row = FIRST_ROW + index;
+    index++;
+    set(row, NO, index);
+    set(row, NAME, teacher.name);
+
+    let total = 0;
+    classKeys.forEach((key, ci) => {
+      const assignments = (teacher.subjects || []).filter(
+        s => s.subjectName !== ACTIVITY_SUBJECT && getClassKey(s.className, s.section) === key
+      );
+      if (assignments.length === 0) return;
+      const col = FIRST_CLASS + ci * 2;
+      set(row, col, [...new Set(assignments.map(a => a.subjectName))].join(" / "));
+      const count = assignments.reduce((sum, a) => sum + (a.periodsPerWeek || 0), 0);
+      set(row, col + 1, count);
+      total += count;
+    });
+
+    // حصص النشاط: في الملاحظات وتُحسب مع النصاب
+    const activity = (teacher.subjects || [])
+      .filter(s => s.subjectName === ACTIVITY_SUBJECT)
+      .reduce((sum, s) => sum + (s.periodsPerWeek || 0), 0);
+    if (activity > 0) {
+      total += activity;
+      set(row, NOTES, `نشاط : ${activity} حصة (محتسبة ضمن النصاب)`);
+    }
+
+    set(row, TOTAL, total);
+  }
+
+  // صفوف فارغة للإداريات
+  for (let i = 0; i < EMPTY_ROWS; i++) {
+    set(FIRST_ROW + index + i, NO, index + i + 1);
+  }
+
+  const lastRow = FIRST_ROW + index + EMPTY_ROWS - 1;
+  for (let r = FIRST_ROW; r <= lastRow; r++) {
+    ws.getRow(r).height = 20;
+    for (let col = 1; col <= NOTES; col++) {
+      const c = ws.getCell(r, col);
+      c.font = { name: FONT, bold: col === NAME || col === TOTAL, size: 10 };
+      c.alignment = {
+        horizontal: col === NAME || col === NOTES ? "right" : "center",
+        vertical: "middle", wrapText: true,
+      };
+      c.border = thin;
+    }
+  }
+
+  // الملاحظات والتذييل كما في النموذج الرسمي
+  const noteLines = [
+    "1) يدون اسم المدير أولاً، كما تدون أسماء جميع الهيئة التدريسية ولو لم يكن لهم حصص مقررة، ثم ترتب أسماء معلمي المباحث بتسلسل يطابق ترتيب المباحث في جداول العلامات.",
+    "2) يبين في حقل الملاحظات : أ- عدد الحصص الزائدة عن النصاب ويجري تدريسها على حساب التعليم الإضافي مع بيان المبحث والصف والشعبة. ب- نشاطاته الأخرى (غير التدريس) بما في ذلك النشاطات الحرة.",
+    "3) يشار في حقل الملاحظات للمعلم المشترك والمدرسة التي يكمل نصابه فيها وعدد تلك الحصص.",
+  ];
+  let fr = lastRow + 2;
+  const half = Math.max(8, Math.floor(NOTES / 2));
+  noteLines.forEach(text => {
+    ws.mergeCells(fr, NO, fr, half);
+    const c = set(fr, NO, text);
+    c.font = { name: FONT, size: 10 };
+    c.alignment = { horizontal: "right", vertical: "middle", wrapText: true };
+    ws.getRow(fr).height = 18;
+    fr++;
+  });
+
+  const sigRow = lastRow + 2;
+  const sigs: [string, number][] = [
+    ["جرى تدقيقه في : 1- قسم الإشراف التربوي     2- التعليم العام", 0],
+    ["اسم المدقق وتوقيعه : ..................    التاريخ    /    / 202  م", 1],
+    [`اسم مدير/ة المدرسة وتوقيعه وخاتم المدرسة : ${info.directorName || ""}     التاريخ    /    / 202  م`, 2],
+  ];
+  sigs.forEach(([text, i]) => {
+    const r = sigRow + i;
+    ws.mergeCells(r, half + 1, r, NOTES);
+    const c = set(r, half + 1, text);
+    c.font = { name: FONT, bold: true, size: 10 };
+    c.alignment = { horizontal: "right", vertical: "middle", wrapText: true };
+  });
+
+  // عروض الأعمدة
+  const many = classKeys.length;
+  const subjW = many > 30 ? 8 : many > 22 ? 9 : many > 16 ? 11 : 13;
+  const countW = many > 22 ? 5 : 6;
+  ws.getColumn(NO).width = 4;
+  ws.getColumn(NAME).width = many > 22 ? 20 : 26;
+  ws.getColumn(EXP).width = 7;
+  ws.getColumn(CERT).width = 9;
+  ws.getColumn(SPEC).width = 11;
+  ws.getColumn(SRC).width = 9;
+  ws.getColumn(GRAD).width = 7;
+  ws.getColumn(COURSES).width = 14;
+  for (let i = 0; i < classKeys.length; i++) {
+    ws.getColumn(FIRST_CLASS + i * 2).width = subjW;
+    ws.getColumn(FIRST_CLASS + i * 2 + 1).width = countW;
+  }
+  ws.getColumn(TOTAL).width = 8;
+  ws.getColumn(NOTES).width = 20;
+
+  const buffer = await wb.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), `جدول_توزيع_المباحث_الرسمي_${safeName(info.schoolName)}.xlsx`);
+}
