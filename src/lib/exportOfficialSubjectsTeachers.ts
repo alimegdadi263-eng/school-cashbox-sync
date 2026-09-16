@@ -94,31 +94,39 @@ export async function exportOfficialSubjectsTeachersExcel(
     return c;
   };
 
-  addEmblem(wb, ws, NO - 1, 0, 70);
+  // الشعار أعلى الوسط كما في النموذج المعتمد
+  const emblemCol = Math.min(27, Math.max(1, NOTES - 6));
+  addEmblem(wb, ws, emblemCol, 0, 190);
 
-  // العنوان
-  ws.mergeCells(1, NO, 1, NOTES);
-  const title = set(1, NO, `جدول توزيع المباحث بين المعلمين اعتباراً من ${info.academicYear || "    /    / 202  م"}`);
-  title.font = { name: FONT, bold: true, size: 18 };
-  title.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-  ws.getRow(1).height = 34;
+  // العنوان (الصف 5) واسم الوزارة يمين الشعار
+  ws.mergeCells(5, NO, 5, Math.min(8, NOTES));
+  const title = set(5, NO, `جدول توزيع المباحث بين المعلمين اعتباراً من ${info.academicYear || "    /    / 202  م"}`);
+  title.font = { name: FONT, bold: true, size: 12 };
+  title.alignment = { horizontal: "right", vertical: "middle", wrapText: true };
+  const minS = Math.min(25, NOTES), minE = Math.min(32, NOTES);
+  ws.mergeCells(5, minS, 5, minE);
+  const ministry = set(5, minS, "وزارة التربية والتعليم ");
+  ministry.font = { name: FONT, bold: true, size: 14 };
+  ministry.alignment = { horizontal: "center", vertical: "middle" };
+  ws.getRow(5).height = 34;
 
-  // ترويسة المدرسة
+  // ترويسة المدرسة (الصف 6)
   const third = Math.max(6, Math.floor(NOTES / 3));
-  ws.mergeCells(2, NO, 2, third);
-  set(2, NO, `مديرية التربية والتعليم : ${info.directorateName || ""}`.trim());
-  ws.mergeCells(2, third + 1, 2, third * 2);
-  set(2, third + 1, `مدرسة : ${info.schoolName || ""}`.trim());
-  ws.mergeCells(2, third * 2 + 1, 2, NOTES);
-  set(2, third * 2 + 1, `المدينة / القرية : ${info.cityName || ""}`.trim());
-  ws.getRow(2).eachCell(c => {
-    c.font = { name: FONT, bold: true, size: 12 };
-    c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+  ws.mergeCells(6, NO, 6, Math.min(5, third));
+  set(6, NO, `مديرية التربية والتعليم : ${info.directorateName || ""}`.trim());
+  ws.mergeCells(6, third + 1, 6, third * 2);
+  set(6, third + 1, `مدرسة : ${info.schoolName || ""}`.trim());
+  ws.mergeCells(6, third * 2 + 1, 6, NOTES);
+  set(6, third * 2 + 1, `المدينة / القرية : ${info.cityName || ""}`.trim());
+  ws.getRow(6).eachCell(c => {
+    c.font = { name: FONT, bold: true, size: 11 };
+    c.alignment = { horizontal: "right", vertical: "middle", wrapText: true };
   });
-  ws.getRow(2).height = 22;
+  ws.getRow(6).height = 22;
 
-  // رؤوس الأعمدة (4 مستويات: 4..7)
-  const H1 = 4, H2 = 5, H3 = 6, H4 = 7;
+  // رؤوس الأعمدة (4 مستويات: 8..11)
+  const H1 = 8, H2 = 9, H3 = 10, H4 = 11;
+
   const spanAll = (col: number, text: string) => {
     ws.mergeCells(H1, col, H4, col);
     const c = set(H1, col, text);
