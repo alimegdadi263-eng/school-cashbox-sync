@@ -36,7 +36,6 @@ function aligned(value: string, size: number, alignment: (typeof AlignmentType)[
   return new Paragraph({
     children: [text(value, size, bold)],
     alignment,
-    bidirectional: true,
     spacing: { before, after },
   });
 }
