@@ -41,7 +41,12 @@ function aligned(value: string, size: number, alignment: (typeof AlignmentType)[
 }
 
 export interface AppreciationCertificateData {
-  student: StudentInfo;
+  student?: StudentInfo;
+  recipientName?: string;
+  recipientType?: "student" | "teacher" | "organization" | "community";
+  recipientDetail?: string;
+  representativeName?: string;
+  template?: "formal" | "academic" | "celebration" | "community";
   reason: string;
   date: string;
   schoolName: string;
@@ -61,7 +66,43 @@ export async function exportAppreciationCertificate(data: AppreciationCertificat
     logoResponse.arrayBuffer(),
     watermarkResponse.arrayBuffer(),
   ]);
-  const className = data.student.className || data.student.grade || "غير محدد";
+  const recipientName = data.recipientName?.trim() || data.student?.name || "";
+  if (!recipientName) throw new Error("اسم المستلم مطلوب");
+  const recipientType = data.recipientType || "student";
+  const template = data.template || "formal";
+  const recipientDetail = data.recipientDetail?.trim()
+    || data.student?.className
+    || data.student?.grade
+    || "";
+  const templates = {
+    formal: {
+      border: BorderStyle.TRIPLE, color: "B38A28", title: "شهادة تقدير", titleSize: 66,
+      intro: "تتقدم إدارة المدرسة بخالص الشكر والتقدير إلى",
+      closing: "مع أطيب الأمنيات بمزيد من التفوق والنجاح",
+    },
+    academic: {
+      border: BorderStyle.DOUBLE, color: "1D4E89", title: "شهادة شكر وتقدير", titleSize: 61,
+      intro: "يسر إدارة المدرسة أن تتقدم بجزيل الشكر والتقدير إلى",
+      closing: "تقديراً للعطاء المتميز، مع تمنياتنا بدوام التقدم والنجاح",
+    },
+    celebration: {
+      border: BorderStyle.THICK_THIN_LARGE_GAP, color: "8B2E3F", title: "شهادة تميّز وعطاء", titleSize: 63,
+      intro: "بكل الفخر والاعتزاز، تتشرف إدارة المدرسة بتكريم",
+      closing: "نعتز بهذا الإنجاز ونتمنى مزيداً من التألق والإبداع",
+    },
+    community: {
+      border: BorderStyle.DOUBLE_WAVE, color: "287271", title: "شهادة شكر وامتنان", titleSize: 61,
+      intro: "وفاءً للعطاء والشراكة، تتقدم إدارة المدرسة بالشكر إلى",
+      closing: "مع بالغ الاعتزاز بهذه الشراكة وخالص أمنياتنا بالتوفيق",
+    },
+  } as const;
+  const selectedTemplate = templates[template];
+  const detailLabels = {
+    student: "الصف",
+    teacher: "المسمى أو التخصص",
+    organization: "الجهة / الصفة",
+    community: "الصفة / المؤسسة",
+  } as const;
 
   const document = new Document({
     styles: { default: { document: { run: { font: FONT, size: 26 } } } },
@@ -71,10 +112,10 @@ export async function exportAppreciationCertificate(data: AppreciationCertificat
           size: { width: 11906, height: 16838, orientation: PageOrientation.LANDSCAPE },
           margin: { top: 500, right: 900, bottom: 500, left: 900 },
           borders: {
-            pageBorderTop: { style: BorderStyle.TRIPLE, size: 18, color: "B38A28", space: 16 },
-            pageBorderBottom: { style: BorderStyle.TRIPLE, size: 18, color: "B38A28", space: 16 },
-            pageBorderLeft: { style: BorderStyle.TRIPLE, size: 18, color: "B38A28", space: 16 },
-            pageBorderRight: { style: BorderStyle.TRIPLE, size: 18, color: "B38A28", space: 16 },
+            pageBorderTop: { style: selectedTemplate.border, size: 18, color: selectedTemplate.color, space: 16 },
+            pageBorderBottom: { style: selectedTemplate.border, size: 18, color: selectedTemplate.color, space: 16 },
+            pageBorderLeft: { style: selectedTemplate.border, size: 18, color: selectedTemplate.color, space: 16 },
+            pageBorderRight: { style: selectedTemplate.border, size: 18, color: selectedTemplate.color, space: 16 },
           },
         },
       },
@@ -119,12 +160,13 @@ export async function exportAppreciationCertificate(data: AppreciationCertificat
         centered("وزارة التربية والتعليم وتنمية الموارد البشرية", 32, true, 0, 12),
         centered(data.directorateName ? `مديرية التربية والتعليم: ${data.directorateName}` : "مديرية التربية والتعليم", 27, false, 0, 12),
         centered(data.schoolName || "المدرسة", 32, true, 0, 95),
-        centered("شهادة تقدير", 66, true, 45, 105),
-        centered("تتقدم إدارة المدرسة بخالص الشكر والتقدير إلى الطالب/ة", 34, false, 25, 55),
-        centered(data.student.name, 54, true, 20, 65),
-        centered(`من الصف: ${className}`, className.length > 45 ? 25 : 33, true, 10, 65),
+        centered(selectedTemplate.title, selectedTemplate.titleSize, true, 45, 105),
+        centered(selectedTemplate.intro, 34, false, 25, 55),
+        centered(recipientName, 54, true, 20, 65),
+        ...(recipientDetail ? [centered(`${detailLabels[recipientType]}: ${recipientDetail}`, recipientDetail.length > 45 ? 25 : 33, true, 10, 45)] : []),
+        ...(data.representativeName?.trim() ? [centered(`ممثل الجهة: ${data.representativeName.trim()}`, 28, false, 5, 40)] : []),
         centered(`تقديراً لـ ${data.reason.trim()}`, 37, false, 30, 90),
-        centered("مع أطيب الأمنيات بمزيد من التفوق والنجاح", 33, false, 25, 135),
+        centered(selectedTemplate.closing, 33, false, 25, 135),
         aligned(`التاريخ: ${data.date}`, 29, AlignmentType.RIGHT, true, 0, 20),
         aligned(`مدير/ة المدرسة: ${data.principalName || "........................"}`, 29, AlignmentType.LEFT, true, 0, 25),
         aligned("التوقيع والختم: ........................", 27, AlignmentType.LEFT),
@@ -133,5 +175,5 @@ export async function exportAppreciationCertificate(data: AppreciationCertificat
   });
 
   const blob = await Packer.toBlob(document);
-  saveAs(blob, `شهادة_تقدير_${data.student.name}.docx`);
+  saveAs(blob, `شهادة_تقدير_${recipientName}.docx`);
 }

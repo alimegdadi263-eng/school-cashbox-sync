@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { exportAppreciationCertificate } from "@/lib/exportAppreciationCertificate";
@@ -25,11 +26,13 @@ export default function AppreciationCertificateDialog({ student, onClose, school
   const { toast } = useToast();
   const [reason, setReason] = useState("");
   const [certificateDate, setCertificateDate] = useState<Date>(new Date());
+  const [template, setTemplate] = useState<"formal" | "academic" | "celebration" | "community">("formal");
   const [exporting, setExporting] = useState(false);
 
   const close = () => {
     setReason("");
     setCertificateDate(new Date());
+    setTemplate("formal");
     onClose();
   };
 
@@ -43,6 +46,8 @@ export default function AppreciationCertificateDialog({ student, onClose, school
     try {
       await exportAppreciationCertificate({
         student,
+        recipientType: "student",
+        template,
         reason,
         date: format(certificateDate, "yyyy/MM/dd"),
         schoolName,
@@ -66,6 +71,18 @@ export default function AppreciationCertificateDialog({ student, onClose, school
           <DialogDescription>{student ? `${student.name} — ${student.className || "الصف غير محدد"}` : ""}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>تصميم الشهادة</Label>
+            <Select value={template} onValueChange={(value) => setTemplate(value as typeof template)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="formal">رسمي ذهبي</SelectItem>
+                <SelectItem value="academic">أكاديمي هادئ</SelectItem>
+                <SelectItem value="celebration">احتفالي حديث</SelectItem>
+                <SelectItem value="community">شراكة مجتمعية</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-2">
             <Label>سبب منح الشهادة</Label>
             <Textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="مثال: التفوق الدراسي وحسن السلوك" rows={4} />
