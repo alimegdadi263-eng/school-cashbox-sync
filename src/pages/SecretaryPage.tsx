@@ -638,6 +638,34 @@ function InventoryTab({
     toast({ title: "تم تصدير الجرد إلى Excel" });
   };
 
+  const exportEmptyTemplate = async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet(`نموذج جرد ${category.label}`);
+    ws.views = [{ rightToLeft: true, state: "frozen", ySplit: 1 }];
+    const headers = ["رقم السجل", "اللوازم", "الرصيد الفعلي", "الموجود", "النقص", "الزيادة", "السعر الإفرادي", "السعر الإجمالي"];
+    const headerRow = ws.addRow(headers);
+    headerRow.height = 30;
+    headerRow.eachCell((cell) => {
+      cell.font = { name: FONT_NAME, bold: true, size: 12, color: { argb: "FFFFFFFF" } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2B3A55" } };
+      cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+      cell.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+    });
+    for (let index = 1; index <= 30; index += 1) {
+      const row = ws.addRow([index, "", "", "", "", "", "", ""]);
+      row.height = 24;
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        cell.font = { name: FONT_NAME, size: 12, color: { argb: "FF0000FF" } };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+        cell.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+      });
+    }
+    [10, 30, 16, 14, 12, 12, 18, 18].forEach((width, index) => { ws.getColumn(index + 1).width = width; });
+    const buffer = await wb.xlsx.writeBuffer();
+    saveAs(new Blob([buffer]), `نموذج_جرد_فارغ_${category.label}.xlsx`);
+    toast({ title: "تم تصدير نموذج الجرد الفارغ" });
+  };
+
   const exportDocx = async () => {
     const custodyItems: InventoryCustodyItem[] = items.map((item) => ({
       serialNumber: item.serialNumber,
@@ -839,6 +867,10 @@ function InventoryTab({
             <FileUp className="w-4 h-4 ml-1" /> استيراد Excel
           </Button>
           <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={importExcel} />
+
+          <Button size="sm" variant="outline" onClick={exportEmptyTemplate}>
+            <FileDown className="w-4 h-4 ml-1" /> نموذج فارغ
+          </Button>
 
           <Button size="sm" variant="outline" onClick={() => wordInputRef.current?.click()}>
             <FileUp className="w-4 h-4 ml-1" /> استيراد Word
@@ -1547,6 +1579,34 @@ function DisposalSection({
     saveAs(new Blob([buffer]), `قائمة_إتلاف_${record.category}_${record.date}.xlsx`);
   };
 
+  const exportEmptyDisposalTemplate = async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("نموذج إتلاف فارغ");
+    ws.views = [{ rightToLeft: true, state: "frozen", ySplit: 1 }];
+    const headers = ["الرقم", "رقم صفحة السجل", "اسم الكتاب/المادة", "الصف", "تاريخ الطبعة", "الكمية بالأرقام", "الكمية بالحروف", "السعر الافرادي", "السعر الاجمالي", "تاريخ الادخال", "سبب الاتلاف"];
+    const headerRow = ws.addRow(headers);
+    headerRow.height = 34;
+    headerRow.eachCell((cell) => {
+      cell.font = { name: FONT_NAME, bold: true, size: 12, color: { argb: "FFFFFFFF" } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF8B0000" } };
+      cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+      cell.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+    });
+    for (let index = 1; index <= 30; index += 1) {
+      const row = ws.addRow([index, "", "", "", "", "", "", "", "", "", ""]);
+      row.height = 24;
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        cell.font = { name: FONT_NAME, size: 12, color: { argb: "FF0000FF" } };
+        cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+        cell.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+      });
+    }
+    [8, 15, 28, 14, 16, 14, 18, 16, 16, 16, 24].forEach((width, index) => { ws.getColumn(index + 1).width = width; });
+    const buffer = await wb.xlsx.writeBuffer();
+    saveAs(new Blob([buffer]), "نموذج_إتلاف_فارغ.xlsx");
+    toast({ title: "تم تصدير نموذج الإتلاف الفارغ" });
+  };
+
   return (
     <div className="space-y-4" dir="rtl">
       <Card>
@@ -1588,6 +1648,9 @@ function DisposalSection({
                 className="hidden"
                 onChange={importDisposalExcel}
               />
+              <Button size="sm" variant="outline" onClick={exportEmptyDisposalTemplate}>
+                <FileDown className="w-4 h-4 ml-1" /> نموذج فارغ
+              </Button>
               <Button size="sm" variant="outline" onClick={() => disposalWordInputRef.current?.click()}>
                 <FileUp className="w-4 h-4 ml-1" /> استيراد Word
               </Button>

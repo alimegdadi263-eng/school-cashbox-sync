@@ -51,7 +51,12 @@ export default function StudentAbsencePage() {
             <DailyAbsenceTracker userId={userId} schoolName={schoolName || ""} />
           </TabsContent>
           <TabsContent value="students">
-            <StudentManager userId={userId} schoolName={schoolName || ""} directorateName={state.directorateName || ""} />
+            <StudentManager
+              userId={userId}
+              schoolName={schoolName || ""}
+              directorateName={state.directorateName || ""}
+              principalName={state.directorName || ""}
+            />
           </TabsContent>
           <TabsContent value="statistics">
             <AbsenceStatistics

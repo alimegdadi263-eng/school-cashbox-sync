@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Upload, FileText, FileDown, FileSpreadsheet, AlertTriangle, Settings2 } from "lucide-react";
+import { Plus, Trash2, Upload, FileText, FileDown, FileSpreadsheet, AlertTriangle, Settings2, Award } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import type { StudentInfo } from "@/types/studentAbsence";
 import { CLASS_NAMES, SECONDARY_CLASSES } from "@/types/timetable";
@@ -14,6 +14,7 @@ import { STUDENTS_LIST_KEY } from "@/types/studentAbsence";
 import { exportStudentListDocx, exportStudentListExcel } from "@/lib/exportStudentList";
 import ExportFieldsDialog from "./ExportFieldsDialog";
 import { exportDailyAbsenceFormExcel, exportDailyAbsenceFormDocx } from "@/lib/exportDailyAbsenceForm";
+import AppreciationCertificateDialog from "./AppreciationCertificateDialog";
 
 const AJYAL_GRADE_MAP: Record<string, string> = {
   "الأول": "الأول", "الاول": "الأول",
@@ -69,6 +70,7 @@ interface Props {
   userId: string;
   schoolName?: string;
   directorateName?: string;
+  principalName?: string;
 }
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -76,7 +78,7 @@ const GRADES = CLASS_NAMES;
 const SECTIONS = ["أ", "ب", "ج", "د", "هـ", "و"];
 const BRANCHES_STORAGE_KEY = "custom_branches";
 
-export default function StudentManager({ userId, schoolName, directorateName }: Props) {
+export default function StudentManager({ userId, schoolName, directorateName, principalName }: Props) {
   const { toast } = useToast();
   const storageKey = `${STUDENTS_LIST_KEY}_${userId}`;
 
@@ -94,6 +96,7 @@ export default function StudentManager({ userId, schoolName, directorateName }: 
   const [filterClass, setFilterClass] = useState("");
   const [showAllFields, setShowAllFields] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
+  const [certificateStudent, setCertificateStudent] = useState<StudentInfo | null>(null);
 
   // Extra optional fields
   const [firstName, setFirstName] = useState("");
@@ -632,7 +635,7 @@ export default function StudentManager({ userId, schoolName, directorateName }: 
                     <TableHead className="text-center">هاتف ولي الأمر</TableHead>
                     <TableHead className="text-center">الهاتف الأساسي</TableHead>
                     <TableHead className="text-center">رقم الطالب</TableHead>
-                    <TableHead className="text-center w-10"></TableHead>
+                    <TableHead className="text-center min-w-[110px]">إجراءات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -646,7 +649,10 @@ export default function StudentManager({ userId, schoolName, directorateName }: 
                       <TableCell className="text-center" dir="ltr">{s.parentPhone || "-"}</TableCell>
                       <TableCell className="text-center" dir="ltr">{s.mainPhone || "-"}</TableCell>
                       <TableCell className="text-center" dir="ltr">{s.studentPhone || "-"}</TableCell>
-                      <TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <Button size="icon" variant="ghost" onClick={() => setCertificateStudent(s)} title="شهادة تقدير">
+                          <Award className="w-4 h-4 text-primary" />
+                        </Button>
                         <Button size="icon" variant="ghost" onClick={() => deleteStudent(s.id)}>
                           <Trash2 className="w-4 h-4 text-destructive" />
                         </Button>
@@ -659,6 +665,13 @@ export default function StudentManager({ userId, schoolName, directorateName }: 
           </CardContent>
         </Card>
       )}
+      <AppreciationCertificateDialog
+        student={certificateStudent}
+        onClose={() => setCertificateStudent(null)}
+        schoolName={schoolName || ""}
+        directorateName={directorateName || ""}
+        principalName={principalName || ""}
+      />
     </div>
   );
 }
