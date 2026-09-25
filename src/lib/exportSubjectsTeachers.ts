@@ -85,8 +85,8 @@ function buildSheet(
   ws.getRow(5).height = 24;
 
   // رؤوس الأعمدة
-  const HEAD1 = 5;
-  const HEAD2 = 6;
+  const HEAD1 = 7;
+  const HEAD2 = 8;
   ws.mergeCells(HEAD1, NO_COL, HEAD2, NO_COL);
   ws.mergeCells(HEAD1, NAME_COL, HEAD2, NAME_COL);
   ws.mergeCells(HEAD1, TOTAL_COL, HEAD2, TOTAL_COL);
