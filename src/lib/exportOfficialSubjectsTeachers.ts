@@ -67,6 +67,8 @@ export async function exportOfficialSubjectsTeachersExcel(
   }
   const sorted = [...teachers].sort((a, b) => {
     const sa = mainSubject(a), sb = mainSubject(b);
+    if (!sa && sb) return 1;
+    if (sa && !sb) return -1;
     if (sa !== sb) return order.indexOf(sa) - order.indexOf(sb);
     return a.name.localeCompare(b.name, "ar");
   });
@@ -94,8 +96,9 @@ export async function exportOfficialSubjectsTeachersExcel(
     return c;
   };
 
-  // الشعار أعلى الوسط كما في النموذج المعتمد (أصغر حتى لا يغطي اسم الوزارة)
-  const emblemCol = Math.min(27, Math.max(1, NOTES - 6));
+  // الشعار في منتصف عرض النموذج، ويظل أعلى عبارة الوزارة دون أن يغطيها.
+  // موضع الصورة في ExcelJS يبدأ من صفر، ونطرح نصف عرضها التقريبي (عمودين).
+  const emblemCol = Math.max(0, (NOTES - 1) / 2 - 2);
   addEmblem(wb, ws, emblemCol, 0, 70);
 
   // العنوان (الصف 5) واسم الوزارة يمين الشعار

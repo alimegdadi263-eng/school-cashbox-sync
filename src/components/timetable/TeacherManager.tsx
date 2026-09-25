@@ -143,10 +143,6 @@ export default function TeacherManager() {
       toast({ title: "أدخل اسم المعلم", variant: "destructive" });
       return;
     }
-    if (subjects.length === 0) {
-      toast({ title: "أضف مادة واحدة على الأقل", variant: "destructive" });
-      return;
-    }
 
     if (editingTeacher) {
       updateTeacher({ ...editingTeacher, name: name.trim(), phone: phone.trim(), subjects, blockedPeriods });
@@ -640,11 +636,15 @@ export default function TeacherManager() {
                   <TableCell dir="ltr" className="text-right text-xs">{t.phone || "—"}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {t.subjects.map((s, i) => (
-                        <span key={i} className="inline-block bg-secondary text-secondary-foreground text-xs px-2 py-0.5 rounded">
-                          {s.subjectName} - {s.className}{s.branch ? ` ${s.branch}` : ''}/{s.section} ({s.periodsPerWeek})
-                        </span>
-                      ))}
+                      {t.subjects.length === 0 ? (
+                        <span className="text-xs text-muted-foreground">بدون حصص (إداري)</span>
+                      ) : (
+                        t.subjects.map((s, i) => (
+                          <span key={i} className="inline-block bg-secondary text-secondary-foreground text-xs px-2 py-0.5 rounded">
+                            {s.subjectName} - {s.className}{s.branch ? ` ${s.branch}` : ''}/{s.section} ({s.periodsPerWeek})
+                          </span>
+                        ))
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>{t.subjects.reduce((sum, s) => sum + s.periodsPerWeek, 0)}</TableCell>
@@ -669,7 +669,7 @@ export default function TeacherManager() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingTeacher ? "تعديل معلم" : "إضافة معلم جديد"}</DialogTitle>
-            <DialogDescription>أدخل بيانات المعلم والمواد التي يدرسها</DialogDescription>
+            <DialogDescription>أدخل البيانات، ويمكن الحفظ دون مواد للمعلم الإداري</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
