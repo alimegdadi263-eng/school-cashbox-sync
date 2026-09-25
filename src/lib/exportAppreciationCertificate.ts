@@ -13,7 +13,7 @@ import {
   VerticalPositionRelativeFrom,
 } from "docx";
 import { saveAs } from "file-saver";
-import graduationWatermarkUrl from "@/assets/graduation-watermark.png";
+import graduationWatermarkUrl from "@/assets/graduation-watermark-soft.png";
 import ministryLogoUrl from "@/assets/ministry-human-resources-logo.png";
 import type { StudentInfo } from "@/types/studentAbsence";
 
@@ -114,7 +114,7 @@ export async function exportAppreciationCertificate(data: AppreciationCertificat
         centered("شهادة تقدير", 54, true, 35, 70),
         centered("تتقدم إدارة المدرسة بخالص الشكر والتقدير إلى الطالب/ة", 28, false, 20, 35),
         centered(data.student.name, 44, true, 15, 45),
-        centered(`من الصف: ${className}`, 27, true, 5, 45),
+        centered(`من الصف: ${className}`, className.length > 45 ? 21 : 27, true, 5, 45),
         centered(`تقديراً لـ ${data.reason.trim()}`, 30, false, 25, 65),
         centered("مع أطيب الأمنيات بمزيد من التفوق والنجاح", 26, false, 20, 100),
         new Paragraph({
