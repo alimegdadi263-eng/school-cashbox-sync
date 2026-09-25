@@ -2,12 +2,19 @@ import {
   AlignmentType,
   BorderStyle,
   Document,
+  HorizontalPositionAlign,
+  HorizontalPositionRelativeFrom,
   ImageRun,
+  PageOrientation,
   Packer,
   Paragraph,
   TextRun,
+  VerticalPositionAlign,
+  VerticalPositionRelativeFrom,
 } from "docx";
 import { saveAs } from "file-saver";
+import graduationWatermarkUrl from "@/assets/graduation-watermark.png";
+import ministryLogoUrl from "@/assets/ministry-human-resources-logo.png";
 import type { StudentInfo } from "@/types/studentAbsence";
 
 const FONT = "Traditional Arabic";
@@ -35,8 +42,17 @@ export interface AppreciationCertificateData {
 }
 
 export async function exportAppreciationCertificate(data: AppreciationCertificateData) {
-  const response = await fetch(`${import.meta.env.BASE_URL}images/moe-logo.png`);
-  const logo = await response.arrayBuffer();
+  const [logoResponse, watermarkResponse] = await Promise.all([
+    fetch(ministryLogoUrl),
+    fetch(graduationWatermarkUrl),
+  ]);
+  if (!logoResponse.ok || !watermarkResponse.ok) {
+    throw new Error("تعذر تحميل صور شهادة التقدير");
+  }
+  const [logo, watermark] = await Promise.all([
+    logoResponse.arrayBuffer(),
+    watermarkResponse.arrayBuffer(),
+  ]);
   const className = data.student.className || data.student.grade || "غير محدد";
 
   const document = new Document({
@@ -44,47 +60,73 @@ export async function exportAppreciationCertificate(data: AppreciationCertificat
     sections: [{
       properties: {
         page: {
-          size: { width: 11906, height: 16838 },
-          margin: { top: 650, right: 850, bottom: 650, left: 850 },
+          size: { width: 11906, height: 16838, orientation: PageOrientation.LANDSCAPE },
+          margin: { top: 500, right: 900, bottom: 500, left: 900 },
           borders: {
-            pageBorderTop: { style: BorderStyle.DOUBLE, size: 14, color: "B38A28", space: 18 },
-            pageBorderBottom: { style: BorderStyle.DOUBLE, size: 14, color: "B38A28", space: 18 },
-            pageBorderLeft: { style: BorderStyle.DOUBLE, size: 14, color: "B38A28", space: 18 },
-            pageBorderRight: { style: BorderStyle.DOUBLE, size: 14, color: "B38A28", space: 18 },
+            pageBorderTop: { style: BorderStyle.TRIPLE, size: 18, color: "B38A28", space: 16 },
+            pageBorderBottom: { style: BorderStyle.TRIPLE, size: 18, color: "B38A28", space: 16 },
+            pageBorderLeft: { style: BorderStyle.TRIPLE, size: 18, color: "B38A28", space: 16 },
+            pageBorderRight: { style: BorderStyle.TRIPLE, size: 18, color: "B38A28", space: 16 },
           },
         },
       },
       children: [
         new Paragraph({
           children: [new ImageRun({
+            data: watermark,
+            type: "png",
+            transformation: { width: 430, height: 430 },
+            floating: {
+              behindDocument: true,
+              allowOverlap: true,
+              horizontalPosition: {
+                relative: HorizontalPositionRelativeFrom.PAGE,
+                align: HorizontalPositionAlign.CENTER,
+              },
+              verticalPosition: {
+                relative: VerticalPositionRelativeFrom.PAGE,
+                align: VerticalPositionAlign.CENTER,
+              },
+            },
+            altText: { title: "علامة تخرج مائية", description: "قبعة وشهادة تخرج", name: "علامة تخرج مائية" },
+          })],
+          spacing: { after: 0 },
+        }),
+        new Paragraph({
+          children: [new ImageRun({
             data: logo,
             type: "png",
-            transformation: { width: 82, height: 82 },
-            altText: { title: "شعار وزارة التربية والتعليم", description: "شعار الوزارة", name: "شعار الوزارة" },
+            transformation: { width: 105, height: 100 },
+            altText: {
+              title: "شعار وزارة التربية والتعليم وتنمية الموارد البشرية",
+              description: "الشعار الرسمي للوزارة",
+              name: "شعار الوزارة",
+            },
           })],
           alignment: AlignmentType.CENTER,
           bidirectional: true,
+          spacing: { after: 15 },
         }),
-        centered("المملكة الأردنية الهاشمية", 24, true),
-        centered("وزارة التربية والتعليم", 26, true),
-        centered(data.directorateName ? `مديرية التربية والتعليم: ${data.directorateName}` : "مديرية التربية والتعليم", 23),
-        centered(data.schoolName || "المدرسة", 28, true, 20, 180),
-        centered("شهادة تقدير", 52, true, 100, 180),
-        centered("تتقدم إدارة المدرسة بخالص الشكر والتقدير إلى", 29, false, 80, 90),
-        centered(data.student.name, 42, true, 40, 100),
-        centered(`من الصف: ${className}`, 28, true, 20, 120),
-        centered(`تقديراً لـ ${data.reason.trim()}`, 31, false, 80, 150),
-        centered("مع أطيب الأمنيات بمزيد من التفوق والنجاح", 27, false, 50, 260),
+        centered("المملكة الأردنية الهاشمية", 22, true),
+        centered("وزارة التربية والتعليم وتنمية الموارد البشرية", 26, true),
+        centered(data.directorateName ? `مديرية التربية والتعليم: ${data.directorateName}` : "مديرية التربية والتعليم", 22),
+        centered(data.schoolName || "المدرسة", 26, true, 10, 60),
+        centered("شهادة تقدير", 54, true, 35, 70),
+        centered("تتقدم إدارة المدرسة بخالص الشكر والتقدير إلى الطالب/ة", 28, false, 20, 35),
+        centered(data.student.name, 44, true, 15, 45),
+        centered(`من الصف: ${className}`, 27, true, 5, 45),
+        centered(`تقديراً لـ ${data.reason.trim()}`, 30, false, 25, 65),
+        centered("مع أطيب الأمنيات بمزيد من التفوق والنجاح", 26, false, 20, 100),
         new Paragraph({
           children: [
             text(`التاريخ: ${data.date}`, 24, true),
-            new TextRun({ text: "                                      ", font: FONT, size: 24 }),
+            new TextRun({ text: "                                                            ", font: FONT, size: 24 }),
             text(`مدير/ة المدرسة: ${data.principalName || "........................"}`, 24, true),
           ],
           alignment: AlignmentType.CENTER,
           bidirectional: true,
         }),
-        centered("التوقيع والختم: ........................", 22, false, 80),
+        centered("التوقيع والختم: ........................", 22, false, 35),
       ],
     }],
   });
