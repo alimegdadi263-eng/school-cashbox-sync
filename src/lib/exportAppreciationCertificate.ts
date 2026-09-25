@@ -14,7 +14,7 @@ import {
 } from "docx";
 import { saveAs } from "file-saver";
 import graduationWatermarkUrl from "@/assets/graduation-watermark.png";
-import ministryLogoUrl from "@/assets/ministry-human-resources-logo.png";
+import ministryLogoAsset from "@/assets/ministry-human-resources-logo.png.asset.json";
 import type { StudentInfo } from "@/types/studentAbsence";
 
 const FONT = "Traditional Arabic";
@@ -43,7 +43,7 @@ export interface AppreciationCertificateData {
 
 export async function exportAppreciationCertificate(data: AppreciationCertificateData) {
   const [logoResponse, watermarkResponse] = await Promise.all([
-    fetch(ministryLogoUrl),
+    fetch(ministryLogoAsset.url),
     fetch(graduationWatermarkUrl),
   ]);
   if (!logoResponse.ok || !watermarkResponse.ok) {
