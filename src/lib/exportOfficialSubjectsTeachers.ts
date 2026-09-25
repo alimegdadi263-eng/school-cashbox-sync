@@ -98,19 +98,19 @@ export async function exportOfficialSubjectsTeachersExcel(
 
   // الشعار في منتصف عرض النموذج، ويظل أعلى عبارة الوزارة دون أن يغطيها.
   // موضع الصورة في ExcelJS يبدأ من صفر، ونطرح نصف عرضها التقريبي (عمودين).
-  const emblemCol = Math.max(0, (NOTES - 1) / 2 - 2);
+  const emblemCol = Math.max(0, (NOTES - 1) / 2 - 0.75);
   addEmblem(wb, ws, emblemCol, 0, 70);
+  ws.getRow(1).height = 58;
 
-  // العنوان (الصف 5) واسم الوزارة يمين الشعار
-  ws.mergeCells(5, NO, 5, Math.min(8, NOTES));
-  const title = set(5, NO, `جدول توزيع المباحث بين المعلمين اعتباراً من ${info.academicYear || "    /    / 202  م"}`);
-  title.font = { name: FONT, bold: true, size: 12 };
-  title.alignment = { horizontal: "right", vertical: "middle", wrapText: true };
-  const minS = Math.min(25, NOTES), minE = Math.min(32, NOTES);
-  ws.mergeCells(5, minS, 5, minE);
-  const ministry = set(5, minS, "وزارة التربية والتعليم ");
+  // اسم الوزارة والعنوان في المنتصف أسفل الشعار
+  ws.mergeCells(4, NO, 4, NOTES);
+  const ministry = set(4, NO, "وزارة التربية والتعليم");
   ministry.font = { name: FONT, bold: true, size: 14 };
   ministry.alignment = { horizontal: "center", vertical: "middle" };
+  ws.mergeCells(5, NO, 5, NOTES);
+  const title = set(5, NO, `جدول توزيع المباحث بين المعلمين اعتباراً من ${info.academicYear || "    /    / 202  م"}`);
+  title.font = { name: FONT, bold: true, size: 12 };
+  title.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
   ws.getRow(5).height = 34;
 
   // ترويسة المدرسة (الصف 6)
