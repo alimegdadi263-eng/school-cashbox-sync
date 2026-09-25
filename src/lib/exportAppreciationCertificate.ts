@@ -32,6 +32,14 @@ function centered(value: string, size: number, bold = false, before = 0, after =
   });
 }
 
+function aligned(value: string, size: number, alignment: (typeof AlignmentType)[keyof typeof AlignmentType], bold = false, before = 0, after = 0) {
+  return new Paragraph({
+    children: [text(value, size, bold)],
+    alignment,
+    spacing: { before, after },
+  });
+}
+
 export interface AppreciationCertificateData {
   student: StudentInfo;
   reason: string;
@@ -96,7 +104,7 @@ export async function exportAppreciationCertificate(data: AppreciationCertificat
           children: [new ImageRun({
             data: logo,
             type: "png",
-            transformation: { width: 105, height: 100 },
+            transformation: { width: 125, height: 119 },
             altText: {
               title: "شعار وزارة التربية والتعليم وتنمية الموارد البشرية",
               description: "الشعار الرسمي للوزارة",
@@ -105,28 +113,21 @@ export async function exportAppreciationCertificate(data: AppreciationCertificat
           })],
           alignment: AlignmentType.CENTER,
           bidirectional: true,
-          spacing: { after: 15 },
+          spacing: { after: 35 },
         }),
-        centered("المملكة الأردنية الهاشمية", 22, true),
-        centered("وزارة التربية والتعليم وتنمية الموارد البشرية", 26, true),
-        centered(data.directorateName ? `مديرية التربية والتعليم: ${data.directorateName}` : "مديرية التربية والتعليم", 22),
-        centered(data.schoolName || "المدرسة", 26, true, 10, 60),
-        centered("شهادة تقدير", 54, true, 35, 70),
-        centered("تتقدم إدارة المدرسة بخالص الشكر والتقدير إلى الطالب/ة", 28, false, 20, 35),
-        centered(data.student.name, 44, true, 15, 45),
-        centered(`من الصف: ${className}`, className.length > 45 ? 21 : 27, true, 5, 45),
-        centered(`تقديراً لـ ${data.reason.trim()}`, 30, false, 25, 65),
-        centered("مع أطيب الأمنيات بمزيد من التفوق والنجاح", 26, false, 20, 100),
-        new Paragraph({
-          children: [
-            text(`التاريخ: ${data.date}`, 24, true),
-            new TextRun({ text: "                                                            ", font: FONT, size: 24 }),
-            text(`مدير/ة المدرسة: ${data.principalName || "........................"}`, 24, true),
-          ],
-          alignment: AlignmentType.CENTER,
-          bidirectional: true,
-        }),
-        centered("التوقيع والختم: ........................", 22, false, 35),
+        centered("المملكة الأردنية الهاشمية", 27, true, 0, 12),
+        centered("وزارة التربية والتعليم وتنمية الموارد البشرية", 32, true, 0, 12),
+        centered(data.directorateName ? `مديرية التربية والتعليم: ${data.directorateName}` : "مديرية التربية والتعليم", 27, false, 0, 12),
+        centered(data.schoolName || "المدرسة", 32, true, 0, 95),
+        centered("شهادة تقدير", 66, true, 45, 105),
+        centered("تتقدم إدارة المدرسة بخالص الشكر والتقدير إلى الطالب/ة", 34, false, 25, 55),
+        centered(data.student.name, 54, true, 20, 65),
+        centered(`من الصف: ${className}`, className.length > 45 ? 25 : 33, true, 10, 65),
+        centered(`تقديراً لـ ${data.reason.trim()}`, 37, false, 30, 90),
+        centered("مع أطيب الأمنيات بمزيد من التفوق والنجاح", 33, false, 25, 135),
+        aligned(`التاريخ: ${data.date}`, 29, AlignmentType.RIGHT, true, 0, 20),
+        aligned(`مدير/ة المدرسة: ${data.principalName || "........................"}`, 29, AlignmentType.LEFT, true, 0, 25),
+        aligned("التوقيع والختم: ........................", 27, AlignmentType.LEFT),
       ],
     }],
   });
