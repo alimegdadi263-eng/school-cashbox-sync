@@ -19,10 +19,10 @@ import { parseClassKey, DAYS } from "@/types/timetable";
 import { toast } from "@/hooks/use-toast";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
+import { addEmblem } from "@/lib/exportOfficialTimetable";
 
 const EXAM_TYPES = [
-  { id: "first", label: "امتحان الشهر الأول" },
-  { id: "second", label: "امتحان الشهر الثاني" },
+  { id: "mid", label: "امتحان منتصف الفصل (مد)" },
   { id: "final", label: "الامتحان النهائي" },
 ] as const;
 
@@ -72,7 +72,7 @@ export default function ExamSchedulePage() {
   const classKeys = getAllClassKeys();
   const [schedules, setSchedules] = useState<ClassExamSchedule[]>(() => loadSchedules(userId));
   const [selectedClass, setSelectedClass] = useState(classKeys[0] || "");
-  const [activeExamType, setActiveExamType] = useState<ExamTypeId>("first");
+  const [activeExamType, setActiveExamType] = useState<ExamTypeId>("mid");
   const [startDate, setStartDate] = useState<Date | undefined>();
 
   // Get subjects for selected class from teachers
@@ -258,16 +258,20 @@ export default function ExamSchedulePage() {
     const headerFont: Partial<ExcelJS.Font> = { name: FONT_NAME, bold: true, size: 14 };
     const dataFont: Partial<ExcelJS.Font> = { name: FONT_NAME, size: 12 };
 
-    // Title
-    ws.mergeCells("A1:E1");
-    ws.getCell("A1").value = schoolName;
-    ws.getCell("A1").font = { name: FONT_NAME, bold: true, size: 18 };
-    ws.getCell("A1").alignment = centerAlign;
+    // شعار الوزارة في المنتصف فوق العنوان
+    addEmblem(wb, ws, 1.85, 0, 72);
+    ws.getRow(1).height = 58;
+    ws.getRow(2).height = 12;
 
-    ws.mergeCells("A2:E2");
-    ws.getCell("A2").value = `${examLabel} - الصف ${className} / شعبة ${section}`;
-    ws.getCell("A2").font = { name: FONT_NAME, bold: true, size: 14 };
-    ws.getCell("A2").alignment = centerAlign;
+    ws.mergeCells("A3:E3");
+    ws.getCell("A3").value = schoolName;
+    ws.getCell("A3").font = { name: FONT_NAME, bold: true, size: 18 };
+    ws.getCell("A3").alignment = centerAlign;
+
+    ws.mergeCells("A4:E4");
+    ws.getCell("A4").value = `${examLabel} - الصف ${className} / شعبة ${section}`;
+    ws.getCell("A4").font = { name: FONT_NAME, bold: true, size: 14 };
+    ws.getCell("A4").alignment = centerAlign;
 
     ws.addRow([]);
 
@@ -307,7 +311,7 @@ export default function ExamSchedulePage() {
       <div className="space-y-6" dir="rtl">
         <div>
           <h1 className="text-2xl font-bold text-foreground">جداول الامتحانات</h1>
-          <p className="text-muted-foreground text-sm">إنشاء وإدارة جداول امتحانات الشهر الأول والثاني والنهائي لكل صف</p>
+          <p className="text-muted-foreground text-sm">إنشاء وإدارة جداول امتحان منتصف الفصل (مد) والامتحان النهائي لكل صف</p>
         </div>
 
         {/* Controls */}
@@ -344,10 +348,10 @@ export default function ExamSchedulePage() {
               </div>
               <div className="flex items-end gap-2">
                 <Button onClick={generateSchedule} disabled={!selectedClass || !startDate} className="flex-1">
-                  توليد للصف المحدد
+                  توليد تلقائي للصف
                 </Button>
                 <Button onClick={generateAllSchedules} disabled={!startDate} variant="secondary" className="flex-1">
-                  توليد لجميع الصفوف
+                  توليد تلقائي لجميع الصفوف
                 </Button>
               </div>
             </div>
@@ -357,7 +361,7 @@ export default function ExamSchedulePage() {
         {/* Exam Type Tabs */}
         {selectedClass && (
           <Tabs value={activeExamType} onValueChange={v => setActiveExamType(v as ExamTypeId)}>
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               {EXAM_TYPES.map(et => (
                 <TabsTrigger key={et.id} value={et.id}>{et.label}</TabsTrigger>
               ))}

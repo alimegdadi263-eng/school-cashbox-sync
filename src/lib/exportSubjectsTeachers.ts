@@ -59,29 +59,30 @@ function buildSheet(
     return c;
   };
 
-  // شعار الوزارة أعلى الجدول
-  addEmblem(wb, ws, NO_COL - 1, 0, 80);
+  // شعار الوزارة في المنتصف فوق العنوان
+  addEmblem(wb, ws, Math.max(0, (totalCols - 1) / 2 - 0.75), 0, 72);
+  ws.getRow(1).height = 58;
 
   // العنوان
-  ws.mergeCells(1, NO_COL, 1, totalCols);
-  const title = set(1, NO_COL, `جدول توزيع المباحث بين المعلمين${info.academicYear ? ` اعتباراً من ${info.academicYear}` : ""}`);
+  ws.mergeCells(4, NO_COL, 4, totalCols);
+  const title = set(4, NO_COL, `جدول توزيع المباحث بين المعلمين${info.academicYear ? ` اعتباراً من ${info.academicYear}` : ""}`);
   title.font = { name: "Arial", bold: true, size: 20 };
   title.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-  ws.getRow(1).height = 30;
+  ws.getRow(4).height = 30;
 
   // بيانات المدرسة
   const third = Math.max(4, Math.floor(totalCols / 3));
-  ws.mergeCells(3, NO_COL, 3, third);
-  set(3, NO_COL, `مديرية التربية والتعليم ${info.directorateName || ""}`.trim());
-  ws.mergeCells(3, third + 1, 3, third * 2);
-  set(3, third + 1, `مدرسة ${info.schoolName || ""}`.trim());
-  ws.mergeCells(3, third * 2 + 1, 3, totalCols);
-  set(3, third * 2 + 1, `المدينة / القرية : ${info.cityName || ""}`.trim());
-  ws.getRow(3).eachCell(c => {
+  ws.mergeCells(5, NO_COL, 5, third);
+  set(5, NO_COL, `مديرية التربية والتعليم ${info.directorateName || ""}`.trim());
+  ws.mergeCells(5, third + 1, 5, third * 2);
+  set(5, third + 1, `مدرسة ${info.schoolName || ""}`.trim());
+  ws.mergeCells(5, third * 2 + 1, 5, totalCols);
+  set(5, third * 2 + 1, `المدينة / القرية : ${info.cityName || ""}`.trim());
+  ws.getRow(5).eachCell(c => {
     c.font = { name: "Arial", bold: true, size: 13 };
     c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
   });
-  ws.getRow(3).height = 24;
+  ws.getRow(5).height = 24;
 
   // رؤوس الأعمدة
   const HEAD1 = 5;

@@ -89,33 +89,34 @@ export function buildSubjectsTemplateWorkbook(
     return c;
   };
 
-  // شعار الوزارة أعلى يمين النموذج (الاتجاه RTL يضعه على اليمين بصرياً).
-  addEmblem(wb, ws, dayCol - 1, 0, 90);
+  // شعار الوزارة في المنتصف فوق العنوان.
+  addEmblem(wb, ws, Math.max(0, (dayCol + totalCols) / 2 - 1.25), 0, 72);
 
   // عنوان النموذج في أعلى مساحة الصفوف، بنفس الفراغ الجانبي للنموذج الأصلي.
-  ws.mergeCells(1, firstClassCol, 1, totalCols);
-  const title = set(1, firstClassCol, "جدول ترتيب الدروس");
+  ws.mergeCells(4, dayCol, 4, totalCols);
+  const title = set(4, dayCol, "جدول ترتيب الدروس");
   title.font = { name: "Arial", bold: true, size: 26 };
   title.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-  ws.getRow(1).height = 32.5;
+  ws.getRow(1).height = 58;
+  ws.getRow(4).height = 32.5;
 
-  ws.mergeCells(3, firstClassCol, 3, totalCols);
-  const year = set(3, firstClassCol, `للعام الدراسي     ${info.academicYear || ""}`);
+  ws.mergeCells(5, dayCol, 5, totalCols);
+  const year = set(5, dayCol, `للعام الدراسي     ${info.academicYear || ""}`);
   year.font = { name: "Arial", bold: true, size: 20 };
   year.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-  ws.getRow(3).height = 25;
+  ws.getRow(5).height = 25;
 
   const schoolEnd = Math.min(totalCols, dayCol + Math.max(8, Math.floor(classKeys.length * 0.75)));
-  ws.mergeCells(5, dayCol, 5, schoolEnd);
-  const school = set(5, dayCol, `مدرسة ${info.schoolName || ""}`.trim());
+  ws.mergeCells(6, dayCol, 6, schoolEnd);
+  const school = set(6, dayCol, `مدرسة ${info.schoolName || ""}`.trim());
   school.font = { name: "Arial", bold: true, size: 20 };
   school.alignment = { horizontal: "center", vertical: "middle" };
   const cityStart = Math.max(schoolEnd + 1, totalCols - Math.max(4, Math.floor(classKeys.length / 2)));
-  ws.mergeCells(5, cityStart, 5, totalCols);
-  const location = set(5, cityStart, `المدينة / القرية : ${info.cityName || ""}`.trim());
+  ws.mergeCells(6, cityStart, 6, totalCols);
+  const location = set(6, cityStart, `المدينة / القرية : ${info.cityName || ""}`.trim());
   location.font = { name: "Arial", bold: true, size: 20 };
   location.alignment = { horizontal: "center", vertical: "middle" };
-  ws.getRow(5).height = 28;
+  ws.getRow(6).height = 28;
 
   // الصفان 7 و8: اليوم والحصة، ثم الموضوع والمعلم لكل صف موجود فعلياً.
   ws.mergeCells(7, dayCol, 8, dayCol);
@@ -286,7 +287,7 @@ export function buildCertifiedTimetableWorkbook(
   };
 
   // شعار الوزارة أعلى منتصف الصفحة
-  addEmblem(wb, ws, Math.max(0, mid - 2), 0, 132);
+  addEmblem(wb, ws, Math.max(0, (totalCols - 1) / 2 - 0.75), 0, 90);
 
   ws.mergeCells(6, 1, 6, totalCols);
   style(set(6, 1, "جدول ترتيب الدروس"), 22, true);

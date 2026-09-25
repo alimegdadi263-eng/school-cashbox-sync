@@ -628,31 +628,34 @@ export default function StudentManager({ userId, schoolName, directorateName, pr
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-center w-10">م</TableHead>
-                    <TableHead className="text-center">الرقم الوطني</TableHead>
                     <TableHead className="text-center">اسم الطالب</TableHead>
+                    <TableHead className="text-center min-w-[150px]">شهادة التقدير</TableHead>
                     <TableHead className="text-center">الصف</TableHead>
+                    <TableHead className="text-center">الرقم الوطني</TableHead>
                     <TableHead className="text-center">الجنس</TableHead>
                     <TableHead className="text-center">هاتف ولي الأمر</TableHead>
                     <TableHead className="text-center">الهاتف الأساسي</TableHead>
                     <TableHead className="text-center">رقم الطالب</TableHead>
-                    <TableHead className="text-center min-w-[110px]">إجراءات</TableHead>
+                    <TableHead className="text-center min-w-[80px]">حذف</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.map((s, idx) => (
                     <TableRow key={s.id}>
                       <TableCell className="text-center">{idx + 1}</TableCell>
-                      <TableCell className="text-center" dir="ltr">{s.nationalId || "-"}</TableCell>
                       <TableCell className="text-center font-medium">{s.name}</TableCell>
+                      <TableCell className="text-center">
+                        <Button size="sm" variant="outline" onClick={() => setCertificateStudent(s)}>
+                          <Award className="w-4 h-4 ml-1 text-primary" /> شهادة تقدير
+                        </Button>
+                      </TableCell>
                       <TableCell className="text-center">{s.className}</TableCell>
+                      <TableCell className="text-center" dir="ltr">{s.nationalId || "-"}</TableCell>
                       <TableCell className="text-center">{s.gender || "-"}</TableCell>
                       <TableCell className="text-center" dir="ltr">{s.parentPhone || "-"}</TableCell>
                       <TableCell className="text-center" dir="ltr">{s.mainPhone || "-"}</TableCell>
                       <TableCell className="text-center" dir="ltr">{s.studentPhone || "-"}</TableCell>
                       <TableCell className="whitespace-nowrap">
-                        <Button size="icon" variant="ghost" onClick={() => setCertificateStudent(s)} title="شهادة تقدير">
-                          <Award className="w-4 h-4 text-primary" />
-                        </Button>
                         <Button size="icon" variant="ghost" onClick={() => deleteStudent(s.id)}>
                           <Trash2 className="w-4 h-4 text-destructive" />
                         </Button>
