@@ -147,11 +147,11 @@ export default function CertificateBuilder({ userId, schoolName, directorateName
           )}
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2"><Label>اسم المستلم</Label><Input value={recipientName} onChange={(event) => setRecipientName(event.target.value)} placeholder={recipientType === "organization" ? "اسم الجهة" : "الاسم الكامل"} /></div>
-            <div className="space-y-2"><Label>{detailLabel}</Label><Input value={recipientDetail} onChange={(event) => setRecipientDetail(event.target.value)} /></div>
+            <div className="space-y-2"><Label htmlFor="certificate-recipient-name">اسم المستلم</Label><Input id="certificate-recipient-name" value={recipientName} onChange={(event) => setRecipientName(event.target.value)} placeholder={recipientType === "organization" ? "اسم الجهة" : "الاسم الكامل"} /></div>
+            <div className="space-y-2"><Label htmlFor="certificate-recipient-detail">{detailLabel}</Label><Input id="certificate-recipient-detail" value={recipientDetail} onChange={(event) => setRecipientDetail(event.target.value)} /></div>
           </div>
-          {recipientType === "organization" && <div className="space-y-2"><Label>اسم ممثل الجهة (اختياري)</Label><Input value={representativeName} onChange={(event) => setRepresentativeName(event.target.value)} /></div>}
-          <div className="space-y-2"><Label>سبب التكريم أو الشكر</Label><Textarea rows={4} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="مثال: التعاون المثمر ودعم أنشطة المدرسة" /></div>
+          {recipientType === "organization" && <div className="space-y-2"><Label htmlFor="certificate-representative">اسم ممثل الجهة (اختياري)</Label><Input id="certificate-representative" value={representativeName} onChange={(event) => setRepresentativeName(event.target.value)} /></div>}
+          <div className="space-y-2"><Label htmlFor="certificate-reason">سبب التكريم أو الشكر</Label><Textarea id="certificate-reason" rows={4} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="مثال: التعاون المثمر ودعم أنشطة المدرسة" /></div>
           <div className="space-y-2">
             <Label>تاريخ الشهادة</Label>
             <Popover>
@@ -167,10 +167,12 @@ export default function CertificateBuilder({ userId, schoolName, directorateName
         <CardContent className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             {TEMPLATES.map((item) => (
-              <button key={item.id} type="button" onClick={() => setTemplate(item.id)} className={cn("min-h-28 rounded-md border-2 p-4 text-right transition-colors", template === item.id ? item.accent : "border-border bg-card hover:bg-muted")}>
+              <Button key={item.id} type="button" variant="outline" onClick={() => setTemplate(item.id)} className={cn("min-h-28 h-auto items-start whitespace-normal border-2 p-4 text-right", template === item.id ? item.accent : "border-border bg-card hover:bg-muted")}>
+                <span className="block w-full">
                 <span className="mb-2 block text-lg font-bold">{item.label}</span>
                 <span className="text-sm text-muted-foreground">{item.description}</span>
-              </button>
+                </span>
+              </Button>
             ))}
           </div>
           <div className="rounded-md border bg-muted/30 p-5 text-center">
