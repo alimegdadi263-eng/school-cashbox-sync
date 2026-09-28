@@ -3,11 +3,12 @@ import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import type { Teacher } from "@/types/timetable";
 import { DAYS } from "@/types/timetable";
+import { addOfficialLogoToExcel, officialLogoParagraph } from "@/lib/officialBranding";
 
 /**
  * سجل المتابعة للمعلمات
  * يحتوي على صفحات: التحضير اليومي (25 خانة) / الخطط (5 خانات) / المناوبة الأسبوعية
- * / سجل الحضور والغياب (شهر 8 حتى شهر 6) / سجل الأداء والعلامات (فصلان × 4 أعمدة)
+ * / سجل الحضور والغياب (شهر 8 حتى شهر 6) / سجل الأداء والعلامات (فصلان × 3 أعمدة)
  * الأسماء تؤخذ من معلمي الجدول المدرسي.
  */
 
@@ -42,7 +43,10 @@ function styleBody(cell: ExcelJS.Cell, bold = false) {
   cell.border = border();
 }
 
-function addTitle(ws: ExcelJS.Worksheet, text: string, span: number) {
+function addTitle(wb: ExcelJS.Workbook, ws: ExcelJS.Worksheet, text: string, span: number) {
+  const logoRow = ws.addRow([]);
+  logoRow.height = 58;
+  addOfficialLogoToExcel(wb, ws, Math.max(0, span / 2 - 0.5), logoRow.number - 1, 72);
   const row = ws.addRow([text]);
   ws.mergeCells(row.number, 1, row.number, span);
   const c = row.getCell(1);
@@ -67,7 +71,7 @@ function addGridSheet(
   ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
 
   const span = colHeaders.length + 2;
-  addTitle(ws, title, span);
+  addTitle(wb, ws, title, span);
 
   const header = ws.addRow(["م", "اسم المعلمة", ...colHeaders]);
   header.eachCell(c => styleHeader(c));
@@ -99,7 +103,7 @@ function addGroupedSheet(
   ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
 
   const totalCols = 2 + groups.reduce((s, g) => s + g.cols.length, 0);
-  addTitle(ws, title, totalCols);
+  addTitle(wb, ws, title, totalCols);
 
   const topRow = ws.addRow([]);
   const subRow = ws.addRow([]);
@@ -150,7 +154,7 @@ function addPrepSheet(wb: ExcelJS.Workbook, title: string, names: string[], boxe
   ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
 
   const span = boxes + 2;
-  addTitle(ws, title, span);
+  addTitle(wb, ws, title, span);
 
   const dateRow = ws.addRow([]);
   const numRow = ws.addRow([]);
@@ -239,7 +243,7 @@ function addDutySheet(wb: ExcelJS.Workbook, title: string, teachers: Teacher[], 
   const days = dutyDistribution(teachers, perDay);
 
   const totalCols = 3 + slots.length * 2;
-  addTitle(ws, title, totalCols);
+  addTitle(wb, ws, title, totalCols);
 
   const topRow = ws.addRow([]);
   const subRow = ws.addRow([]);
@@ -451,18 +455,23 @@ export async function exportFollowupRecordDocx(teachers: Teacher[], schoolName: 
       {
         properties: sectionProps,
         children: [
+          officialLogoParagraph(72, 35),
           dTitle(`${schoolName} — سجل المتابعة / متابعة التحضير اليومي (التاريخ فوق رقم الخانة)`),
           dGridTable(names, prepCols),
           new Paragraph({ children: [new PageBreak()] }),
+          officialLogoParagraph(72, 35),
           dTitle(`${schoolName} — سجل المتابعة / متابعة الخطط`),
           dGridTable(names, PLAN_NAMES),
           new Paragraph({ children: [new PageBreak()] }),
+          officialLogoParagraph(72, 35),
           dTitle(`${schoolName} — سجل المتابعة / جدول المناوبة`),
           new Table({ width: { size: dutyTotal, type: WidthType.DXA }, columnWidths: dutyWidths, rows: dutyRows }),
           new Paragraph({ children: [new PageBreak()] }),
+          officialLogoParagraph(72, 35),
           dTitle(`${schoolName} — سجل المتابعة / سجل الحضور والغياب`),
           dGridTable(names, MONTHS),
           new Paragraph({ children: [new PageBreak()] }),
+          officialLogoParagraph(72, 35),
           dTitle(`${schoolName} — سجل المتابعة / سجل الأداء والعلامات (الفصل الأول ثم الثاني)`),
           dGridTable(names, [...MARK_COLS.map(c => `أول: ${c}`), ...MARK_COLS.map(c => `ثاني: ${c}`)]),
         ],
