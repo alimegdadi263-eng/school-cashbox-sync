@@ -14,8 +14,8 @@ import {
 } from "docx";
 import { saveAs } from "file-saver";
 import graduationWatermarkUrl from "@/assets/graduation-watermark-soft.png";
-import ministryLogoUrl from "@/assets/ministry-human-resources-logo.png";
 import type { StudentInfo } from "@/types/studentAbsence";
+import { getOfficialLogoBytes } from "@/lib/officialBranding";
 
 const FONT = "Traditional Arabic";
 
@@ -55,17 +55,12 @@ export interface AppreciationCertificateData {
 }
 
 export async function exportAppreciationCertificate(data: AppreciationCertificateData) {
-  const [logoResponse, watermarkResponse] = await Promise.all([
-    fetch(ministryLogoUrl),
-    fetch(graduationWatermarkUrl),
-  ]);
-  if (!logoResponse.ok || !watermarkResponse.ok) {
+  const watermarkResponse = await fetch(graduationWatermarkUrl);
+  if (!watermarkResponse.ok) {
     throw new Error("تعذر تحميل صور شهادة التقدير");
   }
-  const [logo, watermark] = await Promise.all([
-    logoResponse.arrayBuffer(),
-    watermarkResponse.arrayBuffer(),
-  ]);
+  const logo = getOfficialLogoBytes();
+  const watermark = await watermarkResponse.arrayBuffer();
   const recipientName = data.recipientName?.trim() || data.student?.name || "";
   if (!recipientName) throw new Error("اسم المستلم مطلوب");
   const recipientType = data.recipientType || "student";

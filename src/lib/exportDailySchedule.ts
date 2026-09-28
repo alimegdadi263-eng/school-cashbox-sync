@@ -7,6 +7,7 @@ import {
 } from "docx";
 import type { ClassTimetable } from "@/types/timetable";
 import { DAYS, parseClassKey } from "@/types/timetable";
+import { addOfficialLogoToExcel, officialLogoParagraph } from "@/lib/officialBranding";
 
 const FONT_NAME = "Traditional Arabic";
 const HEADER_BG = "2B3A55";
@@ -39,6 +40,7 @@ function setupWorksheet(ws: ExcelJS.Worksheet) {
 }
 
 function addExcelHeader(
+  wb: ExcelJS.Workbook,
   ws: ExcelJS.Worksheet,
   schoolName: string,
   dayName: string,
@@ -46,9 +48,12 @@ function addExcelHeader(
   absentTeacherNames: string[],
   border: Partial<ExcelJS.Borders>
 ) {
+  const logoRow = ws.addRow([]);
+  logoRow.height = 58;
+  addOfficialLogoToExcel(wb, ws, Math.max(0, totalCols / 2 - 0.5), logoRow.number - 1, 72);
   // Row 1: School name
   const schoolRow = ws.addRow([schoolName]);
-  ws.mergeCells(1, 1, 1, totalCols);
+  ws.mergeCells(schoolRow.number, 1, schoolRow.number, totalCols);
   const schoolCell = schoolRow.getCell(1);
   schoolCell.font = { name: FONT_NAME, bold: true, size: 18, color: { argb: "FF2B3A55" } };
   schoolCell.alignment = { horizontal: "center", vertical: "middle", readingOrder: "rtl" as any };
@@ -57,7 +62,7 @@ function addExcelHeader(
 
   // Row 2: Day title
   const titleRow = ws.addRow([`الجدول اليومي - يوم ${dayName}`]);
-  ws.mergeCells(2, 1, 2, totalCols);
+  ws.mergeCells(titleRow.number, 1, titleRow.number, totalCols);
   const titleCell = titleRow.getCell(1);
   titleCell.font = { name: FONT_NAME, bold: true, size: 16, color: { argb: "FFFFFFFF" } };
   titleCell.alignment = { horizontal: "center", vertical: "middle", readingOrder: "rtl" as any };
@@ -67,7 +72,7 @@ function addExcelHeader(
   // Row 3: Absent teachers
   if (absentTeacherNames.length > 0) {
     const absentRow = ws.addRow([`المعلمون الغائبون: ${absentTeacherNames.join(" ، ")}`]);
-    ws.mergeCells(3, 1, 3, totalCols);
+    ws.mergeCells(absentRow.number, 1, absentRow.number, totalCols);
     const absentCell = absentRow.getCell(1);
     absentCell.font = { name: FONT_NAME, bold: true, size: 12, color: { argb: "FFFFFFFF" } };
     absentCell.alignment = { horizontal: "center", vertical: "middle", readingOrder: "rtl" as any };
@@ -139,7 +144,7 @@ export async function exportDailyScheduleExcel(
   const sortedKeys = Object.keys(dailyTT).sort();
   const totalCols = periodsPerDay + 1;
 
-  addExcelHeader(ws, schoolName, dayName, totalCols, absentTeacherNames, border);
+  addExcelHeader(wb, ws, schoolName, dayName, totalCols, absentTeacherNames, border);
 
   // Headers
   const headerData = ["الصف / الشعبة"];
@@ -208,7 +213,7 @@ export async function exportDailyScheduleExcelInverted(
   const sortedKeys = Object.keys(dailyTT).sort();
   const totalCols = sortedKeys.length + 1; // 1 for period label
 
-  addExcelHeader(ws, schoolName, dayName, totalCols, absentTeacherNames, border);
+  addExcelHeader(wb, ws, schoolName, dayName, totalCols, absentTeacherNames, border);
 
   // Headers: الحصة | صف1 | صف2 | ...
   const headerData = ["الحصة"];
@@ -290,6 +295,7 @@ function dCell(lines: string[], empty = false): DocxTC {
 
 function buildDocxHeader(schoolName: string, dayName: string, absentTeacherNames: string[]): Paragraph[] {
   const children: Paragraph[] = [
+    officialLogoParagraph(68, 25),
     new Paragraph({
       alignment: AlignmentType.CENTER,
       bidirectional: true,
@@ -520,7 +526,7 @@ export async function exportDailyScheduleMatrixExcel(
   const sortedKeys = Object.keys(dailyTT).sort();
   const totalCols = 2 + sortedKeys.length * 2; // اليوم + الحصة + (موضوع/معلم) لكل شعبة
 
-  addExcelHeader(ws, schoolName, dayName, totalCols, absentTeacherNames, border);
+  addExcelHeader(wb, ws, schoolName, dayName, totalCols, absentTeacherNames, border);
 
   // صف رؤوس 1: أسماء الصفوف (دمج عمودين لكل صف)
   const r1: string[] = ["اليوم", "الحصة"];
