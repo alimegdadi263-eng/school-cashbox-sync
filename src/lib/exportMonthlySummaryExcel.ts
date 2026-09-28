@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import { FinanceState } from "@/types/finance";
 import { ARABIC_MONTHS, SUMMARY_ROWS, getAccountMonthData, splitDinarFilsNumeric } from "./monthlySummaryUtils";
+import { addOfficialLogoToExcel } from "@/lib/officialBranding";
 
 export async function exportMonthlySummaryExcel(state: FinanceState, selectedMonthIndex: number) {
   const selectedMonth = ARABIC_MONTHS[selectedMonthIndex] || state.currentMonth;
@@ -27,27 +28,31 @@ export async function exportMonthlySummaryExcel(state: FinanceState, selectedMon
 
   const totalCols = 13;
 
-  // Row 1-4: Headers
+  // الشعار في المنتصف فوق العنوان
+  ws.getRow(1).height = 58;
+  addOfficialLogoToExcel(wb, ws, 6, 0, 72);
+
+  // Header rows
   const r1 = ws.addRow(["وزارة التربية والتعليم"]);
-  ws.mergeCells(1, 1, 1, totalCols);
+  ws.mergeCells(r1.number, 1, r1.number, totalCols);
   r1.getCell(1).font = { bold: true, size: 14, name: "Arial" };
   r1.getCell(1).alignment = centerAlign;
   r1.height = 25;
 
   const r2 = ws.addRow([`مديرية التربية والتعليم / ${state.directorateName || ".................."}`]);
-  ws.mergeCells(2, 1, 2, totalCols);
+  ws.mergeCells(r2.number, 1, r2.number, totalCols);
   r2.getCell(1).font = { bold: true, size: 12, name: "Arial" };
   r2.getCell(1).alignment = centerAlign;
   r2.height = 22;
 
   const r3 = ws.addRow([`اسم المدرسة: ${state.schoolName}    رقم الملف: (    )`]);
-  ws.mergeCells(3, 1, 3, totalCols);
+  ws.mergeCells(r3.number, 1, r3.number, totalCols);
   r3.getCell(1).font = { bold: true, size: 11, name: "Arial" };
   r3.getCell(1).alignment = rightAlign;
   r3.height = 22;
 
   const r4 = ws.addRow([`خلاصة الحسابات الشهرية لشهر ${selectedMonth} من عام ${state.currentYear}`]);
-  ws.mergeCells(4, 1, 4, totalCols);
+  ws.mergeCells(r4.number, 1, r4.number, totalCols);
   r4.getCell(1).font = { bold: true, size: 13, name: "Arial" };
   r4.getCell(1).alignment = centerAlign;
   r4.getCell(1).fill = lightFill;
@@ -57,21 +62,21 @@ export async function exportMonthlySummaryExcel(state: FinanceState, selectedMon
   const h1Vals = ["الحساب", "الرصيد المدور في بداية كل شهر", "", "", "", "المقبوضات خلال الشهر", "", "المدفوع خلال الشهر", "", "الرصيد المدور في نهاية الشهر", "", "", ""];
   const h1 = ws.addRow(h1Vals);
   h1.height = 28;
-  ws.mergeCells(5, 1, 7, 1);
-  ws.mergeCells(5, 2, 5, 5);
-  ws.mergeCells(5, 6, 5, 7);
-  ws.mergeCells(5, 8, 5, 9);
-  ws.mergeCells(5, 10, 5, 13);
+  ws.mergeCells(h1.number, 1, h1.number + 2, 1);
+  ws.mergeCells(h1.number, 2, h1.number, 5);
+  ws.mergeCells(h1.number, 6, h1.number, 7);
+  ws.mergeCells(h1.number, 8, h1.number, 9);
+  ws.mergeCells(h1.number, 10, h1.number, 13);
 
   const h2Vals = ["", "من", "", "إلى", "", "من", "", "إلى", "", "من", "", "إلى", ""];
   const h2 = ws.addRow(h2Vals);
   h2.height = 22;
-  ws.mergeCells(6, 2, 6, 3);
-  ws.mergeCells(6, 4, 6, 5);
-  ws.mergeCells(6, 6, 6, 7);
-  ws.mergeCells(6, 8, 6, 9);
-  ws.mergeCells(6, 10, 6, 11);
-  ws.mergeCells(6, 12, 6, 13);
+  ws.mergeCells(h2.number, 2, h2.number, 3);
+  ws.mergeCells(h2.number, 4, h2.number, 5);
+  ws.mergeCells(h2.number, 6, h2.number, 7);
+  ws.mergeCells(h2.number, 8, h2.number, 9);
+  ws.mergeCells(h2.number, 10, h2.number, 11);
+  ws.mergeCells(h2.number, 12, h2.number, 13);
 
   const h3Vals = ["", "فلس", "دينار", "فلس", "دينار", "فلس", "دينار", "فلس", "دينار", "فلس", "دينار", "فلس", "دينار"];
   const h3 = ws.addRow(h3Vals);
