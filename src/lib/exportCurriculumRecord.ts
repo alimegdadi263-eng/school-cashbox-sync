@@ -168,7 +168,7 @@ export async function exportCurriculumRecordDocx(teachers: Teacher[], info: Curr
   });
   const doc = new Document({
     styles: { default: { document: { run: { font: FONT, size: 21 } } } },
-    sections: [{ properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 320, right: 700, bottom: 320, left: 700 } } }, children],
+    sections: [{ properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 320, right: 700, bottom: 320, left: 700 } } }, children }],
   });
   saveAs(await Packer.toBlob(doc), `سجل ما قطع من المنهاج - ${info.schoolName}.docx`);
 }
