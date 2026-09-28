@@ -1,6 +1,7 @@
 import { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, WidthType, AlignmentType, BorderStyle, HeightRule } from "docx";
 import { saveAs } from "file-saver";
 import { Transaction, ACCOUNT_COLUMNS } from "@/types/finance";
+import { officialLogoParagraph } from "@/lib/officialBranding";
 
 const splitAmount = (n: number) => {
   const dinars = Math.floor(n);
@@ -71,6 +72,7 @@ export async function generateJournalVoucherDocx(tx: Transaction, schoolName: st
     sections: [{
       properties: { page: { margin: { top: 720, bottom: 720, left: 720, right: 720 } } },
       children: [
+        officialLogoParagraph(),
         // Title
         new Paragraph({ alignment: AlignmentType.CENTER, bidirectional: true, spacing: { after: 200 }, children: [
           new TextRun({ text: "سند قيد", bold: true, font: "Traditional Arabic", size: 36, rightToLeft: true }),

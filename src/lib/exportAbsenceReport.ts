@@ -1,17 +1,11 @@
-import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle, ImageRun } from "docx";
+import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle } from "docx";
 import { saveAs } from "file-saver";
 import ExcelJS from "exceljs";
 import type { TeacherAbsenceRecord } from "@/types/teacherAbsence";
+import { officialLogoParagraph } from "@/lib/officialBranding";
+import { addOfficialLogoToExcel } from "@/lib/officialBranding";
 
 const FONT = "Traditional Arabic";
-
-let logoBuffer: ArrayBuffer | null = null;
-async function getLogoBuffer(): Promise<ArrayBuffer> {
-  if (logoBuffer) return logoBuffer;
-  const resp = await fetch(`${import.meta.env.BASE_URL}images/moe-logo.png`);
-  logoBuffer = await resp.arrayBuffer();
-  return logoBuffer;
-}
 
 function t(text: string, opts?: { bold?: boolean; size?: number }): TextRun {
   return new TextRun({ text, font: FONT, size: opts?.size || 24, bold: opts?.bold, rightToLeft: true });
@@ -24,7 +18,6 @@ function cellBorders() {
 
 export async function exportAbsenceReportDocx(records: TeacherAbsenceRecord[], teacherName: string, schoolName: string) {
   const filtered = teacherName ? records.filter(r => r.teacherName === teacherName) : records;
-  const logo = await getLogoBuffer();
 
   const headerRows = [
     new TableRow({
@@ -82,7 +75,7 @@ export async function exportAbsenceReportDocx(records: TeacherAbsenceRecord[], t
     sections: [{
       properties: { page: { margin: { top: 720, bottom: 720, left: 720, right: 720 } } },
       children: [
-        new Paragraph({ children: [new ImageRun({ data: logo, transformation: { width: 70, height: 70 }, type: "png" })], alignment: AlignmentType.CENTER, spacing: { after: 40 }, bidirectional: true }),
+        officialLogoParagraph(70, 40),
         new Paragraph({ children: [t(schoolName, { bold: true, size: 32 })], alignment: AlignmentType.CENTER, bidirectional: true, spacing: { after: 100 } }),
         new Paragraph({ children: [t(teacherName ? `كشف غياب المعلم: ${teacherName}` : "كشف غياب المعلمين", { bold: true, size: 28 })], alignment: AlignmentType.CENTER, bidirectional: true, spacing: { after: 200 } }),
         new Table({ width: { size: 9000, type: WidthType.DXA }, columnWidths: [600, 2200, 1600, 1200, 1200, 2200], visuallyRightToLeft: true, rows: [...headerRows, ...dataRows] }),
@@ -121,14 +114,16 @@ export async function exportAbsenceReportExcel(records: TeacherAbsenceRecord[], 
   const ws = wb.addWorksheet("كشف الغياب");
   ws.views = [{ rightToLeft: true }];
 
-  ws.mergeCells("A1:F1");
-  const titleCell = ws.getCell("A1");
+  ws.getRow(1).height = 58;
+  addOfficialLogoToExcel(wb, ws, 2.5, 0, 72);
+  ws.mergeCells("A2:F2");
+  const titleCell = ws.getCell("A2");
   titleCell.value = schoolName;
   titleCell.font = { name: FONT, size: 16, bold: true };
   titleCell.alignment = { horizontal: "center", vertical: "middle" };
 
-  ws.mergeCells("A2:F2");
-  const subCell = ws.getCell("A2");
+  ws.mergeCells("A3:F3");
+  const subCell = ws.getCell("A3");
   subCell.value = teacherName ? `كشف غياب المعلم: ${teacherName}` : "كشف غياب المعلمين";
   subCell.font = { name: FONT, size: 14, bold: true };
   subCell.alignment = { horizontal: "center", vertical: "middle" };
@@ -156,6 +151,8 @@ export async function exportAbsenceReportExcel(records: TeacherAbsenceRecord[], 
   // Summary sheet
   const ws2 = wb.addWorksheet("ملخص");
   ws2.views = [{ rightToLeft: true }];
+  ws2.getRow(1).height = 58;
+  addOfficialLogoToExcel(wb, ws2, 3, 0, 72);
 
   const summary: Record<string, { عرضية: number; مرضية: number; "عدم صرف": number; "غير ذلك": number; total: number }> = {};
   for (const rec of filtered) {

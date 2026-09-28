@@ -14,6 +14,7 @@ import {
 } from "docx";
 import { saveAs } from "file-saver";
 import type { PurchaseItem } from "@/lib/fillFinancialForms";
+import { officialLogoParagraph } from "@/lib/officialBranding";
 
 export interface LocalPurchaseDocxData {
   school: string;
@@ -128,6 +129,7 @@ export async function generateLocalPurchaseDocx(data: LocalPurchaseDocxData) {
     children: [
       new TableCell({
         children: [
+          officialLogoParagraph(),
           new Paragraph({
             children: [textRun("المجمـــــوع", { bold: true, size: 20 })],
             alignment: AlignmentType.CENTER,

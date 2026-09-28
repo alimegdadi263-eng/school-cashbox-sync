@@ -1,6 +1,7 @@
 import { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, WidthType, AlignmentType, BorderStyle, HeightRule } from "docx";
 import { saveAs } from "file-saver";
 import { Transaction, ACCOUNT_COLUMNS } from "@/types/finance";
+import { officialLogoParagraph } from "@/lib/officialBranding";
 
 const splitAmount = (n: number) => {
   const dinars = Math.floor(n);
@@ -77,6 +78,7 @@ export async function generatePaymentVoucherDocx(tx: Transaction, schoolName: st
     sections: [{
       properties: { page: { margin: { top: 720, bottom: 720, left: 720, right: 720 } } },
       children: [
+        officialLogoParagraph(),
         // Header
         new Paragraph({ alignment: AlignmentType.CENTER, bidirectional: true, spacing: { after: 100 }, children: [
           new TextRun({ text: "مديرية التربية والتعليم لمنطقة / لواءي الطيبة والوسطية", font: "Traditional Arabic", size: 24, rightToLeft: true }),

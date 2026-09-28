@@ -6,6 +6,7 @@ import {
 import { saveAs } from "file-saver";
 import type { ClassTimetable, TimetableCell, Teacher } from "@/types/timetable";
 import { DAYS, parseClassKey } from "@/types/timetable";
+import { officialLogoParagraph } from "@/lib/officialBranding";
 
 const FONT = "Traditional Arabic";
 const HEADER_BG = "2B3A55";
@@ -77,6 +78,7 @@ export async function exportClassTimetableDocx(
     sections: [{
       properties: { page: { size: { orientation: "landscape" as any } } },
       children: [
+        officialLogoParagraph(65, 30),
         new Paragraph({
           alignment: AlignmentType.CENTER,
           bidirectional: true,
@@ -146,6 +148,7 @@ function buildTeacherSection(
   return {
     properties: { page: { size: { orientation: "landscape" as any } } },
     children: [
+      officialLogoParagraph(65, 30),
       new Paragraph({
         alignment: AlignmentType.CENTER,
         bidirectional: true,
@@ -221,6 +224,7 @@ export async function exportEachClassSeparateDocxZip(
       sections: [{
         properties: { page: { size: { orientation: "landscape" as any } } },
         children: [
+          officialLogoParagraph(65, 30),
           new Paragraph({
             alignment: AlignmentType.CENTER,
             bidirectional: true,
@@ -257,6 +261,7 @@ export async function exportFullSchoolTimetableDocx(
     return {
       properties: { page: { size: { orientation: "landscape" as any } } },
       children: [
+        officialLogoParagraph(65, 30),
         new Paragraph({
           alignment: AlignmentType.CENTER,
           bidirectional: true,
@@ -379,6 +384,7 @@ export async function exportMalhafaDocx(
         },
       },
       children: [
+        officialLogoParagraph(58, 20),
         new Paragraph({
           alignment: AlignmentType.CENTER,
           bidirectional: true,
@@ -464,6 +470,7 @@ export async function exportMalhafaTransposedDocx(
     sections: [{
       properties: { page: { size: { orientation: "landscape" as any } } },
       children: [
+        officialLogoParagraph(58, 20),
         new Paragraph({
           alignment: AlignmentType.CENTER,
           bidirectional: true,
