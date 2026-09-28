@@ -104,7 +104,7 @@ export async function exportOfficialSubjectsTeachersExcel(
 
   // اسم الوزارة والعنوان في المنتصف أسفل الشعار
   ws.mergeCells(4, NO, 4, NOTES);
-  const ministry = set(4, NO, "وزارة التربية والتعليم");
+  const ministry = set(4, NO, "وزارة التربية والتعليم وتنمية الموارد البشرية");
   ministry.font = { name: FONT, bold: true, size: 14 };
   ministry.alignment = { horizontal: "center", vertical: "middle" };
   ws.mergeCells(5, NO, 5, NOTES);

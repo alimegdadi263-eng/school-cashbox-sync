@@ -125,7 +125,7 @@ export async function exportStudentListDocx(
           bidirectional: true,
         }),
         new Paragraph({
-          children: [t("وزارة التربية والتعليم", { bold: true, size: 26 })],
+          children: [t("وزارة التربية والتعليم وتنمية الموارد البشرية", { bold: true, size: 26 })],
           alignment: AlignmentType.CENTER,
           bidirectional: true,
           spacing: { after: 40 },

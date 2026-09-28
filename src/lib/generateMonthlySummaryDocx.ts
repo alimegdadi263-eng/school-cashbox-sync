@@ -157,7 +157,7 @@ export async function generateMonthlySummaryDocx(state: FinanceState, selectedMo
       children: [
         officialLogoParagraph(72, 30),
         new Paragraph({ alignment: AlignmentType.CENTER, bidirectional: true, spacing: { after: 80 }, children: [
-          new TextRun({ text: "وزارة التربية والتعليم", bold: true, font: "Traditional Arabic", size: 28, rightToLeft: true }),
+          new TextRun({ text: "وزارة التربية والتعليم وتنمية الموارد البشرية", bold: true, font: "Traditional Arabic", size: 28, rightToLeft: true }),
         ]}),
         new Paragraph({ alignment: AlignmentType.CENTER, bidirectional: true, spacing: { after: 80 }, children: [
           new TextRun({ text: `مديرية التربية والتعليم ${state.directorateName}`, bold: true, font: "Traditional Arabic", size: 24, rightToLeft: true }),
