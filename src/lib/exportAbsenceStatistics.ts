@@ -81,7 +81,7 @@ function makeHeaderRow(headers: string[]) {
 function makeDocHeader(data: ExportData): Paragraph[] {
   const children: Paragraph[] = [officialLogoParagraph(72, 40)];
   children.push(new Paragraph({ alignment: AlignmentType.CENTER, bidirectional: true, spacing: { after: 100 },
-    children: [new TextRun({ text: "وزارة التربية والتعليم", bold: true, font: "Arial", size: 28, rightToLeft: true })] }));
+    children: [new TextRun({ text: "وزارة التربية والتعليم وتنمية الموارد البشرية", bold: true, font: "Arial", size: 28, rightToLeft: true })] }));
   if (data.directorateName) {
     children.push(new Paragraph({ alignment: AlignmentType.CENTER, bidirectional: true, spacing: { after: 100 },
       children: [new TextRun({ text: `مديرية التربية والتعليم / ${data.directorateName}`, font: "Arial", size: 24, rightToLeft: true })] }));

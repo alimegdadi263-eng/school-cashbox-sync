@@ -33,7 +33,7 @@ export async function exportMonthlySummaryExcel(state: FinanceState, selectedMon
   addOfficialLogoToExcel(wb, ws, 6, 0, 72);
 
   // Header rows
-  const r1 = ws.addRow(["وزارة التربية والتعليم"]);
+  const r1 = ws.addRow(["وزارة التربية والتعليم وتنمية الموارد البشرية"]);
   ws.mergeCells(r1.number, 1, r1.number, totalCols);
   r1.getCell(1).font = { bold: true, size: 14, name: "Arial" };
   r1.getCell(1).alignment = centerAlign;

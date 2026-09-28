@@ -207,7 +207,7 @@ export default function SdiAnalysis() {
 
     // Title
     ws.mergeCells("A1:O1");
-    ws.getCell("A1").value = "وزارة التربية والتعليم";
+    ws.getCell("A1").value = "وزارة التربية والتعليم وتنمية الموارد البشرية";
     ws.getCell("A1").font = { name: FONT_NAME, bold: true, size: 16 };
     ws.getCell("A1").alignment = centerAlign;
 

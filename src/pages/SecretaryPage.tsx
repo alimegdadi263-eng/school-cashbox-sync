@@ -584,7 +584,7 @@ function InventoryTab({
     const ws = wb.addWorksheet(category.label);
     ws.views = [{ rightToLeft: true }];
 
-    ws.addRow(["وزارة التربية والتعليم"]);
+    ws.addRow(["وزارة التربية والتعليم وتنمية الموارد البشرية"]);
     ws.mergeCells(1, 1, 1, 8);
     ws.getRow(1).getCell(1).font = { name: FONT_NAME, bold: true, size: 14 };
     ws.getRow(1).getCell(1).alignment = { horizontal: "center" };

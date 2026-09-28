@@ -56,7 +56,7 @@ export async function generateCommitteeDocx(data: CommitteeData) {
 
   // Header
   children.push(
-    rtlParagraph("وزارة التربية والتعليم", { bold: true, size: 30, alignment: AlignmentType.CENTER, spacing: { after: 40 } }),
+    rtlParagraph("وزارة التربية والتعليم وتنمية الموارد البشرية", { bold: true, size: 30, alignment: AlignmentType.CENTER, spacing: { after: 40 } }),
     rtlParagraph(data.directorateName, { bold: true, size: 28, alignment: AlignmentType.CENTER, spacing: { after: 40 } }),
     rtlParagraph(`مدرسة / ${data.schoolName}`, { bold: true, size: 28, alignment: AlignmentType.CENTER, spacing: { after: 300 } }),
   );

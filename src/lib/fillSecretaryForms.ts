@@ -147,7 +147,7 @@ export async function fillInterrogationForm(data: InterrogationData) {
       new TableRow({ children: [
         c(`القسم: ${data.school}`, { width: 25, align: AlignmentType.LEFT }),
         c(`المديرية: ${data.directorate || "لواءي الطيبة والوسطية"}`, { width: 25, align: AlignmentType.LEFT }),
-        c("مكان العمل: وزارة التربية والتعليم", { width: 50, align: AlignmentType.LEFT }),
+        c("مكان العمل: وزارة التربية والتعليم وتنمية الموارد البشرية", { width: 50, align: AlignmentType.LEFT }),
       ]}),
     ],
     width: { size: 100, type: WidthType.PERCENTAGE },
@@ -159,7 +159,7 @@ export async function fillInterrogationForm(data: InterrogationData) {
       properties: { page: PAGE_A4 },
       children: [
         logoHeader(logo),
-        p([t("ديوان الخدمة المدنية", { bold: true, size: L }), t("                                        "), t("الدائرة وزارة التربية والتعليم", { bold: true, size: L })], AlignmentType.CENTER),
+        p([t("ديوان الخدمة المدنية", { bold: true, size: L }), t("                                        "), t("الدائرة وزارة التربية والتعليم وتنمية الموارد البشرية", { bold: true, size: L })], AlignmentType.CENTER),
         p([t("نموذج استجواب", { bold: true, size: XXL, underline: true })], AlignmentType.CENTER),
         p([t("عن المخالفة المرتكبة من قبل الموظف", { bold: true, size: M })], AlignmentType.CENTER),
         p([t("(سنداً لأحكام المادة 72/أ/1 من نظام إدارة الموارد البشرية للقطاع العام رقم (33) لسنة 2024)", { size: S })], AlignmentType.CENTER),
@@ -316,7 +316,7 @@ export async function fillNoPaymentForm(data: NoPaymentData) {
       properties: { page: PAGE_A4 },
       children: [
         logoHeader(logo),
-        p([t("وزارة التربية والتعليم", { bold: true, size: XL })], AlignmentType.CENTER),
+        p([t("وزارة التربية والتعليم وتنمية الموارد البشرية", { bold: true, size: XL })], AlignmentType.CENTER),
         p([t(`مديرية التربية والتعليم ${data.directorate || "للواءي الطيبة والوسطية"}/محافظة اربد`, { bold: true, size: L })], AlignmentType.CENTER),
         p([t(data.school, { bold: true, size: L })], AlignmentType.CENTER),
         gap(20),
@@ -458,7 +458,7 @@ export async function exportInventoryCustodyDocx(data: InventoryCustodyData) {
 
     return [
       logoHeader(logo),
-      p([t("وزارة التربية والتعليم", { bold: true, size: L })], AlignmentType.CENTER),
+      p([t("وزارة التربية والتعليم وتنمية الموارد البشرية", { bold: true, size: L })], AlignmentType.CENTER),
       p([t(`نموذج جرد مستودعات المدارس ( ${data.categoryLabel} )${pageLabel}`, { bold: true, size: XL, underline: true })], AlignmentType.CENTER),
       gap(10),
       p([t(`اسم المدرسة : ${data.school}                              مديرية التربية والتعليم : ${data.directorate || dots(20)}`, { size: S })], AlignmentType.LEFT),
@@ -627,7 +627,7 @@ export async function exportDisposalDocx(data: DisposalDocxData) {
 
     return [
       logoHeader(logo),
-      p([t("وزارة التربية والتعليم", { bold: true, size: L })], AlignmentType.CENTER),
+      p([t("وزارة التربية والتعليم وتنمية الموارد البشرية", { bold: true, size: L })], AlignmentType.CENTER),
       p([t(`مديرية التربية والتعليم ${data.directorate || "لواءي الطيبة والوسطية"}`, { bold: true, size: M })], AlignmentType.CENTER),
       p([t(`اسم المدرسة: ${data.school}`, { bold: true, size: M })], AlignmentType.LEFT),
       p([t(`كشف أسماء الكتب وكميات الكتب الملغاة وغير الصالحة للاستعمال والمراد اتلافها ( ${data.categoryLabel} )${pageLabel}`, { bold: true, size: M, underline: true })], AlignmentType.CENTER),
