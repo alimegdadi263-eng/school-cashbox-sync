@@ -6,6 +6,7 @@ import {
 } from "docx";
 import type { StudentInfo } from "@/types/studentAbsence";
 import { CLASS_NAMES, SECTIONS } from "@/types/timetable";
+import { addOfficialLogoToExcel, officialLogoParagraph } from "@/lib/officialBranding";
 
 /** عدد الأسطر الفارغة عندما لا يوجد طلبة مسجلون */
 const BLANK_ROWS = 40;
@@ -69,6 +70,8 @@ export async function exportDailyAbsenceFormExcel(
 
     const totalCols = 2 + WEEK_DAYS.length;
 
+    ws.addRow([]).height = 58;
+    addOfficialLogoToExcel(wb, ws, Math.max(0, totalCols / 2 - 0.5), 0, 72);
     const titleRow = ws.addRow([`${schoolName} — نموذج الغياب اليومي للطلبة`]);
     ws.mergeCells(titleRow.number, 1, titleRow.number, totalCols);
     titleRow.getCell(1).font = { name: FONT, bold: true, size: 15, color: { argb: NAVY } };
@@ -161,6 +164,7 @@ export async function exportDailyAbsenceFormDocx(
   const children: (Paragraph | Table)[] = [];
   data.forEach(({ cls, list }, idx) => {
     if (idx > 0) children.push(new Paragraph({ children: [new PageBreak()] }));
+    children.push(officialLogoParagraph(72, 40));
     children.push(new Paragraph({
       bidirectional: true, alignment: AlignmentType.CENTER, spacing: { after: 80 },
       children: [dtxt(`${schoolName} — نموذج الغياب اليومي للطلبة`, { bold: true, size: 30 })],

@@ -1,6 +1,7 @@
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, AlignmentType, BorderStyle, WidthType, ShadingType } from "docx";
 import { saveAs } from "file-saver";
 import ExcelJS from "exceljs";
+import { addOfficialLogoToExcel, officialLogoParagraph } from "@/lib/officialBranding";
 
 interface ClassRow {
   className: string;
@@ -78,7 +79,7 @@ function makeHeaderRow(headers: string[]) {
 }
 
 function makeDocHeader(data: ExportData): Paragraph[] {
-  const children: Paragraph[] = [];
+  const children: Paragraph[] = [officialLogoParagraph(72, 40)];
   children.push(new Paragraph({ alignment: AlignmentType.CENTER, bidirectional: true, spacing: { after: 100 },
     children: [new TextRun({ text: "وزارة التربية والتعليم", bold: true, font: "Arial", size: 28, rightToLeft: true })] }));
   if (data.directorateName) {
@@ -205,15 +206,17 @@ export async function exportAbsenceStatisticsExcel(data: ExportData) {
 
   const ws = wb.addWorksheet("إحصائية الغياب", { views: [{ rightToLeft: true }] });
 
-  ws.mergeCells("A1:G1");
-  const h1 = ws.getCell("A1");
+  ws.getRow(1).height = 58;
+  addOfficialLogoToExcel(wb, ws, 3, 0, 72);
+  ws.mergeCells("A2:G2");
+  const h1 = ws.getCell("A2");
   h1.value = `إحصائية غياب الطلبة - ${data.schoolName}`;
   h1.font = { bold: true, size: 16, name: "Arial" };
   h1.alignment = { horizontal: "center" };
 
   if (data.viewLevel === "per-student") {
-    ws.mergeCells("A2:G2");
-    const h2 = ws.getCell("A2");
+    ws.mergeCells("A3:G3");
+    const h2 = ws.getCell("A3");
     h2.value = `أيام الدراسة: ${data.totalSchoolDays || 0}  |  إجمالي الطلبة: ${data.totalStudents}`;
     h2.font = { size: 11, name: "Arial" };
     h2.alignment = { horizontal: "center" };
@@ -246,8 +249,8 @@ export async function exportAbsenceStatisticsExcel(data: ExportData) {
 
     ws.columns = [{ width: 6 }, { width: 25 }, { width: 18 }, { width: 14 }, { width: 14 }, { width: 12 }];
   } else {
-    ws.mergeCells("A2:G2");
-    const h2 = ws.getCell("A2");
+    ws.mergeCells("A3:G3");
+    const h2 = ws.getCell("A3");
     h2.value = `التاريخ: ${data.dateLabel}  |  المستوى: ${data.levelLabel}  |  الطلبة: ${data.totalStudents}  |  حضور: ${data.presentCount} (${data.presentPercentage}%)  |  غياب: ${data.absentCount} (${data.absentPercentage}%)`;
     h2.font = { size: 11, name: "Arial" };
     h2.alignment = { horizontal: "center" };

@@ -1,8 +1,9 @@
 import {
   Document, Packer, Paragraph, TextRun,
-  AlignmentType, BorderStyle, ImageRun,
+  AlignmentType, BorderStyle,
 } from "docx";
 import { saveAs } from "file-saver";
+import { officialLogoParagraph } from "@/lib/officialBranding";
 
 export interface CommitteeMember {
   name: string;
@@ -49,38 +50,9 @@ function rtlParagraph(text: string, opts: { bold?: boolean; size?: number; align
   });
 }
 
-async function loadLogo(): Promise<ArrayBuffer | null> {
-  try {
-    const base = (import.meta as any).env?.BASE_URL || "/";
-    const res = await fetch(`${base}ministry-logo.jpeg`);
-    if (!res.ok) return null;
-    return await res.arrayBuffer();
-  } catch {
-    return null;
-  }
-}
-
 export async function generateCommitteeDocx(data: CommitteeData) {
-  const logo = await loadLogo();
   const title = formatCommitteeTitle(data.committeeName);
-  const children: Paragraph[] = [];
-
-  // Logo
-  if (logo) {
-    children.push(
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 100 },
-        children: [
-          new ImageRun({
-            data: logo,
-            transformation: { width: 90, height: 90 },
-            type: "jpg",
-          }),
-        ],
-      })
-    );
-  }
+  const children: Paragraph[] = [officialLogoParagraph(90, 100)];
 
   // Header
   children.push(

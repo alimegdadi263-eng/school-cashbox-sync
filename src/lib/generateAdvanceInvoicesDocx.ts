@@ -12,6 +12,7 @@ import {
   TableLayoutType,
 } from "docx";
 import { saveAs } from "file-saver";
+import { officialLogoParagraph } from "@/lib/officialBranding";
 
 export interface AdvanceInvoice {
   invoiceNumber: string;
@@ -184,6 +185,7 @@ export async function generateAdvanceInvoicesDocx(data: AdvanceInvoicesDocxData)
         
       },
       children: [
+        officialLogoParagraph(),
         p([t(`كشف فواتير السلفة المدرسية رقم ( ${data.listNumber} ) تاريخ ${data.listDate}`, { bold: true, size: L })]),
         hijriDate ? p([t(`الموافق: ${hijriDate}`, { size: S })]) : new Paragraph({ children: [] }),
         p([t(data.school, { bold: true, size: M })]),

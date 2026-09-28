@@ -2,6 +2,7 @@ import { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, Width
 import { saveAs } from "file-saver";
 import { FinanceState } from "@/types/finance";
 import { ARABIC_MONTHS, SUMMARY_ROWS, getAccountMonthData } from "./monthlySummaryUtils";
+import { officialLogoParagraph } from "@/lib/officialBranding";
 
 const splitAmount = (n: number) => {
   const dinars = Math.floor(Math.abs(n));
@@ -154,6 +155,7 @@ export async function generateMonthlySummaryDocx(state: FinanceState, selectedMo
         },
       },
       children: [
+        officialLogoParagraph(72, 30),
         new Paragraph({ alignment: AlignmentType.CENTER, bidirectional: true, spacing: { after: 80 }, children: [
           new TextRun({ text: "وزارة التربية والتعليم", bold: true, font: "Traditional Arabic", size: 28, rightToLeft: true }),
         ]}),
