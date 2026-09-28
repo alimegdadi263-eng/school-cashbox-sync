@@ -3,6 +3,7 @@ import { saveAs } from "file-saver";
 import ExcelJS from "exceljs";
 import type { TeacherAbsenceRecord } from "@/types/teacherAbsence";
 import { officialLogoParagraph } from "@/lib/officialBranding";
+import { addOfficialLogoToExcel } from "@/lib/officialBranding";
 
 const FONT = "Traditional Arabic";
 
@@ -113,14 +114,16 @@ export async function exportAbsenceReportExcel(records: TeacherAbsenceRecord[], 
   const ws = wb.addWorksheet("كشف الغياب");
   ws.views = [{ rightToLeft: true }];
 
-  ws.mergeCells("A1:F1");
-  const titleCell = ws.getCell("A1");
+  ws.getRow(1).height = 58;
+  addOfficialLogoToExcel(wb, ws, 2.5, 0, 72);
+  ws.mergeCells("A2:F2");
+  const titleCell = ws.getCell("A2");
   titleCell.value = schoolName;
   titleCell.font = { name: FONT, size: 16, bold: true };
   titleCell.alignment = { horizontal: "center", vertical: "middle" };
 
-  ws.mergeCells("A2:F2");
-  const subCell = ws.getCell("A2");
+  ws.mergeCells("A3:F3");
+  const subCell = ws.getCell("A3");
   subCell.value = teacherName ? `كشف غياب المعلم: ${teacherName}` : "كشف غياب المعلمين";
   subCell.font = { name: FONT, size: 14, bold: true };
   subCell.alignment = { horizontal: "center", vertical: "middle" };
@@ -148,6 +151,8 @@ export async function exportAbsenceReportExcel(records: TeacherAbsenceRecord[], 
   // Summary sheet
   const ws2 = wb.addWorksheet("ملخص");
   ws2.views = [{ rightToLeft: true }];
+  ws2.getRow(1).height = 58;
+  addOfficialLogoToExcel(wb, ws2, 3, 0, 72);
 
   const summary: Record<string, { عرضية: number; مرضية: number; "عدم صرف": number; "غير ذلك": number; total: number }> = {};
   for (const rec of filtered) {

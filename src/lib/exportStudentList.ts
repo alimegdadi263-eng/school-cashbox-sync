@@ -2,6 +2,7 @@ import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, T
 import { saveAs } from "file-saver";
 import ExcelJS from "exceljs";
 import type { StudentInfo } from "@/types/studentAbsence";
+import { addOfficialLogoToExcel } from "@/lib/officialBranding";
 
 const FONT = "Traditional Arabic";
 
@@ -182,14 +183,16 @@ export async function exportStudentListExcel(
   const colCount = fields.length + 1;
   const lastCol = String.fromCharCode(64 + colCount);
 
-  ws.mergeCells(`A1:${lastCol}1`);
-  const titleCell = ws.getCell("A1");
+  ws.getRow(1).height = 58;
+  addOfficialLogoToExcel(wb, ws, Math.max(0, colCount / 2 - 0.5), 0, 72);
+  ws.mergeCells(`A2:${lastCol}2`);
+  const titleCell = ws.getCell("A2");
   titleCell.value = schoolName;
   titleCell.font = { name: FONT, size: 16, bold: true, color: { argb: "FF1F4E79" } };
   titleCell.alignment = { horizontal: "center", vertical: "middle" };
 
-  ws.mergeCells(`A2:${lastCol}2`);
-  const subCell = ws.getCell("A2");
+  ws.mergeCells(`A3:${lastCol}3`);
+  const subCell = ws.getCell("A3");
   subCell.value = filterClass ? `سجل طلبة الصف: ${filterClass}` : `سجل الطلبة (${filtered.length} طالب/ة)`;
   subCell.font = { name: FONT, size: 14, bold: true };
   subCell.alignment = { horizontal: "center", vertical: "middle" };

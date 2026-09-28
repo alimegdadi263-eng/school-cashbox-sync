@@ -2,6 +2,7 @@ import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, T
 import { saveAs } from "file-saver";
 import ExcelJS from "exceljs";
 import type { StudentAbsenceRecord } from "@/types/studentAbsence";
+import { addOfficialLogoToExcel } from "@/lib/officialBranding";
 
 const FONT = "Traditional Arabic";
 
@@ -236,14 +237,16 @@ export async function exportStudentAbsenceExcel(
   const borders: Partial<ExcelJS.Borders> = { top: borderStyle, bottom: borderStyle, left: borderStyle, right: borderStyle };
 
   // Title rows
-  ws.mergeCells("A1:G1");
-  const titleCell = ws.getCell("A1");
+  ws.getRow(1).height = 58;
+  addOfficialLogoToExcel(wb, ws, 3, 0, 72);
+  ws.mergeCells("A2:G2");
+  const titleCell = ws.getCell("A2");
   titleCell.value = `${schoolName}`;
   titleCell.font = { name: FONT, size: 16, bold: true, color: { argb: "FF1F4E79" } };
   titleCell.alignment = { horizontal: "center", vertical: "middle" };
 
-  ws.mergeCells("A2:G2");
-  const subCell = ws.getCell("A2");
+  ws.mergeCells("A3:G3");
+  const subCell = ws.getCell("A3");
   subCell.value = filterStudent ? `تقرير غياب الطالب: ${filterStudent}` :
     filterClass ? `تقرير غياب طلبة الصف: ${filterClass}` : "تقرير غياب الطلبة";
   subCell.font = { name: FONT, size: 14, bold: true };
@@ -284,8 +287,10 @@ export async function exportStudentAbsenceExcel(
   }
   const summaryList = Object.values(summaryMap).sort((a, b) => b.count - a.count);
 
-  ws2.mergeCells("A1:F1");
-  const sTitle = ws2.getCell("A1");
+  ws2.getRow(1).height = 58;
+  addOfficialLogoToExcel(wb, ws2, 2.5, 0, 72);
+  ws2.mergeCells("A2:F2");
+  const sTitle = ws2.getCell("A2");
   sTitle.value = "ملخص غيابات الطلبة";
   sTitle.font = { name: FONT, size: 16, bold: true, color: { argb: "FF1F4E79" } };
   sTitle.alignment = { horizontal: "center", vertical: "middle" };

@@ -117,7 +117,13 @@ export async function exportCurriculumRecordExcel(teachers: Teacher[], info: Cur
 const border = { style: BorderStyle.SINGLE, size: 5, color: "666666" };
 const borders = { top: border, bottom: border, left: border, right: border };
 function run(text: string, size = 21, bold = false) { return new TextRun({ text, font: FONT, size, bold, rightToLeft: true }); }
-function para(text: string, size = 21, bold = false, align = AlignmentType.CENTER, after = 45) {
+function para(
+  text: string,
+  size = 21,
+  bold = false,
+  align: (typeof AlignmentType)[keyof typeof AlignmentType] = AlignmentType.CENTER,
+  after = 45,
+) {
   return new Paragraph({ alignment: align, bidirectional: true, spacing: { after }, children: [run(text, size, bold)] });
 }
 function cell(text: string, width: number, bold = false) {
