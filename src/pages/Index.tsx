@@ -22,26 +22,26 @@ export default function Dashboard() {
     n.toLocaleString("ar-JO", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 
   const quickLinks = [
-    { path: "/cashbook", label: "مالية المدرسة", detail: "الصندوق والحركات والتقارير", icon: Wallet, className: "md:col-span-2" },
-    { path: "/timetable", label: "الجدول المدرسي", detail: "المعلمين والحصص والملحفة", icon: CalendarDays, className: "" },
-    { path: "/exams", label: "جداول الامتحانات", detail: "منتصف الفصل والنهائي", icon: GraduationCap, className: "" },
-    { path: "/secretary", label: "أعمال السكرتير", detail: "السجلات والنماذج الرسمية", icon: Archive, className: "" },
-    { path: "/student-absence", label: "غياب الطلبة", detail: "المتابعة والرسائل والتقارير", icon: ClipboardList, className: "md:col-span-2" },
-    { path: "/committees", label: "اللجان المدرسية", detail: "التشكيل والقرارات والتصدير", icon: Users, className: "" },
+    { path: "/cashbook", label: "مالية المدرسة", detail: "الصندوق والحركات والتقارير", icon: Wallet },
+    { path: "/timetable", label: "الجدول المدرسي", detail: "المعلمون والحصص والملحفة", icon: CalendarDays },
+    { path: "/exams", label: "جداول الامتحانات", detail: "منتصف الفصل والنهائي", icon: GraduationCap },
+    { path: "/secretary", label: "أعمال السكرتير", detail: "السجلات والنماذج الرسمية", icon: Archive },
+    { path: "/student-absence", label: "غياب الطلبة", detail: "المتابعة والرسائل والتقارير", icon: ClipboardList },
+    { path: "/committees", label: "اللجان المدرسية", detail: "التشكيل والقرارات والتصدير", icon: Users },
   ];
 
   return (
     <AppLayout>
-      <div className="space-y-8">
-        <div className="flex flex-col gap-2 border-b border-primary/10 pb-6 sm:flex-row sm:items-end sm:justify-between">
+      <div className="space-y-7">
+        <div className="rounded-lg border border-accent/20 bg-primary px-6 py-5 text-primary-foreground shadow-card sm:flex sm:items-center sm:justify-between">
           <div>
-          <p className="mb-2 text-xs font-bold text-accent">لوحة الإدارة</p>
-          <h1 className="text-2xl font-bold text-primary md:text-3xl">{state.schoolName || "الإدارة المدرسية"}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mb-1 text-xs font-bold text-accent">لوحة الإدارة</p>
+          <h1 className="text-2xl font-bold md:text-3xl">{state.schoolName || "الإدارة المدرسية"}</h1>
+          <p className="mt-1 text-sm text-primary-foreground/70">
             {state.currentMonth} - {state.currentYear}
           </p>
           </div>
-          <p className="text-sm text-muted-foreground">مرحباً بك، اختر القسم الذي تريد العمل عليه</p>
+          <p className="mt-3 text-sm text-primary-foreground/75 sm:mt-0">مرحباً بك، اختر القسم الذي تريد العمل عليه</p>
         </div>
 
         <section>
@@ -49,13 +49,13 @@ export default function Dashboard() {
             <h2 className="text-lg font-bold text-primary">الأقسام الرئيسية</h2>
             <span className="text-xs text-muted-foreground">وصول سريع</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
-            {quickLinks.map(({ path, label, detail, icon: Icon, className }) => (
-              <Link key={path} to={path} className={className}>
-                <Card className="group h-full border-primary/10 shadow-card transition-all duration-200 hover:-translate-y-1 hover:border-accent/60 hover:shadow-card-hover">
-                  <CardContent className="flex min-h-36 flex-col justify-between p-5">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {quickLinks.map(({ path, label, detail, icon: Icon }) => (
+              <Link key={path} to={path}>
+                <Card className="group h-full border-border border-t-2 border-t-accent/70 shadow-card transition-colors hover:border-primary/35">
+                  <CardContent className="flex min-h-32 flex-col justify-between p-5">
                     <div className="flex items-start justify-between">
-                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/8 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground"><Icon className="h-5 w-5" /></span>
+                      <span className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/15 bg-secondary text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground"><Icon className="h-5 w-5" /></span>
                       <ArrowLeft className="h-4 w-4 text-muted-foreground transition-transform group-hover:-translate-x-1 group-hover:text-accent" />
                     </div>
                     <div className="mt-5"><h3 className="font-bold text-primary">{label}</h3><p className="mt-1 text-xs text-muted-foreground">{detail}</p></div>

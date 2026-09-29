@@ -145,10 +145,10 @@ export default function AppSidebar({ onNavigate }: { onNavigate?: () => void }) 
         key={item.path}
         to={item.path}
         onClick={onNavigate}
-        className={`group flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 ${
+        className={`group flex items-center gap-3 rounded-md border-r-2 px-4 py-2.5 text-sm font-medium transition-colors duration-150 ${
           isActive
-            ? "bg-sidebar-foreground/10 text-sidebar-primary shadow-sm"
-            : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+            ? "border-sidebar-primary bg-sidebar-accent text-sidebar-foreground"
+            : "border-transparent text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
         }`}
       >
         <item.icon className="w-5 h-5" />
@@ -158,11 +158,11 @@ export default function AppSidebar({ onNavigate }: { onNavigate?: () => void }) 
   };
 
   return (
-    <aside className="gradient-sidebar flex h-screen w-72 flex-col border-l border-sidebar-border shadow-card-hover">
-      <div className="border-b border-sidebar-border p-6">
+    <aside className="flex h-screen w-72 flex-col border-l border-sidebar-border bg-sidebar shadow-formal">
+      <div className="border-b border-sidebar-border border-t-4 border-t-sidebar-primary p-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 rotate-3 items-center justify-center rounded-xl gradient-accent shadow-card">
-            <School className="w-5 h-5 text-accent-foreground" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-sidebar-primary bg-sidebar-foreground">
+            <School className="h-6 w-6 text-sidebar" />
           </div>
           <div>
             <h1 className="text-lg font-bold leading-tight text-sidebar-foreground">الإدارة المدرسية</h1>
@@ -171,23 +171,24 @@ export default function AppSidebar({ onNavigate }: { onNavigate?: () => void }) 
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto p-4">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {entries.map((entry, idx) => {
           if (isGroup(entry)) {
             return (
               <div key={idx}>
-                <button
+                <Button
+                  variant="ghost"
                   onClick={() => setFinanceOpen(!financeOpen)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  className={`h-auto w-full justify-start gap-3 rounded-md border-r-2 px-4 py-2.5 text-sm font-medium transition-colors duration-150 ${
                     financeActive
-                      ? "bg-sidebar-accent text-sidebar-primary"
-                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                      ? "border-sidebar-primary bg-sidebar-accent text-sidebar-foreground"
+                      : "border-transparent text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
                   }`}
                 >
                   <entry.icon className="w-5 h-5" />
                   <span className="flex-1 text-right">{entry.label}</span>
                   <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${financeOpen ? "rotate-180" : ""}`} />
-                </button>
+                </Button>
                 {financeOpen && (
                   <div className="mr-4 mt-1 space-y-1 border-r border-sidebar-border/40 pr-2">
                     {entry.children.map(renderLink)}

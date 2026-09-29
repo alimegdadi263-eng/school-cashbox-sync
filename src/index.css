@@ -35,7 +35,7 @@
     --input: 143 16% 84%;
     --ring: 43 55% 59%;
 
-    --radius: 0.65rem;
+    --radius: 0.5rem;
 
     --sidebar-background: 156 50% 14%;
     --sidebar-foreground: 60 62% 98%;
@@ -96,8 +96,6 @@
 
   body {
     @apply bg-background text-foreground font-cairo antialiased;
-    background-image: linear-gradient(180deg, hsl(var(--background)), hsl(60 35% 96%));
-    background-attachment: fixed;
   }
 }
 
@@ -116,6 +114,9 @@
   }
   .shadow-card-hover {
     box-shadow: 0 16px 40px -20px hsl(156 50% 14% / 0.35);
+  }
+  .shadow-formal {
+    box-shadow: 0 18px 45px -24px hsl(156 50% 14% / 0.32), 0 2px 8px hsl(156 50% 14% / 0.06);
   }
 
   .academic-grid {
