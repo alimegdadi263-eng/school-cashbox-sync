@@ -1,31 +1,29 @@
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 220 20% 97%;
-    --foreground: 220 30% 15%;
+    --background: 60 62% 98%;
+    --foreground: 156 50% 14%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 30% 15%;
+    --card-foreground: 156 50% 14%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 30% 15%;
+    --popover-foreground: 156 50% 14%;
 
-    --primary: 220 40% 22%;
-    --primary-foreground: 42 55% 90%;
+    --primary: 156 50% 14%;
+    --primary-foreground: 60 62% 98%;
 
-    --secondary: 220 15% 92%;
-    --secondary-foreground: 220 30% 15%;
+    --secondary: 140 23% 90%;
+    --secondary-foreground: 156 50% 14%;
 
-    --muted: 220 15% 94%;
-    --muted-foreground: 220 10% 45%;
+    --muted: 60 28% 94%;
+    --muted-foreground: 145 16% 39%;
 
-    --accent: 42 55% 58%;
-    --accent-foreground: 220 40% 12%;
+    --accent: 43 55% 59%;
+    --accent-foreground: 156 50% 14%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
@@ -33,20 +31,20 @@
     --success: 145 63% 42%;
     --success-foreground: 0 0% 100%;
 
-    --border: 220 15% 88%;
-    --input: 220 15% 88%;
-    --ring: 42 55% 58%;
+    --border: 143 16% 84%;
+    --input: 143 16% 84%;
+    --ring: 43 55% 59%;
 
-    --radius: 0.75rem;
+    --radius: 0.65rem;
 
-    --sidebar-background: 220 40% 16%;
-    --sidebar-foreground: 220 15% 90%;
-    --sidebar-primary: 42 55% 58%;
-    --sidebar-primary-foreground: 220 40% 12%;
-    --sidebar-accent: 220 35% 22%;
-    --sidebar-accent-foreground: 220 15% 90%;
-    --sidebar-border: 220 35% 25%;
-    --sidebar-ring: 42 55% 58%;
+    --sidebar-background: 156 50% 14%;
+    --sidebar-foreground: 60 62% 98%;
+    --sidebar-primary: 43 55% 59%;
+    --sidebar-primary-foreground: 156 50% 14%;
+    --sidebar-accent: 145 23% 32%;
+    --sidebar-accent-foreground: 60 62% 98%;
+    --sidebar-border: 145 24% 29%;
+    --sidebar-ring: 43 55% 59%;
 
     --receipt: 145 63% 42%;
     --receipt-foreground: 0 0% 100%;
@@ -97,24 +95,31 @@
   }
 
   body {
-    @apply bg-background text-foreground font-cairo;
+    @apply bg-background text-foreground font-cairo antialiased;
+    background-image: linear-gradient(180deg, hsl(var(--background)), hsl(60 35% 96%));
+    background-attachment: fixed;
   }
 }
 
 @layer utilities {
   .gradient-primary {
-    background: linear-gradient(135deg, hsl(220 40% 22%), hsl(220 40% 30%));
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(145 23% 32%));
   }
   .gradient-accent {
-    background: linear-gradient(135deg, hsl(42 55% 58%), hsl(42 65% 48%));
+    background: linear-gradient(135deg, hsl(var(--accent)), hsl(43 62% 48%));
   }
   .gradient-sidebar {
-    background: linear-gradient(180deg, hsl(220 40% 16%), hsl(220 40% 12%));
+    background: linear-gradient(180deg, hsl(var(--sidebar-background)), hsl(158 53% 10%));
   }
   .shadow-card {
-    box-shadow: 0 1px 3px 0 hsl(220 30% 15% / 0.06), 0 1px 2px -1px hsl(220 30% 15% / 0.06);
+    box-shadow: 0 1px 2px hsl(156 50% 14% / 0.05), 0 12px 30px -22px hsl(156 50% 14% / 0.28);
   }
   .shadow-card-hover {
-    box-shadow: 0 4px 12px 0 hsl(220 30% 15% / 0.1), 0 2px 4px -1px hsl(220 30% 15% / 0.06);
+    box-shadow: 0 16px 40px -20px hsl(156 50% 14% / 0.35);
+  }
+
+  .academic-grid {
+    background-image: linear-gradient(hsl(var(--primary) / 0.025) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--primary) / 0.025) 1px, transparent 1px);
+    background-size: 28px 28px;
   }
 }

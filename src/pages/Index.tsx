@@ -2,7 +2,8 @@ import AppLayout from "@/components/AppLayout";
 import { useFinance } from "@/context/FinanceContext";
 import { ACCOUNT_COLUMNS, TRANSACTION_TYPE_LABELS } from "@/types/finance";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowDownCircle, ArrowUpCircle, FileText, Wallet } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ArrowDownCircle, ArrowLeft, ArrowUpCircle, Archive, CalendarDays, ClipboardList, FileText, GraduationCap, Users, Wallet } from "lucide-react";
 
 export default function Dashboard() {
   const { state, getColumnBalance, getTotalBalance } = useFinance();
@@ -20,18 +21,53 @@ export default function Dashboard() {
   const formatCurrency = (n: number) =>
     n.toLocaleString("ar-JO", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 
+  const quickLinks = [
+    { path: "/cashbook", label: "مالية المدرسة", detail: "الصندوق والحركات والتقارير", icon: Wallet, className: "md:col-span-2" },
+    { path: "/timetable", label: "الجدول المدرسي", detail: "المعلمين والحصص والملحفة", icon: CalendarDays, className: "" },
+    { path: "/exams", label: "جداول الامتحانات", detail: "منتصف الفصل والنهائي", icon: GraduationCap, className: "" },
+    { path: "/secretary", label: "أعمال السكرتير", detail: "السجلات والنماذج الرسمية", icon: Archive, className: "" },
+    { path: "/student-absence", label: "غياب الطلبة", detail: "المتابعة والرسائل والتقارير", icon: ClipboardList, className: "md:col-span-2" },
+    { path: "/committees", label: "اللجان المدرسية", detail: "التشكيل والقرارات والتصدير", icon: Users, className: "" },
+  ];
+
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{state.schoolName}</h1>
-          <p className="text-muted-foreground text-sm mt-1">
+      <div className="space-y-8">
+        <div className="flex flex-col gap-2 border-b border-primary/10 pb-6 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+          <p className="mb-2 text-xs font-bold text-accent">لوحة الإدارة</p>
+          <h1 className="text-2xl font-bold text-primary md:text-3xl">{state.schoolName || "الإدارة المدرسية"}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             {state.currentMonth} - {state.currentYear}
           </p>
+          </div>
+          <p className="text-sm text-muted-foreground">مرحباً بك، اختر القسم الذي تريد العمل عليه</p>
         </div>
 
+        <section>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-primary">الأقسام الرئيسية</h2>
+            <span className="text-xs text-muted-foreground">وصول سريع</span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+            {quickLinks.map(({ path, label, detail, icon: Icon, className }) => (
+              <Link key={path} to={path} className={className}>
+                <Card className="group h-full border-primary/10 shadow-card transition-all duration-200 hover:-translate-y-1 hover:border-accent/60 hover:shadow-card-hover">
+                  <CardContent className="flex min-h-36 flex-col justify-between p-5">
+                    <div className="flex items-start justify-between">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/8 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground"><Icon className="h-5 w-5" /></span>
+                      <ArrowLeft className="h-4 w-4 text-muted-foreground transition-transform group-hover:-translate-x-1 group-hover:text-accent" />
+                    </div>
+                    <div className="mt-5"><h3 className="font-bold text-primary">{label}</h3><p className="mt-1 text-xs text-muted-foreground">{detail}</p></div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </section>
+
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
           <Card className="shadow-card hover:shadow-card-hover transition-shadow">
             <CardContent className="p-5">
               <div className="flex items-center justify-between">

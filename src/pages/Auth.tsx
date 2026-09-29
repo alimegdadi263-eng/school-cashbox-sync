@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { School } from "lucide-react";
+import { ArrowLeft, LockKeyhole, Mail, School } from "lucide-react";
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_DURATION = 60_000; // 1 minute
@@ -82,43 +82,48 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4" dir="rtl">
-      <Card className="w-full max-w-md shadow-card">
-        <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-16 h-16 rounded-2xl gradient-accent flex items-center justify-center">
-            <School className="w-8 h-8 text-accent-foreground" />
+    <div className="academic-grid min-h-screen flex items-center justify-center bg-background p-6" dir="rtl">
+      <Card className="relative w-full max-w-sm overflow-hidden border-primary/10 shadow-card">
+        <div className="flex h-2 w-full" aria-hidden="true">
+          <span className="flex-1 bg-primary" />
+          <span className="w-1/3 bg-accent" />
+        </div>
+        <CardHeader className="space-y-5 px-8 pb-4 pt-9 text-center">
+          <div className="relative mx-auto flex h-20 w-20 rotate-3 items-center justify-center rounded-2xl gradient-primary shadow-card-hover">
+            <span className="absolute inset-0 scale-110 rounded-2xl border-2 border-accent/30" />
+            <School className="h-10 w-10 -rotate-3 text-accent" />
           </div>
           <div>
-            <CardTitle className="text-2xl">مالية المدارس</CardTitle>
-            <p className="text-muted-foreground text-sm mt-1">تسجيل الدخول</p>
+            <CardTitle className="text-2xl text-primary">الإدارة المدرسية</CardTitle>
+            <p className="mt-1 text-xs font-medium text-muted-foreground">منصة الإدارة الذكية المتكاملة</p>
           </div>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
+        <CardContent className="px-8 pb-9">
+          <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-2">
-              <Label>البريد الإلكتروني</Label>
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@example.com"
-                required
-              />
+              <Label className="pr-1 text-xs font-bold text-primary/70">البريد الإلكتروني</Label>
+              <div className="relative">
+                <Mail className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input className="h-12 rounded-xl border-primary/15 bg-background/70 pr-11 focus-visible:ring-accent" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@example.com" required />
+              </div>
             </div>
             <div className="space-y-2">
-              <Label>كلمة المرور</Label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-              />
+              <Label className="pr-1 text-xs font-bold text-primary/70">كلمة المرور</Label>
+              <div className="relative">
+                <LockKeyhole className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input className="h-12 rounded-xl border-primary/15 bg-background/70 pr-11 focus-visible:ring-accent" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
+              </div>
             </div>
-            <Button type="submit" className="w-full gradient-accent text-accent-foreground" disabled={loading || lockoutRemaining > 0}>
+            <Button type="submit" className="h-13 w-full gap-2 rounded-xl bg-primary font-bold text-primary-foreground shadow-card hover:bg-sidebar-accent" disabled={loading || lockoutRemaining > 0}>
               {lockoutRemaining > 0 ? `انتظر ${lockoutRemaining} ثانية` : loading ? "جاري الدخول..." : "تسجيل الدخول"}
+              <ArrowLeft className="h-4 w-4 opacity-70" />
             </Button>
           </form>
+          <div className="mt-9 flex items-center justify-center gap-2 text-[10px] text-muted-foreground">
+            <span className="h-px w-8 bg-accent/40" />
+            <span>نظام الإدارة المدرسية</span>
+            <span className="h-px w-8 bg-accent/40" />
+          </div>
         </CardContent>
       </Card>
     </div>
