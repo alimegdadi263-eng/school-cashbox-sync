@@ -1,11 +1,10 @@
 import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, LockKeyhole, Mail, School } from "lucide-react";
+import { ArrowLeft, CalendarDays, ClipboardList, LockKeyhole, Mail, School, Users } from "lucide-react";
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_DURATION = 60_000; // 1 minute
@@ -83,50 +82,49 @@ export default function Auth() {
   };
 
   return (
-    <div className="academic-grid min-h-screen flex items-center justify-center bg-background p-6" dir="rtl">
-      <Card className="relative w-full max-w-sm overflow-hidden border-primary/10 shadow-card">
-        <div className="flex h-2 w-full" aria-hidden="true">
-          <span className="flex-1 bg-primary" />
-          <span className="w-1/3 bg-accent" />
+    <div className="academic-grid flex min-h-screen items-center justify-center bg-background p-4" dir="rtl">
+      <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-accent/20 bg-card shadow-formal">
+        <div className="relative border-t-4 border-accent bg-primary px-8 py-8 text-center">
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full border-4 border-accent bg-card shadow-formal">
+            <School className="h-11 w-11 text-primary" />
+          </div>
+          <h1 className="text-2xl font-bold text-primary-foreground">نظام إدارة المدرسة</h1>
+          <p className="mt-1 text-sm font-medium text-accent">البوابة الإدارية المتكاملة</p>
         </div>
-        <CardHeader className="space-y-5 px-8 pb-4 pt-9 text-center">
-          <div className="relative mx-auto flex h-20 w-20 rotate-3 items-center justify-center rounded-2xl gradient-primary shadow-card-hover">
-            <span className="absolute inset-0 scale-110 rounded-2xl border-2 border-accent/30" />
-            <School className="h-10 w-10 -rotate-3 text-accent" />
-          </div>
-          <div>
-            <CardTitle className="text-2xl text-primary">الإدارة المدرسية</CardTitle>
-            <p className="mt-1 text-xs font-medium text-muted-foreground">منصة الإدارة الذكية المتكاملة</p>
-          </div>
-        </CardHeader>
-        <CardContent className="px-8 pb-9">
+        <div className="px-8 py-8">
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-2">
-              <Label className="pr-1 text-xs font-bold text-primary/70">البريد الإلكتروني</Label>
+              <Label className="pr-1 text-sm font-semibold text-primary">البريد الإلكتروني</Label>
               <div className="relative">
-                <Mail className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input className="h-12 rounded-xl border-primary/15 bg-background/70 pr-11 focus-visible:ring-accent" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@example.com" required />
+                <Mail className="absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-secondary-foreground/70" />
+                <Input className="h-12 rounded-lg border-border bg-background pr-10 focus-visible:ring-accent" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="أدخل البريد الإلكتروني" required />
               </div>
             </div>
             <div className="space-y-2">
-              <Label className="pr-1 text-xs font-bold text-primary/70">كلمة المرور</Label>
+              <Label className="pr-1 text-sm font-semibold text-primary">كلمة المرور</Label>
               <div className="relative">
-                <LockKeyhole className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input className="h-12 rounded-xl border-primary/15 bg-background/70 pr-11 focus-visible:ring-accent" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
+                <LockKeyhole className="absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-secondary-foreground/70" />
+                <Input className="h-12 rounded-lg border-border bg-background pr-10 focus-visible:ring-accent" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
               </div>
             </div>
-            <Button type="submit" className="h-13 w-full gap-2 rounded-xl bg-primary font-bold text-primary-foreground shadow-card hover:bg-sidebar-accent" disabled={loading || lockoutRemaining > 0}>
+            <Button type="submit" className="h-12 w-full gap-2 rounded-lg font-bold shadow-card" disabled={loading || lockoutRemaining > 0}>
               {lockoutRemaining > 0 ? `انتظر ${lockoutRemaining} ثانية` : loading ? "جاري الدخول..." : "تسجيل الدخول"}
               <ArrowLeft className="h-4 w-4 opacity-70" />
             </Button>
           </form>
-          <div className="mt-9 flex items-center justify-center gap-2 text-[10px] text-muted-foreground">
-            <span className="h-px w-8 bg-accent/40" />
-            <span>نظام الإدارة المدرسية</span>
-            <span className="h-px w-8 bg-accent/40" />
+          <div className="mt-7 border-t pt-5">
+            <p className="mb-4 text-center text-[11px] text-muted-foreground">الوصول إلى الأقسام الإدارية</p>
+            <div className="flex items-center justify-around text-primary/70">
+              {[{ label: "الطلبة", icon: Users }, { label: "الجدول", icon: CalendarDays }, { label: "السجلات", icon: ClipboardList }].map(({ label, icon: Icon }) => (
+                <div key={label} className="flex flex-col items-center gap-1.5">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-background"><Icon className="h-4 w-4" /></span>
+                  <span className="text-[10px] font-medium">{label}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
