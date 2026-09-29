@@ -25,7 +25,8 @@ export default function Auth() {
       const remaining = Math.max(0, Math.ceil((unlockAt - Date.now()) / 1000));
       setLockoutRemaining(remaining);
       if (remaining <= 0) {
-        clearInterval(lockoutTimerRef.current!);
+        const timer = lockoutTimerRef.current;
+        if (timer) clearInterval(timer);
         lockoutTimerRef.current = null;
         attemptsRef.current = 0;
       }
