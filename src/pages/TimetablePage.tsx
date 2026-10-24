@@ -26,6 +26,7 @@ import { exportCurriculumRecordExcel, exportCurriculumRecordDocx } from "@/lib/e
 import { exportOfficialTimetableExcel, exportSubjectsTemplateExcel } from "@/lib/exportOfficialTimetable";
 import { exportSubjectsTeachersExcel } from "@/lib/exportSubjectsTeachers";
 import { exportOfficialSubjectsTeachersExcel } from "@/lib/exportOfficialSubjectsTeachers";
+import { exportNewPeriodsFormExcel } from "@/lib/exportNewPeriodsForm";
 import {
   exportClassTimetableExcel,
   exportTeacherTimetableExcel,
@@ -393,6 +394,10 @@ export default function TimetablePage() {
                       <Button size="sm" className="bg-emerald-700 hover:bg-emerald-800 text-white" disabled={exporting || teachers.length === 0}
                         onClick={() => safeExport("جدول توزيع المباحث الرسمي", () => exportOfficialSubjectsTeachersExcel(teachers, officialInfo))}>
                         <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير جدول توزيع المباحث الرسمي (Excel)
+                      </Button>
+                      <Button size="sm" variant="secondary" disabled={exporting || teachers.length === 0}
+                        onClick={() => safeExport("نموذج الحصص الجديد", () => exportNewPeriodsFormExcel(teachers, timetable, periodsPerDay, officialInfo))}>
+                        <FileSpreadsheet className="w-4 h-4 ml-1" /> نموذج الحصص الجديد (Excel)
                       </Button>
                     </div>
                   </div>
