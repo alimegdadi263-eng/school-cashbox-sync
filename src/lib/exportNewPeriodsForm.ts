@@ -71,7 +71,7 @@ export async function exportNewPeriodsFormExcel(
     ws.mergeCells(3, s, 3, s + periodsPerDay - 1); head(ws.getCell(3, s), d);
     for (let p = 0; p < periodsPerDay; p++) head(ws.getCell(4, s + p), p + 1);
   });
-  ws.mergeCells(3, lastCol, 4, lastCol); head(ws.getCell(3, lastCol), "عدد الحصص");
+  ws.mergeCells(3, lastCol, 4, lastCol); head(ws.getCell(3, lastCol), "مجموع الحصص");
   ws.getRow(3).height = 22; ws.getRow(4).height = 18;
 
   // group teachers by main subject (keep first-appearance order)
@@ -88,8 +88,9 @@ export async function exportNewPeriodsFormExcel(
       row.getCell(2).value = n++;
       row.getCell(3).value = t.name;
       DAYS.forEach((_, di) => g[di].forEach((v, p) => { row.getCell(4 + di * periodsPerDay + p).value = v || null; }));
+      const periodCount = g.reduce((sum, day) => sum + day.filter(Boolean).length, 0);
       const a = ws.getCell(r, 4).address, b = ws.getCell(r, 3 + dayCols).address;
-      row.getCell(lastCol).value = { formula: `COUNTA(${a}:${b})` };
+      row.getCell(lastCol).value = { formula: `COUNTA(${a}:${b})`, result: periodCount };
       for (let c = 1; c <= lastCol; c++) {
         const cell = row.getCell(c);
         cell.border = border;
